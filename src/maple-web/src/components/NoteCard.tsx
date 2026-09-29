@@ -2,7 +2,9 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Archive, ArchiveRestore, Copy, MoreHorizontal, Pencil, Pin, PinOff, Trash2, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { formatAbsolute, formatRelative } from "../lib/format";
+import { usePreferences } from "../lib/preferences";
 import { useDeleteNote, usePatchNote } from "../lib/queries";
+import { splitTitle } from "../lib/titles";
 import type { Note } from "../lib/types";
 import { AttachmentGallery } from "./AttachmentGallery";
 import { Composer } from "./Composer";
@@ -45,6 +47,8 @@ export function NoteCard({ note }: { note: Note }) {
   const patch = usePatchNote();
   const remove = useDeleteNote();
   const toast = useToast();
+  const { noteTitles } = usePreferences();
+  const { title, body } = noteTitles ? splitTitle(note.content) : { title: "", body: note.content };
   const edited = new Date(note.updatedAtUtc).getTime() - new Date(note.createdAtUtc).getTime() > 60_000;
 
   function change(changes: { isPinned?: boolean; isArchived?: boolean }, message: string) {
@@ -120,7 +124,8 @@ export function NoteCard({ note }: { note: Note }) {
         </div>
       </header>
 
-      {note.content.trim() && <Markdown content={note.content} />}
+      {title && <h3 className="mb-1 break-words text-lg font-semibold leading-snug">{title}</h3>}
+      {body.trim() && <Markdown content={body} />}
       <AttachmentGallery attachments={note.attachments} />
 
       <ConfirmDialog
