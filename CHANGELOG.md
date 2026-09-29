@@ -44,3 +44,11 @@ Work toward v1.0.0. Entries move under a version heading at release.
   HTTPS, long-lived caching for fingerprinted assets.
 - OpenAPI document with XML documentation and an interactive API reference (`/scalar`) in Development or with
   `MAPLE_API_DOCS=true`.
+- Web app: first-run setup, sign-in and registration screens; home feed with a quick-post composer, pinned notes
+  and infinite scroll; Markdown rendering with clickable `#tags`; inline editing; pin, archive, restore and delete
+  (with confirmation); attachments by file picker, paste or drag-and-drop with upload progress, image previews,
+  and inline image, video and audio players; search; tag list; archive view; settings for password, sessions and
+  administration.
+- Mobile-first responsive layout (navigation drawer on phones, sidebar on wide screens), light and dark themes
+  following the system, keyboard shortcuts (Ctrl/⌘+Enter to post, Esc to cancel an edit), accessible dialogs and
+  menus, reduced-motion support.

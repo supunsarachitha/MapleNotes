@@ -55,16 +55,20 @@ the export. Decrypted content never touches disk.
 
 ## Phases
 
-| # | Phase | Done when |
-|---|---|---|
-| 0 | Foundation and SQLCipher spike | `docker compose up` serves the app and `/healthz`; DB file unreadable without the key |
-| 1 | Persistence and crypto core | Crypto tests pass: round-trip, wrong key, tampering, truncation, reordering, empty and large files |
-| 2 | Authentication and users | Integration tests pass, including cross-user access denial |
-| 3 | Notes and attachments API | Integration tests pass; OpenAPI docs render |
-| 4 | Frontend | Full CRUD and attachments work at 375 px and on desktop; Vitest tests pass |
-| 5 | Encryption toggle and migration | Tests cover mixed data and a simulated crash mid-migration |
-| 6 | Export | Tests verify ZIP structure, decrypted content and links for every format and layout |
-| 7 | Hardening, docs and release | From a clean clone: `compose up`, register, post, export all work end to end |
+Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ not started
+
+| # | Phase | Done when | Status |
+|---|---|---|---|
+| 0 | Foundation and SQLCipher spike | `docker compose up` serves the app and `/healthz`; DB file unreadable without the key | ✅ Done (`3a46add`) |
+| 1 | Persistence and crypto core | Crypto tests pass: round-trip, wrong key, tampering, truncation, reordering, empty and large files | ✅ Done (`4690bdb`) |
+| 2 | Authentication and users | Integration tests pass, including cross-user access denial | ✅ Done (`4690bdb`) |
+| 3 | Notes and attachments API | Integration tests pass; OpenAPI docs render | ✅ Done (`ae9cab5`) |
+| 4 | Frontend | Full CRUD and attachments work at 375 px and on desktop; Vitest tests pass | ✅ Done (Phase 4 commit) |
+| 5 | Encryption toggle and migration | Tests cover mixed data and a simulated crash mid-migration | 🚧 In progress |
+| 6 | Export | Tests verify ZIP structure, decrypted content and links for every format and layout | ⏳ Not started |
+| 7 | Hardening, docs and release | From a clean clone: `compose up`, register, post, export all work end to end | ⏳ Not started |
+
+Phases 1 and 2 share one commit because the application wiring in `Program.cs` spans both.
 
 ## Out of scope for v1
 
