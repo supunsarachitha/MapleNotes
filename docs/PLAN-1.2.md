@@ -63,7 +63,7 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 | F5 | Daily notes | Home's "Today" card creates the day's note on first write; one daily note per date is enforced; the setting (off by default) | ✅ Done |
 | F6 | Exports with kinds and daily notes | Server and browser exports record kind and daily date, and place todo lists and quick notes in their folders (manifest version 2). The shared export vectors cover the new data | ✅ Done |
 | F7 | Import and full restore | Export archives in every format and layout, and single `.md`/`.txt`/`.json` files, restore into any account, including end-to-end ones, with progress and a summary. Re-importing skips existing notes. Round-trip tests: export → import into a fresh account → identical export | ✅ Done |
-| F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ⏳ Not started |
+| F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ✅ Done |
 
 ### Notes from the phases
 
@@ -140,6 +140,13 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   - an end-to-end account on a fresh instance restores the same archive, stored as ciphertext, and its browser
     export matches too;
   - an end-to-end account whose IDs were already taken on its instance restores everything under new IDs.
+- **F8:** the review added two limits. Restored edit times are never in the future, and the browser's ZIP reader
+  refuses entries claiming more than 2 GiB rather than exhausting memory. Everything else in the new surface was
+  already validated: text length and ciphertext, attachment ownership, kinds, IDs, dates, the preference date
+  formats, and 500 IDs per existing-notes check, which only ever reports the caller's own. Verified on an image built
+  from a clean clone of the branch: 355 server and 156 web tests, and 140 browser checks in Chromium across 14 runs.
+  The runs cover every 1.1 suite (the 18-step suite, the 1.0 upgrade, keys, notes, media, the built worker, mode
+  changes and export) and every 1.2 phase (F2–F7).
 
 ## Out of scope for 1.2.0
 

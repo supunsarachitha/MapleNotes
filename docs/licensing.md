@@ -113,6 +113,6 @@ not affect the license of Maple Notes' own code; their sources are available fro
 
 ## Before public release
 
-- [x] Regenerate `THIRD-PARTY-NOTICES.md` from the exact dependency versions being released (done for v1.0.0 and v1.1.0).
+- [x] Regenerate `THIRD-PARTY-NOTICES.md` from the exact dependency versions being released (done for v1.0.0, v1.1.0 and v1.2.0).
 - [ ] Put the copyright holder's legal name in the `Required Notice` line of `LICENSE`.
 - [ ] Search trademark databases (for example USPTO, EUIPO, WIPO) for "Maple Notes" in software classes.

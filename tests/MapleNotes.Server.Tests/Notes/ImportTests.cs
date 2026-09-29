@@ -96,6 +96,16 @@ public sealed class ImportTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Edit_times_keep_their_order_and_never_lie_in_the_future()
+    {
+        var backwards = await Import(new ImportNoteRequest(Updated, Created, Guid.CreateVersion7(), "edited before created"));
+        var future = await Import(new ImportNoteRequest(Created, DateTime.UtcNow.AddYears(5), Guid.CreateVersion7(), "edited in 2031"));
+
+        Assert.Equal(backwards.CreatedAtUtc, backwards.UpdatedAtUtc);
+        Assert.True(future.UpdatedAtUtc <= DateTime.UtcNow);
+    }
+
+    [Fact]
     public async Task Invalid_imports_are_rejected()
     {
         var future = await _client.PostJsonAsync("/api/v1/notes/import", new ImportNoteRequest(DateTime.UtcNow.AddDays(3), DateTime.UtcNow.AddDays(3), Content: "x"));

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-29
+
+Titles, todo lists, quick notes, daily notes, and restoring from exports. Every feature works in all three encryption
+modes, and each account chooses which ones it uses.
+
+### Added
+
+- **Preferences** per account, shared by all of its devices: `GET`/`PUT /api/v1/account/preferences`, also returned
+  with the signed-in user.
+- **Note titles** (Settings → Writing, off by default): a title field when writing, stored as the note's first line as
+  a Markdown heading. Titles can start with today's date in one of eight formats.
+- **Todo lists** (Settings → Features, on by default): a Todo tab for checklists. Add, tick, edit and remove items;
+  rename, clear completed, pin, archive and delete lists.
+- **Quick notes** (on by default): a Quick notes tab for short notes kept out of the timeline, which can move to Home
+  and back.
+- **Daily notes** (off by default): today's note at the top of Home, titled with the date and saved when you first
+  write. There is one per day, also when two devices start it at once.
+- **Restore** (Settings → Backup & restore): bring back Maple Notes exports (`.zip`, any format and layout, with
+  attachments) and single `.md`, `.txt` and `.json` files. Notes keep their ID, dates, pinned and archived state, kind
+  and daily date. Notes you already have are skipped. For end-to-end accounts the browser encrypts everything first.
+- API: notes have a `kind` (`Note`, `Todo`, `Quick`) and a `dailyDate`. `GET /api/v1/notes` and `GET /api/v1/tags`
+  take repeatable `kind` parameters. New endpoints: `GET /api/v1/notes/daily/{date}`, `POST /api/v1/notes/import` and
+  `POST /api/v1/notes/import/existing`.
+
+### Changed
+
+- **Settings layout:** Account, Writing, Features, Backup & restore and Password come first. Encryption, the recovery
+  key, sessions and account deletion are in a collapsible **Advanced** section, which opens by itself while an
+  encryption change is being applied.
+- **Exports** record each note's kind and daily date in every format, and file todo lists and quick notes under
+  `todo/` and `quick-notes/`. The manifest is version 2.
+- Searches, tag views, tag counts and the archive cover every kind of note that is turned on, with todo lists and
+  quick notes labelled.
+
 ## [1.1.0] - 2026-09-29
 
 End-to-end encryption: an account can now have its notes, tags and files encrypted in the browser with a key the
@@ -124,6 +158,7 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/supunsarachitha/MapleNotes/releases/tag/v1.0.0

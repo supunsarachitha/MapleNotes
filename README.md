@@ -6,7 +6,7 @@
 
 <p align="center">
   A self-hosted place for quick notes, encrypted at rest or end to end.<br>
-  Timeline feed · Markdown and #tags · attachments · export to Markdown, text or JSON · one Docker container.
+  Timeline feed · todo lists · daily notes · Markdown and #tags · attachments · export and restore · one Docker container.
 </p>
 
 <p align="center">
@@ -22,6 +22,13 @@
 - **Timeline feed.** Newest notes first, a quick-post box at the top, pinned notes above the feed, and infinite
   scroll that stays stable while new notes arrive.
 - **Full note lifecycle.** Create, edit inline, pin, archive (and restore), and delete (with confirmation).
+- **Titles and dates.** Optionally give notes a title, which can start with today's date in the format you choose.
+- **Todo lists.** A Todo tab for checklists: add items, tick them off, rename, pin and archive lists.
+- **Quick notes.** A scratchpad tab for short notes that stay out of your timeline; move one to Home when it is worth
+  keeping.
+- **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.
+- **Your choice of features.** Each account turns titles, todo lists, quick notes and daily notes on or off in
+  Settings, on every device at once. Turning a feature off hides it and deletes nothing.
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists, tables, code) and clickable `#tags`, including
   nested tags such as `#work/meetings`, with a tag list and tag filter.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
@@ -35,18 +42,19 @@
   - **End-to-end**: your browser encrypts notes, tags, file names and files with a key only you hold. The server
     stores ciphertext it cannot read, and a recovery key lets you reset a forgotten password.
   - Changing mode converts existing notes and files safely, resuming if it is interrupted.
-- **Export.** Download everything, decrypted, as a ZIP of Markdown, plain text or JSON files, in flat or
-  year/month/day folders. Attachments are included and linked by relative path. With end-to-end encryption, your
-  browser builds the same archive itself.
+- **Export and restore.** Download everything, decrypted, as a ZIP of Markdown, plain text or JSON files, in flat or
+  year/month/day folders, with attachments linked by relative path. Restore such an export into any account, even on
+  another server: notes keep their dates, pins, archive state, kind and files, and notes you already have are skipped.
+  Single Markdown, text and JSON files can be added too. With end-to-end encryption, your browser does both.
 - **Accounts.** Multiple users with secure authentication. The first account becomes the administrator, who can open
   registration, disable or remove accounts, and appoint other administrators. Administrators never see anyone's notes.
 - **Mobile first.** Responsive design with light and dark themes that follow your system, keyboard shortcuts, and
   accessible menus and dialogs.
 - **Small and hardened.** One container: non-root, read-only root filesystem, built-in health check.
 
-| Mobile | Settings |
-|---|---|
-| ![Mobile View](docs/screenshots/mobile-view.png) | ![Settings](docs/screenshots/settings.png) |
+| Mobile | Todo lists | Settings |
+|---|---|---|
+| ![Mobile View](docs/screenshots/mobile-view.png) | ![Todo lists](docs/screenshots/todo.png) | ![Settings](docs/screenshots/settings.png) |
 
 Dark mode: [screenshot](docs/screenshots/home-feed-dark.png).
 
@@ -130,8 +138,10 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 
 **What this protects:**
 - Anyone who gets a copy of your disk, volume or backups without the master key sees only ciphertext.
-- With end-to-end encryption, even the server cannot read your notes, tags, file names or files. Someone with the
-  master key, the database or full control of the server's data sees only ciphertext, sizes and timestamps.
+- With end-to-end encryption, even the server cannot read your notes, titles, todo items, tags, file names or files.
+  Someone with the master key, the database or full control of the server's data sees only ciphertext, sizes,
+  timestamps, which kind each note is (timeline, todo list or quick note), which days have a daily note, and your
+  feature settings.
 
 **What it does not protect:**
 - Without end-to-end encryption, the server holds the keys while it runs, so someone who controls the running server,
@@ -151,6 +161,9 @@ on the sign-in page and enter your recovery key: you set a new password and get 
 end-to-end encryption cannot reset a forgotten password; keep it in a password manager.
 
 ## Backups
+
+Every user can download their own notes from **Settings → Backup & restore** and restore them there, into the same
+account or a new one on any Maple Notes 1.2 server. For the whole instance, back up the data volume.
 
 Everything lives in the data volume. A consistent backup while Maple Notes keeps running:
 
@@ -184,6 +197,12 @@ docker compose up -d --build
 ```
 
 Database migrations run automatically at startup, after an automatic backup.
+
+### From 1.1 to 1.2
+
+Nothing to do. Existing notes stay in the timeline, and every account starts with todo lists and quick notes turned
+on, and titles and daily notes off. Exports now record each note's kind and daily date (manifest version 2), and
+file todo lists and quick notes in their own folders. The API only gained fields and endpoints.
 
 ### From 1.0 to 1.1
 

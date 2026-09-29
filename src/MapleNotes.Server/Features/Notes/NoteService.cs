@@ -278,6 +278,8 @@ public sealed class NoteService(
             throw new ApiValidationException("createdAtUtc", "A note cannot have been created in the future.");
         }
 
+        // Edit times never lie in the future, nor before the note was created.
+        updated = updated > now ? now : updated;
         updated = updated < created ? created : updated;
         if (request.Id is { } requested && await GetAsync(userId, requested, cancellationToken) is { } existing)
         {

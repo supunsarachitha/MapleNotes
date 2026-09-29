@@ -49,7 +49,7 @@ key. It can never unwrap it.
 | Can see | Cannot see |
 |---|---|
 | When notes were created and edited, their sizes and how many there are | Note text |
-| Pinned and archived flags | Tag names (it sees opaque tokens, and which notes share one) |
+| Pinned and archived flags; since 1.2, each note's kind, daily notes' dates and the account's preferences | Tag names (it sees opaque tokens, and which notes share one) |
 | Attachment sizes and upload times | Attachment contents, file names and types |
 | Sign-in times and IP addresses | The password or any key that decrypts content |
 

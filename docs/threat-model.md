@@ -145,6 +145,8 @@ the password to the server one last time.
 | Number of notes and files, and when each was created and updated (also encoded in their IDs) | Tag names |
 | Approximate length of each note and exact size of each file (ciphertext is not padded) | File names, types and contents |
 | Which notes are pinned or archived, and which files belong to which note | Search queries |
+| Which notes are todo lists or quick notes, and which days have a daily note | Titles and todo items (they are part of the note's text) |
+| The account's preferences: whether titles, todo lists, quick notes and daily notes are on, and the date format | |
 | Which notes share a tag, and how many notes each tag has (tag tokens are deterministic per account) | The password, the data key, the recovery key |
 | Which notes and files the browser loads, and which tag token a filter uses | |
 
@@ -155,7 +157,10 @@ server cannot learn a tag's name, but it can see that two notes share one. Token
 
 - **The code comes from the server.** See [above](#a-server-that-is-compromised-and-changes-the-app). This is the
   largest gap and it is inherent to a browser app served by the same host.
-- **Metadata is visible.** Sizes, timestamps, structure and tag equality are listed above.
+- **Metadata is visible.** Sizes, timestamps, structure, kinds, daily dates, preferences and tag equality are listed
+  above.
+- **Restoring an export sends it through this browser.** Exports are decrypted by design, so the archive being
+  restored is plain text on the device until it is encrypted and sent.
 - **Integrity covers items, not the collection.** Deleted, withheld or rolled-back notes cannot be detected.
 - **The recovery key is as powerful as the password.** Anyone who has it can reset the password, sign in and read
   everything. It is shown once; store it offline. It can be replaced in Settings, which makes the old one useless.

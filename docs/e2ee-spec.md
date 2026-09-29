@@ -85,6 +85,15 @@ headers, tokens and the ID, and answers ciphertext from an account in another mo
 search (`q`) never matches an end-to-end note: the browser searches instead, scanning pages of notes and returning the
 matches with the cursor to continue from, and never sends the search text.
 
+**Metadata that stays plain (since 1.2).** A note's `kind` (`Note`, `Todo`, `Quick`) and a daily note's `dailyDate`
+are stored and sent in plain form, like the pinned and archived flags, and so are the account's preferences. Titles
+and todo items are part of the note text, so they are encrypted with it.
+
+**Restoring an export.** `POST /api/v1/notes/import` takes the same `{ id, encrypted }` fields, with the note's
+original ID. That ID must be a UUID version 7 but, unlike a new note's, may be old (not more than 24 hours in the
+future). If another account on the server uses the ID, the answer is 409, and the browser encrypts the note again for
+a new ID (the context binds the ID, so the ciphertext cannot simply be reused).
+
 ## 3. The E2EE data key and its subkeys
 
 The data key is 32 random bytes generated in the browser when E2EE is switched on. It never leaves the browser

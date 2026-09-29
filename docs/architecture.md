@@ -2,7 +2,7 @@
 
 This document describes how Maple Notes is built and why. It is written for contributors and for operators who
 want to understand exactly what the encryption does and does not protect. The plans and history live in
-[PLAN.md](PLAN.md), [PLAN-E2EE.md](PLAN-E2EE.md) and [../CHANGELOG.md](../CHANGELOG.md). The end-to-end encryption
+[PLAN.md](PLAN.md), [PLAN-E2EE.md](PLAN-E2EE.md), [PLAN-1.2.md](PLAN-1.2.md) and [../CHANGELOG.md](../CHANGELOG.md). The end-to-end encryption
 formats are specified in [e2ee-spec.md](e2ee-spec.md), and what they protect against in
 [threat-model.md](threat-model.md). Third-party licensing is in [licensing.md](licensing.md).
 
@@ -37,14 +37,16 @@ flowchart LR
 | Path | Contents |
 |---|---|
 | `src/MapleNotes.Server/Program.cs` | Entry point: command-line modes, middleware pipeline, service registration. |
-| `src/MapleNotes.Server/Domain/` | Entities: `User`, `Note`, `Attachment`, `Tag`, `InstanceSetting`. |
-| `src/MapleNotes.Server/Features/` | One folder per feature: `Auth`, `Admin`, `Notes`, `Attachments`, `Encryption`, `EndToEnd` (key material, recovery, browser conversion), `Export`. Each has its controller, request/response records and service. |
+| `src/MapleNotes.Server/Domain/` | Entities: `User` (with `UserPreferences`), `Note` (with `NoteKind`), `Attachment`, `Tag`, `InstanceSetting`. |
+| `src/MapleNotes.Server/Features/` | One folder per feature: `Auth`, `Admin`, `Notes` (including daily notes and restoring), `Attachments`, `Encryption`, `EndToEnd` (key material, recovery, browser conversion), `Export`, `Preferences`. Each has its controller, request/response records and service. |
 | `src/MapleNotes.Server/Infrastructure/` | Cross-cutting code: `Configuration`, `Crypto`, `Persistence` (EF Core, migrations, backups), `Storage` (attachment files), `Hosting`, `Web` (auth, antiforgery, security headers, rate limits). |
 | `src/maple-web/` | React + TypeScript + Vite + Tailwind CSS single-page app. |
 | `src/maple-web/src/crypto/` | Browser cryptography: Argon2id in a Web Worker, HKDF, envelopes, the attachment format, recovery keys, key storage, and the shared test vectors. |
 | `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`). |
 | `src/maple-web/src/sw/` | The service worker (`/sw.js`, built separately by `vite.sw.config.ts`): decrypts end-to-end media and streams browser exports. |
 | `src/maple-web/src/export/` | The browser export, a port of the server's, with the shared export vectors. |
+| `src/maple-web/src/import/` | Restoring: a ZIP reader, the parser for every export format and for single files, and the runner that restores notes through the API. |
+| `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Archive, Settings, and the sign-in, unlock and recovery screens. |
 | `tests/MapleNotes.Server.Tests/` | Unit and integration tests (xUnit v3, `WebApplicationFactory`). |
 | `scripts/` | License check and third-party notice generator. |
 
@@ -61,8 +63,8 @@ carry a valid antiforgery token. Both are enforced globally, so a new endpoint i
 
 | Entity | Notes |
 |---|---|
-| `User` | Username (unique, case-insensitive), PBKDF2 hash of the key derived from the password with its Argon2id salt and parameters, role, encryption mode (`Off`, `AtRest`, `EndToEnd`), server-held wrapped data key (absent once an end-to-end account needs none), end-to-end key material (the browser's data key wrapped by the password and by the recovery key, and a hash of the recovery authentication key), security stamp, lockout state. |
-| `Note` | Owner, content bytes, `Scheme` (`None`, `Server`, `EndToEnd`), pinned, `ArchivedAtUtc` (archive = soft delete), timestamps, `Revision` (concurrency token). |
+| `User` | Username (unique, case-insensitive), PBKDF2 hash of the key derived from the password with its Argon2id salt and parameters, role, encryption mode (`Off`, `AtRest`, `EndToEnd`), server-held wrapped data key (absent once an end-to-end account needs none), end-to-end key material (the browser's data key wrapped by the password and by the recovery key, and a hash of the recovery authentication key), security stamp, lockout state, and `Preferences` (titles, date format, which features are on; one JSON column, plain in every mode). |
+| `Note` | Owner, content bytes, `Scheme` (`None`, `Server`, `EndToEnd`), `Kind` (`Note` for the timeline, `Todo`, `Quick`), `DailyDate` (a daily note's day; unique per owner), pinned, `ArchivedAtUtc` (archive = soft delete), timestamps, `Revision` (concurrency token). A title is not a column: it is the text's first line written as a `# heading`, and a todo list is a Markdown task list, so both are encrypted, searched and exported like any text. |
 | `Attachment` | Owner, optional note, sanitized file name, content type, size, storage key, `Scheme`, `Revision`. End-to-end files store a placeholder name and type, and their real ones encrypted in `EncryptedMetadata`. |
 | `Tag` / `NoteTags` | Per-user tags parsed from `#tags` in note text. Tags of end-to-end notes have no name: a blind token (HMAC) and the name encrypted by the browser. |
 | `InstanceSetting` | Runtime settings changed by administrators (open registration). |
@@ -73,7 +75,9 @@ by the signed-in owner; requests for another user's items return 404, never 403,
 ### Feed pagination
 
 The feed uses keyset (cursor) pagination on `(CreatedAtUtc, Id)` descending, backed by an index on
-`(UserId, CreatedAtUtc, Id)`. A cursor is the position of the last item shown, so notes posted while the user scrolls
+`(UserId, CreatedAtUtc, Id)`, and one on `(UserId, Kind, CreatedAtUtc, Id)` for the timeline and the Todo and Quick
+notes tabs, which each list one kind. Searches, tag views, tag counts and the archive cover every kind the user has
+turned on. A cursor is the position of the last item shown, so notes posted while the user scrolls
 never shift later pages. Pinned notes are a separate list shown above the feed.
 
 Search runs over decrypted text, so it cannot use the database. It scans the user's notes in batches of 200 and
@@ -279,8 +283,10 @@ the worker, the page decrypts whole files into `blob:` URLs ([e2ee-spec.md §5](
 `GET /api/v1/export` streams a ZIP archive. Notes are read in batches of 200 in chronological order and decrypted in
 memory, and attachments are decrypted chunk by chunk. File names derive from the note's local creation time and first
 line (`2026-09-28_1430_buy-maple-syrup.md`). They are safe on Windows, macOS and Linux, and made unique
-case-insensitively. Folders follow the chosen layout. Attachments go to `attachments/` and are linked from notes by
-relative path. `manifest.json` describes the export and lists any damaged files.
+case-insensitively. Folders follow the chosen layout; todo lists and quick notes go under `todo/` and
+`quick-notes/`. Attachments go to `attachments/` and are linked from notes by relative path. Every format records
+each note's ID (the manifest does for plain text), kind and daily date. `manifest.json` (version 2) describes the
+export, lists every note, and lists any damaged files.
 
 .NET's `ZipArchive` still performs some synchronous writes internally, which ASP.NET Core forbids on the response. The
 archive is therefore produced on a background task into a bounded in-memory pipe (about 1 MB) that the request copies
@@ -294,6 +300,24 @@ daylight-saving change, slug collisions, Unicode, awkward file names) into `expo
 reproduce all 12 format and layout combinations entry by entry. The archive is streamed to disk through the media
 service worker (`/e2ee/export/{id}`, opened in a hidden iframe, since browsers do not pass `<a download>` requests to
 service workers); without the worker it is assembled in memory.
+
+## Restore
+
+Restoring is done by the browser for every account, so end-to-end accounts work the same way
+(`src/maple-web/src/import`). It reads Maple Notes exports in any format and layout, and single Markdown, text and JSON
+files; a ZIP without a manifest is read as a folder of such files. A small ZIP reader reads the archive's central
+directory, then one entry at a time from the chosen file, so a large export is never held in memory whole.
+
+The browser first asks `POST /api/v1/notes/import/existing` which of the export's note IDs the account already has, and
+skips those. For the rest it uploads each note's files like any upload, then sends the note to
+`POST /api/v1/notes/import` with its original ID, dates, pinned and archived state, kind and daily date, as plain text
+or, for end-to-end accounts, encrypted in the browser for that ID. The server never reuses another account's ID and
+never says whether one exists: a plain note gets a new ID, and an end-to-end note answers 409 and is encrypted again
+for a new one. A daily date already taken in the account is dropped, so the note arrives as an ordinary one.
+
+The web tests restore every archive in the shared export vectors and compare each note with the original, and a
+browser test restores an export into fresh instances (one of them end-to-end) and exports them again, getting the same
+archive.
 
 ## Background services
 
@@ -319,12 +343,12 @@ service workers); without the worker it is assembled in memory.
 
 ## Testing
 
-- **Server:** about 330 xUnit tests.
+- **Server:** about 355 xUnit tests.
   - Crypto primitives, including tampering, truncation, reordering, wrong keys and every chunk boundary.
   - The storage layer and startup, including the upgrade of a 1.0 database.
   - API behaviour through `WebApplicationFactory`: authentication (key-derived sign-in, legacy upgrade, unknown
     users), isolation between users, notes, attachments, encryption migration with crash simulation, and export across
-    every format and layout.
+    every format and layout; preferences, kinds, daily notes (including two devices at once) and restoring.
   - End-to-end encryption, with a C# implementation of the browser's side: key setup, unlock, recovery, notes, tags
     and files as ciphertext, conversion in both directions (interrupted, concurrent edits, key cleanup), and a scan of
     the raw database for the plain text.
@@ -332,11 +356,13 @@ service workers); without the worker it is assembled in memory.
 - **Shared vectors:** `test-vectors.json` (every end-to-end derivation and format) and `export-vectors.json` (the
   server's export archives) are written by the C# tests and checked by the web tests, so both implementations agree
   byte for byte.
-- **Web:** about 105 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
-  conversion, the service worker's range decryption, the browser export against the server's archives, Markdown
-  safety, composer, and the settings and recovery screens.
+- **Web:** about 155 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
+  conversion, the service worker's range decryption, the browser export against the server's archives, restoring
+  those archives, Markdown safety, the composer with titles, todo lists, quick and daily notes, preferences, and the
+  settings and recovery screens.
 - **Releases:** additionally tested in a real browser (Playwright, Chromium) against the built container at desktop
-  and 375 px widths, including end-to-end setup, unlock, recovery, video seeking, mode changes and export.
+  and 375 px widths, including end-to-end setup, unlock, recovery, video seeking, mode changes, export, the 1.2
+  features, and export → restore round trips.
 
 ## Operations
 
