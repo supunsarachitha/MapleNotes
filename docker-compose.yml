@@ -21,6 +21,7 @@ services:
       MAPLE_MAX_UPLOAD_MB: ${MAPLE_MAX_UPLOAD_MB:-25}
       MAPLE_DEFAULT_ENCRYPTION: ${MAPLE_DEFAULT_ENCRYPTION:-true}
       MAPLE_TRUSTED_PROXIES: ${MAPLE_TRUSTED_PROXIES:-}
+      MAPLE_LINK_PREVIEWS: ${MAPLE_LINK_PREVIEWS:-true}
     volumes:
       - maple-data:/app/data
     # Hardening: read-only root filesystem, no Linux capabilities, no privilege escalation.
