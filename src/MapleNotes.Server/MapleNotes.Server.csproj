@@ -8,6 +8,16 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite.Core" />
     <PackageReference Include="SQLite3MC.PCLRaw.bundle" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+  </ItemGroup>
+
+  <!--
+    Design-time only: needed by `dotnet ef migrations`. Referenced in Debug builds so that Release (published) output
+    does not ship the EF design assemblies. The Dockerfile restores with Configuration=Release to match.
+  -->
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,13 +1,14 @@
 using System.Net;
+using System.Text;
 using MapleNotes.Server.Infrastructure.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
+using MapleNotes.Server.Tests.TestSupport;
 
 namespace MapleNotes.Server.Tests.Hosting;
 
-public sealed class HostingTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public sealed class HostingTests(MapleAppFactory factory) : IClassFixture<MapleAppFactory>
 {
     [Fact]
-    public async Task Healthz_reports_healthy()
+    public async Task Healthz_reports_healthy_once_the_database_is_ready()
     {
         using var client = factory.CreateClient();
 
@@ -15,6 +16,23 @@ public sealed class HostingTests(WebApplicationFactory<Program> factory) : IClas
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("Healthy", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Startup_creates_an_encrypted_database_in_the_data_directory()
+    {
+        using var client = factory.CreateClient();
+        await client.GetAsync("/healthz", TestContext.Current.CancellationToken);
+
+        var database = Path.Combine(factory.DataDirectory, "maple.db");
+        Assert.True(File.Exists(database));
+        var header = new byte[15];
+        await using (var file = new FileStream(database, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        {
+            file.ReadExactly(header);
+        }
+
+        Assert.NotEqual("SQLite format 3", Encoding.ASCII.GetString(header));
     }
 
     [Fact]

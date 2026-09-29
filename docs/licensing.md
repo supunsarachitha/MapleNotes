@@ -14,7 +14,9 @@ high-stakes distribution.
    `python3 scripts/check-licenses.py`. It fails on any shipped dependency outside the allowed list and on
    any denied license anywhere.
 3. **Notices ship with the product.** `THIRD-PARTY-NOTICES.md` lists every shipped component with its
-   license and copyright line, and is copied into the container image.
+   license text, and is copied into the container image at `/app/licenses/`. Regenerate it whenever dependencies
+   change: `python3 scripts/check-licenses.py --notices THIRD-PARTY-NOTICES.md`. "Shipped" is taken from a Release
+   publish's `deps.json` (exactly what goes into the image) and from the non-dev packages in `package-lock.json`.
 4. **No code, text, logos or screenshots are copied from other projects**, including memos. Maple Notes
    is inspired by memos' feature set only.
 5. **Third-party names are used only to describe compatibility**, never to imply endorsement.
@@ -87,5 +89,6 @@ not affect the license of Maple Notes' own code; their sources are available fro
 
 ## Before public release
 
-- Regenerate `THIRD-PARTY-NOTICES.md` from the exact dependency versions being released.
-- Search trademark databases (for example USPTO, EUIPO, WIPO) for "Maple Notes" in software classes.
+- [x] Regenerate `THIRD-PARTY-NOTICES.md` from the exact dependency versions being released (done for v1.0.0).
+- [ ] Put the copyright holder's legal name in the `Required Notice` line of `LICENSE`.
+- [ ] Search trademark databases (for example USPTO, EUIPO, WIPO) for "Maple Notes" in software classes.

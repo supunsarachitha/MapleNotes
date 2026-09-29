@@ -13,8 +13,93 @@
   --color-maple-600: #8f1d21;
   --color-maple-700: #731619;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-stone-100 antialiased dark:bg-stone-950;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Rendered note Markdown. Compact, feed-style typography. */
+.markdown {
+  @apply text-[15px] leading-relaxed break-words text-stone-900 dark:text-stone-100;
+}
+.markdown > * + * {
+  @apply mt-3;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  @apply font-semibold leading-snug;
+}
+.markdown h1 {
+  @apply text-xl;
+}
+.markdown h2 {
+  @apply text-lg;
+}
+.markdown h3,
+.markdown h4 {
+  @apply text-base;
+}
+.markdown a {
+  @apply text-maple-700 underline decoration-maple-700/30 underline-offset-2 hover:decoration-maple-700 dark:text-maple-400 dark:decoration-maple-400/40;
+}
+.markdown a.tag {
+  @apply rounded bg-maple-50 px-1 no-underline hover:bg-maple-100 dark:bg-maple-600/15 dark:hover:bg-maple-600/25;
+}
+.markdown ul {
+  @apply list-disc pl-6;
+}
+.markdown ol {
+  @apply list-decimal pl-6;
+}
+.markdown li + li {
+  @apply mt-1;
+}
+.markdown li.task-list-item {
+  @apply list-none -ml-6 flex items-start gap-2;
+}
+.markdown li.task-list-item input {
+  @apply mt-1.5 size-4 accent-maple-600;
+}
+.markdown blockquote {
+  @apply border-l-4 border-stone-300 pl-4 text-stone-600 dark:border-stone-700 dark:text-stone-300;
+}
+.markdown code {
+  @apply rounded bg-stone-100 px-1 py-0.5 font-mono text-[0.9em] dark:bg-stone-800;
+}
+.markdown pre {
+  @apply overflow-x-auto rounded-xl bg-stone-100 p-3 text-sm dark:bg-stone-800;
+}
+.markdown pre code {
+  @apply bg-transparent p-0;
+}
+.markdown table {
+  @apply block max-w-full overflow-x-auto border-collapse text-sm;
+}
+.markdown th,
+.markdown td {
+  @apply border border-stone-200 px-2 py-1 text-left dark:border-stone-700;
+}
+.markdown hr {
+  @apply border-stone-200 dark:border-stone-700;
+}
+.markdown img {
+  @apply max-w-full rounded-lg;
 }

@@ -1,7 +1,7 @@
 # Maple Notes: development plan
 
-Approved 2026-09-28. This is the working plan for v1.0.0. The architecture reference lives in
-[architecture.md](architecture.md) once Phase 7 lands.
+Approved 2026-09-28. This is the working plan for v1.0.0; all phases are complete. The architecture reference
+is [architecture.md](architecture.md).
 
 ## Decisions
 
@@ -55,16 +55,30 @@ the export. Decrypted content never touches disk.
 
 ## Phases
 
-| # | Phase | Done when |
-|---|---|---|
-| 0 | Foundation and SQLCipher spike | `docker compose up` serves the app and `/healthz`; DB file unreadable without the key |
-| 1 | Persistence and crypto core | Crypto tests pass: round-trip, wrong key, tampering, truncation, reordering, empty and large files |
-| 2 | Authentication and users | Integration tests pass, including cross-user access denial |
-| 3 | Notes and attachments API | Integration tests pass; OpenAPI docs render |
-| 4 | Frontend | Full CRUD and attachments work at 375 px and on desktop; Vitest tests pass |
-| 5 | Encryption toggle and migration | Tests cover mixed data and a simulated crash mid-migration |
-| 6 | Export | Tests verify ZIP structure, decrypted content and links for every format and layout |
-| 7 | Hardening, docs and release | From a clean clone: `compose up`, register, post, export all work end to end |
+Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ not started
+
+| # | Phase | Done when | Status |
+|---|---|---|---|
+| 0 | Foundation and SQLCipher spike | `docker compose up` serves the app and `/healthz`; DB file unreadable without the key | ✅ Done (`3a46add`) |
+| 1 | Persistence and crypto core | Crypto tests pass: round-trip, wrong key, tampering, truncation, reordering, empty and large files | ✅ Done (`4690bdb`) |
+| 2 | Authentication and users | Integration tests pass, including cross-user access denial | ✅ Done (`4690bdb`) |
+| 3 | Notes and attachments API | Integration tests pass; OpenAPI docs render | ✅ Done (`ae9cab5`) |
+| 4 | Frontend | Full CRUD and attachments work at 375 px and on desktop; Vitest tests pass | ✅ Done (`187a7a0`) |
+| 5 | Encryption toggle and migration | Tests cover mixed data and a simulated crash mid-migration | ✅ Done (`a6d19b3`) |
+| 6 | Export | Tests verify ZIP structure, decrypted content and links for every format and layout | ✅ Done (`f079dff`) |
+| 7 | Hardening, docs and release | From a clean clone: `compose up`, register, post, export all work end to end | ✅ Done (`d74ecb2`) |
+
+Phases 1 and 2 share one commit because the application wiring in `Program.cs` spans both.
+
+Release verification (2026-09-28): a fresh clone of `d74ecb2`, started with `docker compose up -d --build` as the
+README describes, passed an 18-step browser run covering the desktop, dark mode and 375 px phone layouts. The run
+covered:
+- setup and sign-in;
+- posting, attachments, pinning, tags, search, editing, archiving, deleting and infinite scroll;
+- switching encryption off and on;
+- a real export download, whose notes, relative links and attachment bytes were checked independently.
+
+No browser console errors, CSP violations or server errors were recorded.
 
 ## Out of scope for v1
 
