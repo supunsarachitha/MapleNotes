@@ -7,7 +7,7 @@ import { formatBytes } from "../lib/format";
 import { usePreferences } from "../lib/preferences";
 import { useInvalidateNotes } from "../lib/queries";
 import { joinTitle, splitTitle } from "../lib/titles";
-import type { Attachment, Note } from "../lib/types";
+import type { Attachment, Note, NoteKind } from "../lib/types";
 import { useToast } from "./Toaster";
 import { Button, IconButton, cn } from "./ui";
 
@@ -53,6 +53,8 @@ export function Composer({
   onDone,
   autoFocus = false,
   allowTitle = true,
+  kind = "Note",
+  placeholder = "What's on your mind? Use #tags and **Markdown**.",
 }: {
   /** The note to edit; omit to write a new note. */
   note?: Note;
@@ -61,6 +63,9 @@ export function Composer({
   autoFocus?: boolean;
   /** Offer the title field when the user has note titles on. */
   allowTitle?: boolean;
+  /** The kind of note a new note becomes. */
+  kind?: NoteKind;
+  placeholder?: string;
 }) {
   const preferences = usePreferences();
   const withTitle = allowTitle && preferences.noteTitles;
@@ -150,7 +155,8 @@ export function Composer({
     setSaving(true);
     try {
       if (editing) await api.updateNote(note.id, content, attachmentIds);
-      else await api.createNote(content, attachmentIds);
+      else if (kind === "Note") await api.createNote(content, attachmentIds);
+      else await api.createNote(content, attachmentIds, { kind });
       await invalidateNotes();
       if (!editing) {
         const next = suggestTitle();
@@ -245,7 +251,7 @@ export function Composer({
         onKeyDown={onKeyDown}
         onPaste={onPaste}
         rows={editing ? 3 : 2}
-        placeholder={editing ? undefined : "What's on your mind? Use #tags and **Markdown**."}
+        placeholder={editing ? undefined : placeholder}
         className="block w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100"
       />
 

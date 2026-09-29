@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Archive, Hash, Home, ListTodo, LogOut, Menu, Search, Settings, X } from "lucide-react";
+import { Archive, Hash, Home, ListTodo, LogOut, Menu, Search, Settings, X, Zap } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { useEnabledKinds } from "../lib/kinds";
@@ -96,6 +96,11 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
         {preferences.todoLists && (
           <NavLink href="/todo" icon={ListTodo} active={path === "/todo"} onNavigate={onNavigate}>
             Todo
+          </NavLink>
+        )}
+        {preferences.quickNotes && (
+          <NavLink href="/quick" icon={Zap} active={path === "/quick"} onNavigate={onNavigate}>
+            Quick notes
           </NavLink>
         )}
         <NavLink href="/archive" icon={Archive} active={path === "/archive"} onNavigate={onNavigate}>

@@ -12,6 +12,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { ArchivePage, HomePage } from "./pages/HomePage";
 import { RecoverPage } from "./pages/RecoverPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { QuickNotesPage } from "./pages/QuickNotesPage";
 import { TodoPage } from "./pages/TodoPage";
 import { UnlockPage } from "./pages/UnlockPage";
 
@@ -105,6 +106,8 @@ export function App() {
         <SettingsPage user={user} />
       ) : path === "/todo" ? (
         <TodoPage />
+      ) : path === "/quick" ? (
+        <QuickNotesPage />
       ) : (
         <HomePage />
       )}

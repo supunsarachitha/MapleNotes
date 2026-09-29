@@ -55,6 +55,12 @@ export function FeaturesSection() {
           checked={preferences.todoLists}
           onChange={(todoLists) => save({ todoLists })}
         />
+        <PreferenceSwitch
+          label="Quick notes"
+          description="A Quick notes tab: a scratchpad for short notes that stay out of your timeline."
+          checked={preferences.quickNotes}
+          onChange={(quickNotes) => save({ quickNotes })}
+        />
       </div>
     </Section>
   );
