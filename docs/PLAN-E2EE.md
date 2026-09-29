@@ -81,7 +81,7 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 | E4 | Attachments and the media service worker | Files and their names are stored only as ciphertext; images and video (with seeking) play through the service worker; fallback without it | ✅ Done (`2d59b4e`) |
 | E5 | Switching modes in both directions | Resumable browser-driven conversion with progress; tests interrupt it in both directions; the server holds no content key after entering E2EE | ✅ Done (`f2cb839`) |
 | E6 | Export in the browser | The browser export matches the server export's structure for all 12 format and layout combinations; streamed download verified | ✅ Done (`9fc3207`) |
-| E7 | Hardening, documentation and release | CSP updated for the worker and WebAssembly; threat model documented; README, architecture, CHANGELOG (v1.1.0), licensing and notices updated; clean-clone browser run passes | ✅ Done |
+| E7 | Hardening, documentation and release | CSP updated for the worker and WebAssembly; threat model documented; README, architecture, CHANGELOG (v1.1.0), licensing and notices updated; clean-clone browser run passes | ✅ Done (`cf487b5`) |
 
 ### Notes from the phases
 
