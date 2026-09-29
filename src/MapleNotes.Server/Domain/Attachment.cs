@@ -30,6 +30,12 @@ public sealed class Attachment : IRevisioned
     /// <summary>How the stored file is protected.</summary>
     public ContentScheme Scheme { get; set; }
 
+    /// <summary>
+    /// For an end-to-end encrypted file: its name, type and size, encrypted by the browser (docs/e2ee-spec.md §5). The
+    /// plain <see cref="FileName"/> and <see cref="ContentType"/> are then placeholders.
+    /// </summary>
+    public byte[]? EncryptedMetadata { get; set; }
+
     /// <summary>When the file was uploaded (UTC).</summary>
     public DateTime CreatedAtUtc { get; set; }
 

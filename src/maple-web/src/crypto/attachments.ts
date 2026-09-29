@@ -1,7 +1,7 @@
 import type { DataKeys } from "./datakey";
 import { concat, randomBytes, utf8, uuidN, type Bytes } from "./encoding";
 import { DecryptionError } from "./envelope";
-import { hkdfAesKey } from "./kdf";
+import { hkdfAesKey } from "./hkdf";
 
 // End-to-end encrypted attachments (docs/e2ee-spec.md §5): the chunked AES-256-GCM format used by the server,
 // with the file key derived from the E2EE data key. Decryption is random-access, so a service worker can serve

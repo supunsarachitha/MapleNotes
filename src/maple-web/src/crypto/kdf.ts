@@ -1,12 +1,12 @@
-import { concat, utf8, type Bytes } from "./encoding";
+import { concat, type Bytes } from "./encoding";
+import { hkdfBytes, importAesKey } from "./hkdf";
 import { validateKdf, type KdfParams } from "./params";
 
 // Password-derived keys and HKDF helpers (docs/e2ee-spec.md §1). The expensive Argon2id step runs in a Web Worker in
 // the browser so the page stays responsive; where Workers are unavailable (tests) it runs inline.
 
 export { DEFAULT_KDF, validateKdf, type KdfParams } from "./params";
-
-const EMPTY_SALT = new Uint8Array(0);
+export { hkdfAesKey, hkdfBytes, hkdfHmacKey, importAesKey } from "./hkdf";
 
 let worker: Worker | null = null;
 let nextRequest = 1;
@@ -40,41 +40,6 @@ export async function deriveMasterSecret(password: string, params: KdfParams): P
     pending.set(id, { resolve, reject });
     target.postMessage({ id, password, params: { ...params, salt: concat(params.salt) } });
   });
-}
-
-/** HKDF-SHA256 → 32 bytes (empty salt unless given). */
-export async function hkdfBytes(ikm: Uint8Array, info: string, salt: Uint8Array = EMPTY_SALT): Promise<Bytes> {
-  const base = await crypto.subtle.importKey("raw", concat(ikm), "HKDF", false, ["deriveBits"]);
-  return new Uint8Array(
-    await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt: concat(salt), info: utf8(info) }, base, 256),
-  );
-}
-
-/** HKDF-SHA256 from a base key → a non-extractable AES-256-GCM key. */
-export function hkdfAesKey(base: CryptoKey, info: string, salt: Uint8Array = EMPTY_SALT): Promise<CryptoKey> {
-  return crypto.subtle.deriveKey(
-    { name: "HKDF", hash: "SHA-256", salt: concat(salt), info: utf8(info) },
-    base,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"],
-  );
-}
-
-/** HKDF-SHA256 from a base key → a non-extractable HMAC-SHA256 key. */
-export function hkdfHmacKey(base: CryptoKey, info: string): Promise<CryptoKey> {
-  return crypto.subtle.deriveKey(
-    { name: "HKDF", hash: "SHA-256", salt: EMPTY_SALT, info: utf8(info) },
-    base,
-    { name: "HMAC", hash: "SHA-256", length: 256 },
-    false,
-    ["sign"],
-  );
-}
-
-/** Imports raw key material as a non-extractable AES-256-GCM key. */
-export function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", concat(raw), { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
 
 export interface AccountKeys {

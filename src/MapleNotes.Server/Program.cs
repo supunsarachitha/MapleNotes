@@ -97,6 +97,10 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>(MapleOpt
 // Unknown API routes must return 404 instead of falling through to the SPA's index.html.
 app.MapFallback("/api/{**path}", () => Results.NotFound());
 
+// Decrypted end-to-end files are served by the web app's service worker under /e2ee/; a request that reaches the
+// server was not handled by it, and must fail plainly rather than receive index.html.
+app.MapFallback("/e2ee/{**path}", () => Results.NotFound());
+
 // Every other unknown route belongs to the client-side router.
 app.MapFallbackToFile("index.html", SecurityHeaders.SpaStaticFiles);
 

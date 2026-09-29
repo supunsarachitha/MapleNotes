@@ -1,13 +1,9 @@
 using System.Net;
-using System.Text;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Notes;
-using MapleNotes.Server.Infrastructure.Configuration;
-using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Tests.TestSupport;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -62,8 +58,8 @@ public sealed class EndToEndNotesTests : IAsyncLifetime
         var note = await CreateAsync("A second thought about #quokka habitats");
         await UpdateAsync(note.Id, "Rewritten: Zanzibar-7731 again #orchard/pruning");
 
-        var leaks = await ScanDatabaseAsync("Zanzibar-7731", "quokka", "orchard", "pruning", "habitats", "Rewritten");
-        var control = await ScanDatabaseAsync("MAPLE"); // the normalized username is stored in plain text
+        var leaks = await DatabaseScanner.ScanAsync(_app, "Zanzibar-7731", "quokka", "orchard", "pruning", "habitats", "Rewritten");
+        var control = await DatabaseScanner.ScanAsync(_app, "MAPLE"); // the normalized username is stored in plain text
 
         Assert.Empty(leaks);
         Assert.Contains("Users.NormalizedUsername contains \"MAPLE\"", control);
@@ -184,54 +180,4 @@ public sealed class EndToEndNotesTests : IAsyncLifetime
 
     private async Task<IReadOnlyList<NoteResponse>> ListAsync(string query) =>
         (await _client.GetJsonAsync<NotePageResponse>("/api/v1/notes" + query))!.Items;
-
-    /// <summary>
-    /// Reads every value of every table of the decrypted database, as someone holding the master key could, and
-    /// reports where any of <paramref name="secrets"/> appears (as text, or as UTF-8 inside binary values).
-    /// </summary>
-    private async Task<List<string>> ScanDatabaseAsync(params string[] secrets)
-    {
-        var options = _app.Services.GetRequiredService<MapleOptions>();
-        using var keys = new KeyMaterial(Convert.FromBase64String(_app.MasterKeyBase64));
-        await using var connection = new SqliteConnection(SqlCipherConnectionString.Build(options.DatabasePath, keys.DatabaseKey, pooling: false));
-        await connection.OpenAsync(Ct);
-
-        var tables = new List<string>();
-        await using (var list = connection.CreateCommand())
-        {
-            list.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table'";
-            await using var reader = await list.ExecuteReaderAsync(Ct);
-            while (await reader.ReadAsync(Ct))
-            {
-                tables.Add(reader.GetString(0));
-            }
-        }
-
-        var leaks = new List<string>();
-        foreach (var table in tables)
-        {
-            await using var select = connection.CreateCommand();
-            select.CommandText = $"SELECT * FROM \"{table}\"";
-            await using var reader = await select.ExecuteReaderAsync(Ct);
-            while (await reader.ReadAsync(Ct))
-            {
-                for (var column = 0; column < reader.FieldCount; column++)
-                {
-                    var bytes = reader.GetValue(column) switch
-                    {
-                        string text => Encoding.UTF8.GetBytes(text),
-                        byte[] blob => blob,
-                        _ => [],
-                    };
-                    foreach (var secret in secrets.Where(secret => bytes.AsSpan().IndexOf(Encoding.UTF8.GetBytes(secret)) >= 0))
-                    {
-                        leaks.Add($"{table}.{reader.GetName(column)} contains \"{secret}\"");
-                    }
-                }
-            }
-        }
-
-        Assert.Contains("Notes", tables); // the scan really read the database
-        return leaks;
-    }
 }

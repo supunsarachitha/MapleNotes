@@ -121,6 +121,26 @@ public sealed class ApiClient : IDisposable
         return await Http.PostAsync("/api/v1/attachments", form, Ct);
     }
 
+    /// <summary>Uploads a file encrypted in the browser: the ID and metadata fields come before the file part.</summary>
+    public async Task<HttpResponseMessage> UploadEncryptedAsync(Guid? id, byte[]? metadata, byte[] ciphertext)
+    {
+        using var form = new MultipartFormDataContent();
+        if (id is not null)
+        {
+            form.Add(new StringContent(id.Value.ToString()), "id");
+        }
+
+        if (metadata is not null)
+        {
+            form.Add(new StringContent(Convert.ToBase64String(metadata)), "metadata");
+        }
+
+        var file = new ByteArrayContent(ciphertext);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        form.Add(file, "file", "encrypted.bin");
+        return await Http.PostAsync("/api/v1/attachments", form, Ct);
+    }
+
     public Task<HttpResponseMessage> GetAsync(string url) => Http.GetAsync(url, Ct);
 
     public Task<T?> GetJsonAsync<T>(string url) => Http.GetFromJsonAsync<T>(url, Json, Ct);

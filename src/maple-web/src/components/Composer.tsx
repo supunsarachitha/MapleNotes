@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from "react";
 import { Paperclip, X, FileText, AlertCircle } from "lucide-react";
 import { api, ApiError, uploadAttachment } from "../lib/api";
+import { AttachmentThumbnail } from "./AttachmentGallery";
 import { formatBytes } from "../lib/format";
 import { useInvalidateNotes } from "../lib/queries";
 import type { Attachment, Note } from "../lib/types";
@@ -31,7 +32,8 @@ function fromAttachment(attachment: Attachment): ComposerFile {
     name: attachment.fileName,
     size: attachment.sizeBytes,
     isImage: attachment.isImage,
-    previewUrl: attachment.isImage ? attachment.url : undefined,
+    // End-to-end images are decrypted by <AttachmentThumbnail>; plain ones load straight from their URL.
+    previewUrl: attachment.isImage && !attachment.endToEnd ? attachment.url : undefined,
     progress: 1,
     attachment,
     existing: true,
@@ -212,6 +214,8 @@ export function Composer({
             >
               {file.previewUrl ? (
                 <img src={file.previewUrl} alt={file.name} className="size-full object-cover" />
+              ) : file.attachment?.endToEnd && file.attachment.isImage ? (
+                <AttachmentThumbnail attachment={file.attachment} />
               ) : (
                 <div className="flex flex-col items-center gap-1 px-1 text-center">
                   <FileText className="size-5 text-maple-600 dark:text-maple-400" aria-hidden="true" />

@@ -75,6 +75,21 @@ internal sealed record EndToEndAccount(Guid UserId, byte[] DataKey, byte[] Recov
     public string DecryptName(TagResponse tag) =>
         Encoding.UTF8.GetString(E2eeCrypto.Open(E2eeCrypto.SubKeys(DataKey).Metadata, tag.EncryptedName!, E2eeCrypto.TagContext(UserId, tag.Token!)));
 
+    /// <summary>Encrypts a file as the web app does (docs/e2ee-spec.md §5).</summary>
+    public byte[] EncryptFile(Guid attachmentId, byte[] plaintext) => E2eeCrypto.EncryptAttachment(DataKey, UserId, attachmentId, plaintext);
+
+    /// <summary>Decrypts a file returned by the API.</summary>
+    public byte[] DecryptFile(Guid attachmentId, byte[] encrypted) => E2eeCrypto.DecryptAttachment(DataKey, UserId, attachmentId, encrypted);
+
+    /// <summary>Encrypts a file's metadata as the web app does.</summary>
+    public byte[] SealMetadata(Guid attachmentId, string name, string type, long size) =>
+        E2eeCrypto.SealMetadata(DataKey, UserId, attachmentId,
+            System.Text.Json.JsonSerializer.Serialize(new { name, type, size }));
+
+    /// <summary>Decrypts a file's metadata returned by the API.</summary>
+    public string OpenMetadata(Guid attachmentId, byte[] envelope) =>
+        Encoding.UTF8.GetString(E2eeCrypto.Open(E2eeCrypto.SubKeys(DataKey).Metadata, envelope, E2eeCrypto.MetadataContext(UserId, attachmentId)));
+
     /// <summary>Reads a JSON response body.</summary>
     public static async Task<T> ReadAsync<T>(HttpResponseMessage response) =>
         (await response.Content.ReadFromJsonAsync<T>(ApiClient.Json, Ct))!;

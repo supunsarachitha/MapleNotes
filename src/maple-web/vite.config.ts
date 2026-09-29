@@ -11,6 +11,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
+    // Lets the media service worker, served from /src/sw/ in development, control the whole app.
+    headers: { "Service-Worker-Allowed": "/" },
     proxy: {
       "/api": { target: apiTarget, changeOrigin: false },
       "/healthz": { target: apiTarget, changeOrigin: false },

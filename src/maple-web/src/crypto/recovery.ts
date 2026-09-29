@@ -1,5 +1,5 @@
 import { randomBytes, type Bytes } from "./encoding";
-import { hkdfBytes, importAesKey } from "./kdf";
+import { hkdfBytes, importAesKey } from "./hkdf";
 
 // Recovery key (docs/e2ee-spec.md §6): 32 random bytes shown once as 13 groups of 4 Crockford Base32 characters.
 

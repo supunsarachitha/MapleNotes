@@ -76,8 +76,8 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 | E0 | Crypto specification and shared test vectors | `docs/e2ee-spec.md` written; TypeScript and C# implementations produce identical results for the committed test vectors | ✅ Done (`bfdaaf4`) |
 | E1 | Key-derived sign-in for every account | The server never receives a password (register, sign-in, password change, re-authentication); legacy accounts upgrade at sign-in; unknown usernames are indistinguishable; all existing tests pass on the new flow | ✅ Done (`d819094`) |
 | E2 | End-to-end mode and key management | Three encryption modes and per-item schemes; recovery kit, password-reset-by-recovery-key and unlock screen; the server enforces ciphertext-only writes for E2EE accounts | ✅ Done (`f117e43`) |
-| E3 | Notes, tags and search in the browser | For an E2EE account the database contains no note text or tag names (asserted by scanning); tag filter and search work in the browser | ✅ Done |
-| E4 | Attachments and the media service worker | Files and their names are stored only as ciphertext; images and video (with seeking) play through the service worker; fallback without it | ⏳ Not started |
+| E3 | Notes, tags and search in the browser | For an E2EE account the database contains no note text or tag names (asserted by scanning); tag filter and search work in the browser | ✅ Done (`f521023`) |
+| E4 | Attachments and the media service worker | Files and their names are stored only as ciphertext; images and video (with seeking) play through the service worker; fallback without it | ✅ Done |
 | E5 | Switching modes in both directions | Resumable browser-driven conversion with progress; tests interrupt it in both directions; the server holds no content key after entering E2EE | ⏳ Not started |
 | E6 | Export in the browser | The browser export matches the server export's structure for all 12 format and layout combinations; streamed download verified | ⏳ Not started |
 | E7 | Hardening, documentation and release | CSP updated for the worker and WebAssembly; threat model documented; README, architecture, CHANGELOG (v1.1.0), licensing and notices updated; clean-clone browser run passes | ⏳ Not started |
@@ -102,6 +102,13 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
   plain-text notes still carry that tag. Verified in Chromium: posting, editing and pinning encrypted notes, decrypted
   tag names, a nested tag filter, search, and a reload, with none of the 28 requests carrying note text or tag names;
   the 18-step suite still passes for ordinary accounts.
+- **E4:** the service worker is registered only for accounts with an end-to-end key and handles only `/e2ee/…`, so
+  other accounts are unaffected; the server answers `/e2ee/…` with 404 rather than the app's page. It ships as a
+  classic script (`/sw.js`, a second Vite build) for broad browser support; in development Vite serves it as a module.
+  Verified in Chromium: an image, a 30-second 7.5 MB video seeking to 25 s (the worker fetched only byte ranges,
+  including ranges deep into the file), a decrypted named download, and the same files with service workers blocked
+  (decrypted in the page); the built `/sw.js` in the container; the three stored files start with the `MNAE` header
+  and contain no plaintext markers.
 
 ## Out of scope for v1.1.0
 

@@ -407,7 +407,7 @@ public sealed class NoteService(
 
     private static bool Matches(NoteResponse note, string search) =>
         note.Content?.Contains(search, StringComparison.OrdinalIgnoreCase) == true
-        || note.Attachments.Any(a => a.FileName.Contains(search, StringComparison.OrdinalIgnoreCase));
+        || note.Attachments.Any(a => a.FileName?.Contains(search, StringComparison.OrdinalIgnoreCase) == true);
 
     private static string ValidateContent(string? content, int attachmentCount)
     {

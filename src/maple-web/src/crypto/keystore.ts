@@ -1,7 +1,7 @@
 import { importDataKey, type DataKeys } from "./datakey";
 import { uuidN } from "./encoding";
 import { open, seal } from "./envelope";
-import { importAesKey } from "./kdf";
+import { importAesKey } from "./hkdf";
 
 // Keeps the unlocked end-to-end key in this browser between page loads (docs/e2ee-spec.md §7). The key is stored
 // sealed under the session's secret, which lives in the HttpOnly session cookie and which only a valid session can

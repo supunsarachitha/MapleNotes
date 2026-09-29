@@ -1,6 +1,7 @@
 import type {
   AdminUser,
   Attachment,
+  AttachmentWire,
   AuthStatus,
   CredentialProof,
   EncryptionMode,
@@ -20,8 +21,10 @@ import type {
 } from "./types";
 import { ApiError } from "./apiError";
 import {
+  decodeAttachment,
   decodeNote,
   decodeTags,
+  encodeUpload,
   encodeNewNote,
   encodeNoteUpdate,
   matchesSearch,
@@ -252,7 +255,8 @@ export const api = {
 
 /**
  * Uploads a file with progress reporting (fetch cannot report upload progress, so this uses XMLHttpRequest).
- * The server streams the file straight to encrypted storage.
+ * The server streams the file straight to encrypted storage. In end-to-end mode the file is encrypted here first, and
+ * the ID and encrypted metadata travel as form fields ahead of it.
  */
 export async function uploadAttachment(
   file: File,
@@ -260,7 +264,8 @@ export async function uploadAttachment(
   signal?: AbortSignal,
 ): Promise<Attachment> {
   const headers = await antiforgeryHeaders();
-  return new Promise<Attachment>((resolve, reject) => {
+  const encrypted = await encodeUpload(file);
+  const wire = await new Promise<AttachmentWire>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/v1/attachments");
     xhr.responseType = "json";
@@ -270,7 +275,7 @@ export async function uploadAttachment(
       if (event.lengthComputable) onProgress(event.loaded / event.total);
     };
     xhr.onload = () => {
-      if (xhr.status === 201) resolve(xhr.response as Attachment);
+      if (xhr.status === 201) resolve(xhr.response as AttachmentWire);
       else reject(new ApiError(xhr.status, (xhr.response as ProblemDetails | null) ?? {}));
     };
     xhr.onerror = () => reject(new ApiError(0, { title: "Upload failed. Check your connection and try again." }));
@@ -278,7 +283,14 @@ export async function uploadAttachment(
     signal?.addEventListener("abort", () => xhr.abort());
 
     const form = new FormData();
-    form.append("file", file, file.name);
+    if (encrypted) {
+      form.append("id", encrypted.id);
+      form.append("metadata", encrypted.metadata);
+      form.append("file", encrypted.body, "encrypted.bin");
+    } else {
+      form.append("file", file, file.name);
+    }
     xhr.send(form);
   });
+  return decodeAttachment(wire);
 }

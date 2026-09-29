@@ -181,7 +181,8 @@ HTTP 409). Content is converted to and from end-to-end encryption by the browser
 
 For an end-to-end account the web app encrypts and decrypts at its API boundary (`src/maple-web/src/lib/noteCrypto.ts`),
 so the rest of the interface works with plain notes: new notes get an ID chosen in the browser, tags become blind
-tokens with encrypted names, tag filters send tokens, and search runs in the browser over decrypted pages of notes.
+tokens with encrypted names, tag filters send tokens, search runs in the browser over decrypted pages of notes, and
+files are encrypted with their names before upload.
 
 Crash safety:
 - **Notes** convert in batches of 100, each saved in one transaction. A crash rolls the whole batch back.
@@ -230,6 +231,11 @@ MVC's form binding is disabled for that action so the body is never buffered. A 
 Downloads display only passive media inline: common image, audio and video types, and plain text. Everything else,
 including SVG and HTML, is sent as a download with a generic content type. Each download also carries `nosniff` and
 `Content-Security-Policy: default-src 'none'; sandbox`, so an uploaded file can never run script in the app's origin.
+
+End-to-end files are encrypted in the browser before upload and served back as ciphertext. The web app's media
+service worker (`src/maple-web/src/sw`) decrypts them for the page at `/e2ee/attachments/{id}`, fetching only the
+chunks a request needs, so video seeks without a full download; it applies the same inline rules and headers. Without
+the worker, the page decrypts whole files into `blob:` URLs ([e2ee-spec.md §5](e2ee-spec.md#5-attachments)).
 
 ## Export
 

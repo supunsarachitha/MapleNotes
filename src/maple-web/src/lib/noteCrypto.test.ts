@@ -1,10 +1,21 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it } from "vitest";
-import { decryptNote, decryptTagName, encryptNote, encryptTagName, tagToken } from "../crypto/content";
+import { decryptAttachment } from "../crypto/attachments";
+import { decryptMetadata, decryptNote, decryptTagName, encryptMetadata, encryptNote, encryptTagName, tagToken } from "../crypto/content";
 import { importDataKey, type DataKeys } from "../crypto/datakey";
 import { fromBase64, toBase64 } from "../crypto/encoding";
 import v from "../crypto/test-vectors.json";
-import { decodeNote, decodeTags, encodeNewNote, encodeNoteUpdate, setContentSession, tagFilterParams, UNREADABLE_NOTE } from "./noteCrypto";
+import {
+  decodeAttachment,
+  decodeNote,
+  decodeTags,
+  encodeNewNote,
+  encodeNoteUpdate,
+  encodeUpload,
+  setContentSession,
+  tagFilterParams,
+  UNREADABLE_NOTE,
+} from "./noteCrypto";
 import type { NoteWire } from "./types";
 
 const userId = v.ids.userId;
@@ -92,5 +103,35 @@ describe("note encryption at the API boundary", () => {
     await decodeTags([{ name: null, noteCount: 1, token, encryptedName: toBase64(await encryptTagName(keys, userId, token, "private")) }]);
 
     expect(await tagFilterParams("private")).toEqual({ tagToken: [token] });
+  });
+
+  it("encrypts uploads under an ID chosen here, with their name, type and size sealed", async () => {
+    const file = new File([new Uint8Array([1, 2, 3, 4])], "holiday photo.png", { type: "image/png" });
+
+    const upload = (await encodeUpload(file))!;
+
+    const plain = new Uint8Array(await (await decryptAttachment(keys, userId, upload.id, upload.body)).arrayBuffer());
+    expect(plain).toEqual(new Uint8Array([1, 2, 3, 4]));
+    expect(await decryptMetadata(keys, userId, upload.id, fromBase64(upload.metadata))).toEqual({
+      name: "holiday photo.png",
+      type: "image/png",
+      size: 4,
+    });
+    setContentSession({ userId, mode: "Off", keys: null });
+    expect(await encodeUpload(file)).toBeNull();
+  });
+
+  it("decrypts the name, type and size of end-to-end attachments", async () => {
+    const id = v.ids.attachmentId;
+    const encryptedMetadata = toBase64(await encryptMetadata(keys, userId, id, { name: "clip.mp4", type: "video/mp4", size: 1234 }));
+    const base = { id, sizeBytes: 5000, isImage: false, url: `/api/v1/attachments/${id}`, createdAtUtc: "" };
+
+    const decoded = await decodeAttachment({ ...base, fileName: null, contentType: null, encryptedMetadata });
+    const plain = await decodeAttachment({ ...base, fileName: "a.png", contentType: "image/png", isImage: true });
+
+    expect(decoded).toMatchObject({ fileName: "clip.mp4", contentType: "video/mp4", sizeBytes: 1234, isImage: false, endToEnd: true });
+    expect(decoded).not.toHaveProperty("encryptedMetadata");
+    expect(plain).toMatchObject({ fileName: "a.png", isImage: true });
+    expect(plain.endToEnd).toBeUndefined();
   });
 });

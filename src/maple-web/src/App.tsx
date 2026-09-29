@@ -3,6 +3,7 @@ import { AppShell } from "./components/AppShell";
 import { Logo } from "./components/Logo";
 import { Button, Spinner } from "./components/ui";
 import { e2ee, useEndToEndKeys } from "./lib/e2ee";
+import { registerMediaWorker } from "./lib/mediaWorker";
 import { setContentSession } from "./lib/noteCrypto";
 import { useAuthStatus } from "./lib/queries";
 import { useLocation } from "./lib/router";
@@ -31,6 +32,7 @@ export function App() {
   const user = status.data?.user ?? null;
   const keys = useEndToEndKeys(user);
   const signedOut = status.data !== undefined && !status.data.user;
+  const needsMediaWorker = user?.hasEndToEndKey === true;
 
   // A key saved during a session that has ended cannot be opened any more; remove it.
   useEffect(() => {
@@ -38,6 +40,11 @@ export function App() {
     setContentSession(null);
     void e2ee.forget();
   }, [signedOut]);
+
+  // Only accounts with end-to-end files need the media service worker.
+  useEffect(() => {
+    if (needsMediaWorker) registerMediaWorker();
+  }, [needsMediaWorker]);
 
   if (status.isPending) {
     return (

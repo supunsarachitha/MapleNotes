@@ -43,14 +43,25 @@ export interface AuthStatus {
   user: User | null;
 }
 
+/** An attachment as components use it: an end-to-end file's name, type and size decrypted. */
 export interface Attachment {
   id: string;
   fileName: string;
   contentType: string;
   sizeBytes: number;
   isImage: boolean;
+  /** Where the server serves the file; for an end-to-end file that is ciphertext (see useAttachmentSrc). */
   url: string;
   createdAtUtc: string;
+  /** Encrypted in the browser: the page decrypts it, through the media service worker when available. */
+  endToEnd?: boolean;
+}
+
+/** An attachment as the API returns it: end-to-end files carry `encryptedMetadata` instead of a name and type. */
+export interface AttachmentWire extends Omit<Attachment, "fileName" | "contentType" | "endToEnd"> {
+  fileName: string | null;
+  contentType: string | null;
+  encryptedMetadata?: string | null;
 }
 
 /** A note as components use it: plain text, decrypted if it was end-to-end encrypted. */
@@ -71,9 +82,10 @@ export interface NotePage {
 }
 
 /** A note as the API returns it: end-to-end encrypted notes carry `encryptedContent` instead of `content`. */
-export interface NoteWire extends Omit<Note, "content"> {
+export interface NoteWire extends Omit<Note, "content" | "attachments"> {
   content: string | null;
   encryptedContent?: string | null;
+  attachments: AttachmentWire[];
 }
 
 export interface NotePageWire {

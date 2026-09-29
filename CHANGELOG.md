@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **End-to-end encrypted notes and tags:** in end-to-end mode the browser encrypts each note under an ID it chooses,
   and turns tags into blind tokens with encrypted names; the server filters and counts by token. Search and nested tag
   filters work in the browser, and neither note text, tag names nor search terms reach the server.
+- **End-to-end encrypted attachments:** files and their names are encrypted in the browser before upload. A media
+  service worker decrypts them on the fly for the page, fetching only the byte ranges it needs, so images appear at
+  once and videos seek; without it, the page decrypts whole files.
+- `GET /api/v1/attachments/{id}/info` returns an attachment's details without its content.
 
 ### Changed
 

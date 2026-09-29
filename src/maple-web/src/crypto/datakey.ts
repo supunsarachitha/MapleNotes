@@ -1,6 +1,6 @@
 import { concat, randomBytes, uuidN, type Bytes } from "./encoding";
 import { open, seal } from "./envelope";
-import { hkdfAesKey, hkdfHmacKey } from "./kdf";
+import { hkdfAesKey, hkdfHmacKey } from "./hkdf";
 
 // The E2EE data key and its subkeys (docs/e2ee-spec.md §3). All CryptoKeys are non-extractable: page scripts can use
 // them but can never read their bytes.

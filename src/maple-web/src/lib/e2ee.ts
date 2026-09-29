@@ -15,6 +15,7 @@ import { forgetLocalKeys, loadLocalKey, saveLocalKey } from "../crypto/keystore"
 import { deriveRecoveryKeys, formatRecoveryKey, generateRecoveryKey, parseRecoveryKey } from "../crypto/recovery";
 import { api, ApiError } from "./api";
 import { deriveForAccount, deriveForNewPassword, validateNewPassword, wrongPassword } from "./credentials";
+import { shareKeysWithMediaWorker } from "./mediaWorker";
 import type { EncryptionStatus, User } from "./types";
 
 // End-to-end key management in the browser (docs/e2ee-spec.md §3, §6, §7). The data key is created here and reaches
@@ -32,6 +33,7 @@ const listeners = new Set<() => void>();
 
 function publish(next: Unlocked | null): void {
   unlocked = next;
+  shareKeysWithMediaWorker(next); // the media service worker decrypts files with the same key
   listeners.forEach((listener) => listener());
 }
 

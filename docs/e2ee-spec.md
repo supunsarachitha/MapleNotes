@@ -151,6 +151,31 @@ tag alone).
 **Metadata:** `{"name": "...", "type": "...", "size": 123}` as UTF-8 JSON, sealed with `metadataKey` (§2). The
 server stores the file as `application/octet-stream` with a placeholder name and knows only its encrypted size.
 
+**Upload** (`POST /api/v1/attachments`, multipart): the browser picks the attachment's ID (UUID version 7), encrypts
+the file and the metadata, and sends the form fields `id` and `metadata` (base64) before the file part. The server
+checks the ID (§ Conventions), the metadata envelope, the header (magic, format, key version, 64 KiB chunks) and that
+the last chunk can hold its tag, and applies `MAPLE_MAX_UPLOAD_MB` to the plaintext size, allowing for the header and
+one tag per chunk. It cannot see other damage; decryption in the browser detects it. An account in another mode gets
+409 for ciphertext, and an end-to-end account gets 409 for a plain upload.
+
+**Download:** `GET /api/v1/attachments/{id}` serves the ciphertext as a download (`application/octet-stream`, file
+name `{id}.bin`) with HTTP Range support, and `GET /api/v1/attachments/{id}/info` returns the encrypted metadata.
+
+**Media service worker:** accounts with an end-to-end key register `/sw.js`, which answers requests for
+`/e2ee/attachments/{id}` (and nothing else):
+
+1. It fetches the info and the 42-byte header (`Range: bytes=0-41`), decrypts the metadata, and remembers both for
+   the file's next requests.
+2. A request without `Range` gets the whole file, streamed 16 chunks at a time. A single byte range gets `206` with at
+   most 4 MiB, decrypted from exactly the chunks it covers; an unsatisfiable range gets `416`.
+3. The response carries the decrypted type only if it is one the server would also show inline (images, audio,
+   video, plain text), otherwise `application/octet-stream` as an attachment (always, with `?download=1`), plus
+   `nosniff`, the sandboxing attachment CSP and `Cache-Control: no-store`.
+
+The page shares its unlocked key with the worker; a worker that the browser restarted loads the copy saved for the
+session (§7). Without a controlling worker (unsupported, blocked, or before it takes over) the page decrypts the whole
+file into a `blob:` URL instead. The server answers `/e2ee/…` itself with 404, never with the app's page.
+
 ## 6. Recovery key
 
 ```text

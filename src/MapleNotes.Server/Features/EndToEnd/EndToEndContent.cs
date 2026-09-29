@@ -20,6 +20,17 @@ public static class EndToEndContent
     /// <summary>Most tags one note may carry.</summary>
     public const int MaxTagsPerNote = 100;
 
+    /// <summary>Largest encrypted attachment metadata: a small JSON object with a file name of at most 255 characters.</summary>
+    public const int MaxMetadataEnvelopeBytes = EnvelopeOverhead + 2048;
+
+    /// <summary>Size of the header of an encrypted attachment (docs/e2ee-spec.md §5).</summary>
+    public const int AttachmentHeaderBytes = 42;
+
+    /// <summary>Plaintext bytes per chunk of an encrypted attachment.</summary>
+    public const int AttachmentChunkBytes = 64 * 1024;
+
+    private const int AttachmentTagBytes = 16;
+
     /// <summary>How far a client-chosen ID's timestamp may be from the server's clock.</summary>
     public static readonly TimeSpan ClientIdTolerance = TimeSpan.FromHours(24);
 
@@ -29,6 +40,35 @@ public static class EndToEndContent
     /// <returns>Whether it has the envelope header (format 1, key version at least 1) and a plausible size.</returns>
     public static bool IsEnvelope(byte[]? envelope, int maxBytes) =>
         envelope is { Length: >= EnvelopeOverhead } && envelope.Length <= maxBytes && envelope[0] == 1 && envelope[1] >= 1;
+
+    /// <summary>
+    /// Returns true when <paramref name="header"/> starts an encrypted attachment: magic <c>MNAE</c>, format 1, a key
+    /// version of at least 1 and 64 KiB chunks.
+    /// </summary>
+    /// <param name="header">The first <see cref="AttachmentHeaderBytes"/> bytes of the upload.</param>
+    /// <returns>Whether the header is acceptable.</returns>
+    public static bool IsAttachmentHeader(ReadOnlySpan<byte> header) =>
+        header.Length >= AttachmentHeaderBytes
+        && header[..4].SequenceEqual("MNAE"u8)
+        && header[4] == 1
+        && header[5] >= 1
+        && System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(header[6..10]) == AttachmentChunkBytes;
+
+    /// <summary>Returns true when an encrypted attachment of this total size has a complete last chunk.</summary>
+    /// <param name="size">Size of the whole encrypted file, header included.</param>
+    /// <returns>Whether every chunk, the last one included, holds at least its authentication tag.</returns>
+    public static bool IsAttachmentSize(long size)
+    {
+        var body = size - AttachmentHeaderBytes;
+        var remainder = body % (AttachmentChunkBytes + AttachmentTagBytes);
+        return body >= AttachmentTagBytes && (remainder == 0 || remainder >= AttachmentTagBytes);
+    }
+
+    /// <summary>The largest encrypted size of a file of at most <paramref name="plainBytes"/> bytes.</summary>
+    /// <param name="plainBytes">The plaintext size limit.</param>
+    /// <returns>That size plus the header and one tag per chunk.</returns>
+    public static long MaxAttachmentCiphertextBytes(long plainBytes) =>
+        plainBytes + AttachmentHeaderBytes + (AttachmentTagBytes * Math.Max(1, (plainBytes + AttachmentChunkBytes - 1) / AttachmentChunkBytes));
 
     /// <summary>Returns true for a tag token: 22 base64url characters (16 bytes).</summary>
     /// <param name="token">The token.</param>

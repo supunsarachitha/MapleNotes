@@ -18,7 +18,7 @@ describe("api client", () => {
 
   it("sends the antiforgery token with state-changing requests but not with reads", async () => {
     fetchMock.mockResolvedValueOnce(json({ items: [], nextCursor: null }));
-    fetchMock.mockResolvedValueOnce(json({ id: "n1" }, 201));
+    fetchMock.mockResolvedValueOnce(json({ id: "n1", content: "hello", tags: [], attachments: [] }, 201));
 
     await api.listNotes({ state: "feed" });
     await api.createNote("hello", []);
