@@ -7,60 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Work toward v1.0.0. Entries move under a version heading at release.
+## [1.0.0] - 2026-09-28
+
+First release.
 
 ### Added
 
-- Repository foundation: .NET 10 solution, React + TypeScript + Vite + Tailwind CSS web client, shared build
-  settings with nullable references, warnings as errors and XML documentation.
-- Encrypted SQLite storage in SQLCipher v4 format via SQLite3 Multiple Ciphers, with tests proving the file is
-  unreadable without the key.
-- Single-container Docker image: multi-architecture build, chiseled non-root runtime, built-in health check,
-  read-only root filesystem in `docker-compose.yml`.
-- `/healthz` health endpoint; client-side routes fall back to the SPA while unknown API routes return 404.
-- Third-party license policy (`docs/licensing.md`) and automated dependency license check
-  (`scripts/check-licenses.py`).
-- PolyForm Noncommercial 1.0.0 license.
-- Key hierarchy derived from `MAPLE_MASTER_KEY` with HKDF-SHA256: database key, key-encryption key and Data
-  Protection key-ring key. `MAPLE_MASTER_KEY_FILE` supports Docker secrets; `generate-key` prints a new key.
-- Per-user data keys, wrapped with the key-encryption key and bound to the account (crypto-shredding on deletion).
-- AES-256-GCM encryption for note bodies, and chunked streaming AES-256-GCM for attachments with random access,
-  tamper, truncation and reordering detection.
-- Encrypted Data Protection key ring, so a copy of the data volume cannot be used to forge sessions.
-- Database schema (users, notes, attachments, tags, instance settings) with automatic migrations and an encrypted
-  backup before each migration.
-- Accounts: first account becomes administrator, optional open registration, PBKDF2-HMAC-SHA512 password hashing
-  (210,000 iterations), lockout after 5 failed attempts, per-IP rate limiting, HttpOnly SameSite=Strict session
-  cookies checked against the database on every request, antiforgery tokens, password change and "sign out
-  everywhere".
-- Administration: open or close registration, list accounts, disable accounts and change roles.
-- Notes API: create, read, edit, pin, archive/restore and delete; cursor-paginated feed that stays stable while new
-  notes arrive; `#tags` (including nested `#work/meetings`) with a tag list and tag filter; search that works on
-  encrypted notes.
-- Attachments API: streaming uploads (never buffered whole), encrypted at rest per account setting, HTTP Range
-  downloads, size limit (`MAPLE_MAX_UPLOAD_MB`), safe serving (only passive media inline; SVG, HTML and scripts are
-  always downloaded), hourly cleanup of abandoned uploads and orphan files.
-- Security headers on every response (Content-Security-Policy, nosniff, frame denial, referrer policy), HSTS over
-  HTTPS, long-lived caching for fingerprinted assets.
-- OpenAPI document with XML documentation and an interactive API reference (`/scalar`) in Development or with
-  `MAPLE_API_DOCS=true`.
-- Web app: first-run setup, sign-in and registration screens; home feed with a quick-post composer, pinned notes
-  and infinite scroll; Markdown rendering with clickable `#tags`; inline editing; pin, archive, restore and delete
-  (with confirmation); attachments by file picker, paste or drag-and-drop with upload progress, image previews,
-  and inline image, video and audio players; search; tag list; archive view; settings for password, sessions and
-  administration.
-- Mobile-first responsive layout (navigation drawer on phones, sidebar on wide screens), light and dark themes
-  following the system, keyboard shortcuts (Ctrl/⌘+Enter to post, Esc to cancel an edit), accessible dialogs and
-  menus, reduced-motion support.
-- Per-account encryption-at-rest switch (password-confirmed). New content follows the setting immediately; a
-  background worker converts existing notes and files with live progress in Settings. Conversion is crash-safe:
-  notes convert in all-or-nothing batches, and files are rewritten to a new copy before the database switches over.
-- Optimistic concurrency on notes and attachments, so simultaneous edits never silently overwrite each other
-  (a conflicting save returns HTTP 409).
-- Account deletion (password-confirmed) and deletion of other accounts by administrators. The account's data key is
-  destroyed with it; the database uses `secure_delete` so deleted content is overwritten. The last administrator
-  cannot delete their own account.
-- Export to a ZIP archive in Markdown (with YAML front matter), plain text or JSON, arranged flat or in
-  year/month/day folders by the note's local date, with optional date range and archived notes. Notes and
-  attachments are decrypted on the fly and streamed; attachments go to `attachments/` and are linked from each note
-  by relative path; `manifest.json` lists everything. File names are safe on Windows, macOS and Linux.
+- **Notes**
+  - Timeline feed with a quick-post composer, pinned notes and cursor-based infinite scroll that stays stable while
+    new notes arrive.
+  - Create, inline edit, pin, archive and restore, and delete with confirmation.
+  - GitHub-flavoured Markdown and clickable `#tags` (including nested tags) with a tag list and tag filter.
+  - Search that works on encrypted notes.
+- **Attachments**
+  - File picker, paste and drag-and-drop uploads with progress; streamed to storage and never buffered whole.
+  - Inline images, video and audio; HTTP Range downloads.
+  - Configurable size limit (`MAPLE_MAX_UPLOAD_MB`).
+  - Hourly cleanup of abandoned uploads and orphan files.
+- **Export**
+  - ZIP archive of Markdown (with YAML front matter), plain text or JSON.
+  - Flat or year, month or day folders by the note's local date; optional date range and archived notes.
+  - Decrypted attachments in `attachments/`, linked from notes by relative path, plus a `manifest.json`.
+  - Streamed while it is generated.
+- **Accounts**
+  - The first account becomes the administrator; optional open registration.
+  - Password change, "sign out everywhere", and account deletion.
+  - Administration of accounts (disable, change role, delete) and instance settings.
+- **Web app**
+  - Mobile-first responsive layout: navigation drawer on phones, sidebar on wide screens.
+  - Light and dark themes, keyboard shortcuts, accessible dialogs and menus, reduced-motion support.
+- **Operations**
+  - Single multi-architecture Docker image (chiseled, non-root, built-in health check) and a hardened
+    `docker-compose.yml`.
+  - `generate-key` and online `backup` commands.
+  - Automatic database migrations with an encrypted backup first.
+  - OpenAPI document with an interactive reference (`MAPLE_API_DOCS`).
+- **Documentation**
+  - README, architecture guide, third-party notices, and a license policy with an automated dependency license
+    check.
+
+### Security
+
+- **Database encryption:** the whole database is always encrypted (SQLCipher v4 format via SQLite3 Multiple
+  Ciphers) with a key derived from `MAPLE_MASTER_KEY`, which is never stored in the data volume.
+- **Per-account encryption at rest:** each account has its own data key.
+  - Note text uses AES-256-GCM; attachments use chunked AES-256-GCM that detects tampering, truncation and
+    reordering.
+  - The switch in Settings converts existing data in the background, safely across crashes and concurrent edits.
+- **Crypto-shredding:** deleting an account destroys its data key; the database runs with `secure_delete`.
+- **Session key protection:** the ASP.NET Core Data Protection key ring is encrypted, so a copied volume cannot be
+  used to forge sessions.
+- **Sign-in:**
+  - PBKDF2-HMAC-SHA512 password hashing with 210,000 iterations.
+  - Identical responses for unknown users and wrong passwords.
+  - Lockout after 5 failures, and per-IP rate limiting.
+- **Web protections:**
+  - HttpOnly, SameSite=Strict session cookies validated on every request, plus antiforgery tokens.
+  - Strict Content-Security-Policy and security headers; HSTS over HTTPS.
+  - Trusted-proxy allowlist for forwarded headers.
+  - Request body limits.
+- **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
+  Content-Security-Policy.
+
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/supunsarachitha/MapleNotes/releases/tag/v1.0.0

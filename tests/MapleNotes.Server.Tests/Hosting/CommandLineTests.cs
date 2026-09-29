@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Tests.TestSupport;
 
@@ -34,6 +35,40 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(1, exitCode);
         Assert.Contains("Maple Notes cannot start: MAPLE_MASTER_KEY is not set", stderr, StringComparison.Ordinal);
         Assert.Contains("openssl rand -base64 32", stderr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Backup_copies_the_live_database_while_the_server_runs()
+    {
+        await using var app = new MapleAppFactory();
+        using var client = new ApiClient(app);
+        await client.SignUpAsync("maple"); // the server is running and holds the database open
+
+        var (exitCode, stdout, stderr) = await RunServerAsync(["backup"], new Dictionary<string, string?>
+        {
+            ["MAPLE_DATA_DIR"] = app.DataDirectory,
+            ["MAPLE_MASTER_KEY"] = app.MasterKeyBase64,
+        });
+
+        Assert.True(exitCode == 0, stderr);
+        var backup = stdout.Trim();
+        Assert.Matches(@"maple-\d{8}-\d{6}-manual\.db$", backup);
+        Assert.True(File.Exists(backup));
+        Assert.NotEqual("SQLite format 3", Encoding.ASCII.GetString(File.ReadAllBytes(backup), 0, 15));
+    }
+
+    [Fact]
+    public async Task Backup_refuses_to_create_an_empty_database()
+    {
+        var (exitCode, _, stderr) = await RunServerAsync(["backup"], new Dictionary<string, string?>
+        {
+            ["MAPLE_DATA_DIR"] = _dir.Path,
+            ["MAPLE_MASTER_KEY"] = MasterKey.Generate(),
+        });
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("There is no database", stderr, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(_dir.Path, "maple.db")));
     }
 
     public void Dispose() => _dir.Dispose();

@@ -43,6 +43,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-noble-chiseled-extra AS r
 
 LABEL org.opencontainers.image.title="Maple Notes" \
       org.opencontainers.image.description="Self-hosted micro-note taking with encryption at rest" \
+      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.source="https://github.com/supunsarachitha/MapleNotes" \
       org.opencontainers.image.licenses="PolyForm-Noncommercial-1.0.0"
 
 WORKDIR /app
@@ -51,6 +53,9 @@ WORKDIR /app
 COPY --from=build /app ./
 COPY --from=web /src/dist ./wwwroot
 COPY --from=build --chown=1654:1654 /data-template /app/data
+
+# License terms travel with the binaries (some third-party licenses require it).
+COPY LICENSE THIRD-PARTY-NOTICES.md /app/licenses/
 
 ENV ASPNETCORE_HTTP_PORTS=8080 \
     MAPLE_DATA_DIR=/app/data

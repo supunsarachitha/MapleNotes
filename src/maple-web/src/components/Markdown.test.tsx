@@ -33,6 +33,14 @@ describe("Markdown", () => {
     expect(container).toHaveTextContent("safe");
   });
 
+  it("neutralises javascript: and data: links", () => {
+    const { container } = render(<Markdown content={"[click](javascript:alert(1)) [data](data:text/html;base64,PHNjcmlwdD4=)"} />);
+
+    for (const link of Array.from(container.querySelectorAll("a"))) {
+      expect(link.getAttribute("href") ?? "").not.toMatch(/^(javascript|data):/i);
+    }
+  });
+
   it("opens external links safely in a new tab", () => {
     render(<Markdown content="[docs](https://example.com)" />);
 

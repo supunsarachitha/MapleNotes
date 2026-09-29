@@ -1,7 +1,7 @@
 # Maple Notes: development plan
 
-Approved 2026-09-28. This is the working plan for v1.0.0. The architecture reference lives in
-[architecture.md](architecture.md) once Phase 7 lands.
+Approved 2026-09-28. This is the working plan for v1.0.0; all phases are complete. The architecture reference
+is [architecture.md](architecture.md).
 
 ## Decisions
 
@@ -65,8 +65,8 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 | 3 | Notes and attachments API | Integration tests pass; OpenAPI docs render | ✅ Done (`ae9cab5`) |
 | 4 | Frontend | Full CRUD and attachments work at 375 px and on desktop; Vitest tests pass | ✅ Done (`187a7a0`) |
 | 5 | Encryption toggle and migration | Tests cover mixed data and a simulated crash mid-migration | ✅ Done (`a6d19b3`) |
-| 6 | Export | Tests verify ZIP structure, decrypted content and links for every format and layout | ✅ Done (Phase 6 commit) |
-| 7 | Hardening, docs and release | From a clean clone: `compose up`, register, post, export all work end to end | 🚧 In progress |
+| 6 | Export | Tests verify ZIP structure, decrypted content and links for every format and layout | ✅ Done (`f079dff`) |
+| 7 | Hardening, docs and release | From a clean clone: `compose up`, register, post, export all work end to end | ✅ Done (release commit) |
 
 Phases 1 and 2 share one commit because the application wiring in `Program.cs` spans both.
 

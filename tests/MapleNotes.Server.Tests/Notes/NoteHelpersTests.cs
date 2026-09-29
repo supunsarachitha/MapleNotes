@@ -17,6 +17,17 @@ public sealed class TagParserTests
         Assert.Equal(expected, TagParser.Extract(markdown));
     }
 
+    [Fact]
+    public void Pathological_input_cannot_stall_tag_parsing()
+    {
+        var hostile = string.Concat(Enumerable.Repeat("```#a`", 20_000)) + new string('#', 50_000);
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        TagParser.Extract(hostile);
+
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5));
+    }
+
     [Theory]
     [InlineData("# Heading")]
     [InlineData("## Second level")]

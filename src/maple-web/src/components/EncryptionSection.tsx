@@ -5,7 +5,7 @@ import { api } from "../lib/api";
 import { queryKeys } from "../lib/queries";
 import type { EncryptionStatus } from "../lib/types";
 import { PasswordDialog } from "./PasswordDialog";
-import { Card, Switch } from "./ui";
+import { Card, Spinner, Switch } from "./ui";
 
 export const encryptionKey = ["account", "encryption"] as const;
 
@@ -47,12 +47,12 @@ export function EncryptionSection() {
             database. Keys are held by this server, so this protects stolen disks and backups, not a compromised server.
           </p>
         </div>
-        <Switch
-          label="Encrypt my notes and attachments"
-          checked={data?.enabled ?? false}
-          disabled={!data}
-          onCheckedChange={(checked) => setTarget(checked)}
-        />
+        {data ? (
+          <Switch label="Encrypt my notes and attachments" checked={data.enabled} onCheckedChange={(checked) => setTarget(checked)} />
+        ) : (
+          // Never show an "off" switch while the real state is still loading.
+          <Spinner className="mt-1 size-5 text-stone-400" />
+        )}
       </div>
 
       {data?.inProgress && (

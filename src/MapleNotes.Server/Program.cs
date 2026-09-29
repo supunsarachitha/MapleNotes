@@ -8,6 +8,7 @@
 //
 // Command-line modes (used by Docker):
 //   generate-key    print a new random master key and exit
+//   backup          write an encrypted copy of the database to {data}/backups while the server keeps running
 //   --healthcheck   probe the running server's /healthz endpoint and exit 0 (healthy) or 1
 
 using MapleNotes.Server.Features;
@@ -15,6 +16,7 @@ using MapleNotes.Server.Infrastructure;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Hosting;
+using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Infrastructure.Web;
 using Scalar.AspNetCore;
 
@@ -30,13 +32,41 @@ if (args.Contains(HealthProbe.CommandLineSwitch, StringComparer.OrdinalIgnoreCas
     return await HealthProbe.RunAsync();
 }
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args is ["backup"] ? [] : args);
+
+// Small request bodies everywhere (the largest JSON request is a 100,000-character note); the attachment upload
+// endpoint raises the limit for its own requests to MAPLE_MAX_UPLOAD_MB.
+builder.WebHost.ConfigureKestrel(kestrel => kestrel.Limits.MaxRequestBodySize = 2 * 1024 * 1024);
 
 builder.Services.AddMapleInfrastructure();
 builder.Services.AddMapleWeb();
 builder.Services.AddMapleFeatures();
 
 var app = builder.Build();
+
+if (args is ["backup"])
+{
+    // Online backup: a consistent, encrypted copy of the database taken while the server keeps running
+    // (docker exec maple-notes dotnet /app/MapleNotes.Server.dll backup).
+    try
+    {
+        var options = app.Services.GetRequiredService<MapleOptions>();
+        if (!File.Exists(options.DatabasePath))
+        {
+            throw new MapleStartupException($"There is no database at '{options.DatabasePath}' to back up. Check {MapleOptions.DataDirectoryKey}.");
+        }
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var path = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().BackupDatabase("manual");
+        Console.WriteLine(path);
+        return 0;
+    }
+    catch (Exception ex) when (FindStartupError(ex) is { } startupError)
+    {
+        await Console.Error.WriteLineAsync($"Maple Notes cannot back up: {startupError.Message}");
+        return 1;
+    }
+}
 
 app.UseForwardedHeaders();
 app.UseMapleSecurityHeaders();
