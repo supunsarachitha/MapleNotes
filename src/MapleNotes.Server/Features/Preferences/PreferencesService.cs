@@ -30,6 +30,16 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
             throw new ApiValidationException("dateFormat", $"Choose one of: {string.Join(", ", UserPreferences.DateFormats)}.");
         }
 
+        if (!UserPreferences.Themes.Contains(preferences.Theme, StringComparer.Ordinal))
+        {
+            throw new ApiValidationException("theme", $"Choose one of: {string.Join(", ", UserPreferences.Themes)}.");
+        }
+
+        if (!UserPreferences.Accents.Contains(preferences.Accent, StringComparer.Ordinal))
+        {
+            throw new ApiValidationException("accent", $"Choose one of: {string.Join(", ", UserPreferences.Accents)}.");
+        }
+
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
         user.Preferences = preferences;
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;

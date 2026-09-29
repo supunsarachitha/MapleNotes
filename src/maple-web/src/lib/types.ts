@@ -31,6 +31,14 @@ export const DATE_FORMATS = [
 
 export type DateFormat = (typeof DATE_FORMATS)[number];
 
+/** Light or dark: follow the device, or always one of them. */
+export const THEMES = ["System", "Light", "Dark"] as const;
+export type Theme = (typeof THEMES)[number];
+
+/** The accent colours offered in Settings (lib/appearance.ts has their shades). */
+export const ACCENTS = ["Maple", "Ocean", "Forest", "Teal", "Plum", "Amber", "Slate"] as const;
+export type Accent = (typeof ACCENTS)[number];
+
 /** An account's writing and feature preferences, shared by all of its devices. */
 export interface Preferences {
   /** Show a title field when writing; a title is the note's first line, as a Markdown heading. */
@@ -47,6 +55,8 @@ export interface Preferences {
   dailyNotes: boolean;
   /** Show a month calendar in the side menu. */
   calendar: boolean;
+  theme: Theme;
+  accent: Accent;
 }
 
 /** Argon2id parameters for deriving an account's keys from its password (docs/e2ee-spec.md §1). */

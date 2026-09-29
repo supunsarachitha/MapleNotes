@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { Logo } from "./components/Logo";
 import { Button, Spinner } from "./components/ui";
+import { useAppearance } from "./lib/appearance";
 import { useConversionRunner } from "./lib/conversion";
 import { e2ee, useEndToEndKeys } from "./lib/e2ee";
 import { registerMediaWorker } from "./lib/mediaWorker";
@@ -33,6 +34,7 @@ export function App() {
   const status = useAuthStatus();
   const { path } = useLocation();
   const user = status.data?.user ?? null;
+  useAppearance(user?.preferences.theme, user?.preferences.accent);
   const keys = useEndToEndKeys(user);
   const signedOut = status.data !== undefined && !status.data.user;
   const needsMediaWorker = user?.hasEndToEndKey === true;

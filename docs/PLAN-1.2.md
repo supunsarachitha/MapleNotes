@@ -25,6 +25,8 @@ Every feature must work in all three encryption modes, including end-to-end, whe
 | 13 | Exports carry the new data | Every format records the kind and the daily date, and todo lists and quick notes go into `todo/` and `quick-notes/` folders. The manifest moves to version 2. The server's and the browser's exports stay identical, checked by the shared export vectors. | Exports are the backup format, so a restore must be able to rebuild everything. |
 | 14 | Version | 1.2.0: new features, no breaking API changes (new fields and parameters only). | Semantic versioning. |
 | 15 | Calendar | A month calendar in the side menu (under the navigation, also in the phone drawer). Days with notes get a dot, today is outlined, and choosing a day opens that day's notes, like a tag view. Days follow the device's time zone; the week starts on the locale's first day. | Browsing by date is how people find "what did I write that week". Note dates are already visible to the server, so the calendar reveals nothing new in end-to-end mode. |
+| 16 | Appearance | Theme (System, Light, Dark) and an accent colour (Maple, Ocean, Forest, Teal, Plum, Amber, Slate) are preferences, applied by the web app. Each accent replaces the six brand shades the interface uses; the device remembers the last choice so the sign-in screen and the first paint match. | The brand colours were already design tokens, so accents are a token swap; checking contrast per accent keeps the app readable. |
+| 17 | Images | A lightbox built on the existing accessible dialog: the image fitted to the screen, arrows and swipes between a note's images, Esc to close, and a download link. Attachment images keep their aspect ratio and fill the width available. | No new dependency, and end-to-end images work because the viewer uses the same decrypted image sources as the note. |
 
 ## Design notes
 
@@ -66,6 +68,8 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 | F7 | Import and full restore | Export archives in every format and layout, and single `.md`/`.txt`/`.json` files, restore into any account, including end-to-end ones, with progress and a summary. Re-importing skips existing notes. Round-trip tests: export → import into a fresh account → identical export | ✅ Done (`03df64e`) |
 | F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ✅ Done (`f66f0cb`) |
 | F9 | Calendar in the side menu (requested after F8) | A month calendar in the side menu marks the days that have notes; choosing a day shows that day's notes; works in every encryption mode; a Features switch (on by default); docs, changelog and preview updated | ✅ Done |
+| F10 | Appearance: theme colour and dark mode (requested after F8) | Settings → Appearance offers System, Light or Dark and a choice of accent colours, saved per account and applied at once, with no flash of the wrong theme when the app opens; every accent keeps text contrast at least 4.5:1 in both themes | ✅ Done |
+| F11 | Image viewer and responsive images (requested after F8) | Choosing an image attachment opens a full-screen viewer (next/previous for a note's images, keyboard, swipe, close); attachment images scale to any screen width without overflowing or distorting; works for end-to-end files | ⏳ Not started |
 
 ### Notes from the phases
 
@@ -159,6 +163,16 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   - the Calendar switch;
   - the phone drawer;
   - an end-to-end account;
+  - the 18-step suite.
+- **F10** (requested after F8): "Device" is handled entirely in CSS. Dark mode follows `prefers-color-scheme` unless
+  `<html>` carries the `.light` or `.dark` class that Light and Dark set, so the default needs no script and the first
+  paint is right. An explicit choice is also remembered on the device and applied before React renders. Each accent
+  replaces the six brand shades through CSS variables; the browser test measures contrast from the real stylesheet:
+  white on the two button shades, and the dark-theme text shade on stone-900. Verified in Chromium on the production
+  build:
+  - Device on a light and on a dark device, and Light and Dark overriding each;
+  - an accent recolouring buttons and the browser's theme colour;
+  - the choice kept after a reload and on the sign-in page;
   - the 18-step suite.
 
 ## Out of scope for 1.2.0

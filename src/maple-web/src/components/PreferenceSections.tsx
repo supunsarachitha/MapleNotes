@@ -1,9 +1,11 @@
+import { Monitor, Moon, Sun } from "lucide-react";
 import { useId, type ReactNode } from "react";
+import { ACCENT_COLORS } from "../lib/appearance";
 import { formatDate } from "../lib/dates";
 import { usePreferences, useUpdatePreferences } from "../lib/preferences";
-import { DATE_FORMATS, type DateFormat, type Preferences } from "../lib/types";
+import { ACCENTS, DATE_FORMATS, THEMES, type DateFormat, type Preferences } from "../lib/types";
 import { useToast } from "./Toaster";
-import { Section, Switch } from "./ui";
+import { Section, Switch, cn } from "./ui";
 
 /** A switch with its label and explanation, for one preference. */
 function PreferenceSwitch({
@@ -39,6 +41,77 @@ function useSavePreferences() {
   const toast = useToast();
   return (changes: Partial<Preferences>) =>
     update.mutate(changes, { onError: () => toast.error("Your setting could not be saved. Please try again.") });
+}
+
+const THEME_ICONS = { System: Monitor, Light: Sun, Dark: Moon } as const;
+
+/** Light or dark, and the accent colour; saved for the account, so every device looks the same. */
+export function AppearanceSection() {
+  const preferences = usePreferences();
+  const save = useSavePreferences();
+
+  return (
+    <Section title="Appearance">
+      <fieldset>
+        <legend className="mb-2 text-sm font-medium">Theme</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {THEMES.map((theme) => {
+            const Icon = THEME_ICONS[theme];
+            return (
+              <label
+                key={theme}
+                className={cn(
+                  "flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-maple-500",
+                  preferences.theme === theme
+                    ? "border-maple-600 bg-maple-50 font-medium text-maple-700 dark:border-maple-500 dark:bg-maple-600/15 dark:text-maple-400"
+                    : "border-stone-200 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="theme"
+                  value={theme}
+                  checked={preferences.theme === theme}
+                  onChange={() => save({ theme })}
+                  className="sr-only"
+                />
+                <Icon className="size-4" aria-hidden="true" />
+                {theme === "System" ? "Device" : theme}
+              </label>
+            );
+          })}
+        </div>
+        <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">Device follows your phone or computer's light or dark setting.</p>
+      </fieldset>
+
+      <fieldset className="mt-5">
+        <legend className="mb-2 text-sm font-medium">Accent colour</legend>
+        <div className="flex flex-wrap gap-3">
+          {ACCENTS.map((accent) => (
+            <label key={accent} className="flex cursor-pointer flex-col items-center gap-1 text-xs text-stone-600 dark:text-stone-300">
+              <input
+                type="radio"
+                name="accent"
+                value={accent}
+                checked={preferences.accent === accent}
+                onChange={() => save({ accent })}
+                className="peer sr-only"
+              />
+              <span
+                aria-hidden="true"
+                style={{ backgroundColor: ACCENT_COLORS[accent] }}
+                className={cn(
+                  "size-9 rounded-full ring-offset-2 ring-offset-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-stone-500 dark:ring-offset-stone-900",
+                  preferences.accent === accent ? "ring-2 ring-stone-900 dark:ring-stone-100" : "",
+                )}
+              />
+              {accent}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    </Section>
+  );
 }
 
 /** Which tabs and cards the app shows. Turning one off hides it but keeps its notes. */

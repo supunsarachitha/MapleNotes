@@ -1,6 +1,21 @@
 @import "tailwindcss";
 
 /*
+ * Dark mode: the device's setting, unless the user chose Light or Dark, which lib/appearance.ts marks with a .light or
+ * .dark class on <html>. Following the device needs no script, so the first paint is already right.
+ */
+@custom-variant dark {
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not(.light), :root:not(.light) *) {
+      @slot;
+    }
+  }
+}
+
+/*
  * Maple Notes design tokens. Components use these through Tailwind's theme (e.g. bg-maple-600).
  * Brand colour: deep maple red #8f1d21 (maple-600), the same colour as the app icon and browser theme-color.
  * White text on maple-600 has an 8.9:1 contrast ratio; on dark backgrounds use maple-400 for text (5.8:1).
@@ -14,6 +29,59 @@
   --color-maple-700: #731619;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/*
+ * Accent colours: each replaces the brand shades the interface uses. White text on 600 and 500 stays at 4.5:1 or
+ * better, and 400 is the text shade on dark backgrounds (at least 4.5:1 on stone-900). Maple is the default above.
+ */
+:root[data-accent="ocean"] {
+  --color-maple-50: #eff6ff;
+  --color-maple-100: #dbeafe;
+  --color-maple-400: #60a5fa;
+  --color-maple-500: #2563eb;
+  --color-maple-600: #1d4ed8;
+  --color-maple-700: #1e40af;
+}
+:root[data-accent="forest"] {
+  --color-maple-50: #f0fdf4;
+  --color-maple-100: #dcfce7;
+  --color-maple-400: #4ade80;
+  --color-maple-500: #15803d;
+  --color-maple-600: #166534;
+  --color-maple-700: #14532d;
+}
+:root[data-accent="teal"] {
+  --color-maple-50: #f0fdfa;
+  --color-maple-100: #ccfbf1;
+  --color-maple-400: #2dd4bf;
+  --color-maple-500: #0f766e;
+  --color-maple-600: #115e59;
+  --color-maple-700: #134e4a;
+}
+:root[data-accent="plum"] {
+  --color-maple-50: #faf5ff;
+  --color-maple-100: #f3e8ff;
+  --color-maple-400: #c084fc;
+  --color-maple-500: #7e22ce;
+  --color-maple-600: #6b21a8;
+  --color-maple-700: #581c87;
+}
+:root[data-accent="amber"] {
+  --color-maple-50: #fff7ed;
+  --color-maple-100: #ffedd5;
+  --color-maple-400: #fb923c;
+  --color-maple-500: #c2410c;
+  --color-maple-600: #9a3412;
+  --color-maple-700: #7c2d12;
+}
+:root[data-accent="slate"] {
+  --color-maple-50: #f8fafc;
+  --color-maple-100: #f1f5f9;
+  --color-maple-400: #94a3b8;
+  --color-maple-500: #475569;
+  --color-maple-600: #334155;
+  --color-maple-700: #1e293b;
 }
 
 html {

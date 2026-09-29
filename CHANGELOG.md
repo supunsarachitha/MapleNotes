@@ -24,6 +24,9 @@ modes, and each account chooses which ones it uses.
   and back.
 - **Daily notes** (off by default): today's note at the top of Home, titled with the date and saved when you first
   write. There is one per day, also when two devices start it at once.
+- **Appearance** (Settings → Appearance): light, dark or the device's theme, and seven accent colours (Maple, Ocean,
+  Forest, Teal, Plum, Amber, Slate), each keeping text contrast at 4.5:1 or better. The device remembers the last
+  choice, so the sign-in screen matches.
 - **Calendar** (on by default): a month calendar in the side menu (and the phone drawer) marks the days with notes,
   in your time zone; choosing a day shows its notes.
 - **Restore** (Settings → Backup & restore): bring back Maple Notes exports (`.zip`, any format and layout, with

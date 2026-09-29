@@ -88,4 +88,15 @@ describe("Settings", () => {
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, todoLists: false }));
     expect(todo).toHaveAttribute("aria-checked", "false");
   });
+
+  it("changes the theme and accent colour", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
+
+    await userEvent.click(screen.getByRole("radio", { name: "Dark" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Forest" }));
+
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, theme: "Dark", accent: "Forest" }));
+    expect(screen.getByRole("radio", { name: "Forest" })).toBeChecked();
+  });
 });

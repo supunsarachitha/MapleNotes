@@ -19,6 +19,12 @@ public sealed record UserPreferences
         "dddd, MMMM d, yyyy",
     ];
 
+    /// <summary>Light or dark: follow the device (<c>System</c>), or always <c>Light</c> or <c>Dark</c>.</summary>
+    public static IReadOnlyList<string> Themes { get; } = ["System", "Light", "Dark"];
+
+    /// <summary>The accent colours a user can choose.</summary>
+    public static IReadOnlyList<string> Accents { get; } = ["Maple", "Ocean", "Forest", "Teal", "Plum", "Amber", "Slate"];
+
     /// <summary>
     /// Show a title field when writing notes. A title is stored as the note's first line, written as a Markdown
     /// heading, so turning this off never changes a note.
@@ -42,4 +48,10 @@ public sealed record UserPreferences
 
     /// <summary>Show a month calendar in the side menu for finding notes by date.</summary>
     public bool Calendar { get; init; } = true;
+
+    /// <summary>Light or dark: one of <see cref="Themes"/>.</summary>
+    public string Theme { get; init; } = "System";
+
+    /// <summary>The interface's accent colour: one of <see cref="Accents"/>.</summary>
+    public string Accent { get; init; } = "Maple";
 }

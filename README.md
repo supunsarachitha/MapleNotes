@@ -49,8 +49,9 @@
   Single Markdown, text and JSON files can be added too. With end-to-end encryption, your browser does both.
 - **Accounts.** Multiple users with secure authentication. The first account becomes the administrator, who can open
   registration, disable or remove accounts, and appoint other administrators. Administrators never see anyone's notes.
-- **Mobile first.** Responsive design with light and dark themes that follow your system, keyboard shortcuts, and
-  accessible menus and dialogs.
+- **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
+- **Appearance.** Light or dark (or follow your device), and seven accent colours, chosen in Settings and applied on
+  every device.
 - **Small and hardened.** One container: non-root, read-only root filesystem, built-in health check.
 
 | Mobile | Todo lists | Settings |

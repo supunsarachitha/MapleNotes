@@ -80,6 +80,21 @@ public sealed class PreferencesTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Theme_and_accent_are_saved_and_checked()
+    {
+        var saved = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { Theme = "Dark", Accent = "Forest" });
+        var badTheme = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { Theme = "Neon" });
+        var badAccent = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { Accent = "#ff00ff" });
+
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Contains("theme", (await badTheme.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+        Assert.Contains("accent", (await badAccent.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+        var stored = await _alice.GetJsonAsync<UserPreferences>("/api/v1/account/preferences");
+        Assert.Equal(("Dark", "Forest"), (stored!.Theme, stored.Accent));
+        Assert.Equal(("System", "Maple"), (new UserPreferences().Theme, new UserPreferences().Accent));
+    }
+
+    [Fact]
     public async Task Preferences_need_a_signed_in_user()
     {
         using var visitor = new ApiClient(_app);

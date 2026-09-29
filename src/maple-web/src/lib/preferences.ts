@@ -13,6 +13,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   quickNotes: true,
   dailyNotes: false,
   calendar: true,
+  theme: "System",
+  accent: "Maple",
 };
 
 /** The signed-in user's preferences (from the sign-in status, so every device sees the same). */

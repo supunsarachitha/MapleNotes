@@ -4,7 +4,7 @@ import { useId, useState, type FormEvent } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
 import { ExportSection } from "../components/ExportSection";
-import { FeaturesSection, WritingSection } from "../components/PreferenceSections";
+import { AppearanceSection, FeaturesSection, WritingSection } from "../components/PreferenceSections";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
 import { useToast } from "../components/Toaster";
@@ -333,6 +333,7 @@ export function SettingsPage({ user }: { user: User }) {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Settings</h1>
       <AccountSection user={user} />
+      <AppearanceSection />
       <WritingSection />
       <FeaturesSection />
       <ExportSection user={user} />
