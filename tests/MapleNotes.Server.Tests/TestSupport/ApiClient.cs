@@ -58,6 +58,15 @@ public sealed class ApiClient : IDisposable
         return (await response.Content.ReadFromJsonAsync<UserResponse>(Json, Ct))!;
     }
 
+    public async Task<HttpResponseMessage> UploadAsync(byte[] content, string fileName, string contentType = "application/octet-stream")
+    {
+        using var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(content);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        form.Add(file, "file", fileName);
+        return await Http.PostAsync("/api/v1/attachments", form, Ct);
+    }
+
     public Task<HttpResponseMessage> GetAsync(string url) => Http.GetAsync(url, Ct);
 
     public Task<T?> GetJsonAsync<T>(string url) => Http.GetFromJsonAsync<T>(url, Json, Ct);

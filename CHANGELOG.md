@@ -34,3 +34,13 @@ Work toward v1.0.0. Entries move under a version heading at release.
   cookies checked against the database on every request, antiforgery tokens, password change and "sign out
   everywhere".
 - Administration: open or close registration, list accounts, disable accounts and change roles.
+- Notes API: create, read, edit, pin, archive/restore and delete; cursor-paginated feed that stays stable while new
+  notes arrive; `#tags` (including nested `#work/meetings`) with a tag list and tag filter; search that works on
+  encrypted notes.
+- Attachments API: streaming uploads (never buffered whole), encrypted at rest per account setting, HTTP Range
+  downloads, size limit (`MAPLE_MAX_UPLOAD_MB`), safe serving (only passive media inline; SVG, HTML and scripts are
+  always downloaded), hourly cleanup of abandoned uploads and orphan files.
+- Security headers on every response (Content-Security-Policy, nosniff, frame denial, referrer policy), HSTS over
+  HTTPS, long-lived caching for fingerprinted assets.
+- OpenAPI document with XML documentation and an interactive API reference (`/scalar`) in Development or with
+  `MAPLE_API_DOCS=true`.

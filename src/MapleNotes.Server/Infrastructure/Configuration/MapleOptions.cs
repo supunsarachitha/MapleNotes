@@ -31,6 +31,12 @@ public sealed class MapleOptions
     /// <summary>Configuration key for <see cref="AuthenticationRateLimit"/>.</summary>
     public const string AuthenticationRateLimitKey = "MAPLE_AUTH_RATE_LIMIT";
 
+    /// <summary>
+    /// Configuration key that, when <c>true</c>, publishes the OpenAPI document (<c>/openapi/v1.json</c>) and the
+    /// interactive API reference (<c>/scalar</c>) outside Development. Read directly when the pipeline is built.
+    /// </summary>
+    public const string ApiDocsKey = "MAPLE_API_DOCS";
+
     /// <summary>Absolute path of the directory holding the database, attachments, key ring and backups.</summary>
     public required string DataDirectory { get; init; }
 

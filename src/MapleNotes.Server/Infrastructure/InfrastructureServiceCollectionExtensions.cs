@@ -46,6 +46,7 @@ internal static class InfrastructureServiceCollectionExtensions
         });
 
         services.AddSingleton<DataKeyService>();
+        services.AddScoped<UserContentKeys>();
         services.AddSingleton<AttachmentStore>();
 
         services.AddSingleton(provider => new DatabaseConnectionString(SqlCipherConnectionString.Build(

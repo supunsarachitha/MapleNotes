@@ -79,6 +79,11 @@ public sealed partial class AttachmentStore(MapleOptions options)
             Options = FileOptions.Asynchronous,
         });
 
+    /// <summary>Returns when a stored file was last written (UTC).</summary>
+    /// <param name="storageKey">The file's storage key.</param>
+    /// <returns>The last write time.</returns>
+    public DateTime GetLastWriteTimeUtc(string storageKey) => File.GetLastWriteTimeUtc(ResolvePath(storageKey));
+
     /// <summary>Returns whether a stored file exists.</summary>
     /// <param name="storageKey">The file's storage key.</param>
     /// <returns>True when the file exists.</returns>

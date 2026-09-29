@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using MapleNotes.Server.Domain;
-using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -39,6 +38,7 @@ internal static class WebServiceCollectionExtensions
                 // and every state-changing request must carry a valid antiforgery token.
                 mvc.Filters.Add(new AuthorizeFilter());
                 mvc.Filters.Add<AntiforgeryValidationFilter>();
+                mvc.Filters.Add<ApiValidationExceptionFilter>();
             })
             .AddJsonOptions(json => json.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
@@ -85,9 +85,7 @@ internal static class WebServiceCollectionExtensions
         });
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 
-        services.AddScoped<AccountService>();
-        services.AddScoped<InstanceSettingsService>();
-        services.AddScoped<UserAdministrationService>();
+        services.AddOpenApi();
 
         services.AddRateLimiter(_ => { });
         services.AddOptions<RateLimiterOptions>().Configure<MapleOptions>((limiter, options) =>

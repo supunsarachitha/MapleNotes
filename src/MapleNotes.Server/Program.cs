@@ -10,11 +10,13 @@
 //   generate-key    print a new random master key and exit
 //   --healthcheck   probe the running server's /healthz endpoint and exit 0 (healthy) or 1
 
+using MapleNotes.Server.Features;
 using MapleNotes.Server.Infrastructure;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Hosting;
 using MapleNotes.Server.Infrastructure.Web;
+using Scalar.AspNetCore;
 
 if (args is ["generate-key"])
 {
@@ -32,14 +34,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMapleInfrastructure();
 builder.Services.AddMapleWeb();
+builder.Services.AddMapleFeatures();
 
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+app.UseMapleSecurityHeaders();
 app.UseExceptionHandler();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts(); // only sent on HTTPS requests, i.e. behind a TLS-terminating proxy listed in MAPLE_TRUSTED_PROXIES
+}
 
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(SecurityHeaders.SpaStaticFiles);
 
 app.UseRouting();
 app.UseRateLimiter();
@@ -49,11 +57,18 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/healthz");
 
+// Interactive API reference (/scalar) and OpenAPI document (/openapi/v1.json).
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>(MapleOptions.ApiDocsKey))
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+}
+
 // Unknown API routes must return 404 instead of falling through to the SPA's index.html.
 app.MapFallback("/api/{**path}", () => Results.NotFound());
 
 // Every other unknown route belongs to the client-side router.
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", SecurityHeaders.SpaStaticFiles);
 
 try
 {
