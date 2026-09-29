@@ -51,13 +51,16 @@ Every feature must work in all three encryption modes, including end-to-end, whe
 
 Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ not started
 
+At the end of every phase the preview container (`maple-notes-preview`, port 8092, volume `maple-preview-data`) is
+rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
+
 | # | Phase | Done when | Status |
 |---|---|---|---|
 | F1 | Preferences and the Settings layout | Preferences are stored per account, returned with the user and changed through the API (validated, tested). Settings shows the new layout: the collapsible Advanced section with Encryption, Recovery key, Sessions and Delete account, and "Backup & restore" | ✅ Done |
 | F2 | Note titles and dates in titles | With titles on, the editor has a title field for new and existing notes and cards show the title. Optional date prefill in the chosen format with a preview. Nothing changes with titles off; works for end-to-end accounts | ✅ Done |
 | F3 | Kinds of notes and the Todo tab | Notes have a kind (migration, API filter, patch). The Todo tab creates and edits checklists that are encrypted like any note. Search, tags and the archive span enabled kinds with labels. The setting (on by default) shows or hides the tab | ✅ Done |
 | F4 | Quick notes | The Quick notes tab with its own composer and list; moving a quick note to Home and back; the setting (on by default) | ✅ Done |
-| F5 | Daily notes | Home's "Today" card creates the day's note on first write; one daily note per date is enforced; the setting (off by default) | ⏳ Not started |
+| F5 | Daily notes | Home's "Today" card creates the day's note on first write; one daily note per date is enforced; the setting (off by default) | ✅ Done |
 | F6 | Exports with kinds and daily notes | Server and browser exports record kind and daily date, and place todo lists and quick notes in their folders (manifest version 2). The shared export vectors cover the new data | ⏳ Not started |
 | F7 | Import and full restore | Export archives in every format and layout, and single `.md`/`.txt`/`.json` files, restore into any account, including end-to-end ones, with progress and a summary. Re-importing skips existing notes. Round-trip tests: export → import into a fresh account → identical export | ⏳ Not started |
 | F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ⏳ Not started |
@@ -101,6 +104,18 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
   - moving to Home and back;
   - turning the tab off and on;
   - an encrypted quick note on an end-to-end account;
+  - the 18-step suite.
+- **F5:** a unique index on (`UserId`, `DailyDate`) enforces one daily note per day, including when two devices save
+  at the same moment: the second gets 409 and its words are added to the existing note. Opening Home creates
+  nothing; the day's note is saved with its first words, and it is kept out of the feed below the Today card.
+  Adding `dailyDate` to note responses changed the shared export vectors again; they were regenerated. Verified in
+  Chromium on the production build:
+  - off by default;
+  - the Today card titled in the chosen format;
+  - nothing saved by visiting;
+  - the first words starting the note;
+  - a second device adding to it rather than starting another;
+  - the note converted to end-to-end encryption and still today's;
   - the 18-step suite.
 
 ## Out of scope for 1.2.0

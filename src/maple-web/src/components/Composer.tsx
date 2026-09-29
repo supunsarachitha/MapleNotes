@@ -6,6 +6,7 @@ import { formatDate } from "../lib/dates";
 import { formatBytes } from "../lib/format";
 import { usePreferences } from "../lib/preferences";
 import { useInvalidateNotes } from "../lib/queries";
+import { saveDailyNote } from "../lib/daily";
 import { joinTitle, splitTitle } from "../lib/titles";
 import type { Attachment, Note, NoteKind } from "../lib/types";
 import { useToast } from "./Toaster";
@@ -55,6 +56,7 @@ export function Composer({
   allowTitle = true,
   kind = "Note",
   placeholder = "What's on your mind? Use #tags and **Markdown**.",
+  daily,
 }: {
   /** The note to edit; omit to write a new note. */
   note?: Note;
@@ -66,9 +68,11 @@ export function Composer({
   /** The kind of note a new note becomes. */
   kind?: NoteKind;
   placeholder?: string;
+  /** Starts a day's daily note: the title is the date and cannot be changed here. */
+  daily?: { date: string; title: string };
 }) {
   const preferences = usePreferences();
-  const withTitle = allowTitle && preferences.noteTitles;
+  const withTitle = allowTitle && preferences.noteTitles && !daily;
   const suggestTitle = () => (!note && withTitle && preferences.dateInTitles ? formatDate(new Date(), preferences.dateFormat) : "");
   const [initial] = useState(() => (note && withTitle ? splitTitle(note.content) : { title: "", body: note?.content ?? "" }));
   const [suggested, setSuggested] = useState(suggestTitle);
@@ -104,7 +108,7 @@ export function Composer({
 
   const uploading = files.some((f) => !f.attachment && !f.error);
   const attachmentIds = files.flatMap((f) => (f.attachment ? [f.attachment.id] : []));
-  const content = withTitle ? joinTitle(title, text) : text;
+  const content = daily ? joinTitle(daily.title, text) : withTitle ? joinTitle(title, text) : text;
   // A title only counts as something written when the user typed it, not when it is just today's date.
   const typedTitle = withTitle && title.trim().length > 0 && title.trim() !== suggested.trim();
   const canSave =
@@ -155,6 +159,7 @@ export function Composer({
     setSaving(true);
     try {
       if (editing) await api.updateNote(note.id, content, attachmentIds);
+      else if (daily) await saveDailyNote(daily.date, daily.title, text, attachmentIds);
       else if (kind === "Note") await api.createNote(content, attachmentIds);
       else await api.createNote(content, attachmentIds, { kind });
       await invalidateNotes();
@@ -227,6 +232,7 @@ export function Composer({
         dragging ? "border-maple-500 ring-2 ring-maple-500/30" : "border-stone-200 dark:border-stone-800",
       )}
     >
+      {daily && <p className="mb-1 border-b border-stone-100 px-1 pb-2 pt-1 text-base font-semibold dark:border-stone-800">{daily.title}</p>}
       {withTitle && (
         <input
           type="text"

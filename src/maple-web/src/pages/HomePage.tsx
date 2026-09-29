@@ -2,6 +2,8 @@ import { Hash, Search, X } from "lucide-react";
 import { Composer } from "../components/Composer";
 import { NoteList } from "../components/NoteList";
 import { EmptyState } from "../components/ui";
+import { NoteCard } from "../components/NoteCard";
+import { useTodaysNote } from "../lib/daily";
 import { useEnabledKinds } from "../lib/kinds";
 import { Link, useLocation } from "../lib/router";
 
@@ -20,12 +22,33 @@ function FilterHeader({ icon: Icon, label }: { icon: typeof Hash; label: string 
   );
 }
 
-/** Home: the composer, pinned notes and the feed; or, with ?tag= or ?q=, the matching notes. */
+const sectionHeading = "px-1 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400";
+
+/** With daily notes on: today's note, or a composer that starts it with the first words written. */
+function TodayCard({ today }: { today: ReturnType<typeof useTodaysNote> }) {
+  const { date, title, query } = today;
+  return (
+    <section aria-label="Today" className="flex flex-col gap-3">
+      <h2 className={sectionHeading}>Today</h2>
+      {query.isPending ? (
+        <div className="h-28 animate-pulse rounded-2xl bg-stone-200/70 dark:bg-stone-800/70" aria-busy="true" aria-label="Loading today's note" />
+      ) : query.data ? (
+        <NoteCard note={query.data} />
+      ) : (
+        <Composer key={date} daily={{ date, title }} placeholder="Write about your day…" />
+      )}
+    </section>
+  );
+}
+
+/** Home: today's note, the composer, pinned notes and the feed; or, with ?tag= or ?q=, the matching notes. */
 export function HomePage() {
   const { params } = useLocation();
   const kinds = useEnabledKinds();
   const tag = params.get("tag") ?? undefined;
   const q = params.get("q") ?? undefined;
+  const today = useTodaysNote();
+  const hideIds = today.enabled && today.query.data ? [today.query.data.id] : [];
 
   if (tag || q) {
     return (
@@ -46,15 +69,17 @@ export function HomePage() {
   return (
     <>
       <h1 className="sr-only">Home</h1>
+      {today.enabled && (
+        <div className="mb-6">
+          <TodayCard today={today} />
+        </div>
+      )}
       <Composer />
       <div className="mt-6 flex flex-col gap-6">
-        <NoteList
-          state="pinned"
-          showEndMarker={false}
-          header={<h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Pinned</h2>}
-        />
+        <NoteList state="pinned" showEndMarker={false} hideIds={hideIds} header={<h2 className={sectionHeading}>Pinned</h2>} />
         <NoteList
           state="feed"
+          hideIds={hideIds}
           empty={
             <EmptyState title="Nothing here yet">
               Write your first note above. Add #tags to organise notes, and attach photos or files.

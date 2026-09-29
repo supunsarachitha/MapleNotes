@@ -83,6 +83,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             note.HasIndex(n => new { n.UserId, n.CreatedAtUtc, n.Id });
             note.HasIndex(n => new { n.UserId, n.Kind, n.CreatedAtUtc, n.Id });
             note.Property(n => n.Kind).HasConversion<string>().HasMaxLength(16);
+
+            // At most one daily note per account and day (SQLite treats NULLs as distinct, so other notes are free).
+            note.HasIndex(n => new { n.UserId, n.DailyDate }).IsUnique();
             note.Property(n => n.Revision).IsConcurrencyToken();
 
             note.HasMany(n => n.Attachments).WithOne().HasForeignKey(a => a.NoteId).OnDelete(DeleteBehavior.Cascade);

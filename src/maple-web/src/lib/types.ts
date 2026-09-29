@@ -102,6 +102,8 @@ export type NoteKind = "Note" | "Todo" | "Quick";
 export interface Note {
   id: string;
   kind: NoteKind;
+  /** For a daily note, its day (`yyyy-MM-dd`). */
+  dailyDate?: string | null;
   content: string;
   isPinned: boolean;
   isArchived: boolean;

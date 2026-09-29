@@ -21,6 +21,12 @@ public sealed class Note : IRevisioned
     /// <summary>Where the note belongs: the timeline, the Todo tab or the Quick notes tab.</summary>
     public NoteKind Kind { get; set; }
 
+    /// <summary>
+    /// For a daily note, the calendar day it belongs to (the user's local date when it was started); null for other
+    /// notes. An account has at most one daily note per day.
+    /// </summary>
+    public DateOnly? DailyDate { get; set; }
+
     /// <summary>Pinned notes are listed above the feed.</summary>
     public bool IsPinned { get; set; }
 

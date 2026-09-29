@@ -201,10 +201,24 @@ export const api = {
   /** Notes, decrypted; searches and tag filters also cover end-to-end notes (see noteCrypto.ts). */
   listNotes,
 
-  async createNote(content: string, attachmentIds: string[], options: { isPinned?: boolean; kind?: NoteKind } = {}): Promise<Note> {
+  async createNote(
+    content: string,
+    attachmentIds: string[],
+    options: { isPinned?: boolean; kind?: NoteKind; dailyDate?: string } = {},
+  ): Promise<Note> {
     const fields = await encodeNewNote(content);
-    const { isPinned = false, kind = "Note" } = options;
-    return decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind }));
+    const { isPinned = false, kind = "Note", dailyDate } = options;
+    return decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind, dailyDate }));
+  },
+
+  /** The daily note of a day (`yyyy-MM-dd`), or null when the day has none yet. */
+  async dailyNote(date: string): Promise<Note | null> {
+    try {
+      return await decodeNote(await request<NoteWire>("GET", `/api/v1/notes/daily/${date}`));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
   },
 
   async updateNote(id: string, content: string, attachmentIds: string[]): Promise<Note> {

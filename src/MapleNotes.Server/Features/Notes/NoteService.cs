@@ -129,6 +129,18 @@ public sealed class NoteService(
         return note is null ? null : await ToResponseAsync(note, cancellationToken);
     }
 
+    /// <summary>Returns the user's daily note of a day.</summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="date">The day.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The note, or null when the day has none.</returns>
+    public async Task<NoteResponse?> GetDailyAsync(Guid userId, DateOnly date, CancellationToken cancellationToken)
+    {
+        var note = await WithDetails(db.Notes.AsNoTracking())
+            .SingleOrDefaultAsync(n => n.UserId == userId && n.DailyDate == date, cancellationToken);
+        return note is null ? null : await ToResponseAsync(note, cancellationToken);
+    }
+
     /// <summary>Creates a note.</summary>
     /// <param name="userId">The owner.</param>
     /// <param name="request">Text (plain, or encrypted by the browser), attachments and pin state.</param>
@@ -141,6 +153,19 @@ public sealed class NoteService(
     public async Task<NoteResponse> CreateAsync(Guid userId, CreateNoteRequest request, CancellationToken cancellationToken)
     {
         ValidateKinds([request.Kind]);
+        if (request.DailyDate is { } day)
+        {
+            if (request.Kind != NoteKind.Note)
+            {
+                throw new ApiValidationException("dailyDate", "Only timeline notes can be daily notes.");
+            }
+
+            if (await db.Notes.AnyAsync(n => n.UserId == userId && n.DailyDate == day, cancellationToken))
+            {
+                throw DailyNoteExists();
+            }
+        }
+
         var attachmentIds = request.AttachmentIds ?? [];
         var now = time.GetUtcNow().UtcDateTime;
         Note note;
@@ -159,7 +184,13 @@ public sealed class NoteService(
 
             note = new Note
             {
-                Id = request.Id!.Value, UserId = userId, Kind = request.Kind, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now,
+                Id = request.Id!.Value,
+                UserId = userId,
+                Kind = request.Kind,
+                DailyDate = request.DailyDate,
+                IsPinned = request.IsPinned,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now,
             };
             SetEncryptedContent(note, encrypted);
             await AttachAsync(note, attachmentIds, cancellationToken);
@@ -173,16 +204,37 @@ public sealed class NoteService(
             }
 
             var content = ValidateContent(request.Content, attachmentIds.Count);
-            note = new Note { UserId = userId, Kind = request.Kind, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now };
+            note = new Note
+            {
+                UserId = userId, Kind = request.Kind, DailyDate = request.DailyDate, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now,
+            };
             await SetContentAsync(note, content, cancellationToken);
             await AttachAsync(note, attachmentIds, cancellationToken);
             await SetTagsAsync(note, content, cancellationToken);
         }
 
         db.Notes.Add(note);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException) when (note.DailyDate is not null)
+        {
+            // Most likely another device started the day's note at the same moment.
+            var date = note.DailyDate.Value;
+            if (await db.Notes.AsNoTracking().AnyAsync(n => n.UserId == userId && n.DailyDate == date && n.Id != note.Id, cancellationToken))
+            {
+                throw DailyNoteExists();
+            }
+
+            throw;
+        }
+
         return await ToResponseAsync(note, cancellationToken);
     }
+
+    private static ApiProblemException DailyNoteExists() =>
+        new(StatusCodes.Status409Conflict, "This day already has a daily note.", "Open it with GET /api/v1/notes/daily/{date} and add to it.");
 
     /// <summary>Replaces a note's text and, optionally, its set of attachments.</summary>
     /// <param name="userId">The owner.</param>
@@ -277,6 +329,10 @@ public sealed class NoteService(
         }
 
         note.Kind = request.Kind ?? note.Kind;
+        if (note.Kind != NoteKind.Note)
+        {
+            note.DailyDate = null; // a daily note moved out of the timeline no longer holds its day
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         return await ToResponseAsync(note, cancellationToken);
@@ -360,7 +416,8 @@ public sealed class NoteService(
             note.Tags.Where(t => t.Name is not null).Select(t => t.Name!).Order(StringComparer.Ordinal).ToList(),
             note.Attachments.OrderBy(a => a.CreatedAtUtc).Select(AttachmentResponse.From).ToList(),
             endToEnd ? note.Content : null,
-            note.Kind);
+            note.Kind,
+            note.DailyDate);
     }
 
     /// <summary>Returns a note's text, decrypting it when necessary.</summary>

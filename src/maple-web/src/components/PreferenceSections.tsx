@@ -61,6 +61,12 @@ export function FeaturesSection() {
           checked={preferences.quickNotes}
           onChange={(quickNotes) => save({ quickNotes })}
         />
+        <PreferenceSwitch
+          label="Daily notes"
+          description="Show today's note at the top of Home, titled with the date. It is saved the first time you write in it, so days you skip leave no empty notes."
+          checked={preferences.dailyNotes}
+          onChange={(dailyNotes) => save({ dailyNotes })}
+        />
       </div>
     </Section>
   );

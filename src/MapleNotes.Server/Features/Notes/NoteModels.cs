@@ -71,6 +71,7 @@ public sealed record NoteListQuery
 /// <param name="Attachments">Attached files, oldest first.</param>
 /// <param name="EncryptedContent">The envelope of an end-to-end encrypted note (base64), for the browser to decrypt.</param>
 /// <param name="Kind">Where the note belongs: the timeline, the Todo tab or the Quick notes tab.</param>
+/// <param name="DailyDate">For a daily note, the day it belongs to.</param>
 public sealed record NoteResponse(
     Guid Id,
     string? Content,
@@ -81,7 +82,8 @@ public sealed record NoteResponse(
     IReadOnlyList<string> Tags,
     IReadOnlyList<AttachmentResponse> Attachments,
     byte[]? EncryptedContent = null,
-    NoteKind Kind = NoteKind.Note);
+    NoteKind Kind = NoteKind.Note,
+    DateOnly? DailyDate = null);
 
 /// <summary>One page of notes, newest first.</summary>
 /// <param name="Items">The notes.</param>
@@ -109,13 +111,15 @@ public sealed record EncryptedNote(byte[] Content, IReadOnlyList<EncryptedTag>? 
 /// <param name="Id">For an end-to-end note: the ID the browser chose and bound into the ciphertext (UUID version 7).</param>
 /// <param name="Encrypted">For an end-to-end note: the encrypted text and tags.</param>
 /// <param name="Kind">A timeline note (the default), a todo list or a quick note.</param>
+/// <param name="DailyDate">Makes a timeline note the daily note of this day; each day has at most one.</param>
 public sealed record CreateNoteRequest(
     string? Content = null,
     IReadOnlyList<Guid>? AttachmentIds = null,
     bool IsPinned = false,
     Guid? Id = null,
     EncryptedNote? Encrypted = null,
-    NoteKind Kind = NoteKind.Note);
+    NoteKind Kind = NoteKind.Note,
+    DateOnly? DailyDate = null);
 
 /// <summary>Request to replace a note's text (and optionally its attachments).</summary>
 /// <param name="Content">New Markdown text; accounts in end-to-end mode send <paramref name="Encrypted"/> instead.</param>
@@ -128,7 +132,8 @@ public sealed record UpdateNoteRequest(string? Content = null, IReadOnlyList<Gui
 /// <summary>Request to pin, unpin, archive, restore or move a note. Omitted fields are unchanged.</summary>
 /// <param name="IsPinned">Pin or unpin.</param>
 /// <param name="IsArchived">Archive (soft-delete) or restore.</param>
-/// <param name="Kind">Move the note, for example a quick note to the timeline.</param>
+/// <param name="Kind">Move the note, for example a quick note to the timeline. A daily note moved out of the timeline
+/// stops being the day's daily note.</param>
 public sealed record PatchNoteRequest(bool? IsPinned = null, bool? IsArchived = null, NoteKind? Kind = null);
 
 /// <summary>A tag and how many active notes (of the requested kinds) use it.</summary>

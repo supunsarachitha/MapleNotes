@@ -17,6 +17,7 @@ export function NoteList({
   empty,
   header,
   showEndMarker = true,
+  hideIds = [],
 }: {
   state: NoteState;
   tag?: string;
@@ -29,6 +30,8 @@ export function NoteList({
   header?: ReactNode;
   /** Show "You're all caught up" after a long list has been fully loaded. */
   showEndMarker?: boolean;
+  /** Notes shown elsewhere on the page (today's daily note). */
+  hideIds?: string[];
 }) {
   const query = useNotes(state, tag, q, kinds);
   const sentinel = useRef<HTMLDivElement>(null);
@@ -68,7 +71,7 @@ export function NoteList({
     );
   }
 
-  const notes = query.data.pages.flatMap((page) => page.items);
+  const notes = query.data.pages.flatMap((page) => page.items).filter((note) => !hideIds.includes(note.id));
   if (notes.length === 0 && !hasNextPage) {
     return empty ? <>{empty}</> : null;
   }

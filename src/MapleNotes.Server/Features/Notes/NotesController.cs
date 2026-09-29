@@ -39,15 +39,29 @@ public sealed class NotesController(NoteService notes) : ControllerBase
     public async Task<ActionResult<NoteResponse>> Get(Guid id, CancellationToken cancellationToken) =>
         await notes.GetAsync(User.GetUserId(), id, cancellationToken) is { } note ? note : NotFound();
 
+    /// <summary>Returns the daily note of a day.</summary>
+    /// <param name="date">The day, as <c>yyyy-MM-dd</c>.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The note.</returns>
+    /// <response code="200">The day's daily note.</response>
+    /// <response code="404">The day has no daily note yet.</response>
+    [HttpGet("daily/{date}")]
+    [ProducesResponseType<NoteResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<NoteResponse>> GetDaily(DateOnly date, CancellationToken cancellationToken) =>
+        await notes.GetDailyAsync(User.GetUserId(), date, cancellationToken) is { } note ? note : NotFound();
+
     /// <summary>Creates a note.</summary>
     /// <param name="request">Text, attachment IDs and pin state.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The new note.</returns>
     /// <response code="201">The note was created.</response>
     /// <response code="400">The text is invalid or an attachment cannot be used.</response>
+    /// <response code="409">The day already has a daily note, or the request does not match the account's encryption mode.</response>
     [HttpPost]
     [ProducesResponseType<NoteResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<NoteResponse>> Create(CreateNoteRequest request, CancellationToken cancellationToken)
     {
         var note = await notes.CreateAsync(User.GetUserId(), request, cancellationToken);
