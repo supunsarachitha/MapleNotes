@@ -66,9 +66,19 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 | 4 | Frontend | Full CRUD and attachments work at 375 px and on desktop; Vitest tests pass | ✅ Done (`187a7a0`) |
 | 5 | Encryption toggle and migration | Tests cover mixed data and a simulated crash mid-migration | ✅ Done (`a6d19b3`) |
 | 6 | Export | Tests verify ZIP structure, decrypted content and links for every format and layout | ✅ Done (`f079dff`) |
-| 7 | Hardening, docs and release | From a clean clone: `compose up`, register, post, export all work end to end | ✅ Done (release commit) |
+| 7 | Hardening, docs and release | From a clean clone: `compose up`, register, post, export all work end to end | ✅ Done (`d74ecb2`) |
 
 Phases 1 and 2 share one commit because the application wiring in `Program.cs` spans both.
+
+Release verification (2026-09-28): a fresh clone of `d74ecb2`, started with `docker compose up -d --build` as the
+README describes, passed an 18-step browser run covering the desktop, dark mode and 375 px phone layouts. The run
+covered:
+- setup and sign-in;
+- posting, attachments, pinning, tags, search, editing, archiving, deleting and infinite scroll;
+- switching encryption off and on;
+- a real export download, whose notes, relative links and attachment bytes were checked independently.
+
+No browser console errors, CSP violations or server errors were recorded.
 
 ## Out of scope for v1
 
