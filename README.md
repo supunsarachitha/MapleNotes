@@ -199,6 +199,79 @@ docker run -d --name maple-notes \
 To use a Docker secret instead of an environment variable, set `MAPLE_MASTER_KEY_FILE` to the secret's path
 (see the commented example in `docker-compose.yml`).
 
+### Portainer
+
+Paste this stack into Portainer (**Stacks → Add stack → Web editor**) and deploy it without changes. It builds the
+image from this repository on GitHub and creates the master key on first start, in its own volume
+(`maple-notes-key`), separate from the notes (`maple-notes-data`). It is also in the repository as
+[`deploy/portainer-stack.yml`](deploy/portainer-stack.yml).
+
+```yaml
+# Maple Notes: a stack to paste into Portainer (Stacks > Add stack > Web editor) and deploy as is.
+#
+# - The image is built from the Maple Notes repository on GitHub (the first deploy takes a few minutes).
+# - On first start, a one-off helper creates the master key in its own volume (maple-notes-key), separate from the
+#   notes (maple-notes-data). Later starts reuse it.
+# - Open http://<your server>:8088 and create the first account; it becomes the administrator.
+#
+# BACK UP THE MASTER KEY right after the first start (it encrypts everything; without it the data is lost):
+#   docker run --rm -v maple-notes-key:/key:ro alpine cat /key/master.key
+# Keep that copy somewhere else (a password manager), not with backups of maple-notes-data.
+
+services:
+  maple-notes-key:
+    image: alpine:3
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - test -s /key/master.key || (umask 022 && head -c 32 /dev/urandom | base64 > /key/master.key.new && mv /key/master.key.new /key/master.key)
+    volumes:
+      - maple-notes-key:/key
+
+  maple-notes:
+    build:
+      context: https://github.com/supunsarachitha/MapleNotes.git#main
+    image: maple-notes:latest
+    pull_policy: build # always build from GitHub on deploy, so an older local image is never used
+    container_name: maple-notes
+    restart: unless-stopped
+    depends_on:
+      maple-notes-key:
+        condition: service_completed_successfully
+    ports:
+      - "8088:8080"
+    environment:
+      MAPLE_MASTER_KEY_FILE: /run/maple-key/master.key
+      MAPLE_ALLOW_REGISTRATION: "false"
+      MAPLE_MAX_UPLOAD_MB: "25"
+      MAPLE_DEFAULT_ENCRYPTION: "true"
+      MAPLE_LINK_PREVIEWS: "true"
+      # Behind a reverse proxy, set its address or network, e.g. 172.16.0.0/12, so real client addresses are used.
+      MAPLE_TRUSTED_PROXIES: ""
+    volumes:
+      - maple-notes-data:/app/data
+      - maple-notes-key:/run/maple-key:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  maple-notes-data:
+    name: maple-notes-data
+  maple-notes-key:
+    name: maple-notes-key
+```
+
+> [!IMPORTANT]
+> **Right after the first start, copy the master key somewhere safe** (the command is at the top of the stack) and
+> keep it apart from backups of `maple-notes-data`. The key volume sits on the same server as the data, like a `.env`
+> file would, so it protects copies of the data volume but not a stolen server disk.
+
 **Bind mounts:** if you mount a host directory instead of a named volume, make it writable by the container's user:
 `sudo chown -R 1654:1654 ./data`.
 
