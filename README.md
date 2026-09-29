@@ -379,6 +379,99 @@ volumes:
     name: maple-notes-https
 ```
 
+**Behind Nginx Proxy Manager, with a domain name.** Deploy this stack in Portainer, then add a Proxy Host in NPM
+as described at the top of the stack. It is also in the repository as
+[`deploy/portainer-stack-npm.yml`](deploy/portainer-stack-npm.yml).
+
+```yaml
+# Maple Notes behind Nginx Proxy Manager (NPM) with a domain name: a stack to paste into Portainer
+# (Stacks > Add stack > Web editor) and deploy as is.
+#
+# Then, in Nginx Proxy Manager, add a Proxy Host:
+#   Details:  Domain Names: your domain (e.g. notes.example.com) | Scheme: http
+#             Forward Hostname / IP: this server's IP address | Forward Port: 8088
+#             Cache Assets: off | Block Common Exploits: off | Websockets Support: off
+#   SSL:      Request a new SSL certificate (Let's Encrypt) | Force SSL: on | HTTP/2 Support: on
+#   Advanced: paste the "Custom Nginx Configuration" from deploy/nginx-proxy-manager.conf (uploads above nginx's 1 MB
+#             default, streamed uploads, exports and videos)
+# Open https://<your domain> and create the first account; it becomes the administrator.
+#
+# BACK UP THE MASTER KEY right after the first start (it encrypts everything; without it the data is lost):
+#   docker run --rm -v maple-notes-key:/key:ro alpine cat /key/master.key
+# Keep that copy somewhere else (a password manager), not with backups of maple-notes-data.
+
+services:
+  maple-notes-key:
+    image: alpine:3
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - test -s /key/master.key || (umask 022 && head -c 32 /dev/urandom | base64 > /key/master.key.new && mv /key/master.key.new /key/master.key)
+    volumes:
+      - maple-notes-key:/key
+
+  maple-notes:
+    image: ghcr.io/supunsarachitha/maplenotes:latest
+    pull_policy: always # fetch the newest image on every deploy (Portainer: "Update the stack" with re-pull)
+    container_name: maple-notes
+    restart: unless-stopped
+    depends_on:
+      maple-notes-key:
+        condition: service_completed_successfully
+    ports:
+      - "8088:8080"
+    environment:
+      MAPLE_MASTER_KEY_FILE: /run/maple-key/master.key
+      MAPLE_ALLOW_REGISTRATION: "false"
+      MAPLE_MAX_UPLOAD_MB: "25"
+      MAPLE_DEFAULT_ENCRYPTION: "true"
+      MAPLE_LINK_PREVIEWS: "true"
+      # Trust Nginx Proxy Manager's forwarded headers, so Maple Notes sees HTTPS (secure cookies) and real client
+      # addresses (rate limiting). Docker networks are usually in 172.16.0.0/12; if NPM's is not, put its address here.
+      MAPLE_TRUSTED_PROXIES: "172.16.0.0/12"
+    volumes:
+      - maple-notes-data:/app/data
+      - maple-notes-key:/run/maple-key:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  maple-notes-data:
+    name: maple-notes-data
+  maple-notes-key:
+    name: maple-notes-key
+```
+
+In NPM, on the Proxy Host's **Advanced** tab, paste this as the Custom Nginx Configuration
+([`deploy/nginx-proxy-manager.conf`](deploy/nginx-proxy-manager.conf)). Without it nginx refuses attachments over
+1 MB:
+
+```nginx
+# Maple Notes: "Custom Nginx Configuration" for its Proxy Host in Nginx Proxy Manager (Advanced tab).
+# NPM already forwards the Host, X-Forwarded-For and X-Forwarded-Proto headers that Maple Notes needs.
+
+# Attachments up to MAPLE_MAX_UPLOAD_MB (25 MB by default) plus a little overhead; nginx allows only 1 MB by default.
+# Raise this together with MAPLE_MAX_UPLOAD_MB.
+client_max_body_size 30m;
+
+# Stream uploads to Maple Notes and exports and videos to the browser, instead of buffering them in nginx.
+proxy_request_buffering off;
+proxy_buffering off;
+
+# Large exports can take a while.
+proxy_read_timeout 300s;
+proxy_send_timeout 300s;
+```
+
+The same lines work in a plain nginx `server` block, next to `proxy_pass` and the usual `Host`, `X-Forwarded-For`
+and `X-Forwarded-Proto` headers.
+
 Why not build in Portainer: a stack with `build:` makes Portainer's Compose use BuildKit, which fails when Portainer
 reaches Docker through its agent or a socket proxy ("failed to list workers … frame too large"). Pulling a published
 image avoids that.
