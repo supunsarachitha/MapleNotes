@@ -30,7 +30,8 @@
 - **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.
 - **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes and the calendar on or off in
   Settings, on every device at once. Turning a feature off hides it and deletes nothing.
-- **Markdown and tags.** GitHub-flavoured Markdown (task lists, tables, code) and clickable `#tags`, including
+- **Markdown and tags.** GitHub-flavoured Markdown (task lists, tables, code), with a formatting toolbar and shortcuts
+  in the editor, and clickable `#tags`, including
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
   upload progress. Images keep their shape on any screen and open in a full-screen viewer; audio and video play

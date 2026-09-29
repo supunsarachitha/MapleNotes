@@ -29,6 +29,8 @@ modes, and each account chooses which ones it uses.
   choice, so the sign-in screen matches.
 - **Image viewer:** choosing an image attachment opens it full screen, with previous and next (buttons, arrow keys
   or a swipe) and a download button. End-to-end images are decrypted as usual.
+- **Formatting toolbar** in every editor: bold, italic, heading, bulleted list, checklist, quote, code and link, with
+  Ctrl/⌘+B, I and K. Each change can be undone like typing.
 - **Tags page:** every tag with its note count, nested tags under their parents, a filter and A–Z or most-used
   order. The side menu links to it instead of listing tags.
 - **Calendar** (on by default): a month calendar in the side menu (and the phone drawer) marks the days with notes,

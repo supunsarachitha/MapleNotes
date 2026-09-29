@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { api } from "../lib/api";
@@ -146,5 +146,28 @@ describe("Composer", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(update).toHaveBeenCalledWith("n1", "# Weekend groceries\n\n- [ ] oats", []));
+  });
+
+  it("formats the selection from the toolbar and with shortcuts", async () => {
+    const create = vi.spyOn(api, "createNote").mockResolvedValue(savedNote);
+    const user = userEvent.setup();
+    renderComposer();
+    const box = screen.getByLabelText("New note") as HTMLTextAreaElement;
+
+    await user.type(box, "Buy maple syrup");
+    box.setSelectionRange(4, 9); // "maple"
+    await user.click(within(screen.getByRole("toolbar", { name: "Formatting" })).getByRole("button", { name: "Bold" }));
+    await waitFor(() => expect(box).toHaveValue("Buy **maple** syrup"));
+
+    box.setSelectionRange(0, 0);
+    await user.click(screen.getByRole("button", { name: "Checklist" }));
+    await waitFor(() => expect(box).toHaveValue("- [ ] Buy **maple** syrup"));
+
+    box.setSelectionRange(box.value.length, box.value.length);
+    await user.keyboard("{Control>}k{/Control}");
+    await waitFor(() => expect(box).toHaveValue("- [ ] Buy **maple** syrup[link text](https://)"));
+
+    await user.click(screen.getByRole("button", { name: "Post" }));
+    await waitFor(() => expect(create).toHaveBeenCalledWith("- [ ] Buy **maple** syrup[link text](https://)", []));
   });
 });

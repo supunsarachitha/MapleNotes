@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type
 import { Paperclip, X, FileText, AlertCircle } from "lucide-react";
 import { api, ApiError, uploadAttachment } from "../lib/api";
 import { AttachmentThumbnail } from "./AttachmentGallery";
+import { applyFormat, FormatToolbar, shortcutFormat } from "./FormatToolbar";
 import { formatDate } from "../lib/dates";
 import { formatBytes } from "../lib/format";
 import { usePreferences } from "../lib/preferences";
@@ -184,7 +185,11 @@ export function Composer({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+    const format = shortcutFormat(event);
+    if (format) {
+      event.preventDefault();
+      applyFormat(event.currentTarget, format, setText);
+    } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       void save();
     } else if (event.key === "Escape" && editing) {
@@ -260,6 +265,8 @@ export function Composer({
         placeholder={editing ? undefined : placeholder}
         className="block w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100"
       />
+
+      <FormatToolbar target={textarea} onChange={setText} />
 
       {files.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-2" aria-label="Attached files">

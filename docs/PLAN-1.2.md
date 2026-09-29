@@ -71,7 +71,7 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 | F10 | Appearance: theme colour and dark mode (requested after F8) | Settings → Appearance offers System, Light or Dark and a choice of accent colours, saved per account and applied at once, with no flash of the wrong theme when the app opens; every accent keeps text contrast at least 4.5:1 in both themes | ✅ Done |
 | F11 | Image viewer and responsive images (requested after F8) | Choosing an image attachment opens a full-screen viewer (next/previous for a note's images, keyboard, swipe, close); attachment images scale to any screen width without overflowing or distorting; works for end-to-end files | ✅ Done |
 | F12 | Tags page (requested after F8) | Tags get their own page from the side menu: every tag with its count, a filter box, nested tags under their parents; the side menu no longer lists tags | ✅ Done |
-| F13 | Formatting toolbar (requested after F8) | The editor has a toolbar (bold, italic, heading, bulleted list, checklist, quote, code, link) that inserts Markdown at the cursor or around the selection, with keyboard shortcuts; works in every editor (notes, edits, quick notes, daily notes) | ⏳ Not started |
+| F13 | Formatting toolbar (requested after F8) | The editor has a toolbar (bold, italic, heading, bulleted list, checklist, quote, code, link) that inserts Markdown at the cursor or around the selection, with keyboard shortcuts; works in every editor (notes, edits, quick notes, daily notes) | ✅ Done |
 | F14 | Link previews (requested after F8) | An option (off by default) shows a preview card (title, description, site) for links in notes, fetched by the server with protection against requests to internal addresses; its privacy cost (the server learns the links, including for end-to-end accounts) is explained where it is turned on | ⏳ Not started |
 | F15 | User guide in the app (requested after F8) | A Help page in the side menu explains every feature for people using the app (not running it), with a table of contents and links to the matching settings; it ships with the app, so it works offline and needs no server changes | ⏳ Not started |
 
@@ -198,6 +198,17 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   - a tag opening its notes, and the side-menu link with its count;
   - 375 px width;
   - the end-to-end notes, Todo, Quick notes and 18-step runs, updated for the page.
+- **F13** (requested after F8): the formatting rules are a pure function from the text and selection to one
+  replacement and a new selection. It wraps or unwraps, adds or removes line prefixes (swapping one list marker for
+  another), makes a code block from several lines, and selects the link address to type over. The editor applies the
+  change with the browser's own text insertion, so Undo works as it does for typing, and sets the text directly where
+  that is unavailable. Verified in Chromium on the production build:
+  - bold keeping the selection, then Undo;
+  - the italic and link shortcuts;
+  - a checklist over several lines, and a heading;
+  - the rendered note;
+  - the toolbar in quick notes, and 375 px width;
+  - the 18-step suite.
 
 ## Out of scope for 1.2.0
 
