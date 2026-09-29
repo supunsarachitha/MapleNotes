@@ -141,6 +141,21 @@ public sealed class ApiClient : IDisposable
         return await Http.PostAsync("/api/v1/attachments", form, Ct);
     }
 
+    /// <summary>Sends one file with optional form fields (fields first) as multipart/form-data with PUT.</summary>
+    public async Task<HttpResponseMessage> PutFileAsync(string url, byte[] content, string fileName, string contentType, IReadOnlyDictionary<string, string>? fields = null)
+    {
+        using var form = new MultipartFormDataContent();
+        foreach (var (name, value) in fields ?? new Dictionary<string, string>())
+        {
+            form.Add(new StringContent(value), name);
+        }
+
+        var file = new ByteArrayContent(content);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        form.Add(file, "file", fileName);
+        return await Http.PutAsync(url, form, Ct);
+    }
+
     public Task<HttpResponseMessage> GetAsync(string url) => Http.GetAsync(url, Ct);
 
     public Task<T?> GetJsonAsync<T>(string url) => Http.GetFromJsonAsync<T>(url, Json, Ct);

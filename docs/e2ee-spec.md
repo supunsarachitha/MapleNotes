@@ -118,6 +118,27 @@ own scheme (`None`, `Server` or `EndToEnd`), so mixed content stays readable whi
 end-to-end mode the server accepts only ciphertext for new content and answers plain text with 409; the background
 worker that converts between `None` and `Server` never touches end-to-end content or end-to-end accounts.
 
+**Changing mode with existing content.** Only the browser holds the data key, so it converts:
+
+1. `GET /api/v1/account/conversion?limit=n` returns the next items: in end-to-end mode the notes and files that are
+   not end-to-end yet (notes with their plain text), in any other mode the end-to-end ones (notes as envelopes, files
+   with their encrypted metadata), and how many remain. File content comes from the file's usual URL.
+2. The browser converts each item and sends it back on its own: `PUT …/conversion/notes/{id}` with the encrypted text
+   and tags (entering) or the plain text (leaving), together with the note's `updatedAtUtc` from the batch; and
+   `PUT …/conversion/attachments/{id}` with the file encrypted for its existing ID plus its encrypted metadata
+   (entering), or the plain file with its name and type (leaving).
+3. The server applies a note only if it was not edited since the batch (`updatedAtUtc` unchanged) and is not converted
+   yet (409 otherwise, and the browser moves on), and keeps the note's timestamps: converting is not editing. A file is
+   written under a new storage key before its row switches, so a crash leaves one complete version.
+4. Progress is the items' schemes, so a closed tab, a reload or a crash resumes where it stopped. An item the browser
+   cannot decrypt (damaged) is left as it is, like the server's own conversion does.
+
+Leaving is `PUT /api/v1/account/encryption` to `Off` or `AtRest`; while the account still has its end-to-end key, the
+same request with `EndToEnd` switches back and reuses that key. **Key cleanup:** in end-to-end mode the server deletes
+its own data key as soon as no server-encrypted item is left, and then holds no key to any of the account's content;
+in any other mode it deletes the end-to-end key material (both wrapped keys and the recovery key's hash) as soon as no
+end-to-end item is left. Until then each key stays, so an interrupted change never strands content.
+
 ## 4. Tags
 
 - **Which words are tags:** the same rules as the server's tag parser. A `#` is not preceded by a letter, digit,
@@ -160,6 +181,9 @@ one tag per chunk. It cannot see other damage; decryption in the browser detects
 
 **Download:** `GET /api/v1/attachments/{id}` serves the ciphertext as a download (`application/octet-stream`, file
 name `{id}.bin`) with HTTP Range support, and `GET /api/v1/attachments/{id}/info` returns the encrypted metadata.
+Attachment URLs in API responses carry the stored version (`?v={revision}`): downloads are cached as immutable, and a
+change of mode replaces the stored bytes behind the same ID, so a changed file always gets a new URL. The media
+service worker uses the URL from the info, and the conversion bypasses the cache.
 
 **Media service worker:** accounts with an end-to-end key register `/sw.js`, which answers requests for
 `/e2ee/attachments/{id}` (and nothing else):

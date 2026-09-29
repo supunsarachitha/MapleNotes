@@ -177,7 +177,15 @@ scheme (`None` or `Server`) does not match the account's mode. Because the targe
 every item records its own state, the process is resumable, idempotent and self-correcting: flipping the setting back
 mid-way simply converges the other way. The server never touches end-to-end content or the content of end-to-end
 accounts: it cannot read the former, and in end-to-end mode it accepts new content only as ciphertext (plain text gets
-HTTP 409). Content is converted to and from end-to-end encryption by the browser, which holds the key.
+HTTP 409).
+
+Content is converted to and from end-to-end encryption by the browser, which holds the key: it fetches batches from
+`/api/v1/account/conversion`, converts each note or file and sends it back, one atomic request per item, while the app
+is open (`src/maple-web/src/lib/conversion.ts`). A note converts only if it was not edited meanwhile, keeping its
+timestamps; files are replaced through a new storage key. The server then deletes keys nothing needs any more: its own
+data key once an end-to-end account has no server-encrypted item left, or the end-to-end key material once an account
+that left end-to-end mode has no end-to-end item left
+([e2ee-spec.md §3](e2ee-spec.md#3-the-e2ee-data-key-and-its-subkeys)).
 
 For an end-to-end account the web app encrypts and decrypts at its API boundary (`src/maple-web/src/lib/noteCrypto.ts`),
 so the rest of the interface works with plain notes: new notes get an ID chosen in the browser, tags become blind

@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { Logo } from "./components/Logo";
 import { Button, Spinner } from "./components/ui";
+import { useConversionRunner } from "./lib/conversion";
 import { e2ee, useEndToEndKeys } from "./lib/e2ee";
 import { registerMediaWorker } from "./lib/mediaWorker";
 import { setContentSession } from "./lib/noteCrypto";
@@ -33,6 +34,9 @@ export function App() {
   const keys = useEndToEndKeys(user);
   const signedOut = status.data !== undefined && !status.data.user;
   const needsMediaWorker = user?.hasEndToEndKey === true;
+
+  // Converts existing content to or from end-to-end encryption while the app is open (lib/conversion.ts).
+  useConversionRunner(user, keys.status === "unlocked");
 
   // A key saved during a session that has ended cannot be opened any more; remove it.
   useEffect(() => {

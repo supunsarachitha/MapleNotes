@@ -133,6 +133,15 @@ export interface EncryptionStatus {
   remainingItems: number;
 }
 
+/** The next items the browser converts after a change to or from end-to-end encryption. */
+export interface ConversionBatch {
+  /** End-to-end: encrypt these items; any other mode: decrypt them. */
+  mode: EncryptionMode;
+  remaining: number;
+  notes: Array<{ id: string; content: string | null; encryptedContent: string | null; updatedAtUtc: string }>;
+  attachments: Array<{ id: string; fileName: string | null; contentType: string | null; sizeBytes: number; encryptedMetadata: string | null }>;
+}
+
 /** RFC 9457 problem details returned by the API for errors. */
 export interface ProblemDetails {
   title?: string;

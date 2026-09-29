@@ -6,7 +6,6 @@ using MapleNotes.Server.Infrastructure.Storage;
 using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Net.Http.Headers;
 
 namespace MapleNotes.Server.Features.Attachments;
@@ -20,7 +19,8 @@ namespace MapleNotes.Server.Features.Attachments;
 public sealed class AttachmentsController(AttachmentService attachments, MapleOptions options) : ControllerBase
 {
     private const long MultipartOverheadBytes = 64 * 1024;
-    private const int MaxFieldLength = 4 * 1024;
+
+    private static readonly HashSet<string> EncryptedUploadFields = new(StringComparer.OrdinalIgnoreCase) { "id", "metadata" };
 
     /// <summary>Uploads a file.</summary>
     /// <remarks>
@@ -52,70 +52,25 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
     {
         if (HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } bodyLimit)
         {
-            bodyLimit.MaxRequestBodySize = options.MaxUploadBytes + MultipartOverheadBytes;
+            // End-to-end files arrive encrypted: a header and one tag per 64 KiB chunk on top of the file itself.
+            bodyLimit.MaxRequestBodySize = EndToEndContent.MaxAttachmentCiphertextBytes(options.MaxUploadBytes) + MultipartOverheadBytes;
         }
 
-        if (!MediaTypeHeaderValue.TryParse(Request.ContentType, out var mediaType)
-            || HeaderUtilities.RemoveQuotes(mediaType.Boundary).Value is not { Length: > 0 and <= 70 } boundary)
+        try
         {
-            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "The upload is not valid multipart/form-data.");
+            var attachment = await MultipartUpload.ReadAsync(Request, EncryptedUploadFields, file => attachments.UploadAsync(
+                User.GetUserId(),
+                file.FileName,
+                file.ContentType,
+                file.Body,
+                file.Fields.Count > 0 ? new EncryptedUpload(file.Guid("id"), file.Base64("metadata", EndToEndContent.MaxMetadataEnvelopeBytes)) : null,
+                cancellationToken), cancellationToken);
+            return CreatedAtAction(nameof(Download), new { id = attachment.Id }, AttachmentResponse.From(attachment));
         }
-
-        var reader = new MultipartReader(boundary, Request.Body) { HeadersLengthLimit = 16 * 1024 };
-        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        while (await reader.ReadNextSectionAsync(cancellationToken) is { } section)
+        catch (UploadTooLargeException tooLarge)
         {
-            if (!ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var disposition))
-            {
-                continue;
-            }
-
-            if (disposition.IsFormDisposition())
-            {
-                var name = HeaderUtilities.RemoveQuotes(disposition.Name).Value ?? string.Empty;
-                if (name is "id" or "metadata")
-                {
-                    var value = await ReadFieldAsync(section.Body, cancellationToken);
-                    if (value is null)
-                    {
-                        return Problem(statusCode: StatusCodes.Status400BadRequest, title: $"The form field '{name}' is too long.");
-                    }
-
-                    fields[name] = value;
-                }
-
-                continue;
-            }
-
-            if (!disposition.IsFileDisposition())
-            {
-                continue;
-            }
-
-            var fileName = disposition.FileNameStar.HasValue
-                ? disposition.FileNameStar.Value
-                : HeaderUtilities.RemoveQuotes(disposition.FileName).Value;
-            EncryptedUpload? encrypted = null;
-            if (fields.Count > 0)
-            {
-                encrypted = new EncryptedUpload(
-                    Guid.TryParse(fields.GetValueOrDefault("id"), out var id) ? id : null,
-                    TryFromBase64(fields.GetValueOrDefault("metadata")));
-            }
-
-            try
-            {
-                var attachment = await attachments.UploadAsync(
-                    User.GetUserId(), fileName, section.ContentType, section.Body, encrypted, cancellationToken);
-                return CreatedAtAction(nameof(Download), new { id = attachment.Id }, AttachmentResponse.From(attachment));
-            }
-            catch (UploadTooLargeException tooLarge)
-            {
-                return Problem(statusCode: StatusCodes.Status413PayloadTooLarge, title: tooLarge.Message);
-            }
+            return Problem(statusCode: StatusCodes.Status413PayloadTooLarge, title: tooLarge.Message);
         }
-
-        return Problem(statusCode: StatusCodes.Status400BadRequest, title: "The upload contains no file.");
     }
 
     /// <summary>Returns a file's details without its content.</summary>
@@ -183,18 +138,4 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
         await attachments.DeleteAsync(User.GetUserId(), id, cancellationToken) ? NoContent() : NotFound();
-
-    /// <summary>Reads a small form field; null when it is longer than <see cref="MaxFieldLength"/>.</summary>
-    private static async Task<string?> ReadFieldAsync(Stream body, CancellationToken cancellationToken)
-    {
-        var buffer = new byte[MaxFieldLength + 1];
-        var length = await body.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, cancellationToken);
-        return length > MaxFieldLength ? null : System.Text.Encoding.UTF8.GetString(buffer, 0, length).Trim();
-    }
-
-    private static byte[]? TryFromBase64(string? value)
-    {
-        var buffer = new byte[EndToEndContent.MaxMetadataEnvelopeBytes];
-        return value is not null && Convert.TryFromBase64String(value, buffer, out var written) ? buffer[..written] : null;
-    }
 }

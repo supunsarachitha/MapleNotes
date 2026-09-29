@@ -368,7 +368,32 @@ public sealed class NoteService(
         }
     }
 
-    private static IQueryable<Note> WithDetails(IQueryable<Note> notes) =>
+    /// <summary>Replaces a loaded note's text and tags with plain text, protected according to the owner's mode.</summary>
+    /// <param name="note">The note, loaded with its tags.</param>
+    /// <param name="content">The Markdown text.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>A task that completes when the note is updated in memory (the caller saves).</returns>
+    internal async Task ApplyPlainTextAsync(Note note, string content, CancellationToken cancellationToken)
+    {
+        await SetContentAsync(note, content, cancellationToken);
+        await SetTagsAsync(note, content, cancellationToken);
+    }
+
+    /// <summary>Replaces a loaded note's text and tags with the browser's ciphertext and blind tags.</summary>
+    /// <param name="note">The note, loaded with its tags.</param>
+    /// <param name="encrypted">The encrypted text and tags.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>A task that completes when the note is updated in memory (the caller saves).</returns>
+    internal async Task ApplyEncryptedAsync(Note note, EncryptedNote encrypted, CancellationToken cancellationToken)
+    {
+        SetEncryptedContent(note, encrypted);
+        await SetEncryptedTagsAsync(note, encrypted.Tags, cancellationToken);
+    }
+
+    /// <summary>Loads notes with their attachments and tags.</summary>
+    /// <param name="notes">The notes to load.</param>
+    /// <returns>The query including details.</returns>
+    internal static IQueryable<Note> WithDetails(IQueryable<Note> notes) =>
         notes.Include(n => n.Attachments).Include(n => n.Tags).AsSplitQuery();
 
     private Task<List<Note>> LoadBatchAsync(
@@ -526,7 +551,11 @@ public sealed class NoteService(
         }
     }
 
-    private Task RemoveUnusedTagsAsync(Guid userId, CancellationToken cancellationToken) =>
+    /// <summary>Deletes the user's tags that no note uses any more.</summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>A task that completes when they are deleted.</returns>
+    internal Task RemoveUnusedTagsAsync(Guid userId, CancellationToken cancellationToken) =>
         db.Tags
             .Where(t => t.UserId == userId && !db.Notes.Any(n => n.UserId == userId && n.Tags.Any(nt => nt.Id == t.Id)))
             .ExecuteDeleteAsync(cancellationToken);

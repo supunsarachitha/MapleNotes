@@ -27,6 +27,12 @@ describe("AttachmentGallery", () => {
     expect(screen.getByRole("img", { name: "sunset.png" })).toHaveAttribute("src", encrypted.url);
   });
 
+  it("keeps the stored version in download links", () => {
+    render(<AttachmentGallery attachments={[{ ...encrypted, endToEnd: undefined, isImage: false, contentType: "application/pdf", fileName: "a.pdf", url: `${encrypted.url}?v=2` }]} />);
+
+    expect(screen.getByRole("link", { name: /a\.pdf/ })).toHaveAttribute("href", `${encrypted.url}?v=2&download=true`);
+  });
+
   it("decrypts end-to-end files in the page when no service worker is available", async () => {
     render(<AttachmentGallery attachments={[encrypted]} />);
 

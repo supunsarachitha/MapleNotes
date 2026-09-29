@@ -1,5 +1,6 @@
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Auth;
+using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Infrastructure.Web;
@@ -14,8 +15,11 @@ namespace MapleNotes.Server.Features.Encryption;
 /// <param name="RemainingItems">Items not yet converted to match <paramref name="Mode"/>.</param>
 public sealed record EncryptionStatusResponse(EncryptionMode Mode, bool InProgress, int TotalItems, int RemainingItems);
 
-/// <summary>Request to switch encryption at rest on or off.</summary>
-/// <param name="Mode"><see cref="EncryptionMode.Off"/> or <see cref="EncryptionMode.AtRest"/>.</param>
+/// <summary>Request to change the encryption mode.</summary>
+/// <param name="Mode">
+/// <see cref="EncryptionMode.Off"/> or <see cref="EncryptionMode.AtRest"/>; also <see cref="EncryptionMode.EndToEnd"/>
+/// to switch back while the account still has its end-to-end key (a first switch uses <c>POST /api/v1/account/e2ee</c>).
+/// </param>
 /// <param name="Proof">Proof of the account password, to confirm a security-relevant change.</param>
 public sealed record UpdateEncryptionRequest(EncryptionMode Mode, CredentialProof Proof);
 
@@ -23,10 +27,16 @@ public sealed record UpdateEncryptionRequest(EncryptionMode Mode, CredentialProo
 /// <param name="db">Database context.</param>
 /// <param name="credentials">Checks the proof of the password.</param>
 /// <param name="dataKeys">Creates a server-held data key when an account needs one again.</param>
+/// <param name="cleanup">Deletes keys the account no longer needs.</param>
 /// <param name="signal">Wakes the background migration worker.</param>
 /// <param name="time">Clock.</param>
 public sealed class EncryptionSettingsService(
-    MapleDbContext db, CredentialVerifier credentials, DataKeyService dataKeys, EncryptionMigrationSignal signal, TimeProvider time)
+    MapleDbContext db,
+    CredentialVerifier credentials,
+    DataKeyService dataKeys,
+    EncryptionKeyCleanup cleanup,
+    EncryptionMigrationSignal signal,
+    TimeProvider time)
 {
     /// <summary>Returns the mode and the conversion progress.</summary>
     /// <param name="userId">The user.</param>
@@ -50,20 +60,21 @@ public sealed class EncryptionSettingsService(
     }
 
     /// <summary>
-    /// Switches encryption at rest on or off after checking proof of the password. New content follows the new
-    /// setting immediately; existing content is converted in the background.
+    /// Changes the encryption mode after checking proof of the password. New content follows the new mode
+    /// immediately. Existing content is converted by the server between off and at rest, and by the browser to and
+    /// from end-to-end encryption (see <see cref="ConversionService"/>).
     /// </summary>
     /// <param name="userId">The user.</param>
     /// <param name="request">The new mode and proof of the password.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The status after the change.</returns>
-    /// <exception cref="ApiValidationException">The password is wrong or the mode is not off or at rest.</exception>
-    /// <exception cref="ApiProblemException">The account uses end-to-end encryption.</exception>
+    /// <exception cref="ApiValidationException">The password is wrong, or end-to-end mode is asked for by an account
+    /// without an end-to-end key.</exception>
     public async Task<EncryptionStatusResponse> SetModeAsync(Guid userId, UpdateEncryptionRequest request, CancellationToken cancellationToken)
     {
-        if (request.Mode is not (EncryptionMode.Off or EncryptionMode.AtRest))
+        if (!Enum.IsDefined(request.Mode))
         {
-            throw new ApiValidationException("mode", "End-to-end encryption is set up with its own steps in the app.");
+            throw new ApiValidationException("mode", "Choose off, at rest or end-to-end.");
         }
 
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
@@ -72,13 +83,10 @@ public sealed class EncryptionSettingsService(
             throw new ApiValidationException("password", "The password is not correct.");
         }
 
-        if (user.EncryptionMode == EncryptionMode.EndToEnd)
+        if (request.Mode == EncryptionMode.EndToEnd && user.E2eeWrappedKey is null)
         {
             await db.SaveChangesAsync(cancellationToken); // keeps a legacy credential upgrade
-            throw new ApiProblemException(
-                StatusCodes.Status409Conflict,
-                "This account uses end-to-end encryption.",
-                "Leaving end-to-end encryption is done in the app, which decrypts your notes first.");
+            throw new ApiValidationException("mode", "End-to-end encryption is set up with its own steps in the app.");
         }
 
         var changed = user.EncryptionMode != request.Mode;
@@ -94,6 +102,7 @@ public sealed class EncryptionSettingsService(
         }
 
         await db.SaveChangesAsync(cancellationToken); // also keeps a legacy credential upgrade
+        await cleanup.RunAsync(userId, cancellationToken);
         if (changed)
         {
             signal.Notify();

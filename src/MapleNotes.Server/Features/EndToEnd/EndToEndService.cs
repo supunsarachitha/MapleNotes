@@ -18,12 +18,14 @@ namespace MapleNotes.Server.Features.EndToEnd;
 /// <param name="db">Database context.</param>
 /// <param name="credentials">Checks proofs of the password and the recovery key.</param>
 /// <param name="encryption">Reports conversion progress.</param>
+/// <param name="cleanup">Deletes keys the account no longer needs.</param>
 /// <param name="signal">Wakes the background migration worker.</param>
 /// <param name="time">Clock.</param>
 public sealed class EndToEndService(
     MapleDbContext db,
     CredentialVerifier credentials,
     EncryptionSettingsService encryption,
+    EncryptionKeyCleanup cleanup,
     EncryptionMigrationSignal signal,
     TimeProvider time)
 {
@@ -72,6 +74,7 @@ public sealed class EndToEndService(
         user.RecoveryKeyHash = credentials.HashRecoveryKey(user, request.RecoveryAuthKey);
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);
+        await cleanup.RunAsync(userId, cancellationToken); // an account with nothing server-encrypted drops the server's key now
         signal.Notify();
         return await encryption.GetStatusAsync(userId, cancellationToken);
     }

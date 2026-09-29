@@ -8,7 +8,11 @@ namespace MapleNotes.Server.Features.Attachments;
 /// <param name="ContentType">Media type; null for an end-to-end encrypted file.</param>
 /// <param name="SizeBytes">Size of the file as stored (for an end-to-end file: the ciphertext).</param>
 /// <param name="IsImage">Whether the app can display the file as an image.</param>
-/// <param name="Url">Where to download the file (requires the session cookie). End-to-end files download as ciphertext.</param>
+/// <param name="Url">
+/// Where to download the file (requires the session cookie). It names the stored version (<c>?v=</c>), because
+/// downloads are cached as immutable while converting to or from end-to-end encryption replaces the stored bytes.
+/// End-to-end files download as ciphertext.
+/// </param>
 /// <param name="CreatedAtUtc">When the file was uploaded.</param>
 /// <param name="EncryptedMetadata">For an end-to-end file: its name, type and size, for the browser to decrypt.</param>
 public sealed record AttachmentResponse(
@@ -20,7 +24,7 @@ public sealed record AttachmentResponse(
     /// <returns>The API representation.</returns>
     public static AttachmentResponse From(Attachment attachment)
     {
-        var url = $"/api/v1/attachments/{attachment.Id}";
+        var url = $"/api/v1/attachments/{attachment.Id}?v={attachment.Revision}";
         return attachment.Scheme == ContentScheme.EndToEnd
             ? new(attachment.Id, null, null, attachment.SizeBytes, false, url, attachment.CreatedAtUtc, attachment.EncryptedMetadata)
             : new(attachment.Id, attachment.FileName, attachment.ContentType, attachment.SizeBytes,

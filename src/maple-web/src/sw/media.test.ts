@@ -32,7 +32,7 @@ async function fakeServer(plaintext: Bytes, metadata: { name: string; type: stri
   const fetch = async (input: string, init?: RequestInit): Promise<Response> => {
     const range = new Headers(init?.headers).get("Range");
     requests.push(`${input}${range ? ` ${range}` : ""}`);
-    if (input.endsWith("/info")) return Response.json({ id, encryptedMetadata });
+    if (input.endsWith("/info")) return Response.json({ id, encryptedMetadata, url: `/api/v1/attachments/${id}?v=3` });
     const [, start, end] = /^bytes=(\d+)-(\d+)$/.exec(range ?? "")!.map(Number);
     return new Response(ciphertext.slice(start, end! + 1), {
       status: 206,
@@ -94,7 +94,7 @@ describe("media service worker", () => {
     expect(response.status).toBe(206);
     expect(response.headers.get("Content-Range")).toBe("bytes 65530-65545/200000");
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(plaintext.slice(65530, 65546));
-    expect(server.requests.at(-1)).toBe(`/api/v1/attachments/${id} bytes=42-${42 + 2 * 65552 - 1}`); // chunks 0 and 1
+    expect(server.requests.at(-1)).toBe(`/api/v1/attachments/${id}?v=3 bytes=42-${42 + 2 * 65552 - 1}`); // chunks 0 and 1
   });
 
   it("sends at most 4 MiB for an open-ended range, as media elements ask for more", async () => {

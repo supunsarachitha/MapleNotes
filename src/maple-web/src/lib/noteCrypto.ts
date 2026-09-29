@@ -60,7 +60,8 @@ function unlocked(): { userId: string; keys: DataKeys } {
   return { userId: session.userId, keys: session.keys };
 }
 
-async function encryptForNote(noteId: string, content: string): Promise<EncryptedNoteWire> {
+/** Encrypts note text and its tags for the note with this ID (also used to convert existing notes). */
+export async function encryptForNote(noteId: string, content: string): Promise<EncryptedNoteWire> {
   const { userId, keys } = unlocked();
   const [envelope, tags] = await Promise.all([encryptNote(keys, userId, noteId, content), encryptTags(keys, userId, content)]);
   return { content: toBase64(envelope), tags: tags.map((tag) => ({ token: tag.token, name: toBase64(tag.encryptedName) })) };

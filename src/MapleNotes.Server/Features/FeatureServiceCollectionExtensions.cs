@@ -30,6 +30,8 @@ internal static class FeatureServiceCollectionExtensions
 
         services.AddScoped<EncryptionSettingsService>();
         services.AddScoped<EndToEndService>();
+        services.AddScoped<EncryptionKeyCleanup>();
+        services.AddScoped<ConversionService>();
         services.AddScoped<EncryptionMigrator>();
         services.AddSingleton<EncryptionMigrationSignal>();
         services.AddHostedService<EncryptionMigrationService>();

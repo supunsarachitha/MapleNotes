@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   service worker decrypts them on the fly for the page, fetching only the byte ranges it needs, so images appear at
   once and videos seek; without it, the page decrypts whole files.
 - `GET /api/v1/attachments/{id}/info` returns an attachment's details without its content.
+- **Switching to and from end-to-end encryption** in Settings, now a choice of three modes. Turning it on explains
+  what changes, asks for an acknowledgement and shows the recovery key once; existing notes and files are then
+  encrypted in the browser, and turning it off decrypts them there. The conversion resumes after a reload, never
+  overwrites an edit, keeps note timestamps, and can be reversed midway. Once it finishes, the server deletes the key
+  nothing needs any more: an end-to-end account leaves the server with no key to its content.
 
 ### Changed
 
@@ -40,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `encryptionEnabled`.
 - The Content-Security-Policy allows WebAssembly compilation (`'wasm-unsafe-eval'`, which does not allow JavaScript
   `eval`) and same-origin workers.
+- Attachment URLs carry the stored version (`?v=`), so a file whose stored bytes change gets a new URL while
+  downloads stay cacheable.
 
 ## [1.0.0] - 2026-09-28
 

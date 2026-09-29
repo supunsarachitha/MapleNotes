@@ -115,23 +115,8 @@ public sealed class AttachmentService(
         }
 
         var storageKey = AttachmentStore.CreateStorageKey(id);
-        var limited = new LengthLimitedStream(content, EndToEndContent.MaxAttachmentCiphertextBytes(options.MaxUploadBytes));
-        await store.WriteAsync(storageKey, async (file, ct) =>
-        {
-            var header = new byte[EndToEndContent.AttachmentHeaderBytes];
-            if (await limited.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, ct) < header.Length
-                || !EndToEndContent.IsAttachmentHeader(header))
-            {
-                throw new Infrastructure.Web.ApiValidationException("file", "This is not an end-to-end encrypted file.");
-            }
-
-            await file.WriteAsync(header, ct);
-            await limited.CopyToAsync(file, ct);
-            if (!EndToEndContent.IsAttachmentSize(limited.BytesRead))
-            {
-                throw new Infrastructure.Web.ApiValidationException("file", "The encrypted file is incomplete.");
-            }
-        }, cancellationToken: cancellationToken);
+        var size = await WriteCiphertextAsync(
+            storageKey, content, EndToEndContent.MaxAttachmentCiphertextBytes(options.MaxUploadBytes), cancellationToken);
 
         var attachment = new Attachment
         {
@@ -139,7 +124,7 @@ public sealed class AttachmentService(
             UserId = userId,
             FileName = string.Empty,
             ContentType = UploadPolicy.DownloadContentType,
-            SizeBytes = limited.BytesRead,
+            SizeBytes = size,
             StorageKey = storageKey,
             Scheme = ContentScheme.EndToEnd,
             EncryptedMetadata = encrypted.Metadata,
@@ -158,6 +143,101 @@ public sealed class AttachmentService(
         }
 
         return attachment;
+    }
+
+    /// <summary>
+    /// Replaces an attachment's stored file while an account changes to or from end-to-end encryption: with the
+    /// browser's ciphertext and encrypted metadata (entering), or with the plain file the browser decrypted, protected
+    /// according to the account's mode (leaving). The new file is written under a new storage key first and the old
+    /// one deleted only after the row has switched, so a crash leaves one complete version in use.
+    /// </summary>
+    /// <param name="attachment">The attachment, tracked by this context.</param>
+    /// <param name="content">The new content.</param>
+    /// <param name="fileName">Leaving: the decrypted file name.</param>
+    /// <param name="contentType">Leaving: the decrypted content type.</param>
+    /// <param name="encryptedMetadata">Entering: the encrypted metadata; its presence selects the direction.</param>
+    /// <param name="cancellationToken">Cancels the operation; nothing changes.</param>
+    /// <returns>A task that completes when the attachment uses the new file.</returns>
+    /// <exception cref="Infrastructure.Web.ApiProblemException">The attachment does not need this conversion.</exception>
+    internal async Task ReplaceContentAsync(
+        Attachment attachment, Stream content, string? fileName, string? contentType, byte[]? encryptedMetadata, CancellationToken cancellationToken)
+    {
+        var mode = await keys.GetModeAsync(attachment.UserId, cancellationToken);
+        var entering = encryptedMetadata is not null;
+        if (entering != (mode == EncryptionMode.EndToEnd) || entering == (attachment.Scheme == ContentScheme.EndToEnd))
+        {
+            throw new Infrastructure.Web.ApiProblemException(StatusCodes.Status409Conflict, "This file is already converted.");
+        }
+
+        var newStorageKey = AttachmentStore.CreateStorageKey(attachment.Id);
+        if (entering)
+        {
+            if (!EndToEndContent.IsEnvelope(encryptedMetadata, EndToEndContent.MaxMetadataEnvelopeBytes))
+            {
+                throw new Infrastructure.Web.ApiValidationException("metadata", "This is not encrypted file metadata.");
+            }
+
+            // Limits follow the file itself, so that a lower upload limit set since cannot block a conversion.
+            attachment.SizeBytes = await WriteCiphertextAsync(
+                newStorageKey, content, EndToEndContent.MaxAttachmentCiphertextBytes(attachment.SizeBytes), cancellationToken);
+            attachment.Scheme = ContentScheme.EndToEnd;
+            attachment.EncryptedMetadata = encryptedMetadata;
+            attachment.FileName = string.Empty;
+            attachment.ContentType = UploadPolicy.DownloadContentType;
+        }
+        else
+        {
+            var scheme = ContentSchemes.ForPlainText(mode);
+            var limited = new LengthLimitedStream(content, attachment.SizeBytes);
+            var key = scheme == ContentScheme.Server ? await keys.GetKeyAsync(attachment.UserId, cancellationToken) : null;
+            await store.WriteAsync(newStorageKey, (file, ct) => key is null
+                ? limited.CopyToAsync(file, ct)
+                : AttachmentCipher.EncryptAsync(limited, file, key, attachment.UserId, attachment.Id, ct), cancellationToken: cancellationToken);
+            var safeName = UploadPolicy.SanitizeFileName(fileName);
+            attachment.SizeBytes = limited.BytesRead;
+            attachment.Scheme = scheme;
+            attachment.EncryptedMetadata = null;
+            attachment.FileName = safeName;
+            attachment.ContentType = UploadPolicy.ResolveContentType(contentType, safeName);
+        }
+
+        var oldStorageKey = attachment.StorageKey;
+        attachment.StorageKey = newStorageKey;
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            store.Delete(newStorageKey);
+            throw;
+        }
+
+        store.Delete(oldStorageKey);
+    }
+
+    /// <summary>Writes an end-to-end file, checking its header and that its last chunk is complete.</summary>
+    /// <returns>The number of bytes written.</returns>
+    private async Task<long> WriteCiphertextAsync(string storageKey, Stream content, long maxBytes, CancellationToken cancellationToken)
+    {
+        var limited = new LengthLimitedStream(content, maxBytes);
+        await store.WriteAsync(storageKey, async (file, ct) =>
+        {
+            var header = new byte[EndToEndContent.AttachmentHeaderBytes];
+            if (await limited.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, ct) < header.Length
+                || !EndToEndContent.IsAttachmentHeader(header))
+            {
+                throw new Infrastructure.Web.ApiValidationException("file", "This is not an end-to-end encrypted file.");
+            }
+
+            await file.WriteAsync(header, ct);
+            await limited.CopyToAsync(file, ct);
+            if (!EndToEndContent.IsAttachmentSize(limited.BytesRead))
+            {
+                throw new Infrastructure.Web.ApiValidationException("file", "The encrypted file is incomplete.");
+            }
+        }, cancellationToken: cancellationToken);
+        return limited.BytesRead;
     }
 
     /// <summary>Returns one of the user's attachments without its content.</summary>

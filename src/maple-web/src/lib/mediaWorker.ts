@@ -75,7 +75,12 @@ export function useAttachmentSrc(attachment: Attachment, options: { download?: b
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attachment.id, needsBlob]);
 
-  if (!attachment.endToEnd) return options.download ? `${attachment.url}?download=true` : attachment.url;
+  if (!attachment.endToEnd) {
+    if (!options.download) return attachment.url;
+    const url = new URL(attachment.url, "http://localhost"); // the server's URL already names the stored version
+    url.searchParams.set("download", "true");
+    return url.pathname + url.search;
+  }
   if (worker) return `/e2ee/attachments/${attachment.id}${options.download ? "?download=1" : ""}`;
   return blobUrl?.id === attachment.id ? blobUrl.url : undefined;
 }

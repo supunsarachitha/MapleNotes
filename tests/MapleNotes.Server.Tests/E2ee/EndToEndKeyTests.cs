@@ -126,7 +126,7 @@ public sealed class EndToEndKeyTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task The_at_rest_switch_does_not_touch_end_to_end_mode()
+    public async Task End_to_end_mode_starts_with_its_own_setup_and_an_empty_account_can_leave_at_once()
     {
         var toEndToEnd = await _client.PutJsonAsync("/api/v1/account/encryption",
             new UpdateEncryptionRequest(EncryptionMode.EndToEnd, await _client.ProofAsync()));
@@ -135,8 +135,10 @@ public sealed class EndToEndKeyTests : IAsyncLifetime
             new UpdateEncryptionRequest(EncryptionMode.Off, await _client.ProofAsync()));
 
         Assert.Contains("mode", (await EndToEndAccount.ReadAsync<ValidationProblemDetails>(toEndToEnd)).Errors.Keys);
-        Assert.Equal(HttpStatusCode.Conflict, leave.StatusCode);
-        Assert.Equal(EncryptionMode.EndToEnd, (await StoredUserAsync()).EncryptionMode);
+        Assert.Equal(HttpStatusCode.OK, leave.StatusCode);
+        var user = await StoredUserAsync();
+        Assert.Equal(EncryptionMode.Off, user.EncryptionMode);
+        Assert.Null(user.E2eeWrappedKey); // nothing was encrypted end-to-end, so nothing needs the key
     }
 
     [Fact]

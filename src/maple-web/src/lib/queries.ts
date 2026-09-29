@@ -10,6 +10,7 @@ export const queryKeys = {
   tags: ["tags"] as const,
   adminSettings: ["admin", "settings"] as const,
   adminUsers: ["admin", "users"] as const,
+  encryption: ["account", "encryption"] as const,
 };
 
 export const PAGE_SIZE = 20;

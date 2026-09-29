@@ -34,6 +34,8 @@ export interface MediaDeps {
 export interface Opened {
   metadata: AttachmentMetadata;
   decryptor: AttachmentDecryptor;
+  /** The stored version's URL, from the info; downloads are cached as immutable per version. */
+  url: string;
 }
 
 class HttpStatus extends Error {
@@ -63,27 +65,28 @@ function disposition(kind: "inline" | "attachment", name: string): string {
 }
 
 async function open(id: string, unlocked: Unlocked, deps: MediaDeps): Promise<Opened> {
-  const info = await deps.fetch(`/api/v1/attachments/${id}/info`);
+  const info = await deps.fetch(`/api/v1/attachments/${id}/info`, { cache: "no-store" });
   if (!info.ok) throw new HttpStatus(info.status);
-  const { encryptedMetadata } = (await info.json()) as { encryptedMetadata?: string | null };
+  const { encryptedMetadata, url } = (await info.json()) as { encryptedMetadata?: string | null; url: string };
   if (!encryptedMetadata) throw new HttpStatus(404); // not an end-to-end file: the page uses its normal URL
   const metadata = await decryptMetadata(unlocked.keys, unlocked.userId, id, fromBase64(encryptedMetadata));
 
-  const head = await deps.fetch(`/api/v1/attachments/${id}`, { headers: { Range: `bytes=0-${HEADER_SIZE - 1}` } });
+  const head = await deps.fetch(url, { headers: { Range: `bytes=0-${HEADER_SIZE - 1}` } });
   if (head.status !== 206) throw new HttpStatus(head.ok ? 502 : head.status);
   const total = Number(/\/(\d+)$/.exec(head.headers.get("Content-Range") ?? "")?.[1]);
   const header = new Uint8Array(await head.arrayBuffer());
-  return { metadata, decryptor: await AttachmentDecryptor.create(unlocked.keys, unlocked.userId, id, header, total) };
+  return { metadata, url, decryptor: await AttachmentDecryptor.create(unlocked.keys, unlocked.userId, id, header, total) };
 }
 
-async function fetchChunks(id: string, decryptor: AttachmentDecryptor, first: number, last: number, deps: MediaDeps): Promise<Uint8Array> {
-  const range = decryptor.cipherRange(first, last);
-  const response = await deps.fetch(`/api/v1/attachments/${id}`, { headers: { Range: `bytes=${range.start}-${range.end - 1}` } });
+async function fetchChunks(opened: Opened, first: number, last: number, deps: MediaDeps): Promise<Uint8Array> {
+  const range = opened.decryptor.cipherRange(first, last);
+  const response = await deps.fetch(opened.url, { headers: { Range: `bytes=${range.start}-${range.end - 1}` } });
   if (response.status !== 206) throw new HttpStatus(response.ok ? 502 : response.status);
-  return decryptor.decryptChunks(first, new Uint8Array(await response.arrayBuffer()));
+  return opened.decryptor.decryptChunks(first, new Uint8Array(await response.arrayBuffer()));
 }
 
-function streamWhole(id: string, decryptor: AttachmentDecryptor, deps: MediaDeps): ReadableStream<Uint8Array> {
+function streamWhole(opened: Opened, deps: MediaDeps): ReadableStream<Uint8Array> {
+  const { decryptor } = opened;
   let next = 0;
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
@@ -93,7 +96,7 @@ function streamWhole(id: string, decryptor: AttachmentDecryptor, deps: MediaDeps
       }
       const last = Math.min(decryptor.chunkCount - 1, next + BATCH_CHUNKS - 1);
       try {
-        controller.enqueue(await fetchChunks(id, decryptor, next, last, deps));
+        controller.enqueue(await fetchChunks(opened, next, last, deps));
         next = last + 1;
       } catch (error) {
         controller.error(error);
@@ -147,13 +150,13 @@ export async function serveAttachment(request: Request, deps: MediaDeps): Promis
 
   if (range === null) {
     headers.set("Content-Length", String(size));
-    return new Response(size === 0 ? null : streamWhole(id, decryptor, deps), { status: 200, headers });
+    return new Response(size === 0 ? null : streamWhole(opened, deps), { status: 200, headers });
   }
 
   const end = Math.min(range.end, range.start + MAX_RANGE_BYTES - 1);
   try {
     const first = decryptor.chunkOf(range.start);
-    const plain = await fetchChunks(id, decryptor, first, decryptor.chunkOf(end), deps);
+    const plain = await fetchChunks(opened, first, decryptor.chunkOf(end), deps);
     const offset = range.start - first * decryptor.chunkSize;
     const body = plain.slice(offset, offset + (end - range.start + 1));
     headers.set("Content-Range", `bytes ${range.start}-${end}/${size}`);

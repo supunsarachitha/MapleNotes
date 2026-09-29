@@ -28,24 +28,23 @@ public sealed class AccountController(AccountService accounts, EncryptionSetting
     public Task<EncryptionStatusResponse> GetEncryption(CancellationToken cancellationToken) =>
         encryption.GetStatusAsync(User.GetUserId(), cancellationToken);
 
-    /// <summary>Switches encryption at rest for notes and attachments on or off.</summary>
+    /// <summary>Changes the encryption mode of notes and attachments.</summary>
     /// <remarks>
     /// Requires proof of the account password (see <see cref="CredentialProof"/>). New content follows the new mode
-    /// immediately; existing notes and files are converted in the background (poll
-    /// <c>GET /api/v1/account/encryption</c> for progress). The database itself is always encrypted, whatever this
-    /// setting. End-to-end encryption has its own endpoints under <c>/api/v1/account/e2ee</c>.
+    /// immediately. Existing content is converted in the background between off and at rest, and by the app (see
+    /// <c>/api/v1/account/conversion</c>) to and from end-to-end encryption; poll <c>GET /api/v1/account/encryption</c>
+    /// for progress. The first switch to end-to-end encryption uses <c>POST /api/v1/account/e2ee</c>. The database
+    /// itself is always encrypted, whatever this setting.
     /// </remarks>
-    /// <param name="request">The new mode (off or at rest) and proof of the password.</param>
+    /// <param name="request">The new mode and proof of the password.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The status after the change.</returns>
-    /// <response code="200">The setting was saved; conversion runs in the background.</response>
-    /// <response code="400">The password is wrong, or the mode is not off or at rest.</response>
-    /// <response code="409">The account uses end-to-end encryption.</response>
+    /// <response code="200">The mode was saved; conversion runs in the background or in the app.</response>
+    /// <response code="400">The password is wrong, or end-to-end mode was asked for without an end-to-end key.</response>
     [HttpPut("encryption")]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType<EncryptionStatusResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public Task<EncryptionStatusResponse> SetEncryption(UpdateEncryptionRequest request, CancellationToken cancellationToken) =>
         encryption.SetModeAsync(User.GetUserId(), request, cancellationToken);
 

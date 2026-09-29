@@ -77,8 +77,8 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 | E1 | Key-derived sign-in for every account | The server never receives a password (register, sign-in, password change, re-authentication); legacy accounts upgrade at sign-in; unknown usernames are indistinguishable; all existing tests pass on the new flow | ✅ Done (`d819094`) |
 | E2 | End-to-end mode and key management | Three encryption modes and per-item schemes; recovery kit, password-reset-by-recovery-key and unlock screen; the server enforces ciphertext-only writes for E2EE accounts | ✅ Done (`f117e43`) |
 | E3 | Notes, tags and search in the browser | For an E2EE account the database contains no note text or tag names (asserted by scanning); tag filter and search work in the browser | ✅ Done (`f521023`) |
-| E4 | Attachments and the media service worker | Files and their names are stored only as ciphertext; images and video (with seeking) play through the service worker; fallback without it | ✅ Done |
-| E5 | Switching modes in both directions | Resumable browser-driven conversion with progress; tests interrupt it in both directions; the server holds no content key after entering E2EE | ⏳ Not started |
+| E4 | Attachments and the media service worker | Files and their names are stored only as ciphertext; images and video (with seeking) play through the service worker; fallback without it | ✅ Done (`2d59b4e`) |
+| E5 | Switching modes in both directions | Resumable browser-driven conversion with progress; tests interrupt it in both directions; the server holds no content key after entering E2EE | ✅ Done |
 | E6 | Export in the browser | The browser export matches the server export's structure for all 12 format and layout combinations; streamed download verified | ⏳ Not started |
 | E7 | Hardening, documentation and release | CSP updated for the worker and WebAssembly; threat model documented; README, architecture, CHANGELOG (v1.1.0), licensing and notices updated; clean-clone browser run passes | ⏳ Not started |
 
@@ -109,6 +109,13 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
   including ranges deep into the file), a decrypted named download, and the same files with service workers blocked
   (decrypted in the page); the built `/sw.js` in the container; the three stored files start with the `MNAE` header
   and contain no plaintext markers.
+- **E5:** leaving end-to-end mode is the regular mode change, and switching back while the key still exists reuses it.
+  The browser test found a real bug that unit tests could not: downloads are cached as immutable, but a mode change
+  replaces the bytes behind an attachment's ID, so a browser that had shown a photo before the change read its old
+  cached copy afterwards. Attachment URLs now carry the stored version and the conversion bypasses the cache.
+  Verified in Chromium on the production build: turning end-to-end encryption on from Settings with 61 notes and a
+  photo, a reload midway that resumed, no readable note sent during conversion, tags and the photo working after it;
+  then turning it off, again interrupted, until the account had no end-to-end key and plain notes, tags and photo.
 
 ## Out of scope for v1.1.0
 

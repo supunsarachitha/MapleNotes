@@ -3,7 +3,9 @@ import type {
   Attachment,
   AttachmentWire,
   AuthStatus,
+  ConversionBatch,
   CredentialProof,
+  EncryptedNoteWire,
   EncryptionMode,
   EncryptionStatus,
   KdfParamsWire,
@@ -90,6 +92,17 @@ export async function request<T>(method: Method, path: string, body?: unknown, r
   }
 
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
+}
+
+/** Sends multipart/form-data (file conversions), with the antiforgery token. */
+async function sendForm(method: "POST" | "PUT", path: string, form: FormData): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(path, { method, body: form, headers: await antiforgeryHeaders(), credentials: "same-origin" });
+  } catch {
+    throw new ApiError(0, { title: "Cannot reach the server. Check your connection and try again." });
+  }
+  if (!response.ok) throw new ApiError(response.status, await readProblem(response));
 }
 
 function query(params: Record<string, string | number | string[] | undefined>): string {
@@ -206,8 +219,17 @@ export const api = {
 
   encryption: () => request<EncryptionStatus>("GET", "/api/v1/account/encryption"),
 
-  setEncryption: (mode: Exclude<EncryptionMode, "EndToEnd">, proof: CredentialProof) =>
+  /** Off or at rest; or back to end-to-end while the account still has its key (the first time uses e2ee.enable). */
+  setEncryption: (mode: EncryptionMode, proof: CredentialProof) =>
     request<EncryptionStatus>("PUT", "/api/v1/account/encryption", { mode, proof }),
+
+  /** The browser's conversion of existing content after a change to or from end-to-end encryption. */
+  conversion: {
+    batch: (limit = 10) => request<ConversionBatch>("GET", `/api/v1/account/conversion${query({ limit })}`),
+    note: (id: string, body: { updatedAtUtc: string; content?: string; encrypted?: EncryptedNoteWire }) =>
+      request<void>("PUT", `/api/v1/account/conversion/notes/${id}`, body),
+    attachment: (id: string, form: FormData) => sendForm("PUT", `/api/v1/account/conversion/attachments/${id}`, form),
+  },
 
   /** End-to-end key material; the server stores it wrapped and cannot open it (docs/e2ee-spec.md §3, §6). */
   e2ee: {
