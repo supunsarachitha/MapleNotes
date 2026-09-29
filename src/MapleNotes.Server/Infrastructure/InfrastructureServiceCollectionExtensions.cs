@@ -52,8 +52,9 @@ internal static class InfrastructureServiceCollectionExtensions
         services.AddSingleton(provider => new DatabaseConnectionString(SqlCipherConnectionString.Build(
             provider.GetRequiredService<MapleOptions>().DatabasePath,
             provider.GetRequiredService<KeyMaterial>().DatabaseKey)));
-        services.AddDbContext<MapleDbContext>((provider, db) =>
-            db.UseSqlite(provider.GetRequiredService<DatabaseConnectionString>().Value));
+        services.AddDbContext<MapleDbContext>((provider, db) => db
+            .UseSqlite(provider.GetRequiredService<DatabaseConnectionString>().Value)
+            .AddInterceptors(new SqlitePragmaInterceptor()));
         services.AddScoped<DatabaseInitializer>();
 
         services.AddMapleDataProtection();

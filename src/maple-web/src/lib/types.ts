@@ -61,6 +61,14 @@ export interface AdminUser {
   createdAtUtc: string;
 }
 
+export interface EncryptionStatus {
+  enabled: boolean;
+  /** True while existing notes and files are still being converted in the background. */
+  inProgress: boolean;
+  totalItems: number;
+  remainingItems: number;
+}
+
 /** RFC 9457 problem details returned by the API for errors. */
 export interface ProblemDetails {
   title?: string;

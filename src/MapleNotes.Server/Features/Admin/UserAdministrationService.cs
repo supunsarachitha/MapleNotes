@@ -1,4 +1,5 @@
 using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,9 +20,31 @@ public enum UserUpdateResult
 
 /// <summary>Account management for administrators. Administrators never see note content.</summary>
 /// <param name="db">Database context.</param>
+/// <param name="deletion">Deletes accounts with all their content.</param>
 /// <param name="time">Clock.</param>
-public sealed class UserAdministrationService(MapleDbContext db, TimeProvider time)
+public sealed class UserAdministrationService(MapleDbContext db, AccountDeletionService deletion, TimeProvider time)
 {
+    /// <summary>Permanently deletes another account with all of its notes and files.</summary>
+    /// <param name="actingAdminId">The administrator making the change.</param>
+    /// <param name="userId">The account to delete.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The outcome; administrators delete their own account from their settings instead.</returns>
+    public async Task<UserUpdateResult> DeleteUserAsync(Guid actingAdminId, Guid userId, CancellationToken cancellationToken)
+    {
+        if (userId == actingAdminId)
+        {
+            return UserUpdateResult.CannotChangeSelf;
+        }
+
+        if (!await db.Users.AnyAsync(u => u.Id == userId, cancellationToken))
+        {
+            return UserUpdateResult.NotFound;
+        }
+
+        await deletion.DeleteAsync(userId, cancellationToken);
+        return UserUpdateResult.Updated;
+    }
+
     /// <summary>Lists all accounts, oldest first.</summary>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The accounts.</returns>

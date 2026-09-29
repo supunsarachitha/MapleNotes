@@ -1,7 +1,7 @@
 namespace MapleNotes.Server.Domain;
 
 /// <summary>A file (image or other document) uploaded by a user, optionally linked to a note.</summary>
-public sealed class Attachment
+public sealed class Attachment : IRevisioned
 {
     /// <summary>Primary key (UUID version 7).</summary>
     public Guid Id { get; init; } = Guid.CreateVersion7();
@@ -32,4 +32,7 @@ public sealed class Attachment
 
     /// <summary>When the file was uploaded (UTC).</summary>
     public DateTime CreatedAtUtc { get; set; }
+
+    /// <inheritdoc />
+    public int Revision { get; set; }
 }

@@ -1,3 +1,4 @@
+using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Crypto;
 using Microsoft.AspNetCore.Hosting;
@@ -30,6 +31,12 @@ public class MapleAppFactory : WebApplicationFactory<Program>
     /// <summary>Set to false to start the app without a master key.</summary>
     public bool ProvideMasterKey { get; set; } = true;
 
+    /// <summary>
+    /// Set to false to keep the background encryption worker from running, so a test can drive
+    /// <c>EncryptionMigrator</c> itself (and simulate crashes) without racing it.
+    /// </summary>
+    public bool RunEncryptionWorker { get; set; } = true;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         if (ProvideMasterKey)
@@ -43,7 +50,14 @@ public class MapleAppFactory : WebApplicationFactory<Program>
             builder.UseSetting(key, value);
         }
 
-        builder.ConfigureServices(services => services.AddSingleton<IHostedService>(new StartupSignal(this)));
+        builder.ConfigureServices(services =>
+        {
+            services.AddSingleton<IHostedService>(new StartupSignal(this));
+            if (!RunEncryptionWorker)
+            {
+                services.Remove(services.Single(s => s.ImplementationType == typeof(EncryptionMigrationService)));
+            }
+        });
     }
 
     public override async ValueTask DisposeAsync()

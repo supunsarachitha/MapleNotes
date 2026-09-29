@@ -38,7 +38,7 @@ internal static class WebServiceCollectionExtensions
                 // and every state-changing request must carry a valid antiforgery token.
                 mvc.Filters.Add(new AuthorizeFilter());
                 mvc.Filters.Add<AntiforgeryValidationFilter>();
-                mvc.Filters.Add<ApiValidationExceptionFilter>();
+                mvc.Filters.Add<ApiExceptionFilter>();
             })
             .AddJsonOptions(json => json.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 

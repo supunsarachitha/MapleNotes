@@ -31,6 +31,12 @@ public enum AccountError
 
     /// <summary>An administrator disabled the account.</summary>
     Disabled,
+
+    /// <summary>
+    /// The account is the instance's only active administrator. Deleting it would leave the instance without one, and
+    /// the next visitor could claim it by creating the first account.
+    /// </summary>
+    LastAdministrator,
 }
 
 /// <summary>Outcome of an account operation.</summary>
@@ -60,6 +66,7 @@ public sealed record AccountResult(
 /// <param name="dataKeys">Creates each new account's data key.</param>
 /// <param name="instanceSettings">Instance settings (open registration).</param>
 /// <param name="options">Instance settings from the environment.</param>
+/// <param name="deletion">Deletes accounts with all their content.</param>
 /// <param name="time">Clock.</param>
 public sealed class AccountService(
     MapleDbContext db,
@@ -67,6 +74,7 @@ public sealed class AccountService(
     DataKeyService dataKeys,
     InstanceSettingsService instanceSettings,
     MapleOptions options,
+    AccountDeletionService deletion,
     TimeProvider time)
 {
     /// <summary>Failed sign-in attempts that trigger a lockout.</summary>
@@ -237,6 +245,33 @@ public sealed class AccountService(
         user.SecurityStamp = User.NewSecurityStamp();
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Permanently deletes the user's own account, with all notes and files, after confirming the password.
+    /// </summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="password">The account password.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>Success, a wrong password, or <see cref="AccountError.LastAdministrator"/>.</returns>
+    public async Task<AccountResult> DeleteOwnAccountAsync(Guid userId, string? password, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == userId, cancellationToken);
+        if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password ?? string.Empty) == PasswordVerificationResult.Failed)
+        {
+            return new AccountResult(null, AccountError.InvalidInput,
+                new Dictionary<string, string[]> { ["password"] = ["The password is not correct."] });
+        }
+
+        var otherAdministrators = await db.Users.AnyAsync(
+            u => u.Id != userId && u.Role == UserRole.Admin && !u.IsDisabled, cancellationToken);
+        if (user.Role == UserRole.Admin && !otherAdministrators)
+        {
+            return AccountResult.Fail(AccountError.LastAdministrator);
+        }
+
+        await deletion.DeleteAsync(userId, cancellationToken);
+        return AccountResult.Success(user);
     }
 
     /// <summary>Loads an account.</summary>

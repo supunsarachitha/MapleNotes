@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { EncryptionSection } from "../components/EncryptionSection";
+import { PasswordDialog } from "../components/PasswordDialog";
 import { useToast } from "../components/Toaster";
 import { Button, Card, ErrorMessage, Switch, TextField } from "../components/ui";
 import { api, ApiError } from "../lib/api";
@@ -111,11 +113,51 @@ function SessionsSection() {
   );
 }
 
+function DeleteAccountSection() {
+  const signedOut = useSignedOut();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Section title="Delete account" description="Permanently delete your account, all of your notes and all attached files.">
+      <Button variant="danger" onClick={() => setOpen(true)}>
+        Delete my account…
+      </Button>
+      <PasswordDialog
+        open={open}
+        onOpenChange={setOpen}
+        danger
+        title="Delete your account?"
+        description={
+          <>
+            <p>All of your notes and files are deleted, and your encryption key is destroyed. This cannot be undone.</p>
+            <p>Consider exporting your notes first.</p>
+          </>
+        }
+        confirmLabel="Delete forever"
+        onConfirm={async (password) => {
+          await api.deleteAccount(password);
+          signedOut();
+        }}
+      />
+    </Section>
+  );
+}
+
 function AdminSection({ currentUserId }: { currentUserId: string }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const settings = useQuery({ queryKey: queryKeys.adminSettings, queryFn: api.admin.settings });
   const users = useQuery({ queryKey: queryKeys.adminUsers, queryFn: api.admin.users });
+  const [toDelete, setToDelete] = useState<AdminUser | null>(null);
+  const deleteUser = useMutation({
+    mutationFn: (id: string) => api.admin.deleteUser(id),
+    onSuccess: () => {
+      setToDelete(null);
+      toast.info("Account deleted.");
+      void queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Could not delete the account."),
+  });
 
   const updateSettings = useMutation({
     mutationFn: api.admin.updateSettings,
@@ -174,11 +216,14 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
                       {account.role === "Admin" ? "Make member" : "Make admin"}
                     </Button>
                     <Button
-                      variant={account.isDisabled ? "secondary" : "danger"}
+                      variant="secondary"
                       className="h-8 px-3 text-xs"
                       onClick={() => updateUser.mutate({ id: account.id, isDisabled: !account.isDisabled })}
                     >
                       {account.isDisabled ? "Enable" : "Disable"}
+                    </Button>
+                    <Button variant="danger" className="h-8 px-3 text-xs" onClick={() => setToDelete(account)}>
+                      Delete
                     </Button>
                   </div>
                 )}
@@ -189,20 +234,31 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
       ) : (
         <p className="text-sm text-stone-500">Loading accounts…</p>
       )}
+
+      <ConfirmDialog
+        open={toDelete !== null}
+        onOpenChange={(open) => !open && setToDelete(null)}
+        title={`Delete @${toDelete?.username ?? ""}?`}
+        description={`The account and its ${toDelete?.noteCount ?? 0} notes and all attached files are deleted permanently.`}
+        confirmLabel="Delete account"
+        busy={deleteUser.isPending}
+        onConfirm={() => toDelete && deleteUser.mutate(toDelete.id)}
+      />
     </Section>
   );
 }
 
 /** Account, security and (for administrators) instance settings. */
-export function SettingsPage({ user, extraSections }: { user: User; extraSections?: ReactNode }) {
+export function SettingsPage({ user }: { user: User }) {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Settings</h1>
       <AccountSection user={user} />
-      {extraSections}
+      <EncryptionSection />
       <PasswordSection />
       <SessionsSection />
       {user.role === "Admin" && <AdminSection currentUserId={user.id} />}
+      <DeleteAccountSection />
     </div>
   );
 }

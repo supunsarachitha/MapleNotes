@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using MapleNotes.Server.Infrastructure.Configuration;
 
@@ -8,20 +9,23 @@ namespace MapleNotes.Server.Infrastructure.Storage;
 /// this class only manages paths and makes writes atomic.
 /// </summary>
 /// <remarks>
-/// Files are named by attachment ID and spread over two directory levels taken from the random tail of the UUID
-/// (<c>attachments/3f/9a/{id}.bin</c>), so no directory grows too large. A storage key is the path relative to the
-/// attachments directory; it is validated before use, so a tampered database row cannot point outside the store.
+/// Files are named by attachment ID plus a random suffix and spread over two directory levels taken from the random
+/// tail of the UUID (<c>attachments/3f/9a/{id}-{suffix}.bin</c>), so no directory grows too large. Each write of an
+/// attachment's content gets a fresh name, which lets re-encryption write the new version next to the old one and
+/// switch over atomically in the database. A storage key is the path relative to the attachments directory; it is
+/// validated before use, so a tampered database row cannot point outside the store.
 /// </remarks>
 /// <param name="options">Instance settings.</param>
 public sealed partial class AttachmentStore(MapleOptions options)
 {
-    /// <summary>Returns the storage key for an attachment ID.</summary>
+    /// <summary>Returns a new, unique storage key for an attachment's content.</summary>
     /// <param name="attachmentId">The attachment's ID.</param>
-    /// <returns>A relative path such as <c>3f/9a/0192…bin</c>.</returns>
+    /// <returns>A relative path such as <c>3f/9a/0192…-5d1e0a7c.bin</c>.</returns>
     public static string CreateStorageKey(Guid attachmentId)
     {
         var name = attachmentId.ToString("N");
-        return $"{name[30..32]}/{name[28..30]}/{name}.bin";
+        var suffix = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(4));
+        return $"{name[30..32]}/{name[28..30]}/{name}-{suffix}.bin";
     }
 
     /// <summary>
@@ -172,6 +176,6 @@ public sealed partial class AttachmentStore(MapleOptions options)
         }
     }
 
-    [GeneratedRegex("^[0-9a-f]{2}/[0-9a-f]{2}/[0-9a-f]{32}\\.bin$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^[0-9a-f]{2}/[0-9a-f]{2}/[0-9a-f]{32}(-[0-9a-f]{8})?\\.bin$", RegexOptions.CultureInvariant)]
     private static partial Regex StorageKeyPattern();
 }

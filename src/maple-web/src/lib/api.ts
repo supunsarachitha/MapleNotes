@@ -2,6 +2,7 @@ import type {
   AdminUser,
   Attachment,
   AuthStatus,
+  EncryptionStatus,
   Note,
   NotePage,
   NoteState,
@@ -148,6 +149,16 @@ export const api = {
 
   deleteAttachment: (id: string) => request<void>("DELETE", `/api/v1/attachments/${id}`),
 
+  encryption: () => request<EncryptionStatus>("GET", "/api/v1/account/encryption"),
+
+  setEncryption: (enabled: boolean, password: string) =>
+    request<EncryptionStatus>("PUT", "/api/v1/account/encryption", { enabled, password }),
+
+  async deleteAccount(password: string): Promise<void> {
+    await request<void>("DELETE", "/api/v1/account", { password });
+    await refreshAntiforgeryToken();
+  },
+
   admin: {
     settings: () => request<{ allowRegistration: boolean }>("GET", "/api/v1/admin/settings"),
     updateSettings: (allowRegistration: boolean) =>
@@ -155,6 +166,7 @@ export const api = {
     users: () => request<AdminUser[]>("GET", "/api/v1/admin/users"),
     updateUser: (id: string, changes: { isDisabled?: boolean; role?: UserRole }) =>
       request<void>("PATCH", `/api/v1/admin/users/${id}`, changes),
+    deleteUser: (id: string) => request<void>("DELETE", `/api/v1/admin/users/${id}`),
   },
 };
 

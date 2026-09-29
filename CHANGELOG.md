@@ -52,3 +52,11 @@ Work toward v1.0.0. Entries move under a version heading at release.
 - Mobile-first responsive layout (navigation drawer on phones, sidebar on wide screens), light and dark themes
   following the system, keyboard shortcuts (Ctrl/⌘+Enter to post, Esc to cancel an edit), accessible dialogs and
   menus, reduced-motion support.
+- Per-account encryption-at-rest switch (password-confirmed). New content follows the setting immediately; a
+  background worker converts existing notes and files with live progress in Settings. Conversion is crash-safe:
+  notes convert in all-or-nothing batches, and files are rewritten to a new copy before the database switches over.
+- Optimistic concurrency on notes and attachments, so simultaneous edits never silently overwrite each other
+  (a conflicting save returns HTTP 409).
+- Account deletion (password-confirmed) and deletion of other accounts by administrators. The account's data key is
+  destroyed with it; the database uses `secure_delete` so deleted content is overwritten. The last administrator
+  cannot delete their own account.

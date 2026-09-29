@@ -1,6 +1,7 @@
 using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Features.Attachments;
 using MapleNotes.Server.Features.Auth;
+using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Features.Notes;
 
 namespace MapleNotes.Server.Features;
@@ -14,6 +15,7 @@ internal static class FeatureServiceCollectionExtensions
     public static IServiceCollection AddMapleFeatures(this IServiceCollection services)
     {
         services.AddScoped<AccountService>();
+        services.AddScoped<AccountDeletionService>();
         services.AddScoped<InstanceSettingsService>();
         services.AddScoped<UserAdministrationService>();
 
@@ -21,6 +23,11 @@ internal static class FeatureServiceCollectionExtensions
         services.AddScoped<AttachmentService>();
         services.AddScoped<AttachmentCleanup>();
         services.AddHostedService<AttachmentCleanupService>();
+
+        services.AddScoped<EncryptionSettingsService>();
+        services.AddScoped<EncryptionMigrator>();
+        services.AddSingleton<EncryptionMigrationSignal>();
+        services.AddHostedService<EncryptionMigrationService>();
 
         return services;
     }

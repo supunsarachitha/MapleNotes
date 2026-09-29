@@ -17,11 +17,15 @@ public sealed class AttachmentStoreTests : IDisposable
     }
 
     [Fact]
-    public void Storage_keys_shard_by_the_random_tail_of_the_id()
+    public void Storage_keys_shard_by_the_random_tail_of_the_id_and_are_unique_per_write()
     {
         var id = Guid.Parse("0192f3a1-7c2e-7d4b-9a1c-3e5f7a9b1c2d");
 
-        Assert.Equal("2d/1c/0192f3a17c2e7d4b9a1c3e5f7a9b1c2d.bin", AttachmentStore.CreateStorageKey(id));
+        var first = AttachmentStore.CreateStorageKey(id);
+        var second = AttachmentStore.CreateStorageKey(id);
+
+        Assert.Matches("^2d/1c/0192f3a17c2e7d4b9a1c3e5f7a9b1c2d-[0-9a-f]{8}\\.bin$", first);
+        Assert.NotEqual(first, second);
     }
 
     [Fact]

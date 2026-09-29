@@ -65,4 +65,23 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
             UserUpdateResult.NotFound => NotFound(),
             _ => Problem(statusCode: StatusCodes.Status409Conflict, title: "You cannot disable or demote your own account."),
         };
+
+    /// <summary>Permanently deletes another account with all of its notes and files.</summary>
+    /// <param name="id">Account ID.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>No content.</returns>
+    /// <response code="204">The account was deleted.</response>
+    /// <response code="404">No such account.</response>
+    /// <response code="409">Administrators delete their own account from their settings.</response>
+    [HttpDelete("users/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken) =>
+        await users.DeleteUserAsync(User.GetUserId(), id, cancellationToken) switch
+        {
+            UserUpdateResult.Updated => NoContent(),
+            UserUpdateResult.NotFound => NotFound(),
+            _ => Problem(statusCode: StatusCodes.Status409Conflict, title: "Delete your own account from your settings."),
+        };
 }

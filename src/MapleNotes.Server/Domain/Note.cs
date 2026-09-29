@@ -1,7 +1,7 @@
 namespace MapleNotes.Server.Domain;
 
 /// <summary>A note (memo): a short Markdown text with optional attachments and tags.</summary>
-public sealed class Note
+public sealed class Note : IRevisioned
 {
     /// <summary>Primary key (UUID version 7).</summary>
     public Guid Id { get; init; } = Guid.CreateVersion7();
@@ -29,6 +29,9 @@ public sealed class Note
 
     /// <summary>When the note was last edited (UTC).</summary>
     public DateTime UpdatedAtUtc { get; set; }
+
+    /// <inheritdoc />
+    public int Revision { get; set; }
 
     /// <summary>Files attached to the note.</summary>
     public List<Attachment> Attachments { get; init; } = [];

@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.EntityFrameworkCore;
 
 namespace MapleNotes.Server.Infrastructure.Web;
 
 /// <summary>
 /// Thrown by services when a request is well-formed but its content is not acceptable. Converted to an HTTP 400
-/// response with <see cref="ValidationProblemDetails"/> by <see cref="ApiValidationExceptionFilter"/>.
+/// response with <see cref="ValidationProblemDetails"/> by <see cref="ApiExceptionFilter"/>.
 /// </summary>
 /// <param name="field">The request field (camelCase) the problem relates to.</param>
 /// <param name="message">What is wrong and how to fix it.</param>
@@ -15,22 +16,35 @@ public sealed class ApiValidationException(string field, string message) : Excep
     public string Field { get; } = field;
 }
 
-/// <summary>Turns <see cref="ApiValidationException"/> into an HTTP 400 validation problem response.</summary>
-internal sealed class ApiValidationExceptionFilter : IExceptionFilter
+/// <summary>
+/// Turns expected service exceptions into problem responses: <see cref="ApiValidationException"/> into HTTP 400 and
+/// optimistic-concurrency conflicts (the same note or file changed at the same moment) into HTTP 409.
+/// </summary>
+internal sealed class ApiExceptionFilter : IExceptionFilter
 {
     /// <inheritdoc />
     public void OnException(ExceptionContext context)
     {
-        if (context.Exception is not ApiValidationException validation)
+        switch (context.Exception)
         {
-            return;
-        }
+            case ApiValidationException validation:
+                context.Result = new BadRequestObjectResult(new ValidationProblemDetails(
+                    new Dictionary<string, string[]> { [validation.Field] = [validation.Message] })
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                });
+                context.ExceptionHandled = true;
+                break;
 
-        var problem = new ValidationProblemDetails(new Dictionary<string, string[]> { [validation.Field] = [validation.Message] })
-        {
-            Status = StatusCodes.Status400BadRequest,
-        };
-        context.Result = new BadRequestObjectResult(problem);
-        context.ExceptionHandled = true;
+            case DbUpdateConcurrencyException:
+                context.Result = new ConflictObjectResult(new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "This item changed while you were saving.",
+                    Detail = "Reload and try again.",
+                });
+                context.ExceptionHandled = true;
+                break;
+        }
     }
 }

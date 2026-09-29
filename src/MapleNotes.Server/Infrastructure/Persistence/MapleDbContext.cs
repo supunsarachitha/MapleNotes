@@ -27,6 +27,20 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
     public DbSet<InstanceSetting> InstanceSettings => Set<InstanceSetting>();
 
     /// <inheritdoc />
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        BumpRevisions();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    /// <inheritdoc />
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        BumpRevisions();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <inheritdoc />
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         // SQLite has no date type. EF stores DateTime as ISO-8601 text, which sorts chronologically but loses the
@@ -56,6 +70,7 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
 
             // Serves the feed's keyset pagination: WHERE UserId = @u ORDER BY CreatedAtUtc DESC, Id DESC.
             note.HasIndex(n => new { n.UserId, n.CreatedAtUtc, n.Id });
+            note.Property(n => n.Revision).IsConcurrencyToken();
 
             note.HasMany(n => n.Attachments).WithOne().HasForeignKey(a => a.NoteId).OnDelete(DeleteBehavior.Cascade);
             note.HasMany(n => n.Tags).WithMany().UsingEntity<Dictionary<string, object>>(
@@ -73,6 +88,7 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             attachment.Property(a => a.ContentType).HasMaxLength(255);
             attachment.Property(a => a.StorageKey).HasMaxLength(64);
             attachment.HasIndex(a => a.StorageKey).IsUnique();
+            attachment.Property(a => a.Revision).IsConcurrencyToken();
 
             // Serves the cleanup of uploads never linked to a note: WHERE NoteId IS NULL AND CreatedAtUtc < @cutoff.
             attachment.HasIndex(a => new { a.NoteId, a.CreatedAtUtc });
@@ -92,6 +108,15 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             setting.HasKey(s => s.Key);
             setting.Property(s => s.Key).HasMaxLength(100);
         });
+    }
+
+    /// <summary>Increments the concurrency token of every modified <see cref="IRevisioned"/> entity.</summary>
+    private void BumpRevisions()
+    {
+        foreach (var entry in ChangeTracker.Entries<IRevisioned>().Where(e => e.State == EntityState.Modified))
+        {
+            entry.Entity.Revision++;
+        }
     }
 
     /// <summary>Stores DateTime values as UTC and marks values read back as UTC.</summary>
