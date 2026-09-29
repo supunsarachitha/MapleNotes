@@ -1,6 +1,7 @@
 # Maple Notes: a stack to paste into Portainer (Stacks > Add stack > Web editor) and deploy as is.
 #
-# - The image is built from the Maple Notes repository on GitHub (the first deploy takes a few minutes).
+# - The image comes from GitHub's container registry, published by the repository's CI for every change to main
+#   (amd64 and arm64). Nothing is built on your server.
 # - On first start, a one-off helper creates the master key in its own volume (maple-notes-key), separate from the
 #   notes (maple-notes-data). Later starts reuse it.
 # - Open http://<your server>:8088 and create the first account; it becomes the administrator.
@@ -21,10 +22,8 @@ services:
       - maple-notes-key:/key
 
   maple-notes:
-    build:
-      context: https://github.com/supunsarachitha/MapleNotes.git#main
-    image: maple-notes:latest
-    pull_policy: build # always build from GitHub on deploy, so an older local image is never used
+    image: ghcr.io/supunsarachitha/maplenotes:latest
+    pull_policy: always # fetch the newest image on every deploy (Portainer: "Update the stack" with re-pull)
     container_name: maple-notes
     restart: unless-stopped
     depends_on:
