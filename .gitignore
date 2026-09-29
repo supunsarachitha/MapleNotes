@@ -1,0 +1,36 @@
+# --- .NET ---
+bin/
+obj/
+*.user
+*.suo
+*.rsuser
+.vs/
+TestResults/
+*.trx
+coverage*/
+
+# --- Frontend ---
+node_modules/
+src/maple-web/dist/
+*.tsbuildinfo
+
+# The SPA is built into the server's wwwroot during publish; never commit build output.
+src/MapleNotes.Server/wwwroot/
+
+# --- Runtime data (database, attachments, key ring) ---
+data/
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# --- Secrets ---
+.env
+*.key
+secrets/
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+.idea/
+*.swp

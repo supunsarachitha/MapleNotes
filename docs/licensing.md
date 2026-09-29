@@ -11,7 +11,8 @@ high-stakes distribution.
 
 1. **Only permissive licenses ship in the product** (the published container image and the SPA bundle).
 2. **Every dependency is checked before it is added**, including transitive ones, with
-   `scripts/check-licenses.sh`. The script fails the build on anything outside the allowed list.
+   `python3 scripts/check-licenses.py`. It fails on any shipped dependency outside the allowed list and on
+   any denied license anywhere.
 3. **Notices ship with the product.** `THIRD-PARTY-NOTICES.md` lists every shipped component with its
    license and copyright line, and is copied into the container image.
 4. **No code, text, logos or screenshots are copied from other projects**, including memos. Maple Notes
@@ -47,10 +48,28 @@ These popular .NET packages moved to commercial or restrictive terms and are **n
 | SQLitePCLRaw | Apache-2.0 | .NET bindings for native SQLite |
 | Microsoft.Data.Sqlite / EF Core | MIT | Data access |
 
+The native `libsqlite3mc` binary compiles in code from other authors. Its source (v2.4.0) was audited
+file by file on 2026-09-28; every file is MIT, BSD-3-Clause, CC0/Apache-2.0 or public domain:
+
+| Embedded code | License | Notice obligation |
+|---|---|---|
+| SQLite3 Multiple Ciphers (Ulrich Telle) | MIT | Reproduce in `THIRD-PARTY-NOTICES.md` |
+| AEGIS ciphers (Frank Denis) | MIT | Reproduce in `THIRD-PARTY-NOTICES.md` |
+| miniz (Rich Geldreich, RAD Game Tools, Valve) | MIT | Reproduce in `THIRD-PARTY-NOTICES.md` |
+| SHA-2 (Olivier Gay) | BSD-3-Clause | **Binary distribution must reproduce the notice** in documentation |
+| Argon2 reference code | CC0-1.0 or Apache-2.0 (our choice: CC0) | None |
+| fastpbkdf2, ChaCha20-Poly1305, Ascon, SHA-1, MD5, SQLite | Public domain / CC0 | None |
+
 We do not ship code from Zetetic's SQLCipher project. SQLite3 Multiple Ciphers implements the same
 on-disk format, so databases open with the official `sqlcipher` tool (verified in Phase 0 with
 SQLCipher 4.5.6). "SQLCipher" is a trademark of Zetetic LLC; this project refers to it only to describe
 file-format compatibility.
+
+## Reviewed exceptions
+
+| Package | License | Scope | Decision |
+|---|---|---|---|
+| `lightningcss` (+ platform binaries) | MPL-2.0 | Build-time only | Accepted. Tailwind CSS and Vite run it to compile CSS; none of its code ships, only the CSS it produces. MPL-2.0 obligations apply to its own source files, which we neither modify nor distribute. |
 
 ## Container image
 

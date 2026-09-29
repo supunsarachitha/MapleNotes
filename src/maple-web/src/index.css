@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/*
+ * Maple Notes design tokens. Components use these through Tailwind's theme (e.g. bg-maple-600).
+ * Brand colour: deep maple red #8f1d21 (maple-600), the same colour as the app icon and browser theme-color.
+ * White text on maple-600 has an 8.9:1 contrast ratio; on dark backgrounds use maple-400 for text (5.8:1).
+ */
+@theme {
+  --color-maple-50: #fdf3f3;
+  --color-maple-100: #fbe4e4;
+  --color-maple-400: #e57373;
+  --color-maple-500: #b0282d;
+  --color-maple-600: #8f1d21;
+  --color-maple-700: #731619;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}

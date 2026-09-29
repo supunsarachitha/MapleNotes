@@ -12,11 +12,14 @@ Approved 2026-09-28. This is the working plan for v1.0.0. The architecture refer
 | 3 | Extras | Markdown rendering, `#tags` with a tag filter, pin-to-top are in v1 |
 | 4 | Search | Basic search that decrypts a user's notes in memory |
 | 5 | Check-ins | Pause after Phase 0 to report SQLCipher results, then build straight through |
+| 6 | Database encryption library (Phase 0) | SQLite3 Multiple Ciphers (MIT) in SQLCipher v4 mode. `SQLitePCLRaw.bundle_e_sqlcipher` is discontinued (last release 2.1.11, SQLite 3.39.2 from 2022, marked "unofficial and unsupported"). Files remain readable by the official `sqlcipher` tool. |
+| 7 | Brand colour | Deep maple red `#8f1d21` for the icon, browser theme colour and app accent |
+| 8 | Licensing | Third-party license policy and automated check: [licensing.md](licensing.md) |
 
 ## Architecture
 
 - **Runtime:** .NET 10 LTS, ASP.NET Core controllers, built-in OpenAPI with XML docs.
-- **Data:** EF Core 10 + SQLite with SQLCipher (whole-file encryption, always on).
+- **Data:** EF Core 10 + SQLite, whole-file encrypted in SQLCipher v4 format by SQLite3 Multiple Ciphers (always on).
 - **Auth:** cookie authentication, `PasswordHasher` (PBKDF2-HMAC-SHA512, 210k iterations), antiforgery,
   login rate limiting, lockout, security-stamp session revocation.
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS, TanStack Query, Radix UI primitives, react-markdown.
@@ -26,7 +29,7 @@ Approved 2026-09-28. This is the working plan for v1.0.0. The architecture refer
 
 | Layer | Covers | Controlled by | Mechanism |
 |---|---|---|---|
-| Database file | All of `maple.db` | Instance (always on) | SQLCipher, key derived from the master key |
+| Database file | All of `maple.db` | Instance (always on) | SQLCipher v4 format, raw 256-bit key derived from the master key |
 | Per-user content | Note bodies and attachment files | User toggle in Settings | AES-256-GCM with a per-user data key |
 
 - `MAPLE_MASTER_KEY` (or `MAPLE_MASTER_KEY_FILE`) is the root secret. It is never written to the volume.
