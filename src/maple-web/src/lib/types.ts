@@ -14,6 +14,37 @@ export interface User {
   /** The account has an end-to-end key, which this browser must unlock to read the account's encrypted content. */
   hasEndToEndKey: boolean;
   createdAtUtc: string;
+  preferences: Preferences;
+}
+
+/** The date formats offered in Settings, as .NET-style patterns (formatted by lib/dates.ts). */
+export const DATE_FORMATS = [
+  "yyyy-MM-dd",
+  "dd/MM/yyyy",
+  "MM/dd/yyyy",
+  "dd.MM.yyyy",
+  "d MMM yyyy",
+  "MMM d, yyyy",
+  "dddd, d MMMM yyyy",
+  "dddd, MMMM d, yyyy",
+] as const;
+
+export type DateFormat = (typeof DATE_FORMATS)[number];
+
+/** An account's writing and feature preferences, shared by all of its devices. */
+export interface Preferences {
+  /** Show a title field when writing; a title is the note's first line, as a Markdown heading. */
+  noteTitles: boolean;
+  /** With titles on, start a new note's title with today's date. */
+  dateInTitles: boolean;
+  /** How dates are written in titles and daily notes. */
+  dateFormat: DateFormat;
+  /** Show the Todo tab. */
+  todoLists: boolean;
+  /** Show the Quick notes tab. */
+  quickNotes: boolean;
+  /** Show today's daily note at the top of Home. */
+  dailyNotes: boolean;
 }
 
 /** Argon2id parameters for deriving an account's keys from its password (docs/e2ee-spec.md §1). */

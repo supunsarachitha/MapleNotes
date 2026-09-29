@@ -14,6 +14,7 @@ import type {
   NotePageWire,
   NoteState,
   NoteWire,
+  Preferences,
   Prelogin,
   ProblemDetails,
   Tag,
@@ -216,6 +217,9 @@ export const api = {
   listTags,
 
   deleteAttachment: (id: string) => request<void>("DELETE", `/api/v1/attachments/${id}`),
+
+  /** Writing and feature preferences; the whole object is replaced (fields left out take their defaults). */
+  setPreferences: (preferences: Preferences) => request<Preferences>("PUT", "/api/v1/account/preferences", preferences),
 
   encryption: () => request<EncryptionStatus>("GET", "/api/v1/account/encryption"),
 

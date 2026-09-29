@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
+import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
 import { ExportSection } from "../components/ExportSection";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
 import { useToast } from "../components/Toaster";
-import { Button, Card, ErrorMessage, Switch, TextField } from "../components/ui";
+import { Button, Card, cn, ErrorMessage, Switch, TextField } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
 import { e2ee } from "../lib/e2ee";
@@ -286,19 +287,63 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
   );
 }
 
-/** Account, security and (for administrators) instance settings. */
+/**
+ * Settings that are rarely changed or hard to undo, collapsed until opened. It opens by itself while notes are being
+ * converted after an encryption change, so the progress stays in view.
+ */
+function AdvancedSection({ user }: { user: User }) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const encryption = useQuery({ queryKey: queryKeys.encryption, queryFn: api.encryption });
+  const expanded = open || encryption.data?.inProgress === true;
+
+  return (
+    <section aria-labelledby={`${id}-heading`} className="flex flex-col gap-4">
+      <h2 id={`${id}-heading`}>
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={`${id}-content`}
+          onClick={() => setOpen(!expanded)}
+          className="flex w-full items-center gap-3 rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-maple-500 dark:border-stone-800 dark:bg-stone-900 dark:hover:bg-stone-800/60"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-base font-semibold">Advanced</span>
+            <span className="mt-1 block text-sm font-normal text-stone-600 dark:text-stone-300">
+              Encryption{user.hasEndToEndKey ? ", recovery key" : ""}, sessions and deleting your account.
+            </span>
+          </span>
+          <ChevronDown
+            className={cn("size-5 shrink-0 text-stone-500 transition-transform", expanded && "rotate-180")}
+            aria-hidden="true"
+          />
+        </button>
+      </h2>
+      {expanded && (
+        <div id={`${id}-content`} className="flex flex-col gap-4">
+          <EncryptionSection user={user} />
+          {user.hasEndToEndKey && <RecoverySection user={user} />}
+          <SessionsSection />
+          <DeleteAccountSection username={user.username} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Account and everyday settings first, then backup and restore, then the collapsed Advanced section, and for
+ * administrators the instance settings.
+ */
 export function SettingsPage({ user }: { user: User }) {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Settings</h1>
       <AccountSection user={user} />
-      <EncryptionSection user={user} />
-      {user.hasEndToEndKey && <RecoverySection user={user} />}
-      <ExportSection user={user} />
       <PasswordSection user={user} />
-      <SessionsSection />
+      <ExportSection user={user} />
+      <AdvancedSection user={user} />
       {user.role === "Admin" && <AdminSection currentUserId={user.id} />}
-      <DeleteAccountSection username={user.username} />
     </div>
   );
 }

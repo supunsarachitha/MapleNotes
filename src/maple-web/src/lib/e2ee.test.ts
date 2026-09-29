@@ -10,6 +10,7 @@ import v from "../crypto/test-vectors.json";
 import { refreshAntiforgeryToken } from "./api";
 import { auth } from "./auth";
 import { e2ee } from "./e2ee";
+import { DEFAULT_PREFERENCES } from "./preferences";
 import type { User } from "./types";
 
 // The browser's end-to-end key flows, run against a small stand-in for the server that stores what it receives and
@@ -27,6 +28,7 @@ const baseUser: User = {
   encryptionMode: "AtRest",
   hasEndToEndKey: false,
   createdAtUtc: "2026-09-28T12:00:00Z",
+  preferences: DEFAULT_PREFERENCES,
 };
 
 function json(body: unknown, status = 200): Response {

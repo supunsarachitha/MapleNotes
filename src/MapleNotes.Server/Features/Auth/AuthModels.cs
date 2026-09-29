@@ -71,16 +71,17 @@ public sealed record ChangePasswordRequest(
 /// to write) content.
 /// </param>
 /// <param name="CreatedAtUtc">When the account was created.</param>
+/// <param name="Preferences">Writing and feature preferences.</param>
 public sealed record UserResponse(
     Guid Id, string Username, string DisplayName, UserRole Role, EncryptionMode EncryptionMode, bool HasEndToEndKey,
-    DateTime CreatedAtUtc)
+    DateTime CreatedAtUtc, UserPreferences Preferences)
 {
     /// <summary>Maps an account entity to its API representation.</summary>
     /// <param name="user">The account.</param>
     /// <returns>The API representation.</returns>
     public static UserResponse From(User user) =>
         new(user.Id, user.Username, user.DisplayName, user.Role, user.EncryptionMode, user.E2eeWrappedKey is not null,
-            user.CreatedAtUtc);
+            user.CreatedAtUtc, user.Preferences);
 }
 
 /// <summary>Sign-in state of the current visitor and what the instance allows.</summary>

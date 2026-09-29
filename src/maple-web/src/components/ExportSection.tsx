@@ -115,7 +115,8 @@ export function ExportSection({
 
   return (
     <Card className="p-5">
-      <h2 className="text-base font-semibold">Export</h2>
+      <h2 className="text-base font-semibold">Backup &amp; restore</h2>
+      <h3 className="mt-3 text-sm font-semibold">Export</h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
         Download your notes as a ZIP archive, decrypted, with attachments in an <code>attachments</code> folder linked
         from each note.

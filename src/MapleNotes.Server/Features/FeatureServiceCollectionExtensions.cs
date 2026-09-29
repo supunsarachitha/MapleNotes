@@ -5,6 +5,7 @@ using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Features.Export;
 using MapleNotes.Server.Features.Notes;
+using MapleNotes.Server.Features.Preferences;
 
 namespace MapleNotes.Server.Features;
 
@@ -20,6 +21,7 @@ internal static class FeatureServiceCollectionExtensions
         services.AddScoped<AccountDeletionService>();
         services.AddScoped<InstanceSettingsService>();
         services.AddScoped<UserAdministrationService>();
+        services.AddScoped<PreferencesService>();
 
         services.AddScoped<NoteService>();
         services.AddScoped<AttachmentService>();

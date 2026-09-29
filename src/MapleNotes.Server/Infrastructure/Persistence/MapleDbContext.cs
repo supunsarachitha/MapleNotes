@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MapleNotes.Server.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -49,6 +50,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
         configurationBuilder.Properties<DateTime?>().HaveConversion<UtcDateTimeConverter>();
     }
 
+    // Preferences are stored as JSON; fields added later take their default value in older rows.
+    private static readonly JsonSerializerOptions PreferencesJson = new(JsonSerializerDefaults.Web);
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,6 +67,10 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             user.Property(u => u.SecurityStamp).HasMaxLength(64);
             user.Property(u => u.CredentialFormat).HasConversion<string>().HasMaxLength(16);
             user.Property(u => u.EncryptionMode).HasConversion<string>().HasMaxLength(16);
+            user.Property(u => u.Preferences)
+                .HasConversion(
+                    preferences => JsonSerializer.Serialize(preferences, PreferencesJson),
+                    json => ReadPreferences(json));
         });
 
         modelBuilder.Entity<Note>(note =>
@@ -127,4 +135,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
     internal sealed class UtcDateTimeConverter() : ValueConverter<DateTime, DateTime>(
         value => value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime(),
         value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
+
+    private static UserPreferences ReadPreferences(string json) =>
+        string.IsNullOrWhiteSpace(json)
+            ? new UserPreferences()
+            : JsonSerializer.Deserialize<UserPreferences>(json, PreferencesJson) ?? new UserPreferences();
 }

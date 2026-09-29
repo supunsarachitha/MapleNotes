@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { api, ApiError } from "../lib/api";
 import { e2ee } from "../lib/e2ee";
+import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import type { User } from "../lib/types";
 import { RecoverPage } from "./RecoverPage";
 import { UnlockPage } from "./UnlockPage";
@@ -18,6 +19,7 @@ const user: User = {
   encryptionMode: "EndToEnd",
   hasEndToEndKey: true,
   createdAtUtc: "2026-09-28T12:00:00Z",
+  preferences: DEFAULT_PREFERENCES,
 };
 
 function withQueries(children: ReactNode) {

@@ -4,6 +4,7 @@ import v from "../crypto/test-vectors.json";
 import { fromBase64 } from "../crypto/encoding";
 import { refreshAntiforgeryToken } from "./api";
 import { auth, validateNewPassword } from "./auth";
+import { DEFAULT_PREFERENCES } from "./preferences";
 import type { User } from "./types";
 
 // Sign-in runs the real key derivation. The server's answers are faked with the shared test vectors, so the key sent
@@ -22,6 +23,7 @@ const user: User = {
   encryptionMode: "AtRest",
   hasEndToEndKey: false,
   createdAtUtc: "",
+  preferences: DEFAULT_PREFERENCES,
 };
 
 describe("key-derived sign-in", () => {

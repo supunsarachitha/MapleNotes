@@ -53,7 +53,7 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 
 | # | Phase | Done when | Status |
 |---|---|---|---|
-| F1 | Preferences and the Settings layout | Preferences are stored per account, returned with the user and changed through the API (validated, tested). Settings shows the new layout: the collapsible Advanced section with Encryption, Recovery key, Sessions and Delete account, and "Backup & restore" | ⏳ Not started |
+| F1 | Preferences and the Settings layout | Preferences are stored per account, returned with the user and changed through the API (validated, tested). Settings shows the new layout: the collapsible Advanced section with Encryption, Recovery key, Sessions and Delete account, and "Backup & restore" | ✅ Done |
 | F2 | Note titles and dates in titles | With titles on, the editor has a title field for new and existing notes and cards show the title. Optional date prefill in the chosen format with a preview. Nothing changes with titles off; works for end-to-end accounts | ⏳ Not started |
 | F3 | Kinds of notes and the Todo tab | Notes have a kind (migration, API filter, patch). The Todo tab creates and edits checklists that are encrypted like any note. Search, tags and the archive span enabled kinds with labels. The setting (on by default) shows or hides the tab | ⏳ Not started |
 | F4 | Quick notes | The Quick notes tab with its own composer and list; moving a quick note to Home and back; the setting (on by default) | ⏳ Not started |
@@ -64,7 +64,11 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 
 ### Notes from the phases
 
-(Filled in as phases finish.)
+- **F1:** preferences are stored as one JSON column, so fields added later take their defaults in older rows (a 1.0
+  database upgraded in the tests gets the defaults too). The web app applies a change at once and sends changes one
+  after another, each with every change made so far, so quick successive toggles cannot overwrite each other; a
+  failed save rolls back. The Advanced section opens by itself while an encryption conversion is running, so its
+  progress stays visible.
 
 ## Out of scope for 1.2.0
 

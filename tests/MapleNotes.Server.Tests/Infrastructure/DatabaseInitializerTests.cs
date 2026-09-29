@@ -150,6 +150,7 @@ public sealed class DatabaseInitializerTests : IDisposable
         Assert.NotEqual(users[0].KdfSalt, users[1].KdfSalt);
         Assert.Equal([EncryptionMode.AtRest, EncryptionMode.Off], users.Select(u => u.EncryptionMode));
         Assert.All(users, user => Assert.Equal([1, 2, 3], user.WrappedDataKey!));
+        Assert.All(users, user => Assert.Equal(new UserPreferences(), user.Preferences)); // added in 1.2
         var schemes = await db.Notes.ToDictionaryAsync(n => n.UserId, n => n.Scheme, TestContext.Current.CancellationToken);
         Assert.Equal(ContentScheme.Server, schemes[users[0].Id]);
         Assert.Equal(ContentScheme.None, schemes[users[1].Id]);

@@ -1,3 +1,4 @@
+import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -58,7 +59,7 @@ describe("ExportSection", () => {
     const person = userEvent.setup();
     render(
       <ExportSection
-        user={{ id: "u", username: "maple", displayName: "Maple", role: "User", encryptionMode: "EndToEnd", hasEndToEndKey: true, createdAtUtc: "" }}
+        user={{ id: "u", username: "maple", displayName: "Maple", role: "User", encryptionMode: "EndToEnd", hasEndToEndKey: true, createdAtUtc: "", preferences: DEFAULT_PREFERENCES }}
         onDownload={onDownload}
         browserExport={browserExport}
       />,
