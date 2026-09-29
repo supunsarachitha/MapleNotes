@@ -4,9 +4,12 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
 import { ExportSection } from "../components/ExportSection";
 import { PasswordDialog } from "../components/PasswordDialog";
+import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
 import { useToast } from "../components/Toaster";
 import { Button, Card, ErrorMessage, Switch, TextField } from "../components/ui";
 import { api, ApiError } from "../lib/api";
+import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
+import { e2ee } from "../lib/e2ee";
 import { formatAbsolute } from "../lib/format";
 import { queryKeys, useSignedOut } from "../lib/queries";
 import type { AdminUser, User } from "../lib/types";
@@ -38,13 +41,13 @@ function AccountSection({ user }: { user: User }) {
   );
 }
 
-function PasswordSection() {
+function PasswordSection({ user }: { user: User }) {
   const toast = useToast();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [error, setError] = useState<ApiError | null>(null);
   const change = useMutation({
-    mutationFn: () => api.changePassword(current, next),
+    mutationFn: () => auth.changePassword(user, current, next),
     onSuccess: () => {
       setCurrent("");
       setNext("");
@@ -56,6 +59,11 @@ function PasswordSection() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    const weakPassword = validateNewPassword(next);
+    if (weakPassword) {
+      setError(new ApiError(400, { errors: { newPassword: [weakPassword] } }));
+      return;
+    }
     change.mutate();
   }
 
@@ -77,16 +85,45 @@ function PasswordSection() {
           type="password"
           autoComplete="new-password"
           required
-          minLength={10}
+          minLength={MIN_PASSWORD_LENGTH}
           value={next}
           onChange={(event) => setNext(event.target.value)}
           error={error?.fieldError("newPassword")}
-          hint="At least 10 characters."
+          hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
         />
         <Button type="submit" busy={change.isPending} className="self-start">
           Change password
         </Button>
       </form>
+    </Section>
+  );
+}
+
+/** Replaces the recovery key of an end-to-end account; the new one is shown once. */
+function RecoverySection({ user }: { user: User }) {
+  const [confirming, setConfirming] = useState(false);
+  const [newKey, setNewKey] = useState<string | null>(null);
+
+  return (
+    <Section
+      title="Recovery key"
+      description="If you forget your password, your recovery key lets you set a new one without losing your notes. Create a new one if you lost it or someone else may have seen it."
+    >
+      <Button variant="secondary" onClick={() => setConfirming(true)}>
+        Create a new recovery key…
+      </Button>
+      <PasswordDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title="Create a new recovery key?"
+        description={<p>Your current recovery key stops working. You will see the new one once, so be ready to save it.</p>}
+        confirmLabel="Create"
+        onConfirm={async (password) => {
+          setNewKey(await e2ee.replaceRecoveryKey(user, password));
+          setConfirming(false);
+        }}
+      />
+      <RecoveryKitDialog recoveryKey={newKey} username={user.username} onDone={() => setNewKey(null)} />
     </Section>
   );
 }
@@ -114,7 +151,7 @@ function SessionsSection() {
   );
 }
 
-function DeleteAccountSection() {
+function DeleteAccountSection({ username }: { username: string }) {
   const signedOut = useSignedOut();
   const [open, setOpen] = useState(false);
 
@@ -136,7 +173,7 @@ function DeleteAccountSection() {
         }
         confirmLabel="Delete forever"
         onConfirm={async (password) => {
-          await api.deleteAccount(password);
+          await api.deleteAccount(await auth.proveIdentity(username, password));
           signedOut();
         }}
       />
@@ -255,12 +292,13 @@ export function SettingsPage({ user }: { user: User }) {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Settings</h1>
       <AccountSection user={user} />
-      <EncryptionSection />
-      <ExportSection />
-      <PasswordSection />
+      <EncryptionSection user={user} />
+      {user.hasEndToEndKey && <RecoverySection user={user} />}
+      <ExportSection user={user} />
+      <PasswordSection user={user} />
       <SessionsSection />
       {user.role === "Admin" && <AdminSection currentUserId={user.id} />}
-      <DeleteAccountSection />
+      <DeleteAccountSection username={user.username} />
     </div>
   );
 }

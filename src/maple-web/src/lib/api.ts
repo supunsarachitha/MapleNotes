@@ -1,34 +1,41 @@
 import type {
   AdminUser,
   Attachment,
+  AttachmentWire,
   AuthStatus,
+  ConversionBatch,
+  CredentialProof,
+  EncryptedNoteWire,
+  EncryptionMode,
   EncryptionStatus,
+  KdfParamsWire,
   Note,
   NotePage,
+  NotePageWire,
   NoteState,
+  NoteWire,
+  Prelogin,
   ProblemDetails,
   Tag,
+  TagWire,
   User,
   UserRole,
 } from "./types";
+import { ApiError } from "./apiError";
+import {
+  decodeAttachment,
+  decodeNote,
+  decodeTags,
+  encodeUpload,
+  encodeNewNote,
+  encodeNoteUpdate,
+  matchesSearch,
+  needsTagList,
+  readsEndToEnd,
+  tagFilterParams,
+} from "./noteCrypto";
 
-/** An API error with the server's problem details (title, field errors). */
-export class ApiError extends Error {
-  readonly status: number;
-  readonly problem: ProblemDetails;
-
-  constructor(status: number, problem: ProblemDetails) {
-    super(problem.title ?? (status === 0 ? "Cannot reach the server." : `Request failed (${status}).`));
-    this.name = "ApiError";
-    this.status = status;
-    this.problem = problem;
-  }
-
-  /** The first error message for a request field (camelCase), if any. */
-  fieldError(field: string): string | undefined {
-    return this.problem.errors?.[field]?.[0];
-  }
-}
+export { ApiError } from "./apiError";
 
 // State-changing requests must carry an antiforgery token (see AuthController on the server). Tokens are bound to
 // the signed-in user, so a new one is fetched after signing in or out.
@@ -87,13 +94,61 @@ export async function request<T>(method: Method, path: string, body?: unknown, r
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
 
-function query(params: Record<string, string | number | undefined>): string {
+/** Sends multipart/form-data (file conversions), with the antiforgery token. */
+async function sendForm(method: "POST" | "PUT", path: string, form: FormData): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(path, { method, body: form, headers: await antiforgeryHeaders(), credentials: "same-origin" });
+  } catch {
+    throw new ApiError(0, { title: "Cannot reach the server. Check your connection and try again." });
+  }
+  if (!response.ok) throw new ApiError(response.status, await readProblem(response));
+}
+
+function query(params: Record<string, string | number | string[] | undefined>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== "") search.set(key, String(value));
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== undefined && item !== "") search.append(key, String(item));
+    }
   }
   const text = search.toString();
   return text ? `?${text}` : "";
+}
+
+// The server cannot read end-to-end notes, so for an account with such notes the browser searches: it scans pages of
+// notes, as the server's own search does, and returns the matches with the cursor to continue from.
+const SEARCH_BATCH = 100;
+const SEARCH_SCAN_LIMIT = 5_000;
+
+async function listTags(): Promise<Tag[]> {
+  return decodeTags(await request<TagWire[]>("GET", "/api/v1/tags"));
+}
+
+async function listNotes(params: NoteListParams): Promise<NotePage> {
+  if (params.tag && needsTagList()) await listTags(); // e.g. a link straight to ?tag=work: find work/… first
+  const { tag, ...rest } = params;
+  const filter = tag ? await tagFilterParams(tag) : {};
+  if (!params.q || !readsEndToEnd()) {
+    const page = await request<NotePageWire>("GET", `/api/v1/notes${query({ ...rest, ...filter })}`);
+    return { items: await Promise.all(page.items.map(decodeNote)), nextCursor: page.nextCursor };
+  }
+
+  const limit = params.limit ?? 20;
+  const matches: Note[] = [];
+  let cursor = params.cursor;
+  for (let scanned = 0; ; ) {
+    const page = await request<NotePageWire>(
+      "GET",
+      `/api/v1/notes${query({ state: params.state, cursor, limit: SEARCH_BATCH, ...filter })}`,
+    );
+    const notes = await Promise.all(page.items.map(decodeNote));
+    matches.push(...notes.filter((note) => matchesSearch(note, params.q!)));
+    scanned += notes.length;
+    if (!page.nextCursor) return { items: matches, nextCursor: null };
+    if (matches.length >= limit || scanned >= SEARCH_SCAN_LIMIT) return { items: matches, nextCursor: page.nextCursor };
+    cursor = page.nextCursor;
+  }
 }
 
 export interface NoteListParams {
@@ -104,17 +159,20 @@ export interface NoteListParams {
   q?: string;
 }
 
+// Sign-in endpoints take keys derived from the password, never the password itself; lib/auth.ts derives them.
 export const api = {
   status: () => request<AuthStatus>("GET", "/api/v1/auth/status"),
 
-  async login(username: string, password: string, rememberMe: boolean): Promise<User> {
-    const user = await request<User>("POST", "/api/v1/auth/login", { username, password, rememberMe });
+  prelogin: (username: string) => request<Prelogin>("POST", "/api/v1/auth/prelogin", { username }),
+
+  async login(body: { username: string; authKey: string; rememberMe: boolean; password?: string }): Promise<User> {
+    const user = await request<User>("POST", "/api/v1/auth/login", body);
     await refreshAntiforgeryToken();
     return user;
   },
 
-  async register(username: string, password: string, displayName?: string): Promise<User> {
-    const user = await request<User>("POST", "/api/v1/auth/register", { username, password, displayName });
+  async register(body: { username: string; kdf: KdfParamsWire; authKey: string; displayName?: string }): Promise<User> {
+    const user = await request<User>("POST", "/api/v1/auth/register", body);
     await refreshAntiforgeryToken();
     return user;
   },
@@ -124,38 +182,85 @@ export const api = {
     await refreshAntiforgeryToken();
   },
 
-  changePassword: (currentPassword: string, newPassword: string) =>
-    request<void>("PUT", "/api/v1/auth/password", { currentPassword, newPassword }),
+  changePassword: (body: { current: CredentialProof; newKdf: KdfParamsWire; newAuthKey: string; newWrappedKey?: string }) =>
+    request<void>("PUT", "/api/v1/auth/password", body),
+
+  /** This session's secret (see crypto/keystore.ts). */
+  sessionKey: () => request<{ key: string }>("GET", "/api/v1/auth/session-key"),
 
   async signOutEverywhere(): Promise<void> {
     await request<void>("POST", "/api/v1/auth/sign-out-everywhere");
     await refreshAntiforgeryToken();
   },
 
-  listNotes: (params: NoteListParams) => request<NotePage>("GET", `/api/v1/notes${query({ ...params })}`),
+  /** Notes, decrypted; searches and tag filters also cover end-to-end notes (see noteCrypto.ts). */
+  listNotes,
 
-  createNote: (content: string, attachmentIds: string[], isPinned = false) =>
-    request<Note>("POST", "/api/v1/notes", { content, attachmentIds, isPinned }),
+  async createNote(content: string, attachmentIds: string[], isPinned = false): Promise<Note> {
+    const fields = await encodeNewNote(content);
+    return decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned }));
+  },
 
-  updateNote: (id: string, content: string, attachmentIds: string[]) =>
-    request<Note>("PUT", `/api/v1/notes/${id}`, { content, attachmentIds }),
+  async updateNote(id: string, content: string, attachmentIds: string[]): Promise<Note> {
+    const fields = await encodeNoteUpdate(id, content);
+    return decodeNote(await request<NoteWire>("PUT", `/api/v1/notes/${id}`, { ...fields, attachmentIds }));
+  },
 
-  patchNote: (id: string, changes: { isPinned?: boolean; isArchived?: boolean }) =>
-    request<Note>("PATCH", `/api/v1/notes/${id}`, changes),
+  async patchNote(id: string, changes: { isPinned?: boolean; isArchived?: boolean }): Promise<Note> {
+    return decodeNote(await request<NoteWire>("PATCH", `/api/v1/notes/${id}`, changes));
+  },
 
   deleteNote: (id: string) => request<void>("DELETE", `/api/v1/notes/${id}`),
 
-  listTags: () => request<Tag[]>("GET", "/api/v1/tags"),
+  /** Tags with end-to-end tag names decrypted. */
+  listTags,
 
   deleteAttachment: (id: string) => request<void>("DELETE", `/api/v1/attachments/${id}`),
 
   encryption: () => request<EncryptionStatus>("GET", "/api/v1/account/encryption"),
 
-  setEncryption: (enabled: boolean, password: string) =>
-    request<EncryptionStatus>("PUT", "/api/v1/account/encryption", { enabled, password }),
+  /** Off or at rest; or back to end-to-end while the account still has its key (the first time uses e2ee.enable). */
+  setEncryption: (mode: EncryptionMode, proof: CredentialProof) =>
+    request<EncryptionStatus>("PUT", "/api/v1/account/encryption", { mode, proof }),
 
-  async deleteAccount(password: string): Promise<void> {
-    await request<void>("DELETE", "/api/v1/account", { password });
+  /** The browser's conversion of existing content after a change to or from end-to-end encryption. */
+  conversion: {
+    batch: (limit = 10) => request<ConversionBatch>("GET", `/api/v1/account/conversion${query({ limit })}`),
+    note: (id: string, body: { updatedAtUtc: string; content?: string; encrypted?: EncryptedNoteWire }) =>
+      request<void>("PUT", `/api/v1/account/conversion/notes/${id}`, body),
+    attachment: (id: string, form: FormData) => sendForm("PUT", `/api/v1/account/conversion/attachments/${id}`, form),
+  },
+
+  /** End-to-end key material; the server stores it wrapped and cannot open it (docs/e2ee-spec.md §3, §6). */
+  e2ee: {
+    key: () => request<{ wrappedKey: string }>("GET", "/api/v1/account/e2ee"),
+    enable: (body: { proof: CredentialProof; wrappedKey: string; recoveryWrappedKey: string; recoveryAuthKey: string }) =>
+      request<EncryptionStatus>("POST", "/api/v1/account/e2ee", body),
+    replaceRecoveryKey: (body: { proof: CredentialProof; recoveryWrappedKey: string; recoveryAuthKey: string }) =>
+      request<void>("PUT", "/api/v1/account/e2ee/recovery", body),
+  },
+
+  /** Password reset with the recovery key of an end-to-end account. */
+  recovery: {
+    key: (username: string, recoveryAuthKey: string) =>
+      request<{ userId: string; recoveryWrappedKey: string }>("POST", "/api/v1/auth/recovery/key", { username, recoveryAuthKey }),
+    async reset(body: {
+      username: string;
+      recoveryAuthKey: string;
+      newKdf: KdfParamsWire;
+      newAuthKey: string;
+      newWrappedKey: string;
+      newRecoveryWrappedKey: string;
+      newRecoveryAuthKey: string;
+    }): Promise<User> {
+      const user = await request<User>("POST", "/api/v1/auth/recovery/reset", body);
+      await refreshAntiforgeryToken();
+      return user;
+    },
+  },
+
+  async deleteAccount(proof: CredentialProof): Promise<void> {
+    await request<void>("DELETE", "/api/v1/account", { proof });
     await refreshAntiforgeryToken();
   },
 
@@ -172,7 +277,8 @@ export const api = {
 
 /**
  * Uploads a file with progress reporting (fetch cannot report upload progress, so this uses XMLHttpRequest).
- * The server streams the file straight to encrypted storage.
+ * The server streams the file straight to encrypted storage. In end-to-end mode the file is encrypted here first, and
+ * the ID and encrypted metadata travel as form fields ahead of it.
  */
 export async function uploadAttachment(
   file: File,
@@ -180,7 +286,8 @@ export async function uploadAttachment(
   signal?: AbortSignal,
 ): Promise<Attachment> {
   const headers = await antiforgeryHeaders();
-  return new Promise<Attachment>((resolve, reject) => {
+  const encrypted = await encodeUpload(file);
+  const wire = await new Promise<AttachmentWire>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/v1/attachments");
     xhr.responseType = "json";
@@ -190,7 +297,7 @@ export async function uploadAttachment(
       if (event.lengthComputable) onProgress(event.loaded / event.total);
     };
     xhr.onload = () => {
-      if (xhr.status === 201) resolve(xhr.response as Attachment);
+      if (xhr.status === 201) resolve(xhr.response as AttachmentWire);
       else reject(new ApiError(xhr.status, (xhr.response as ProblemDetails | null) ?? {}));
     };
     xhr.onerror = () => reject(new ApiError(0, { title: "Upload failed. Check your connection and try again." }));
@@ -198,7 +305,14 @@ export async function uploadAttachment(
     signal?.addEventListener("abort", () => xhr.abort());
 
     const form = new FormData();
-    form.append("file", file, file.name);
+    if (encrypted) {
+      form.append("id", encrypted.id);
+      form.append("metadata", encrypted.metadata);
+      form.append("file", encrypted.body, "encrypted.bin");
+    } else {
+      form.append("file", file, file.name);
+    }
     xhr.send(form);
   });
+  return decodeAttachment(wire);
 }

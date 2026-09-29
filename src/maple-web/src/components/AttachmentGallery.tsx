@@ -1,9 +1,81 @@
 import { FileText } from "lucide-react";
 import { formatBytes } from "../lib/format";
+import { useAttachmentSrc } from "../lib/mediaWorker";
 import type { Attachment } from "../lib/types";
-import { cn } from "./ui";
+import { cn, Spinner } from "./ui";
 
-/** Images as a grid, audio and video with native players, other files as download chips. */
+function GalleryImage({ image, single }: { image: Attachment; single: boolean }) {
+  const src = useAttachmentSrc(image);
+  return (
+    <a
+      href={src}
+      target="_blank"
+      rel="noopener"
+      className={cn(
+        "flex items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-800",
+        !src && (single ? "min-h-40" : "aspect-square"),
+      )}
+    >
+      {src ? (
+        <img
+          src={src}
+          alt={image.fileName}
+          loading="lazy"
+          decoding="async"
+          className={cn("w-full object-cover", single ? "max-h-[28rem]" : "aspect-square")}
+        />
+      ) : (
+        <Spinner className="size-5 text-stone-400" />
+      )}
+    </a>
+  );
+}
+
+function VideoPlayer({ video }: { video: Attachment }) {
+  const src = useAttachmentSrc(video);
+  return (
+    <video src={src} controls preload="metadata" aria-label={video.fileName} className="w-full rounded-xl bg-black">
+      <track kind="captions" />
+    </video>
+  );
+}
+
+function AudioPlayer({ clip }: { clip: Attachment }) {
+  const src = useAttachmentSrc(clip);
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs text-stone-500 dark:text-stone-400">{clip.fileName}</span>
+      <audio src={src} controls preload="metadata" className="w-full" />
+    </div>
+  );
+}
+
+function FileLink({ file }: { file: Attachment }) {
+  const href = useAttachmentSrc(file, { download: true });
+  return (
+    <a
+      href={href}
+      download={file.endToEnd ? file.fileName : undefined}
+      aria-disabled={!href}
+      className="inline-flex max-w-full items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
+    >
+      <FileText className="size-4 shrink-0 text-maple-600 dark:text-maple-400" aria-hidden="true" />
+      <span className="truncate">{file.fileName}</span>
+      <span className="shrink-0 text-stone-500 dark:text-stone-400">{formatBytes(file.sizeBytes)}</span>
+    </a>
+  );
+}
+
+/** A thumbnail of an attachment already stored (the composer's list when editing a note). */
+export function AttachmentThumbnail({ attachment }: { attachment: Attachment }) {
+  const src = useAttachmentSrc(attachment);
+  return src ? <img src={src} alt={attachment.fileName} className="size-full object-cover" /> : <Spinner className="size-4 text-stone-400" />;
+}
+
+/**
+ * Images as a grid, audio and video with native players, other files as download chips. End-to-end files are
+ * decrypted in the browser (see useAttachmentSrc).
+ */
 export function AttachmentGallery({ attachments }: { attachments: Attachment[] }) {
   if (attachments.length === 0) return null;
 
@@ -17,50 +89,24 @@ export function AttachmentGallery({ attachments }: { attachments: Attachment[] }
       {images.length > 0 && (
         <div className={cn("grid gap-2", images.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
           {images.map((image) => (
-            <a
-              key={image.id}
-              href={image.url}
-              target="_blank"
-              rel="noopener"
-              className="overflow-hidden rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-800"
-            >
-              <img
-                src={image.url}
-                alt={image.fileName}
-                loading="lazy"
-                decoding="async"
-                className={cn("w-full object-cover", images.length === 1 ? "max-h-[28rem]" : "aspect-square")}
-              />
-            </a>
+            <GalleryImage key={image.id} image={image} single={images.length === 1} />
           ))}
         </div>
       )}
 
       {videos.map((video) => (
-        <video key={video.id} src={video.url} controls preload="metadata" className="w-full rounded-xl bg-black">
-          <track kind="captions" />
-        </video>
+        <VideoPlayer key={video.id} video={video} />
       ))}
 
       {audio.map((clip) => (
-        <div key={clip.id} className="flex flex-col gap-1">
-          <span className="text-xs text-stone-500 dark:text-stone-400">{clip.fileName}</span>
-          <audio src={clip.url} controls preload="metadata" className="w-full" />
-        </div>
+        <AudioPlayer key={clip.id} clip={clip} />
       ))}
 
       {files.length > 0 && (
         <ul className="flex flex-wrap gap-2">
           {files.map((file) => (
             <li key={file.id}>
-              <a
-                href={`${file.url}?download=true`}
-                className="inline-flex max-w-full items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
-              >
-                <FileText className="size-4 shrink-0 text-maple-600 dark:text-maple-400" aria-hidden="true" />
-                <span className="truncate">{file.fileName}</span>
-                <span className="shrink-0 text-stone-500 dark:text-stone-400">{formatBytes(file.sizeBytes)}</span>
-              </a>
+              <FileLink file={file} />
             </li>
           ))}
         </ul>

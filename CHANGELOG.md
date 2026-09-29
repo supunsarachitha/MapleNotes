@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-29
+
+End-to-end encryption: an account can now have its notes, tags and files encrypted in the browser with a key the
+server never sees. See the README's upgrade notes before upgrading from 1.0.0, and
+[docs/threat-model.md](docs/threat-model.md) for what each mode protects.
+
+### Security
+
+- **Key-derived sign-in:** the password never leaves the browser. It is turned into an authentication key with
+  Argon2id (64 MiB, 3 passes, run in a Web Worker) and HKDF, and the server stores only a PBKDF2 hash of that key. This
+  is the foundation for end-to-end encryption. Accounts created with 1.0.0 upgrade automatically at their next sign-in.
+- API responses are sent with `Cache-Control: no-store` unless they set their own caching, so decrypted notes are not
+  kept in the browser's disk cache.
+
+### Added
+
+- `POST /api/v1/auth/prelogin` returns an account's key-derivation parameters and answers in the same shape for
+  unknown usernames. It has its own rate limit.
+- **End-to-end key management:** accounts have an encryption mode (off, at rest or end-to-end) and every note and
+  attachment its own scheme. The browser creates the end-to-end key and stores it on the server only wrapped by the
+  password and by a recovery key. Includes an unlock screen, password reset with the recovery key, a new recovery key
+  from Settings, and keeping the unlocked key in the browser sealed under a secret that ends with the session.
+- **End-to-end encrypted notes and tags:** in end-to-end mode the browser encrypts each note under an ID it chooses,
+  and turns tags into blind tokens with encrypted names; the server filters and counts by token. Search and nested tag
+  filters work in the browser, and neither note text, tag names nor search terms reach the server.
+- **End-to-end encrypted attachments:** files and their names are encrypted in the browser before upload. A media
+  service worker decrypts them on the fly for the page, fetching only the byte ranges it needs, so images appear at
+  once and videos seek; without it, the page decrypts whole files.
+- `GET /api/v1/attachments/{id}/info` returns an attachment's details without its content.
+- **Switching to and from end-to-end encryption** in Settings, now a choice of three modes. Turning it on explains
+  what changes, asks for an acknowledgement and shows the recovery key once; existing notes and files are then
+  encrypted in the browser, and turning it off decrypts them there. The conversion resumes after a reload, never
+  overwrites an edit, keeps note timestamps, and can be reversed midway. Once it finishes, the server deletes the key
+  nothing needs any more: an end-to-end account leaves the server with no key to its content.
+- **Export for end-to-end accounts**, built in the browser with the same structure as the server's (checked against
+  the server's own archives for all 12 format and layout combinations) and streamed to disk through the service worker.
+- **Documentation:** the end-to-end encryption specification with shared test vectors (`docs/e2ee-spec.md`), a threat
+  model (`docs/threat-model.md`), and upgrade and forgotten-password notes in the README.
+
+### Changed
+
+- **API (breaking for third-party clients):** sign-in, registration, password change, the encryption setting and
+  account deletion take an authentication key or a `proof` instead of a password; see the OpenAPI document and
+  `docs/e2ee-spec.md`. The bundled web app is updated.
+- Password rules (at least 10 characters) are checked by the web app, since the server no longer sees passwords.
+- **API (breaking for third-party clients):** `GET`/`PUT /api/v1/account/encryption` use `mode` (`Off`, `AtRest`,
+  `EndToEnd`) instead of `enabled`, and accounts carry `encryptionMode` and `hasEndToEndKey` instead of
+  `encryptionEnabled`.
+- The Content-Security-Policy allows WebAssembly compilation (`'wasm-unsafe-eval'`, which does not allow JavaScript
+  `eval`) and same-origin workers.
+- Attachment URLs carry the stored version (`?v=`), so a file whose stored bytes change gets a new URL while
+  downloads stay cacheable.
+- `GET /api/v1/export` answers HTTP 409 for an account with end-to-end encrypted content, which only the app can
+  export.
+
 ## [1.0.0] - 2026-09-28
 
 First release.
@@ -69,5 +124,6 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/supunsarachitha/MapleNotes/releases/tag/v1.0.0

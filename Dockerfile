@@ -42,8 +42,8 @@ RUN dotnet publish src/MapleNotes.Server/MapleNotes.Server.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-noble-chiseled-extra AS runtime
 
 LABEL org.opencontainers.image.title="Maple Notes" \
-      org.opencontainers.image.description="Self-hosted micro-note taking with encryption at rest" \
-      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.description="Self-hosted micro-note taking, encrypted at rest or end to end" \
+      org.opencontainers.image.version="1.1.0" \
       org.opencontainers.image.source="https://github.com/supunsarachitha/MapleNotes" \
       org.opencontainers.image.licenses="PolyForm-Noncommercial-1.0.0"
 

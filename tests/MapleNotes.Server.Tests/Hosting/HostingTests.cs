@@ -36,6 +36,16 @@ public sealed class HostingTests(MapleAppFactory factory) : IClassFixture<MapleA
     }
 
     [Fact]
+    public async Task Media_worker_paths_that_reach_the_server_return_404_instead_of_the_spa()
+    {
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/e2ee/attachments/0192f3a3-1111-7222-8333-444455556666", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Unknown_api_routes_return_404_instead_of_the_spa()
     {
         using var client = factory.CreateClient();

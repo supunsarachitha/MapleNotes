@@ -18,9 +18,20 @@ public sealed class SecurityHeadersTests(MapleAppFactory factory) : IClassFixtur
         Assert.Equal("DENY", Header(response, "X-Frame-Options"));
         Assert.Equal("no-referrer", Header(response, "Referrer-Policy"));
         var csp = Header(response, "Content-Security-Policy");
-        Assert.Contains("script-src 'self'", csp, StringComparison.Ordinal);
+        Assert.Contains("script-src 'self' 'wasm-unsafe-eval';", csp, StringComparison.Ordinal); // WebAssembly, not eval
+        Assert.Contains("worker-src 'self'", csp, StringComparison.Ordinal);
         Assert.Contains("frame-ancestors 'none'", csp, StringComparison.Ordinal);
-        Assert.DoesNotContain("unsafe-eval", csp, StringComparison.Ordinal);
+        Assert.DoesNotContain("'unsafe-eval'", csp, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Api_responses_are_not_stored_by_browsers()
+    {
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/v1/auth/status", TestContext.Current.CancellationToken);
+
+        Assert.True(response.Headers.CacheControl?.NoStore);
     }
 
     [Fact]

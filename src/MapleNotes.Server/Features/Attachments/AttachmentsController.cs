@@ -1,10 +1,11 @@
+using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Auth;
+using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Storage;
 using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Net.Http.Headers;
 
 namespace MapleNotes.Server.Features.Attachments;
@@ -19,11 +20,20 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
 {
     private const long MultipartOverheadBytes = 64 * 1024;
 
+    private static readonly HashSet<string> EncryptedUploadFields = new(StringComparer.OrdinalIgnoreCase) { "id", "metadata" };
+
     /// <summary>Uploads a file.</summary>
     /// <remarks>
+    /// <para>
     /// Send <c>multipart/form-data</c> with one file part. The file is streamed straight to storage (encrypted when
-    /// the account has encryption at rest switched on) and is never buffered whole in memory. Attach it to a note by
-    /// passing its ID in the note's <c>attachmentIds</c>; uploads not attached to a note within 24 hours are removed.
+    /// the account uses encryption at rest) and is never buffered whole in memory. Attach it to a note by passing its
+    /// ID in the note's <c>attachmentIds</c>; uploads not attached to a note within 24 hours are removed.
+    /// </para>
+    /// <para>
+    /// An account in end-to-end mode uploads the file encrypted by the browser (docs/e2ee-spec.md §5) and sends two
+    /// form fields before the file part: <c>id</c>, the UUID version 7 the browser chose and bound into the ciphertext,
+    /// and <c>metadata</c>, the base64 of the encrypted name, type and size.
+    /// </para>
     /// </remarks>
     /// <param name="cancellationToken">Cancels the upload.</param>
     /// <returns>The stored attachment.</returns>
@@ -42,46 +52,48 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
     {
         if (HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } bodyLimit)
         {
-            bodyLimit.MaxRequestBodySize = options.MaxUploadBytes + MultipartOverheadBytes;
+            // End-to-end files arrive encrypted: a header and one tag per 64 KiB chunk on top of the file itself.
+            bodyLimit.MaxRequestBodySize = EndToEndContent.MaxAttachmentCiphertextBytes(options.MaxUploadBytes) + MultipartOverheadBytes;
         }
 
-        if (!MediaTypeHeaderValue.TryParse(Request.ContentType, out var mediaType)
-            || HeaderUtilities.RemoveQuotes(mediaType.Boundary).Value is not { Length: > 0 and <= 70 } boundary)
+        try
         {
-            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "The upload is not valid multipart/form-data.");
+            var attachment = await MultipartUpload.ReadAsync(Request, EncryptedUploadFields, file => attachments.UploadAsync(
+                User.GetUserId(),
+                file.FileName,
+                file.ContentType,
+                file.Body,
+                file.Fields.Count > 0 ? new EncryptedUpload(file.Guid("id"), file.Base64("metadata", EndToEndContent.MaxMetadataEnvelopeBytes)) : null,
+                cancellationToken), cancellationToken);
+            return CreatedAtAction(nameof(Download), new { id = attachment.Id }, AttachmentResponse.From(attachment));
         }
-
-        var reader = new MultipartReader(boundary, Request.Body) { HeadersLengthLimit = 16 * 1024 };
-        while (await reader.ReadNextSectionAsync(cancellationToken) is { } section)
+        catch (UploadTooLargeException tooLarge)
         {
-            if (!ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var disposition)
-                || !disposition.IsFileDisposition())
-            {
-                continue;
-            }
-
-            var fileName = disposition.FileNameStar.HasValue
-                ? disposition.FileNameStar.Value
-                : HeaderUtilities.RemoveQuotes(disposition.FileName).Value;
-            try
-            {
-                var attachment = await attachments.UploadAsync(
-                    User.GetUserId(), fileName, section.ContentType, section.Body, cancellationToken);
-                return CreatedAtAction(nameof(Download), new { id = attachment.Id }, AttachmentResponse.From(attachment));
-            }
-            catch (UploadTooLargeException tooLarge)
-            {
-                return Problem(statusCode: StatusCodes.Status413PayloadTooLarge, title: tooLarge.Message);
-            }
+            return Problem(statusCode: StatusCodes.Status413PayloadTooLarge, title: tooLarge.Message);
         }
-
-        return Problem(statusCode: StatusCodes.Status400BadRequest, title: "The upload contains no file.");
     }
+
+    /// <summary>Returns a file's details without its content.</summary>
+    /// <remarks>The app's media service worker uses this to read an end-to-end file's encrypted name and type.</remarks>
+    /// <param name="id">Attachment ID.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The attachment.</returns>
+    /// <response code="200">The attachment.</response>
+    /// <response code="404">No such attachment for this account.</response>
+    [HttpGet("{id:guid}/info")]
+    [ProducesResponseType<AttachmentResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AttachmentResponse>> GetInfo(Guid id, CancellationToken cancellationToken) =>
+        await attachments.FindAsync(User.GetUserId(), id, cancellationToken) is { } attachment
+            ? AttachmentResponse.From(attachment)
+            : NotFound();
 
     /// <summary>Downloads a file, decrypting it on the fly. Supports HTTP Range requests.</summary>
     /// <remarks>
     /// Images, audio, video and plain text are served inline; anything else is always served as a download with a
-    /// generic content type, so uploaded HTML or SVG can never run in the app's origin.
+    /// generic content type, so uploaded HTML or SVG can never run in the app's origin. An end-to-end encrypted file
+    /// is served as stored, as a download: the browser decrypts it (the app's service worker fetches the byte ranges
+    /// it needs).
     /// </remarks>
     /// <param name="id">Attachment ID.</param>
     /// <param name="download">Force a download even for types that could display inline.</param>
@@ -104,9 +116,10 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
         }
 
         var attachment = opened.Attachment;
-        var inline = !download && UploadPolicy.CanDisplayInline(attachment.ContentType);
+        var endToEnd = attachment.Scheme == ContentScheme.EndToEnd;
+        var inline = !download && !endToEnd && UploadPolicy.CanDisplayInline(attachment.ContentType);
         var disposition = new ContentDispositionHeaderValue(inline ? "inline" : "attachment");
-        disposition.SetHttpFileName(attachment.FileName);
+        disposition.SetHttpFileName(endToEnd ? $"{attachment.Id:N}.bin" : attachment.FileName);
 
         Response.Headers.ContentDisposition = disposition.ToString();
         Response.Headers.ContentSecurityPolicy = SecurityHeaders.AttachmentContentSecurityPolicy;

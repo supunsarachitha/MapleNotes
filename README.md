@@ -5,7 +5,7 @@
 <h1 align="center">Maple Notes</h1>
 
 <p align="center">
-  A self-hosted place for quick notes, with encryption at rest.<br>
+  A self-hosted place for quick notes, encrypted at rest or end to end.<br>
   Timeline feed · Markdown and #tags · attachments · export to Markdown, text or JSON · one Docker container.
 </p>
 
@@ -26,13 +26,18 @@
   nested tags such as `#work/meetings`, with a tag list and tag filter.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
   upload progress. Images and media play inline; video seeking works on iOS.
-- **Search.** Finds text in your notes, including encrypted ones.
-- **Encryption at rest.**
+- **Search.** Finds text in your notes, including encrypted ones. With end-to-end encryption, search runs in your
+  browser.
+- **Encryption, chosen per account.**
   - The database is always encrypted.
-  - Each account can also encrypt its notes and files with its own key.
-  - Switching encryption on or off converts existing notes and files safely in the background.
+  - **Encrypted at rest** (the default): each account's notes and files are also encrypted with its own key, which
+    the server holds.
+  - **End-to-end**: your browser encrypts notes, tags, file names and files with a key only you hold. The server
+    stores ciphertext it cannot read, and a recovery key lets you reset a forgotten password.
+  - Changing mode converts existing notes and files safely, resuming if it is interrupted.
 - **Export.** Download everything, decrypted, as a ZIP of Markdown, plain text or JSON files, in flat or
-  year/month/day folders. Attachments are included and linked by relative path.
+  year/month/day folders. Attachments are included and linked by relative path. With end-to-end encryption, your
+  browser builds the same archive itself.
 - **Accounts.** Multiple users with secure authentication. The first account becomes the administrator, who can open
   registration, disable or remove accounts, and appoint other administrators. Administrators never see anyone's notes.
 - **Mobile first.** Responsive design with light and dark themes that follow your system, keyboard shortcuts, and
@@ -105,7 +110,7 @@ All settings are environment variables.
 | `MAPLE_DEFAULT_ENCRYPTION` | `true` | Whether new accounts start with encryption at rest on. |
 | `MAPLE_MAX_UPLOAD_MB` | `25` | Largest attachment, 1–2048 MB. |
 | `MAPLE_TRUSTED_PROXIES` | — | Reverse proxy addresses or CIDR ranges whose `X-Forwarded-*` headers are trusted, e.g. `172.16.0.0/12`. |
-| `MAPLE_AUTH_RATE_LIMIT` | `10` | Sign-in, registration and password attempts per client IP per minute. |
+| `MAPLE_AUTH_RATE_LIMIT` | `10` | Sign-in, registration and password attempts per client IP per minute (prelogin has a separate budget of the same size). |
 | `MAPLE_API_DOCS` | `false` | Publish the OpenAPI document (`/openapi/v1.json`) and API reference (`/scalar`). |
 | `ASPNETCORE_HTTP_PORTS` | `8080` | Port inside the container. |
 | `AllowedHosts` | `*` | Restrict accepted host names, e.g. `notes.example.com`. |
@@ -117,17 +122,33 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 | What | How |
 |---|---|
 | Database | The whole SQLite file is encrypted (SQLCipher v4 format, AES-256) with a key derived from the master key. Always on. |
-| Notes and attachments | With encryption at rest on (the default), each account's notes and files are also encrypted with the account's own key, using AES-256-GCM. Each user can switch this in Settings. |
-| Passwords | PBKDF2-HMAC-SHA512 with 210,000 iterations; lockout after 5 failed attempts; rate limiting. |
+| Notes and attachments | Each account chooses a mode in Settings. **Encrypted at rest** (the default): notes and files are also encrypted with the account's own key, which the server holds (AES-256-GCM). **End-to-end**: the browser encrypts notes, file names and files with a key the server never sees (AES-256-GCM), and tags become keyed tokens. **Off**: only the database encryption applies. |
+| End-to-end keys | Created in the browser and stored on the server only in wrapped form: once under a key derived from your password, once under a recovery key that is shown to you once. An open session keeps the key in the browser as a non-extractable key, sealed with a secret that lives in the session cookie. |
+| Passwords | Never leave the browser: it derives a sign-in key with Argon2id (64 MiB), and the server stores only a PBKDF2-HMAC-SHA512 hash of that key (210,000 iterations). Lockout after 5 failed attempts; rate limiting. |
 | Sessions | HttpOnly, SameSite=Strict cookies, checked on every request, so a password change or "sign out everywhere" takes effect at once. |
-| Web | Strict Content-Security-Policy, antiforgery tokens, and uploaded files never run as web content. |
+| Web | Strict Content-Security-Policy, antiforgery tokens, API responses never cached by the browser, and uploaded files never run as web content. |
 
-**What this protects:** anyone who gets a copy of your disk, volume or backups without the master key sees only
-ciphertext.
+**What this protects:**
+- Anyone who gets a copy of your disk, volume or backups without the master key sees only ciphertext.
+- With end-to-end encryption, even the server cannot read your notes, tags, file names or files. Someone with the
+  master key, the database or full control of the server's data sees only ciphertext, sizes and timestamps.
 
-**What it does not protect:** this is encryption at rest, not end-to-end encryption. The server holds the keys while it
-runs, so someone who controls the running server, or knows the master key, can read the data. Details:
-[docs/architecture.md](docs/architecture.md#cryptography).
+**What it does not protect:**
+- Without end-to-end encryption, the server holds the keys while it runs, so someone who controls the running server,
+  or knows the master key, can read the data.
+- End-to-end encryption still trusts the server to deliver honest code to your browser. Someone who takes over the
+  server could serve a modified web app that captures your password the next time you sign in. It protects the data
+  the server stores, not a session with a server that is already compromised.
+- If you lose both your password and your recovery key, end-to-end encrypted notes cannot be recovered by anyone.
+
+Details: [docs/threat-model.md](docs/threat-model.md), [docs/architecture.md](docs/architecture.md#cryptography) and
+[docs/e2ee-spec.md](docs/e2ee-spec.md).
+
+### Forgotten passwords
+
+Maple Notes sends no email, so there are no reset links. With end-to-end encryption, choose **Forgot your password?**
+on the sign-in page and enter your recovery key: you set a new password and get a new recovery key. Accounts without
+end-to-end encryption cannot reset a forgotten password; keep it in a password manager.
 
 ## Backups
 
@@ -143,6 +164,8 @@ docker run --rm -v maple-data:/data -v "$PWD":/out alpine \
 ```
 
 Keep the master key separately. A backup is useless without it, which is what keeps a leaked backup safe.
+End-to-end encrypted content stays encrypted in backups too: after a restore it opens with the same passwords and
+recovery keys as before.
 
 **To restore:**
 1. Stop the container.
@@ -161,6 +184,17 @@ docker compose up -d --build
 ```
 
 Database migrations run automatically at startup, after an automatic backup.
+
+### From 1.0 to 1.1
+
+- **Sign-in changed.** Browsers no longer send passwords; they send a key derived from the password. The next time
+  each account signs in (or confirms its password in Settings), the browser sends the password one last time so the
+  server can switch the account over. Nothing else is needed, and existing sessions stay signed in.
+- **Encryption settings** now offer three modes. Accounts keep their current protection: encryption at rest stays on,
+  or stays off.
+- **API clients** that signed in with a username and password must follow the new sign-in protocol
+  ([docs/e2ee-spec.md](docs/e2ee-spec.md#1-password-derived-keys-every-account)), and the encryption endpoint takes a mode instead of on/off.
+  See the [changelog](CHANGELOG.md).
 
 ## Reverse proxy and HTTPS
 
@@ -207,8 +241,8 @@ In Development, the interactive API reference is at <http://localhost:5051/scala
 |---|---|
 | Server | ASP.NET Core 10 (LTS), controllers, built-in OpenAPI with XML docs |
 | Data | Entity Framework Core 10, SQLite with [SQLite3 Multiple Ciphers](https://utelle.github.io/SQLite3MultipleCiphers/) (SQLCipher v4 format) |
-| Crypto | .NET `AesGcm` and `HKDF`, ASP.NET Core Data Protection, Identity password hasher |
-| Web | React 19, TypeScript, Vite, Tailwind CSS 4, TanStack Query, Radix UI, react-markdown |
+| Crypto | .NET `AesGcm` and `HKDF`, ASP.NET Core Data Protection, Identity password hasher; in the browser, WebCrypto and Argon2id from `hash-wasm` |
+| Web | React 19, TypeScript, Vite, Tailwind CSS 4, TanStack Query, Radix UI, react-markdown, fflate (ZIP export in the browser), a service worker for encrypted media |
 | Tests | xUnit v3, `WebApplicationFactory`, Vitest, Testing Library |
 | Container | Multi-stage, multi-architecture build; chiseled Ubuntu runtime image |
 

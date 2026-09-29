@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "kdf": {
+    "password": "correct horse battery staple Cafe\u0301 \uD83C\uDF41",
+    "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+    "memoryKiB": 19456,
+    "iterations": 2,
+    "parallelism": 1,
+    "masterB64": "sa7V8GUncN6kD8EjlcQIVlZ/x7DKtpBf2wTccEoQBg0=",
+    "authKeyB64": "TzzjTRVk9lQuTgAqrwtw5Mfp3zOkWcUsYc7zukJKO00=",
+    "wrapKeyB64": "gtCq4lmw\u002BdLIGleq9/EnTtKsIVM22jBGqleUFs8Z86w="
+  },
+  "ids": {
+    "userId": "0192f3a1-7c2e-7d4b-9a1c-3e5f7a9b1c2d",
+    "noteId": "0192f3a2-0000-7abc-8def-0123456789ab",
+    "attachmentId": "0192f3a3-1111-7222-8333-444455556666"
+  },
+  "dataKeyB64": "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dw=",
+  "subkeys": {
+    "noteKeyB64": "6gOrIekJLbRHfgG4USQi1Ji7lCYXyhD0nkWU6i4\u002Beig=",
+    "metadataKeyB64": "wOA9IKE/Q4ixKuOeATqcQylZ4ecF8M7csrMiw70DDvo=",
+    "tagIndexKeyB64": "Zoj9QqHFb7tIk26WeSXd1qmEgk/HSKq4kIEsGlJqQco="
+  },
+  "wrappedDataKey": {
+    "nonceB64": "oKGio6Slpqeoqaqr",
+    "envelopeB64": "AQGgoaKjpKWmp6ipqqugqAeSYqxOTFZTAPilNcOHe\u002B1LXzP6k/EKd0RNCNJ0Hy42sBYG9b1PyudJCvDNyqk="
+  },
+  "note": {
+    "plaintext": "Buy **maple** syrup #groceries \uD83C\uDF41\n\n- [ ] pancakes",
+    "nonceB64": "sLGys7S1tre4ubq7",
+    "envelopeB64": "AQGwsbKztLW2t7i5urszElis58cRdjDYSHuYHbGFPvN9BIcWzvL1yOWvAu9J8AhhhmrdDyyoaI1De29PlgaI5ORUMpz9hdFCEOrd5Kn5rG6j"
+  },
+  "tag": {
+    "name": "#Work/Meetings-",
+    "normalized": "work/meetings",
+    "token": "UWYa_V5R6GFTwTbScRYPsQ",
+    "nonceB64": "wMHCw8TFxsfIycrL",
+    "encryptedNameB64": "AQHAwcLDxMXGx8jJysslqgo/PUTake7mXE3dEYymryLD983HDLb7bD1f2w=="
+  },
+  "recovery": {
+    "keyB64": "0NHS09TV1tfY2drb3N3e3\u002BDh4uPk5ebn6Onq6\u002Bzt7u8=",
+    "displayed": "T38X-5MYM-TQBD-FP6S-VBDX-SQEY-VZGE-3RQ3-WKJY-DSZ8-X7NE-QV7D-XVQG",
+    "wrapKeyB64": "hfjbRtAxtBuFuaJnkjQdYss/YL9D6GNrRtI8MJ1uVTo=",
+    "authKeyB64": "LDyNM00yK0lmD/pUEJuOK9V17T1pirwbkio9h/xHkuk=",
+    "nonceB64": "4OHi4\u002BTl5ufo6err",
+    "wrappedDataKeyB64": "AQHg4eLj5OXm5\u002Bjp6usptsvwqaMFfPQKXsYiAANh9\u002BHhhzRmnbM75VQfoKlLZ09Uy7/qf6KuAKwbEAED414="
+  },
+  "attachment": {
+    "plaintextLength": 70000,
+    "plaintextPattern": "byte i = i mod 251",
+    "saltB64": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8=",
+    "encryptedLength": 70074,
+    "encryptedSha256Hex": "91ce8d471b44ae862e4b0acd836ae2fd86236f93fa4615ecc975553567503dc0"
+  },
+  "metadata": {
+    "json": "{\u0022name\u0022:\u0022sunset.png\u0022,\u0022type\u0022:\u0022image/png\u0022,\u0022size\u0022:70000}",
+    "nonceB64": "8PHy8/T19vf4\u002Bfr7",
+    "envelopeB64": "AQHw8fLz9PX29/j5\u002BvvoJSrEw\u002ByNabJ4p8UVQ9f0vTmSPPWMpjjaumY38Ilohu26RM\u002BFRmXL5GkhBxfcaVXJwcpSXBGCMTGdb5ZuQlf3GvUsUkA="
+  }
+}

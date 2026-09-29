@@ -31,19 +31,22 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<byte[]>("EncryptedMetadata")
+                        .HasColumnType("BLOB");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsEncrypted")
-                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("NoteId")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Revision")
                         .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Scheme")
                         .HasColumnType("INTEGER");
 
                     b.Property<long>("SizeBytes")
@@ -100,14 +103,14 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsEncrypted")
-                        .HasColumnType("INTEGER");
-
                     b.Property<bool>("IsPinned")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Revision")
                         .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Scheme")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("UpdatedAtUtc")
@@ -129,9 +132,15 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<byte[]>("EncryptedName")
+                        .HasColumnType("BLOB");
+
                     b.Property<string>("Name")
-                        .IsRequired()
                         .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Token")
+                        .HasMaxLength(22)
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserId")
@@ -140,6 +149,9 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserId", "Name")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "Token")
                         .IsUnique();
 
                     b.ToTable("Tags", (string)null);
@@ -157,16 +169,46 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CredentialFormat")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CredentialHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("EncryptionEnabled")
-                        .HasColumnType("INTEGER");
+                    b.Property<byte[]>("E2eeRecoveryWrappedKey")
+                        .HasColumnType("BLOB");
+
+                    b.Property<byte[]>("E2eeWrappedKey")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("EncryptionMode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsDisabled")
                         .HasColumnType("INTEGER");
+
+                    b.Property<int>("KdfIterations")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("KdfMemoryKiB")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("KdfParallelism")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("KdfSalt")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
 
                     b.Property<DateTime?>("LockoutEndUtc")
                         .HasColumnType("TEXT");
@@ -176,8 +218,7 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
+                    b.Property<string>("RecoveryKeyHash")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Role")
@@ -199,7 +240,6 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<byte[]>("WrappedDataKey")
-                        .IsRequired()
                         .HasColumnType("BLOB");
 
                     b.HasKey("Id");

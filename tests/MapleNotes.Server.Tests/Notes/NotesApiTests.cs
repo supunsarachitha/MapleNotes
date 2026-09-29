@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Notes;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Persistence;
@@ -34,7 +35,7 @@ public sealed class NotesApiTests : IAsyncLifetime
         Assert.Equal("Buy **maple syrup** #groceries", fetched!.Content);
         Assert.Equal(["groceries"], fetched.Tags);
         var stored = await StoredNoteAsync(created.Id);
-        Assert.True(stored.IsEncrypted);
+        Assert.Equal(ContentScheme.Server, stored.Scheme);
         Assert.DoesNotContain("maple syrup", Encoding.UTF8.GetString(stored.Content), StringComparison.Ordinal);
     }
 
@@ -50,7 +51,7 @@ public sealed class NotesApiTests : IAsyncLifetime
 
         using var scope = app.Services.CreateScope();
         var stored = await scope.ServiceProvider.GetRequiredService<MapleDbContext>().Notes.SingleAsync(n => n.Id == note!.Id, Ct);
-        Assert.False(stored.IsEncrypted);
+        Assert.Equal(ContentScheme.None, stored.Scheme);
         Assert.Equal("readable", Encoding.UTF8.GetString(stored.Content));
     }
 

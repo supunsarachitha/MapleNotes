@@ -7,6 +7,7 @@ using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Tests.TestSupport;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,7 +32,7 @@ public sealed class AuthTests
         Assert.True(before.RegistrationOpen);
         Assert.Null(before.User);
         Assert.Equal(UserRole.Admin, user.Role);
-        Assert.True(user.EncryptionEnabled);
+        Assert.Equal(EncryptionMode.AtRest, user.EncryptionMode);
         Assert.False(after!.SetupRequired);
         Assert.Equal("maple", after.User!.Username);
     }
@@ -80,21 +81,19 @@ public sealed class AuthTests
     }
 
     [Theory]
-    [InlineData("ab", ApiClient.DefaultPassword, "username")]
-    [InlineData("has space", ApiClient.DefaultPassword, "username")]
-    [InlineData("-leading", ApiClient.DefaultPassword, "username")]
-    [InlineData("valid_name", "short", "password")]
-    [InlineData("valid_name", "          ", "password")]
-    public async Task Invalid_accounts_are_rejected_with_field_errors(string username, string password, string field)
+    [InlineData("ab")]
+    [InlineData("has space")]
+    [InlineData("-leading")]
+    public async Task Invalid_usernames_are_rejected_with_field_errors(string username)
     {
         await using var app = new MapleAppFactory();
         using var client = new ApiClient(app);
 
-        var response = await client.RegisterAsync(username, password);
+        var response = await client.RegisterAsync(username);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(ApiClient.Json, Ct);
-        Assert.Contains(field, problem!.Errors.Keys);
+        Assert.Contains("username", problem!.Errors.Keys);
     }
 
     [Fact]
@@ -213,8 +212,7 @@ public sealed class AuthTests
         await laptop.SignUpAsync("maple");
         await phone.LoginAsync("maple");
 
-        var change = await laptop.PutJsonAsync("/api/v1/auth/password",
-            new ChangePasswordRequest(ApiClient.DefaultPassword, "a brand new passphrase"));
+        var change = await laptop.ChangePasswordAsync(ApiClient.DefaultPassword, "a brand new passphrase");
 
         Assert.Equal(HttpStatusCode.NoContent, change.StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await laptop.GetAsync("/api/v1/auth/me")).StatusCode);
@@ -230,8 +228,7 @@ public sealed class AuthTests
         using var client = new ApiClient(app);
         await client.SignUpAsync("maple");
 
-        var response = await client.PutJsonAsync("/api/v1/auth/password",
-            new ChangePasswordRequest("a guessed password", "a brand new passphrase"));
+        var response = await client.ChangePasswordAsync("a guessed password", "a brand new passphrase");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(ApiClient.Json, Ct);
@@ -254,7 +251,7 @@ public sealed class AuthTests
     }
 
     [Fact]
-    public async Task Passwords_are_stored_as_pbkdf2_sha512_with_210k_iterations()
+    public async Task Credentials_are_stored_as_pbkdf2_sha512_hashes_of_the_authentication_key()
     {
         await using var app = new MapleAppFactory();
         using var client = new ApiClient(app);
@@ -262,12 +259,18 @@ public sealed class AuthTests
 
         using var scope = app.Services.CreateScope();
         var user = await scope.ServiceProvider.GetRequiredService<MapleDbContext>().Users.SingleAsync(Ct);
-        var hash = Convert.FromBase64String(user.PasswordHash);
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
+        var hash = Convert.FromBase64String(user.CredentialHash);
+        var authKey = ApiClient.DeriveKeys(ApiClient.DefaultPassword, ApiClient.TestKdf()).AuthKey;
 
         Assert.Equal(0x01, hash[0]);                                                  // Identity V3 format
         Assert.Equal(2u, BinaryPrimitives.ReadUInt32BigEndian(hash.AsSpan(1, 4)));    // HMAC-SHA512
         Assert.Equal(210_000u, BinaryPrimitives.ReadUInt32BigEndian(hash.AsSpan(5, 4)));
-        Assert.DoesNotContain(ApiClient.DefaultPassword, user.PasswordHash, StringComparison.Ordinal);
+        Assert.Equal(CredentialFormat.AuthKey, user.CredentialFormat);
+        Assert.Equal(PasswordVerificationResult.Success,
+            hasher.VerifyHashedPassword(user, user.CredentialHash, Convert.ToBase64String(authKey)));
+        Assert.Equal(PasswordVerificationResult.Failed,
+            hasher.VerifyHashedPassword(user, user.CredentialHash, ApiClient.DefaultPassword));
     }
 
     private static MapleAppFactory OpenRegistration() =>

@@ -84,6 +84,7 @@ internal static class WebServiceCollectionExtensions
             hasher.IterationCount = PasswordHashing.IterationCount;
         });
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.AddSingleton<CredentialVerifier>();
 
         services.AddOpenApi();
 
@@ -91,14 +92,17 @@ internal static class WebServiceCollectionExtensions
         services.AddOptions<RateLimiterOptions>().Configure<MapleOptions>((limiter, options) =>
         {
             limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            limiter.AddPolicy(RateLimitPolicies.Authentication, context => RateLimitPartition.GetFixedWindowLimiter(
-                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = options.AuthenticationRateLimit,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueLimit = 0,
-                }));
+            foreach (var policy in new[] { RateLimitPolicies.Authentication, RateLimitPolicies.Prelogin })
+            {
+                limiter.AddPolicy(policy, context => RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = options.AuthenticationRateLimit,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
+            }
         });
 
         // Behind a reverse proxy, the client address and scheme arrive in X-Forwarded-* headers. They are trusted only

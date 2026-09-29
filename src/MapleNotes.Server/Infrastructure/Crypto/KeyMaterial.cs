@@ -11,6 +11,7 @@ namespace MapleNotes.Server.Infrastructure.Crypto;
 /// MAPLE_MASTER_KEY ──HKDF──┬── database key        SQLCipher raw key for maple.db and its backups
 ///                          ├── key-encryption key  wraps each user's data key (see DataKeyService)
 ///                          ├── data-protection key wraps the ASP.NET Core Data Protection key ring on disk
+///                          ├── prelogin key        pseudo-salts for unknown usernames at prelogin (see AccountService)
 ///                          └── fingerprint         8 hex characters, safe to log, identifies which key is loaded
 /// </code>
 /// Every derived key uses its own HKDF "info" label, so learning one derived key reveals nothing about the others
@@ -23,6 +24,7 @@ public sealed class KeyMaterial : IDisposable
     private readonly byte[] _databaseKey;
     private readonly byte[] _keyEncryptionKey;
     private readonly byte[] _dataProtectionKey;
+    private readonly byte[] _preloginKey;
 
     /// <summary>
     /// Derives all keys from <paramref name="masterKey"/>.
@@ -39,6 +41,7 @@ public sealed class KeyMaterial : IDisposable
         _databaseKey = Derive(masterKey, "maple-notes/v1/database", 32);
         _keyEncryptionKey = Derive(masterKey, "maple-notes/v1/key-encryption", 32);
         _dataProtectionKey = Derive(masterKey, "maple-notes/v1/data-protection", 32);
+        _preloginKey = Derive(masterKey, "maple-notes/v1/prelogin", 32);
 
         var fingerprint = Derive(masterKey, "maple-notes/v1/fingerprint", 4);
         Fingerprint = Convert.ToHexStringLower(fingerprint);
@@ -54,6 +57,12 @@ public sealed class KeyMaterial : IDisposable
     public ReadOnlySpan<byte> DataProtectionKey => _dataProtectionKey;
 
     /// <summary>
+    /// 256-bit HMAC key for the deterministic pseudo-salts that prelogin returns for unknown usernames, so that the
+    /// answer looks the same whether or not an account exists (docs/e2ee-spec.md §1).
+    /// </summary>
+    public ReadOnlySpan<byte> PreloginKey => _preloginKey;
+
+    /// <summary>
     /// A short, non-secret identifier of the loaded master key (8 hex characters). Logged at startup so operators
     /// can tell which key an instance runs with without exposing the key.
     /// </summary>
@@ -65,6 +74,7 @@ public sealed class KeyMaterial : IDisposable
         CryptographicOperations.ZeroMemory(_databaseKey);
         CryptographicOperations.ZeroMemory(_keyEncryptionKey);
         CryptographicOperations.ZeroMemory(_dataProtectionKey);
+        CryptographicOperations.ZeroMemory(_preloginKey);
     }
 
     private static byte[] Derive(ReadOnlySpan<byte> masterKey, string purpose, int length)

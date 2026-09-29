@@ -23,13 +23,22 @@ public sealed class ExportController(NoteExporter exporter) : ControllerBase
     /// <returns>The ZIP archive.</returns>
     /// <response code="200">The archive (streamed).</response>
     /// <response code="400">An option is invalid (for example an unknown time zone).</response>
+    /// <response code="409">The account has end-to-end encrypted content, which only the web app can export.</response>
     [HttpGet]
     [Produces("application/zip")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
-    public async Task Export([FromQuery] ExportRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
+    public async Task<IActionResult> Export([FromQuery] ExportRequest request, CancellationToken cancellationToken)
     {
         var options = NoteExporter.Validate(request);
+        if (await exporter.HasEndToEndContentAsync(User.GetUserId(), cancellationToken))
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "This account has end-to-end encrypted notes, which the server cannot read.",
+                detail: "Export them from the app's settings: your browser decrypts them and builds the same archive.");
+        }
 
         var disposition = new ContentDispositionHeaderValue("attachment");
         disposition.SetHttpFileName(exporter.FileName(options));
@@ -38,5 +47,6 @@ public sealed class ExportController(NoteExporter exporter) : ControllerBase
         Response.Headers.CacheControl = "no-store";
 
         await exporter.StreamAsync(User.GetUserId(), options, Response.Body, cancellationToken);
+        return new EmptyResult();
     }
 }

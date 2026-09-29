@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
 import { useId, useState } from "react";
+import type { User } from "../lib/types";
 import { Button, Card, ErrorMessage, cn } from "./ui";
 
 export type ExportFormat = "md" | "txt" | "json";
@@ -42,8 +43,28 @@ const layouts: Array<{ value: ExportLayout; label: string; example: string }> = 
   { value: "flat", label: "All in one folder", example: "2026-09-28_1430_title.md" },
 ];
 
+/**
+ * Builds the export in this browser: for accounts whose end-to-end notes the server cannot decrypt. The archive has
+ * the same structure as the server's (see src/export).
+ */
+async function exportInThisBrowser(options: ExportOptions, username: string, onProgress: (text: string) => void): Promise<void> {
+  const { apiExportSource, saveExport } = await import("../export/download"); // with fflate, only when needed
+  await saveExport(
+    { ...options, from: options.from ?? null, to: options.to ?? null },
+    apiExportSource(username, (count) => onProgress(`Reading your notes… ${count.toLocaleString()}`)),
+  );
+}
+
 /** Download all notes (decrypted) as a ZIP archive in the chosen format and folder layout. */
-export function ExportSection({ onDownload }: { onDownload?: (url: string) => void }) {
+export function ExportSection({
+  user,
+  onDownload,
+  browserExport = exportInThisBrowser,
+}: {
+  user?: User;
+  onDownload?: (url: string) => void;
+  browserExport?: typeof exportInThisBrowser;
+}) {
   const id = useId();
   const [options, setOptions] = useState<ExportOptions>({
     format: "md",
@@ -53,15 +74,28 @@ export function ExportSection({ onDownload }: { onDownload?: (url: string) => vo
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   });
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
+  const inBrowser = user?.hasEndToEndKey === true;
 
   function update(changes: Partial<ExportOptions>) {
     setOptions((current) => ({ ...current, ...changes }));
     setError(null);
   }
 
-  function download() {
+  async function download() {
     if (options.from && options.to && options.from > options.to) {
       setError("The start date must not be after the end date.");
+      return;
+    }
+    if (inBrowser && user) {
+      setProgress("Preparing your export…");
+      try {
+        await browserExport(options, user.username, setProgress);
+      } catch (caught) {
+        setError(`The export failed: ${caught instanceof Error ? caught.message : String(caught)}`);
+      } finally {
+        setProgress(null);
+      }
       return;
     }
     const url = buildExportUrl(options);
@@ -85,6 +119,7 @@ export function ExportSection({ onDownload }: { onDownload?: (url: string) => vo
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
         Download your notes as a ZIP archive, decrypted, with attachments in an <code>attachments</code> folder linked
         from each note.
+        {inBrowser && " Your notes are end-to-end encrypted, so this browser decrypts them and builds the archive: keep this page open until the download finishes."}
       </p>
 
       <div className="mt-4 flex flex-col gap-5">
@@ -186,11 +221,13 @@ export function ExportSection({ onDownload }: { onDownload?: (url: string) => vo
         {error && <ErrorMessage>{error}</ErrorMessage>}
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={download}>
-            <Download className="size-4" aria-hidden="true" />
+          <Button onClick={() => void download()} busy={progress !== null}>
+            {progress === null && <Download className="size-4" aria-hidden="true" />}
             Download ZIP
           </Button>
-          <span className="text-xs text-stone-500 dark:text-stone-400">Dates use your time zone ({options.timeZone}).</span>
+          <span className="text-xs text-stone-500 dark:text-stone-400" aria-live="polite">
+            {progress ?? `Dates use your time zone (${options.timeZone}).`}
+          </span>
         </div>
       </div>
     </Card>

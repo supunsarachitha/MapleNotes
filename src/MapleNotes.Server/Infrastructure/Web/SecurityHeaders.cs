@@ -6,11 +6,16 @@ namespace MapleNotes.Server.Infrastructure.Web;
 internal static class SecurityHeaders
 {
     /// <summary>
-    /// Content-Security-Policy for the application: scripts only from this origin (no inline scripts), no plugins,
-    /// no framing. Images and media may also come from <c>blob:</c> URLs for upload previews.
+    /// Content-Security-Policy for the application: scripts and workers only from this origin (no inline scripts, no
+    /// <c>eval</c>), no plugins, no framing. Images and media may also come from <c>blob:</c> URLs for upload previews.
     /// </summary>
+    /// <remarks>
+    /// <c>'wasm-unsafe-eval'</c> lets the page and its workers compile WebAssembly, which the password derivation
+    /// (Argon2id) needs. Despite its name it does not allow JavaScript <c>eval</c> or <c>new Function</c>.
+    /// </remarks>
     public const string AppContentSecurityPolicy =
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; " +
+        "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' blob: data:; " +
         "media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; " +
         "form-action 'self'; frame-ancestors 'none'";
 
@@ -21,7 +26,9 @@ internal static class SecurityHeaders
 
     /// <summary>
     /// Adds the headers. Responses that already set a Content-Security-Policy (attachments) keep theirs. The optional
-    /// API reference page needs inline scripts, so it gets no policy.
+    /// API reference page needs inline scripts, so it gets no policy. API responses are not stored by browsers
+    /// (<c>Cache-Control: no-store</c>) unless they choose their own caching: they carry decrypted notes, and while an
+    /// account changes to end-to-end encryption, plain text that must not linger on disk.
     /// </summary>
     /// <param name="app">The application pipeline.</param>
     /// <returns>The same pipeline.</returns>
@@ -37,6 +44,11 @@ internal static class SecurityHeaders
                 headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
                 headers["Cross-Origin-Opener-Policy"] = "same-origin";
                 headers["Cross-Origin-Resource-Policy"] = "same-origin";
+
+                if (context.Request.Path.StartsWithSegments("/api") && !headers.ContainsKey(HeaderNames.CacheControl))
+                {
+                    headers.CacheControl = "no-store";
+                }
 
                 var isApiReference = context.Request.Path.StartsWithSegments("/scalar") || context.Request.Path.StartsWithSegments("/openapi");
                 if (!headers.ContainsKey(HeaderNames.ContentSecurityPolicy) && !isApiReference)

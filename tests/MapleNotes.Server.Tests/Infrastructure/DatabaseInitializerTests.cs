@@ -6,6 +6,8 @@ using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Tests.TestSupport;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MapleNotes.Server.Tests.Infrastructure;
@@ -105,6 +107,53 @@ public sealed class DatabaseInitializerTests : IDisposable
 
         var remaining = Directory.GetFiles(_options.BackupsDirectory).Order().ToArray();
         Assert.Equal(paths.TakeLast(DatabaseInitializer.BackupsToKeep).Order(), remaining);
+    }
+
+    [Fact]
+    public async Task Upgrading_from_1_0_keeps_hashes_for_upgrade_and_turns_flags_into_modes_and_schemes()
+    {
+        using var keys = new KeyMaterial(_masterKey);
+        await using (var v10 = CreateContext(keys))
+        {
+            await v10.GetService<IMigrator>().MigrateAsync("20260929024608_AddRevisionTokens", TestContext.Current.CancellationToken);
+            foreach (var (name, encrypted) in new[] { ("alice", true), ("bob", false) })
+            {
+                // The 1.0 schema, which the current model can no longer write.
+                var id = Guid.CreateVersion7().ToString().ToUpperInvariant();
+                await v10.Database.ExecuteSqlAsync($"""
+                    INSERT INTO "Users" ("Id", "Username", "NormalizedUsername", "DisplayName", "PasswordHash", "Role",
+                        "WrappedDataKey", "EncryptionEnabled", "SecurityStamp", "AccessFailedCount", "IsDisabled",
+                        "CreatedAtUtc", "UpdatedAtUtc")
+                    VALUES ({id}, {name}, {name.ToUpperInvariant()}, {name}, {"1.0 hash of " + name}, 'User',
+                        {new byte[] { 1, 2, 3 }}, {encrypted}, 'STAMP', 0, 0, '2026-09-28 12:00:00', '2026-09-28 12:00:00')
+                    """, TestContext.Current.CancellationToken);
+                await v10.Database.ExecuteSqlAsync($"""
+                    INSERT INTO "Notes" ("Id", "UserId", "Content", "IsEncrypted", "IsPinned", "CreatedAtUtc", "UpdatedAtUtc", "Revision")
+                    VALUES ({Guid.CreateVersion7().ToString().ToUpperInvariant()}, {id}, {new byte[] { 4, 5, 6 }}, {encrypted}, 0,
+                        '2026-09-28 12:00:00', '2026-09-28 12:00:00', 0)
+                    """, TestContext.Current.CancellationToken);
+            }
+        }
+
+        await InitializeAsync(_masterKey);
+
+        await using var db = CreateContext(keys);
+        var users = await db.Users.OrderBy(u => u.Username).ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, users.Count);
+        Assert.All(users, user =>
+        {
+            Assert.Equal(CredentialFormat.LegacyPassword, user.CredentialFormat);
+            Assert.Equal("1.0 hash of " + user.Username, user.CredentialHash);
+            Assert.Equal(16, user.KdfSalt.Length);
+            Assert.Equal((65536, 3, 1), (user.KdfMemoryKiB, user.KdfIterations, user.KdfParallelism));
+        });
+        Assert.NotEqual(users[0].KdfSalt, users[1].KdfSalt);
+        Assert.Equal([EncryptionMode.AtRest, EncryptionMode.Off], users.Select(u => u.EncryptionMode));
+        Assert.All(users, user => Assert.Equal([1, 2, 3], user.WrappedDataKey!));
+        var schemes = await db.Notes.ToDictionaryAsync(n => n.UserId, n => n.Scheme, TestContext.Current.CancellationToken);
+        Assert.Equal(ContentScheme.Server, schemes[users[0].Id]);
+        Assert.Equal(ContentScheme.None, schemes[users[1].Id]);
+        Assert.Single(Directory.GetFiles(_options.BackupsDirectory)); // taken before migrating
     }
 
     public void Dispose()

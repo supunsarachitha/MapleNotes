@@ -78,6 +78,17 @@ public sealed class NoteExporter(
             request.From, request.To, timeZone!);
     }
 
+    /// <summary>
+    /// Whether the account has content the server cannot decrypt (end-to-end encrypted). Such an account is exported
+    /// by the web app, which builds the same archive in the browser.
+    /// </summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>True when a note or attachment is end-to-end encrypted.</returns>
+    public async Task<bool> HasEndToEndContentAsync(Guid userId, CancellationToken cancellationToken) =>
+        await db.Notes.AnyAsync(n => n.UserId == userId && n.Scheme == ContentScheme.EndToEnd, cancellationToken)
+        || await db.Attachments.AnyAsync(a => a.UserId == userId && a.Scheme == ContentScheme.EndToEnd, cancellationToken);
+
     /// <summary>The download's file name, e.g. <c>maple-notes-2026-09-28.zip</c>.</summary>
     /// <param name="options">The export options (for the time zone).</param>
     /// <returns>The file name.</returns>
@@ -267,7 +278,7 @@ public sealed class NoteExporter(
 
         var exported = new ExportedNote(
             note.Id, content, created, updated,
-            note.Tags.Select(t => t.Name).Order(StringComparer.Ordinal).ToList(),
+            note.Tags.Where(t => t.Name is not null).Select(t => t.Name!).Order(StringComparer.Ordinal).ToList(),
             note.IsPinned, note.ArchivedAtUtc is not null, exportedAttachments);
         await WriteTextAsync(zip, notePath, NoteFormatter.Render(exported, options.Format), updated, cancellationToken);
         return (notePath, exported);

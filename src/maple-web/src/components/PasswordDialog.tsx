@@ -5,7 +5,8 @@ import { Button, ErrorMessage, TextField } from "./ui";
 
 /**
  * Asks for the account password before a security-relevant change (switching encryption, deleting the account).
- * `onConfirm` receives the password; if it throws an ApiError, the message is shown and the dialog stays open.
+ * `onConfirm` receives the password and turns it into a proof (see lib/auth.ts), so the password itself is never
+ * sent; if it throws an ApiError, the message is shown and the dialog stays open.
  */
 export function PasswordDialog({
   open,

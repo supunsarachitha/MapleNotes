@@ -257,7 +257,9 @@ def write_notices(path: Path, packages: list[Package]) -> None:
         lines += ["```text", text, "```", ""]
 
     lines += ["## Apache License 2.0", "", "```text", apache, "```", ""]
-    lines += [(NOTICES_DIR / "sqlite3mc-embedded.md").read_text().strip(), ""]
+    # Code compiled into shipped binaries (native libraries, WebAssembly) that the package metadata does not list.
+    for embedded in sorted(NOTICES_DIR.glob("*-embedded.md")):
+        lines += [embedded.read_text().strip(), ""]
     path.write_text("\n".join(lines))
     print(f"Wrote {path} ({len(shipped)} shipped components).")
 
