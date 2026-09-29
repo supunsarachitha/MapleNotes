@@ -7,7 +7,10 @@
       "launchBrowser": false,
       "applicationUrl": "http://localhost:5051",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "MAPLE_DATA_DIR": "../../data/dev",
+        "MAPLE_ALLOW_REGISTRATION": "true",
+        "MAPLE_MASTER_KEY": "DevelopmentOnlyKeyDoNotUseInProduction00000="
       }
     }
   }

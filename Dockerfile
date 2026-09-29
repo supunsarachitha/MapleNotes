@@ -29,7 +29,7 @@ WORKDIR /src
 # Restore first, in its own layer, so package downloads are cached until a project file changes.
 COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY src/MapleNotes.Server/MapleNotes.Server.csproj src/MapleNotes.Server/
-RUN dotnet restore src/MapleNotes.Server/MapleNotes.Server.csproj -a $TARGETARCH
+RUN dotnet restore src/MapleNotes.Server/MapleNotes.Server.csproj -a $TARGETARCH -p:Configuration=Release
 
 COPY src/MapleNotes.Server/ src/MapleNotes.Server/
 RUN dotnet publish src/MapleNotes.Server/MapleNotes.Server.csproj \
