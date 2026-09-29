@@ -31,7 +31,7 @@
 - **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes and the calendar on or off in
   Settings, on every device at once. Turning a feature off hides it and deletes nothing.
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists, tables, code) and clickable `#tags`, including
-  nested tags such as `#work/meetings`, with a tag list and tag filter.
+  nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
   upload progress. Images keep their shape on any screen and open in a full-screen viewer; audio and video play
   inline, and video seeking works on iOS.

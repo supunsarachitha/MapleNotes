@@ -116,6 +116,48 @@ describe("TodoCard", () => {
   });
 });
 
+describe("TodoCard and refreshes", () => {
+  it("never goes back to a list older than its own last save", async () => {
+    let time = Date.parse(list.updatedAtUtc);
+    vi.spyOn(api, "updateNote").mockImplementation(async (id, content) => ({ ...list, id, content, updatedAtUtc: new Date((time += 1000)).toISOString() }));
+    const user = userEvent.setup();
+    const view = renderWith(<TodoCard note={list} />);
+    const add = screen.getByRole("textbox", { name: "Add an item to Groceries" });
+
+    await user.type(add, "blueberries{Enter}");
+    await user.type(add, "coffee{Enter}");
+    await waitFor(() => expect(api.updateNote).toHaveBeenCalledTimes(2));
+    // A refresh fetched between the two saves arrives after both: it only has the first item.
+    const stale = { ...list, content: `${list.content}\n- [ ] blueberries`, updatedAtUtc: new Date(Date.parse(list.updatedAtUtc) + 1000).toISOString() };
+    view.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <ToastProvider>
+          <TodoCard note={stale} />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole("checkbox", { name: "coffee" })).toBeInTheDocument();
+    await user.type(add, "tea{Enter}");
+    await waitFor(() => expect(vi.mocked(api.updateNote).mock.calls.at(-1)![1]).toContain("- [ ] coffee\n- [ ] tea"));
+  });
+
+  it("takes a newer version from another device", async () => {
+    const view = renderWith(<TodoCard note={list} />);
+    const newer = { ...list, content: "# Groceries\n\n- [ ] bread", updatedAtUtc: "2026-09-29T09:00:00Z" };
+
+    view.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <ToastProvider>
+          <TodoCard note={newer} />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole("checkbox", { name: "bread" })).toBeInTheDocument();
+  });
+});
+
 describe("TodoPage", () => {
   it("creates a list", async () => {
     vi.spyOn(api, "listNotes").mockResolvedValue({ items: [], nextCursor: null });

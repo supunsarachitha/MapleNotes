@@ -13,6 +13,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { ArchivePage, HomePage } from "./pages/HomePage";
 import { RecoverPage } from "./pages/RecoverPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TagsPage } from "./pages/TagsPage";
 import { QuickNotesPage } from "./pages/QuickNotesPage";
 import { TodoPage } from "./pages/TodoPage";
 import { UnlockPage } from "./pages/UnlockPage";
@@ -110,6 +111,8 @@ export function App() {
         <TodoPage />
       ) : path === "/quick" ? (
         <QuickNotesPage />
+      ) : path === "/tags" ? (
+        <TagsPage />
       ) : (
         <HomePage />
       )}

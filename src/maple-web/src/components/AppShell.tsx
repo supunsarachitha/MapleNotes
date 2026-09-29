@@ -104,6 +104,10 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
             Quick notes
           </NavLink>
         )}
+        <NavLink href="/tags" icon={Hash} active={path === "/tags" || (path === "/" && !!activeTag)} onNavigate={onNavigate}>
+          Tags
+          {tags.data && tags.data.length > 0 && <span className="ml-auto text-xs font-normal text-stone-400">{tags.data.length}</span>}
+        </NavLink>
         <NavLink href="/archive" icon={Archive} active={path === "/archive"} onNavigate={onNavigate}>
           Archive
         </NavLink>
@@ -114,32 +118,6 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
 
       {preferences.calendar && <Calendar onNavigate={onNavigate} />}
 
-      {tags.data && tags.data.length > 0 && (
-        <nav aria-label="Tags" className="flex min-h-0 flex-1 flex-col">
-          <h2 className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Tags</h2>
-          <ul className="-mx-1 flex flex-col overflow-y-auto px-1">
-            {tags.data.map((tag) => (
-              <li key={tag.name}>
-                <Link
-                  href={`/?tag=${encodeURIComponent(tag.name)}`}
-                  onClick={onNavigate}
-                  aria-current={activeTag === tag.name ? "page" : undefined}
-                  className={cn(
-                    "flex h-9 items-center gap-2 rounded-lg px-3 text-sm",
-                    activeTag === tag.name
-                      ? "bg-maple-50 text-maple-700 dark:bg-maple-600/15 dark:text-maple-400"
-                      : "text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800",
-                  )}
-                >
-                  <Hash className="size-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{tag.name}</span>
-                  <span className="ml-auto text-xs text-stone-400">{tag.noteCount}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
 
       <div className="mt-auto flex items-center gap-3 border-t border-stone-200 pt-4 dark:border-stone-800">
         <div

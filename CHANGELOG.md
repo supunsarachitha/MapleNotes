@@ -29,6 +29,8 @@ modes, and each account chooses which ones it uses.
   choice, so the sign-in screen matches.
 - **Image viewer:** choosing an image attachment opens it full screen, with previous and next (buttons, arrow keys
   or a swipe) and a download button. End-to-end images are decrypted as usual.
+- **Tags page:** every tag with its note count, nested tags under their parents, a filter and A–Z or most-used
+  order. The side menu links to it instead of listing tags.
 - **Calendar** (on by default): a month calendar in the side menu (and the phone drawer) marks the days with notes,
   in your time zone; choosing a day shows its notes.
 - **Restore** (Settings → Backup & restore): bring back Maple Notes exports (`.zip`, any format and layout, with
@@ -43,6 +45,8 @@ modes, and each account chooses which ones it uses.
 - **Settings layout:** Account, Writing, Features, Backup & restore and Password come first. Encryption, the recovery
   key, sessions and account deletion are in a collapsible **Advanced** section, which opens by itself while an
   encryption change is being applied.
+- Todo lists no longer lose an item when a refresh from the server arrives just after a quick series of edits (found
+  by the browser tests while building 1.2).
 - **Exports** record each note's kind and daily date in every format, and file todo lists and quick notes under
   `todo/` and `quick-notes/`. The manifest is version 2.
 - Attachment images are responsive: a single image keeps its own shape (never cropped or enlarged, at most 70% of the

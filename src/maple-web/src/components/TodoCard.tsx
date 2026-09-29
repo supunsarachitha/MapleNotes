@@ -26,6 +26,9 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const saving = useRef<Promise<void>>(Promise.resolve());
   const pending = useRef(0);
+  // The version of our own last save. A refresh that left the server before it can arrive after it; its older list
+  // must not replace ours.
+  const lastSaved = useRef({ at: Date.parse(note.updatedAtUtc), content: note.content });
   const addInput = useRef<HTMLInputElement>(null);
   // Renaming starts once the menu has closed: while it is open, it keeps focus inside itself.
   const renameAfterClose = useRef(false);
@@ -34,10 +37,14 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
   const remove = useDeleteNote();
   const toast = useToast();
 
-  // Take the server's version when it changes, unless one of our own saves is still on its way.
+  // Take the server's version when it changes (another device, or a failed save), unless one of our own saves is still
+  // on its way or the version is older than our last save.
   useEffect(() => {
-    if (pending.current === 0) setList(parseTodo(note.content));
-  }, [note.content]);
+    if (pending.current > 0) return;
+    const at = Date.parse(note.updatedAtUtc);
+    if (at < lastSaved.current.at || (at === lastSaved.current.at && note.content !== lastSaved.current.content)) return;
+    setList(parseTodo(note.content));
+  }, [note.content, note.updatedAtUtc]);
 
   useEffect(() => {
     if (autoFocus) addInput.current?.focus();
@@ -51,7 +58,9 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
     saving.current = saving.current
       .then(() => api.updateNote(note.id, content, attachmentIds))
       .then(
-        () => undefined,
+        (saved) => {
+          lastSaved.current = { at: Date.parse(saved.updatedAtUtc), content: saved.content };
+        },
         () => toast.error("A change to this list could not be saved. Please try again."),
       )
       .finally(() => {
