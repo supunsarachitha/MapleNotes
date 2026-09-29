@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
+import { ExportSection } from "../components/ExportSection";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { useToast } from "../components/Toaster";
 import { Button, Card, ErrorMessage, Switch, TextField } from "../components/ui";
@@ -255,6 +256,7 @@ export function SettingsPage({ user }: { user: User }) {
       <h1 className="text-xl font-semibold">Settings</h1>
       <AccountSection user={user} />
       <EncryptionSection />
+      <ExportSection />
       <PasswordSection />
       <SessionsSection />
       {user.role === "Admin" && <AdminSection currentUserId={user.id} />}

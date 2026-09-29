@@ -64,9 +64,9 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 | 2 | Authentication and users | Integration tests pass, including cross-user access denial | ✅ Done (`4690bdb`) |
 | 3 | Notes and attachments API | Integration tests pass; OpenAPI docs render | ✅ Done (`ae9cab5`) |
 | 4 | Frontend | Full CRUD and attachments work at 375 px and on desktop; Vitest tests pass | ✅ Done (`187a7a0`) |
-| 5 | Encryption toggle and migration | Tests cover mixed data and a simulated crash mid-migration | ✅ Done (Phase 5 commit) |
-| 6 | Export | Tests verify ZIP structure, decrypted content and links for every format and layout | 🚧 In progress |
-| 7 | Hardening, docs and release | From a clean clone: `compose up`, register, post, export all work end to end | ⏳ Not started |
+| 5 | Encryption toggle and migration | Tests cover mixed data and a simulated crash mid-migration | ✅ Done (`a6d19b3`) |
+| 6 | Export | Tests verify ZIP structure, decrypted content and links for every format and layout | ✅ Done (Phase 6 commit) |
+| 7 | Hardening, docs and release | From a clean clone: `compose up`, register, post, export all work end to end | 🚧 In progress |
 
 Phases 1 and 2 share one commit because the application wiring in `Program.cs` spans both.
 

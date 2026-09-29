@@ -60,3 +60,7 @@ Work toward v1.0.0. Entries move under a version heading at release.
 - Account deletion (password-confirmed) and deletion of other accounts by administrators. The account's data key is
   destroyed with it; the database uses `secure_delete` so deleted content is overwritten. The last administrator
   cannot delete their own account.
+- Export to a ZIP archive in Markdown (with YAML front matter), plain text or JSON, arranged flat or in
+  year/month/day folders by the note's local date, with optional date range and archived notes. Notes and
+  attachments are decrypted on the fly and streamed; attachments go to `attachments/` and are linked from each note
+  by relative path; `manifest.json` lists everything. File names are safe on Windows, macOS and Linux.
