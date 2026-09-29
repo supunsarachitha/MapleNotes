@@ -56,14 +56,14 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 
 | # | Phase | Done when | Status |
 |---|---|---|---|
-| F1 | Preferences and the Settings layout | Preferences are stored per account, returned with the user and changed through the API (validated, tested). Settings shows the new layout: the collapsible Advanced section with Encryption, Recovery key, Sessions and Delete account, and "Backup & restore" | ✅ Done |
-| F2 | Note titles and dates in titles | With titles on, the editor has a title field for new and existing notes and cards show the title. Optional date prefill in the chosen format with a preview. Nothing changes with titles off; works for end-to-end accounts | ✅ Done |
-| F3 | Kinds of notes and the Todo tab | Notes have a kind (migration, API filter, patch). The Todo tab creates and edits checklists that are encrypted like any note. Search, tags and the archive span enabled kinds with labels. The setting (on by default) shows or hides the tab | ✅ Done |
-| F4 | Quick notes | The Quick notes tab with its own composer and list; moving a quick note to Home and back; the setting (on by default) | ✅ Done |
-| F5 | Daily notes | Home's "Today" card creates the day's note on first write; one daily note per date is enforced; the setting (off by default) | ✅ Done |
-| F6 | Exports with kinds and daily notes | Server and browser exports record kind and daily date, and place todo lists and quick notes in their folders (manifest version 2). The shared export vectors cover the new data | ✅ Done |
-| F7 | Import and full restore | Export archives in every format and layout, and single `.md`/`.txt`/`.json` files, restore into any account, including end-to-end ones, with progress and a summary. Re-importing skips existing notes. Round-trip tests: export → import into a fresh account → identical export | ✅ Done |
-| F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ✅ Done |
+| F1 | Preferences and the Settings layout | Preferences are stored per account, returned with the user and changed through the API (validated, tested). Settings shows the new layout: the collapsible Advanced section with Encryption, Recovery key, Sessions and Delete account, and "Backup & restore" | ✅ Done (`8230325`) |
+| F2 | Note titles and dates in titles | With titles on, the editor has a title field for new and existing notes and cards show the title. Optional date prefill in the chosen format with a preview. Nothing changes with titles off; works for end-to-end accounts | ✅ Done (`5cbc6d5`) |
+| F3 | Kinds of notes and the Todo tab | Notes have a kind (migration, API filter, patch). The Todo tab creates and edits checklists that are encrypted like any note. Search, tags and the archive span enabled kinds with labels. The setting (on by default) shows or hides the tab | ✅ Done (`327fc66`) |
+| F4 | Quick notes | The Quick notes tab with its own composer and list; moving a quick note to Home and back; the setting (on by default) | ✅ Done (`6ad6b3c`) |
+| F5 | Daily notes | Home's "Today" card creates the day's note on first write; one daily note per date is enforced; the setting (off by default) | ✅ Done (`6d5c8a4`) |
+| F6 | Exports with kinds and daily notes | Server and browser exports record kind and daily date, and place todo lists and quick notes in their folders (manifest version 2). The shared export vectors cover the new data | ✅ Done (`3a6a72a`) |
+| F7 | Import and full restore | Export archives in every format and layout, and single `.md`/`.txt`/`.json` files, restore into any account, including end-to-end ones, with progress and a summary. Re-importing skips existing notes. Round-trip tests: export → import into a fresh account → identical export | ✅ Done (`03df64e`) |
+| F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ✅ Done (`f66f0cb`) |
 
 ### Notes from the phases
 
