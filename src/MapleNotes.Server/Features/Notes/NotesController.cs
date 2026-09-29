@@ -1,3 +1,4 @@
+using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Auth;
 using Microsoft.AspNetCore.Mvc;
 
@@ -68,7 +69,7 @@ public sealed class NotesController(NoteService notes) : ControllerBase
     public async Task<ActionResult<NoteResponse>> Update(Guid id, UpdateNoteRequest request, CancellationToken cancellationToken) =>
         await notes.UpdateAsync(User.GetUserId(), id, request, cancellationToken) is { } note ? note : NotFound();
 
-    /// <summary>Pins, unpins, archives or restores a note.</summary>
+    /// <summary>Pins, unpins, archives, restores or moves a note.</summary>
     /// <param name="id">Note ID.</param>
     /// <param name="request">The changes.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -102,11 +103,14 @@ public sealed class NotesController(NoteService notes) : ControllerBase
 public sealed class TagsController(NoteService notes) : ControllerBase
 {
     /// <summary>Lists tags used by active notes, with note counts.</summary>
+    /// <param name="kinds">Count only notes of these kinds (repeat the parameter); default: every kind.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>Tags in alphabetical order.</returns>
     /// <response code="200">The tags.</response>
+    /// <response code="400">A kind is not valid.</response>
     [HttpGet]
     [ProducesResponseType<IReadOnlyList<TagResponse>>(StatusCodes.Status200OK)]
-    public Task<IReadOnlyList<TagResponse>> List(CancellationToken cancellationToken) =>
-        notes.ListTagsAsync(User.GetUserId(), cancellationToken);
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public Task<IReadOnlyList<TagResponse>> List([FromQuery(Name = "kind")] NoteKind[]? kinds, CancellationToken cancellationToken) =>
+        notes.ListTagsAsync(User.GetUserId(), kinds, cancellationToken);
 }

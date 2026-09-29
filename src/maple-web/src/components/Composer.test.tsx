@@ -36,6 +36,7 @@ function renderComposer(props: Parameters<typeof Composer>[0] = {}, preferences:
 
 const savedNote: Note = {
   id: "n1",
+  kind: "Note",
   content: "hello",
   isPinned: false,
   isArchived: false,

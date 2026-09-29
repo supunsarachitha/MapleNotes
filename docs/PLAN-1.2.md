@@ -55,7 +55,7 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 |---|---|---|---|
 | F1 | Preferences and the Settings layout | Preferences are stored per account, returned with the user and changed through the API (validated, tested). Settings shows the new layout: the collapsible Advanced section with Encryption, Recovery key, Sessions and Delete account, and "Backup & restore" | ✅ Done |
 | F2 | Note titles and dates in titles | With titles on, the editor has a title field for new and existing notes and cards show the title. Optional date prefill in the chosen format with a preview. Nothing changes with titles off; works for end-to-end accounts | ✅ Done |
-| F3 | Kinds of notes and the Todo tab | Notes have a kind (migration, API filter, patch). The Todo tab creates and edits checklists that are encrypted like any note. Search, tags and the archive span enabled kinds with labels. The setting (on by default) shows or hides the tab | ⏳ Not started |
+| F3 | Kinds of notes and the Todo tab | Notes have a kind (migration, API filter, patch). The Todo tab creates and edits checklists that are encrypted like any note. Search, tags and the archive span enabled kinds with labels. The setting (on by default) shows or hides the tab | ✅ Done |
 | F4 | Quick notes | The Quick notes tab with its own composer and list; moving a quick note to Home and back; the setting (on by default) | ⏳ Not started |
 | F5 | Daily notes | Home's "Today" card creates the day's note on first write; one daily note per date is enforced; the setting (off by default) | ⏳ Not started |
 | F6 | Exports with kinds and daily notes | Server and browser exports record kind and daily date, and place todo lists and quick notes in their folders (manifest version 2). The shared export vectors cover the new data | ⏳ Not started |
@@ -78,6 +78,22 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
   - editing a title, and turning titles off without changing any note;
   - a titled note on an end-to-end account, sent encrypted;
   - the existing 18-step suite, with its encryption steps now opening Advanced first.
+- **F3:** the timeline and each tab page over one kind through a second index (`UserId, Kind, CreatedAtUtc, Id`).
+  Existing notes become timeline notes, and a 1.0 database upgraded in the tests shows it. Tag counts follow the kinds
+  the user has turned on, so a tag's count always matches its view. Todo edits show at once and are saved one after
+  another, each carrying the whole list. Two findings:
+  - A unit test found that the list's menu took focus back when it closed, which ended a rename immediately.
+    Renaming now starts once the menu has closed.
+  - Adding `kind` to note responses changed the shared export vectors, which store API responses. They were
+    regenerated, and the browser export still matches every archive.
+
+  Verified in Chromium on the production build:
+  - creating, filling, ticking, editing, renaming, clearing, archiving and restoring a list;
+  - lists kept out of Home but found by search and tags;
+  - turning the feature off (tab, searches) and on;
+  - a list converted to end-to-end encryption and then edited as ciphertext;
+  - a 390 px phone layout;
+  - the 18-step suite.
 
 ## Out of scope for 1.2.0
 

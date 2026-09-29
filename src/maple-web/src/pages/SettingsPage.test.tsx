@@ -76,4 +76,16 @@ describe("Settings", () => {
     );
     expect(screen.getByRole("switch", { name: "Note titles" })).toHaveAttribute("aria-checked", "true");
   });
+
+  it("turns features off and on", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
+    const todo = screen.getByRole("switch", { name: "Todo lists" });
+
+    expect(todo).toHaveAttribute("aria-checked", "true"); // on by default
+    await userEvent.click(todo);
+
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, todoLists: false }));
+    expect(todo).toHaveAttribute("aria-checked", "false");
+  });
 });

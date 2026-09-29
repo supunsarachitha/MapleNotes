@@ -154,6 +154,7 @@ public sealed class DatabaseInitializerTests : IDisposable
         var schemes = await db.Notes.ToDictionaryAsync(n => n.UserId, n => n.Scheme, TestContext.Current.CancellationToken);
         Assert.Equal(ContentScheme.Server, schemes[users[0].Id]);
         Assert.Equal(ContentScheme.None, schemes[users[1].Id]);
+        Assert.All(await db.Notes.ToListAsync(TestContext.Current.CancellationToken), note => Assert.Equal(NoteKind.Note, note.Kind)); // added in 1.2
         Assert.Single(Directory.GetFiles(_options.BackupsDirectory)); // taken before migrating
     }
 

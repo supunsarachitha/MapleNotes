@@ -41,6 +41,25 @@ function useSavePreferences() {
     update.mutate(changes, { onError: () => toast.error("Your setting could not be saved. Please try again.") });
 }
 
+/** Which tabs and cards the app shows. Turning one off hides it but keeps its notes. */
+export function FeaturesSection() {
+  const preferences = usePreferences();
+  const save = useSavePreferences();
+
+  return (
+    <Section title="Features" description="Turning a feature off hides it; nothing is deleted.">
+      <div className="divide-y divide-stone-100 dark:divide-stone-800">
+        <PreferenceSwitch
+          label="Todo lists"
+          description="A Todo tab for checklists you create and tick off."
+          checked={preferences.todoLists}
+          onChange={(todoLists) => save({ todoLists })}
+        />
+      </div>
+    </Section>
+  );
+}
+
 /** Titles, and dates in titles and daily notes. */
 export function WritingSection() {
   const preferences = usePreferences();

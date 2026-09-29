@@ -1,3 +1,4 @@
+using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Attachments;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,6 +25,13 @@ public sealed record NoteListQuery
 {
     /// <summary>Which notes to list. Default: <see cref="NoteState.Feed"/>.</summary>
     public NoteState State { get; init; } = NoteState.Feed;
+
+    /// <summary>
+    /// Which kinds of notes to list (repeat the parameter for several). Default: <see cref="NoteKind.Note"/>, the
+    /// timeline.
+    /// </summary>
+    [FromQuery(Name = "kind")]
+    public NoteKind[]? Kinds { get; init; }
 
     /// <summary>The <c>nextCursor</c> of the previous page; omit for the first page.</summary>
     public string? Cursor { get; init; }
@@ -62,6 +70,7 @@ public sealed record NoteListQuery
 /// <param name="Tags">Tags found in the text; empty for an end-to-end encrypted note (the browser reads them from the text).</param>
 /// <param name="Attachments">Attached files, oldest first.</param>
 /// <param name="EncryptedContent">The envelope of an end-to-end encrypted note (base64), for the browser to decrypt.</param>
+/// <param name="Kind">Where the note belongs: the timeline, the Todo tab or the Quick notes tab.</param>
 public sealed record NoteResponse(
     Guid Id,
     string? Content,
@@ -71,7 +80,8 @@ public sealed record NoteResponse(
     DateTime UpdatedAtUtc,
     IReadOnlyList<string> Tags,
     IReadOnlyList<AttachmentResponse> Attachments,
-    byte[]? EncryptedContent = null);
+    byte[]? EncryptedContent = null,
+    NoteKind Kind = NoteKind.Note);
 
 /// <summary>One page of notes, newest first.</summary>
 /// <param name="Items">The notes.</param>
@@ -98,8 +108,14 @@ public sealed record EncryptedNote(byte[] Content, IReadOnlyList<EncryptedTag>? 
 /// <param name="IsPinned">Pin the note above the feed.</param>
 /// <param name="Id">For an end-to-end note: the ID the browser chose and bound into the ciphertext (UUID version 7).</param>
 /// <param name="Encrypted">For an end-to-end note: the encrypted text and tags.</param>
+/// <param name="Kind">A timeline note (the default), a todo list or a quick note.</param>
 public sealed record CreateNoteRequest(
-    string? Content = null, IReadOnlyList<Guid>? AttachmentIds = null, bool IsPinned = false, Guid? Id = null, EncryptedNote? Encrypted = null);
+    string? Content = null,
+    IReadOnlyList<Guid>? AttachmentIds = null,
+    bool IsPinned = false,
+    Guid? Id = null,
+    EncryptedNote? Encrypted = null,
+    NoteKind Kind = NoteKind.Note);
 
 /// <summary>Request to replace a note's text (and optionally its attachments).</summary>
 /// <param name="Content">New Markdown text; accounts in end-to-end mode send <paramref name="Encrypted"/> instead.</param>
@@ -109,12 +125,13 @@ public sealed record CreateNoteRequest(
 /// <param name="Encrypted">For an end-to-end account: the new text and tags, encrypted by the browser.</param>
 public sealed record UpdateNoteRequest(string? Content = null, IReadOnlyList<Guid>? AttachmentIds = null, EncryptedNote? Encrypted = null);
 
-/// <summary>Request to pin, unpin, archive or restore a note. Omitted fields are unchanged.</summary>
+/// <summary>Request to pin, unpin, archive, restore or move a note. Omitted fields are unchanged.</summary>
 /// <param name="IsPinned">Pin or unpin.</param>
 /// <param name="IsArchived">Archive (soft-delete) or restore.</param>
-public sealed record PatchNoteRequest(bool? IsPinned = null, bool? IsArchived = null);
+/// <param name="Kind">Move the note, for example a quick note to the timeline.</param>
+public sealed record PatchNoteRequest(bool? IsPinned = null, bool? IsArchived = null, NoteKind? Kind = null);
 
-/// <summary>A tag and how many active notes use it.</summary>
+/// <summary>A tag and how many active notes (of the requested kinds) use it.</summary>
 /// <param name="Name">Tag name without <c>#</c>; null for an end-to-end tag.</param>
 /// <param name="NoteCount">Number of active notes with the tag.</param>
 /// <param name="Token">The blind token of an end-to-end tag; pass it as <c>tagToken</c> to filter notes.</param>

@@ -95,9 +95,13 @@ export interface AttachmentWire extends Omit<Attachment, "fileName" | "contentTy
   encryptedMetadata?: string | null;
 }
 
+/** Where a note belongs: the Home timeline, the Todo tab or the Quick notes tab. */
+export type NoteKind = "Note" | "Todo" | "Quick";
+
 /** A note as components use it: plain text, decrypted if it was end-to-end encrypted. */
 export interface Note {
   id: string;
+  kind: NoteKind;
   content: string;
   isPinned: boolean;
   isArchived: boolean;

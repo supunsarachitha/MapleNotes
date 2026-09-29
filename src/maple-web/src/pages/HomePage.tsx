@@ -1,17 +1,9 @@
 import { Hash, Search, X } from "lucide-react";
-import type { ReactNode } from "react";
 import { Composer } from "../components/Composer";
 import { NoteList } from "../components/NoteList";
+import { EmptyState } from "../components/ui";
+import { useEnabledKinds } from "../lib/kinds";
 import { Link, useLocation } from "../lib/router";
-
-function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-stone-300 px-6 py-12 text-center dark:border-stone-700">
-      <p className="font-medium">{title}</p>
-      {children && <p className="max-w-sm text-sm text-stone-600 dark:text-stone-300">{children}</p>}
-    </div>
-  );
-}
 
 function FilterHeader({ icon: Icon, label }: { icon: typeof Hash; label: string }) {
   return (
@@ -31,6 +23,7 @@ function FilterHeader({ icon: Icon, label }: { icon: typeof Hash; label: string 
 /** Home: the composer, pinned notes and the feed; or, with ?tag= or ?q=, the matching notes. */
 export function HomePage() {
   const { params } = useLocation();
+  const kinds = useEnabledKinds();
   const tag = params.get("tag") ?? undefined;
   const q = params.get("q") ?? undefined;
 
@@ -43,6 +36,7 @@ export function HomePage() {
           state="active"
           tag={tag}
           q={q}
+          kinds={kinds}
           empty={<EmptyState title="No matching notes">Archived notes are not included in searches.</EmptyState>}
         />
       </>
@@ -72,15 +66,16 @@ export function HomePage() {
   );
 }
 
-/** Archived notes, with restore and delete available from each note's menu. */
+/** Archived notes (and todo lists and quick notes), with restore and delete available from each one's menu. */
 export function ArchivePage() {
+  const kinds = useEnabledKinds();
   return (
     <>
       <h1 className="mb-1 text-xl font-semibold">Archive</h1>
       <p className="mb-4 text-sm text-stone-600 dark:text-stone-300">
         Archived notes are hidden from your feed and searches. Restore them any time.
       </p>
-      <NoteList state="archived" empty={<EmptyState title="The archive is empty" />} />
+      <NoteList state="archived" kinds={kinds} empty={<EmptyState title="The archive is empty" />} />
     </>
   );
 }

@@ -10,6 +10,7 @@ import type {
   EncryptionStatus,
   KdfParamsWire,
   Note,
+  NoteKind,
   NotePage,
   NotePageWire,
   NoteState,
@@ -122,13 +123,14 @@ function query(params: Record<string, string | number | string[] | undefined>): 
 const SEARCH_BATCH = 100;
 const SEARCH_SCAN_LIMIT = 5_000;
 
-async function listTags(): Promise<Tag[]> {
-  return decodeTags(await request<TagWire[]>("GET", "/api/v1/tags"));
+async function listTags(kinds?: NoteKind[]): Promise<Tag[]> {
+  return decodeTags(await request<TagWire[]>("GET", `/api/v1/tags${query({ kind: kinds })}`));
 }
 
 async function listNotes(params: NoteListParams): Promise<NotePage> {
   if (params.tag && needsTagList()) await listTags(); // e.g. a link straight to ?tag=work: find work/… first
-  const { tag, ...rest } = params;
+  const { tag, kinds, ...fields } = params;
+  const rest = { ...fields, kind: kinds };
   const filter = tag ? await tagFilterParams(tag) : {};
   if (!params.q || !readsEndToEnd()) {
     const page = await request<NotePageWire>("GET", `/api/v1/notes${query({ ...rest, ...filter })}`);
@@ -141,7 +143,7 @@ async function listNotes(params: NoteListParams): Promise<NotePage> {
   for (let scanned = 0; ; ) {
     const page = await request<NotePageWire>(
       "GET",
-      `/api/v1/notes${query({ state: params.state, cursor, limit: SEARCH_BATCH, ...filter })}`,
+      `/api/v1/notes${query({ state: params.state, kind: kinds, cursor, limit: SEARCH_BATCH, ...filter })}`,
     );
     const notes = await Promise.all(page.items.map(decodeNote));
     matches.push(...notes.filter((note) => matchesSearch(note, params.q!)));
@@ -154,6 +156,8 @@ async function listNotes(params: NoteListParams): Promise<NotePage> {
 
 export interface NoteListParams {
   state: NoteState;
+  /** Which kinds of notes; the server's default is the timeline ("Note"). */
+  kinds?: NoteKind[];
   cursor?: string;
   limit?: number;
   tag?: string;
@@ -197,9 +201,10 @@ export const api = {
   /** Notes, decrypted; searches and tag filters also cover end-to-end notes (see noteCrypto.ts). */
   listNotes,
 
-  async createNote(content: string, attachmentIds: string[], isPinned = false): Promise<Note> {
+  async createNote(content: string, attachmentIds: string[], options: { isPinned?: boolean; kind?: NoteKind } = {}): Promise<Note> {
     const fields = await encodeNewNote(content);
-    return decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned }));
+    const { isPinned = false, kind = "Note" } = options;
+    return decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind }));
   },
 
   async updateNote(id: string, content: string, attachmentIds: string[]): Promise<Note> {
@@ -207,7 +212,7 @@ export const api = {
     return decodeNote(await request<NoteWire>("PUT", `/api/v1/notes/${id}`, { ...fields, attachmentIds }));
   },
 
-  async patchNote(id: string, changes: { isPinned?: boolean; isArchived?: boolean }): Promise<Note> {
+  async patchNote(id: string, changes: { isPinned?: boolean; isArchived?: boolean; kind?: NoteKind }): Promise<Note> {
     return decodeNote(await request<NoteWire>("PATCH", `/api/v1/notes/${id}`, changes));
   },
 

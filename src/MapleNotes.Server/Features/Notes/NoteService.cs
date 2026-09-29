@@ -69,11 +69,12 @@ public sealed class NoteService(
         }
 
         var filter = new TagFilter(tag, tagTokens);
+        var kinds = ValidateKinds(query.Kinds) ?? [NoteKind.Note];
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
 
         if (search is null)
         {
-            var page = await LoadBatchAsync(userId, query.State, filter, cursor, limit + 1, cancellationToken);
+            var page = await LoadBatchAsync(userId, query.State, kinds, filter, cursor, limit + 1, cancellationToken);
             var items = new List<NoteResponse>(Math.Min(page.Count, limit));
             foreach (var note in page.Take(limit))
             {
@@ -88,7 +89,7 @@ public sealed class NoteService(
         var scanned = 0;
         while (true)
         {
-            var batch = await LoadBatchAsync(userId, query.State, filter, cursor, SearchBatchSize, cancellationToken);
+            var batch = await LoadBatchAsync(userId, query.State, kinds, filter, cursor, SearchBatchSize, cancellationToken);
             foreach (var note in batch)
             {
                 scanned++;
@@ -139,6 +140,7 @@ public sealed class NoteService(
     /// end-to-end account or the reverse), or the chosen ID is taken.</exception>
     public async Task<NoteResponse> CreateAsync(Guid userId, CreateNoteRequest request, CancellationToken cancellationToken)
     {
+        ValidateKinds([request.Kind]);
         var attachmentIds = request.AttachmentIds ?? [];
         var now = time.GetUtcNow().UtcDateTime;
         Note note;
@@ -155,7 +157,10 @@ public sealed class NoteService(
                 throw new ApiProblemException(StatusCodes.Status409Conflict, "A note with this ID already exists.");
             }
 
-            note = new Note { Id = request.Id!.Value, UserId = userId, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now };
+            note = new Note
+            {
+                Id = request.Id!.Value, UserId = userId, Kind = request.Kind, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now,
+            };
             SetEncryptedContent(note, encrypted);
             await AttachAsync(note, attachmentIds, cancellationToken);
             await SetEncryptedTagsAsync(note, encrypted.Tags, cancellationToken);
@@ -168,7 +173,7 @@ public sealed class NoteService(
             }
 
             var content = ValidateContent(request.Content, attachmentIds.Count);
-            note = new Note { UserId = userId, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now };
+            note = new Note { UserId = userId, Kind = request.Kind, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now };
             await SetContentAsync(note, content, cancellationToken);
             await AttachAsync(note, attachmentIds, cancellationToken);
             await SetTagsAsync(note, content, cancellationToken);
@@ -241,14 +246,20 @@ public sealed class NoteService(
         return await ToResponseAsync(note, cancellationToken);
     }
 
-    /// <summary>Pins, unpins, archives or restores a note.</summary>
+    /// <summary>Pins, unpins, archives, restores or moves a note.</summary>
     /// <param name="userId">The owner.</param>
     /// <param name="noteId">The note.</param>
     /// <param name="request">The changes.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The updated note, or null when it does not exist or belongs to someone else.</returns>
+    /// <exception cref="ApiValidationException">The kind is not valid.</exception>
     public async Task<NoteResponse?> PatchAsync(Guid userId, Guid noteId, PatchNoteRequest request, CancellationToken cancellationToken)
     {
+        if (request.Kind is { } kind)
+        {
+            ValidateKinds([kind]);
+        }
+
         var note = await WithDetails(db.Notes).SingleOrDefaultAsync(n => n.Id == noteId && n.UserId == userId, cancellationToken);
         if (note is null)
         {
@@ -264,6 +275,8 @@ public sealed class NoteService(
         {
             note.ArchivedAtUtc = archived ? note.ArchivedAtUtc ?? time.GetUtcNow().UtcDateTime : null;
         }
+
+        note.Kind = request.Kind ?? note.Kind;
 
         await db.SaveChangesAsync(cancellationToken);
         return await ToResponseAsync(note, cancellationToken);
@@ -298,10 +311,18 @@ public sealed class NoteService(
 
     /// <summary>Lists the user's tags with the number of active notes using each.</summary>
     /// <param name="userId">The owner.</param>
+    /// <param name="kinds">Count only notes of these kinds; null or empty for every kind.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>Named tags in alphabetical order, then end-to-end tags (tokens and encrypted names).</returns>
-    public async Task<IReadOnlyList<TagResponse>> ListTagsAsync(Guid userId, CancellationToken cancellationToken)
+    /// <exception cref="ApiValidationException">A kind is not valid.</exception>
+    public async Task<IReadOnlyList<TagResponse>> ListTagsAsync(Guid userId, NoteKind[]? kinds, CancellationToken cancellationToken)
     {
+        var counted = db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null);
+        if (ValidateKinds(kinds) is { } wanted)
+        {
+            counted = counted.Where(n => wanted.Contains(n.Kind));
+        }
+
         var rows = await db.Tags
             .Where(t => t.UserId == userId)
             .Select(t => new
@@ -309,7 +330,7 @@ public sealed class NoteService(
                 t.Name,
                 t.Token,
                 t.EncryptedName,
-                Count = db.Notes.Count(n => n.UserId == userId && n.ArchivedAtUtc == null && n.Tags.Any(nt => nt.Id == t.Id)),
+                Count = counted.Count(n => n.Tags.Any(nt => nt.Id == t.Id)),
             })
             .Where(row => row.Count > 0)
             .OrderBy(row => row.Name == null)
@@ -338,7 +359,8 @@ public sealed class NoteService(
             note.UpdatedAtUtc,
             note.Tags.Where(t => t.Name is not null).Select(t => t.Name!).Order(StringComparer.Ordinal).ToList(),
             note.Attachments.OrderBy(a => a.CreatedAtUtc).Select(AttachmentResponse.From).ToList(),
-            endToEnd ? note.Content : null);
+            endToEnd ? note.Content : null,
+            note.Kind);
     }
 
     /// <summary>Returns a note's text, decrypting it when necessary.</summary>
@@ -397,9 +419,19 @@ public sealed class NoteService(
         notes.Include(n => n.Attachments).Include(n => n.Tags).AsSplitQuery();
 
     private Task<List<Note>> LoadBatchAsync(
-        Guid userId, NoteState state, TagFilter filter, NoteCursor? cursor, int count, CancellationToken cancellationToken)
+        Guid userId, NoteState state, NoteKind[] kinds, TagFilter filter, NoteCursor? cursor, int count, CancellationToken cancellationToken)
     {
         var notes = db.Notes.AsNoTracking().Where(n => n.UserId == userId);
+        if (kinds.Length == 1)
+        {
+            var kind = kinds[0];
+            notes = notes.Where(n => n.Kind == kind);
+        }
+        else if (kinds.Length < Enum.GetValues<NoteKind>().Length)
+        {
+            notes = notes.Where(n => kinds.Contains(n.Kind));
+        }
+
         notes = state switch
         {
             NoteState.Pinned => notes.Where(n => n.ArchivedAtUtc == null && n.IsPinned),
@@ -428,6 +460,25 @@ public sealed class NoteService(
             .ThenByDescending(n => n.Id)
             .Take(count)
             .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>Checks requested kinds.</summary>
+    /// <param name="kinds">The kinds, possibly null or empty.</param>
+    /// <returns>The distinct kinds, or null when none were given.</returns>
+    /// <exception cref="ApiValidationException">A value is not a <see cref="NoteKind"/>.</exception>
+    private static NoteKind[]? ValidateKinds(NoteKind[]? kinds)
+    {
+        if (kinds is null || kinds.Length == 0)
+        {
+            return null;
+        }
+
+        if (!kinds.All(Enum.IsDefined))
+        {
+            throw new ApiValidationException("kind", "The kind must be Note, Todo or Quick.");
+        }
+
+        return kinds.Distinct().ToArray();
     }
 
     private static bool Matches(NoteResponse note, string search) =>

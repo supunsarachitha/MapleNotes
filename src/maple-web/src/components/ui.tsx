@@ -184,6 +184,16 @@ export function Section({ title, description, children }: { title: string; descr
   );
 }
 
+/** A friendly placeholder for an empty list. */
+export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-stone-300 px-6 py-12 text-center dark:border-stone-700">
+      <p className="font-medium">{title}</p>
+      {children && <p className="max-w-sm text-sm text-stone-600 dark:text-stone-300">{children}</p>}
+    </div>
+  );
+}
+
 export function ErrorMessage({ children }: { children: ReactNode }) {
   return (
     <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">

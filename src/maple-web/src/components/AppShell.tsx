@@ -1,7 +1,9 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Archive, Hash, Home, LogOut, Menu, Search, Settings, X } from "lucide-react";
+import { Archive, Hash, Home, ListTodo, LogOut, Menu, Search, Settings, X } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
+import { useEnabledKinds } from "../lib/kinds";
+import { usePreferences } from "../lib/preferences";
 import { useSignedOut, useTags } from "../lib/queries";
 import { Link, navigate, useLocation } from "../lib/router";
 import type { User } from "../lib/types";
@@ -62,7 +64,8 @@ function SearchBox({ onNavigate }: { onNavigate?: () => void }) {
 
 function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) {
   const { path, params } = useLocation();
-  const tags = useTags();
+  const preferences = usePreferences();
+  const tags = useTags(useEnabledKinds());
   const signedOut = useSignedOut();
   const toast = useToast();
   const activeTag = params.get("tag");
@@ -90,6 +93,11 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
         <NavLink href="/" icon={Home} active={path === "/" && !activeTag && !params.get("q")} onNavigate={onNavigate}>
           Home
         </NavLink>
+        {preferences.todoLists && (
+          <NavLink href="/todo" icon={ListTodo} active={path === "/todo"} onNavigate={onNavigate}>
+            Todo
+          </NavLink>
+        )}
         <NavLink href="/archive" icon={Archive} active={path === "/archive"} onNavigate={onNavigate}>
           Archive
         </NavLink>

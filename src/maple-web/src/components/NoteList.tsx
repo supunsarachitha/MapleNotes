@@ -1,6 +1,6 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, type ReactNode } from "react";
 import { useNotes } from "../lib/queries";
-import type { NoteState } from "../lib/types";
+import type { Note, NoteKind, NoteState } from "../lib/types";
 import { NoteCard } from "./NoteCard";
 import { Button, Spinner } from "./ui";
 
@@ -12,6 +12,8 @@ export function NoteList({
   state,
   tag,
   q,
+  kinds,
+  renderNote = (note) => <NoteCard note={note} />,
   empty,
   header,
   showEndMarker = true,
@@ -19,12 +21,16 @@ export function NoteList({
   state: NoteState;
   tag?: string;
   q?: string;
+  /** Which kinds of notes; default: the timeline. */
+  kinds?: NoteKind[];
+  /** How each note is shown; default: a note card. */
+  renderNote?: (note: Note) => ReactNode;
   empty?: ReactNode;
   header?: ReactNode;
   /** Show "You're all caught up" after a long list has been fully loaded. */
   showEndMarker?: boolean;
 }) {
-  const query = useNotes(state, tag, q);
+  const query = useNotes(state, tag, q, kinds);
   const sentinel = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
 
@@ -71,7 +77,7 @@ export function NoteList({
     <section className="flex flex-col gap-3">
       {header}
       {notes.map((note) => (
-        <NoteCard key={note.id} note={note} />
+        <Fragment key={note.id}>{renderNote(note)}</Fragment>
       ))}
       {(hasNextPage || isFetchingNextPage) && (
         <div ref={sentinel} className="flex min-h-12 items-center justify-center py-4">

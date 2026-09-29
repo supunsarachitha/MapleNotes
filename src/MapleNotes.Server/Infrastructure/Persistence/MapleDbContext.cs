@@ -78,8 +78,11 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             note.ToTable("Notes");
             note.HasOne<User>().WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
 
-            // Serves the feed's keyset pagination: WHERE UserId = @u ORDER BY CreatedAtUtc DESC, Id DESC.
+            // Serve keyset pagination (ORDER BY CreatedAtUtc DESC, Id DESC) over all of a user's notes (exports,
+            // searches) and over one kind (the timeline and the Todo and Quick notes tabs).
             note.HasIndex(n => new { n.UserId, n.CreatedAtUtc, n.Id });
+            note.HasIndex(n => new { n.UserId, n.Kind, n.CreatedAtUtc, n.Id });
+            note.Property(n => n.Kind).HasConversion<string>().HasMaxLength(16);
             note.Property(n => n.Revision).IsConcurrencyToken();
 
             note.HasMany(n => n.Attachments).WithOne().HasForeignKey(a => a.NoteId).OnDelete(DeleteBehavior.Cascade);

@@ -1,13 +1,15 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import { e2ee } from "./e2ee";
-import type { AuthStatus, NoteState } from "./types";
+import type { AuthStatus, NoteKind, NoteState } from "./types";
 
 export const queryKeys = {
   status: ["auth", "status"] as const,
   notes: ["notes"] as const,
-  noteList: (state: NoteState, tag?: string, q?: string) => ["notes", state, tag ?? "", q ?? ""] as const,
+  noteList: (state: NoteState, tag?: string, q?: string, kinds: NoteKind[] = ["Note"]) =>
+    ["notes", state, tag ?? "", q ?? "", kinds.join(",")] as const,
   tags: ["tags"] as const,
+  tagList: (kinds: NoteKind[]) => ["tags", kinds.join(",")] as const,
   adminSettings: ["admin", "settings"] as const,
   adminUsers: ["admin", "users"] as const,
   encryption: ["account", "encryption"] as const,
@@ -33,18 +35,19 @@ export function useSignedOut() {
   };
 }
 
-/** One infinitely scrolling list of notes (cursor pagination). */
-export function useNotes(state: NoteState, tag?: string, q?: string) {
+/** One infinitely scrolling list of notes of the given kinds (cursor pagination). */
+export function useNotes(state: NoteState, tag?: string, q?: string, kinds: NoteKind[] = ["Note"]) {
   return useInfiniteQuery({
-    queryKey: queryKeys.noteList(state, tag, q),
-    queryFn: ({ pageParam }) => api.listNotes({ state, tag, q, cursor: pageParam, limit: PAGE_SIZE }),
+    queryKey: queryKeys.noteList(state, tag, q, kinds),
+    queryFn: ({ pageParam }) => api.listNotes({ state, tag, q, kinds, cursor: pageParam, limit: PAGE_SIZE }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
 }
 
-export function useTags() {
-  return useQuery({ queryKey: queryKeys.tags, queryFn: api.listTags, staleTime: 30_000 });
+/** Tags with how many active notes of these kinds use them. */
+export function useTags(kinds: NoteKind[]) {
+  return useQuery({ queryKey: queryKeys.tagList(kinds), queryFn: () => api.listTags(kinds), staleTime: 30_000 });
 }
 
 /** Refreshes every note list and the tag list after a change. */
@@ -60,7 +63,8 @@ export function useInvalidateNotes() {
 export function usePatchNote() {
   const invalidate = useInvalidateNotes();
   return useMutation({
-    mutationFn: ({ id, ...changes }: { id: string; isPinned?: boolean; isArchived?: boolean }) => api.patchNote(id, changes),
+    mutationFn: ({ id, ...changes }: { id: string; isPinned?: boolean; isArchived?: boolean; kind?: NoteKind }) =>
+      api.patchNote(id, changes),
     onSuccess: invalidate,
   });
 }

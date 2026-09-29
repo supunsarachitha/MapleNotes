@@ -22,7 +22,8 @@
             "encryptedMetadata": null
           }
         ],
-        "encryptedContent": null
+        "encryptedContent": null,
+        "kind": "Note"
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000011",
@@ -76,7 +77,8 @@
             "encryptedMetadata": null
           }
         ],
-        "encryptedContent": null
+        "encryptedContent": null,
+        "kind": "Note"
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000006",
@@ -87,7 +89,8 @@
         "updatedAtUtc": "2025-04-02T08:00:00Z",
         "tags": [],
         "attachments": [],
-        "encryptedContent": null
+        "encryptedContent": null,
+        "kind": "Note"
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000005",
@@ -101,7 +104,8 @@
           "tags"
         ],
         "attachments": [],
-        "encryptedContent": null
+        "encryptedContent": null,
+        "kind": "Note"
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000004",
@@ -112,7 +116,8 @@
         "updatedAtUtc": "2025-03-30T01:59:50Z",
         "tags": [],
         "attachments": [],
-        "encryptedContent": null
+        "encryptedContent": null,
+        "kind": "Note"
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000003",
@@ -123,7 +128,8 @@
         "updatedAtUtc": "2025-03-30T01:59:30Z",
         "tags": [],
         "attachments": [],
-        "encryptedContent": null
+        "encryptedContent": null,
+        "kind": "Note"
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000002",
@@ -136,7 +142,8 @@
           "groceries"
         ],
         "attachments": [],
-        "encryptedContent": null
+        "encryptedContent": null,
+        "kind": "Note"
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000001",
@@ -149,7 +156,8 @@
           "work/meetings"
         ],
         "attachments": [],
-        "encryptedContent": null
+        "encryptedContent": null,
+        "kind": "Note"
       }
     ],
     "nextCursor": null
@@ -167,7 +175,8 @@
           "archive-me"
         ],
         "attachments": [],
-        "encryptedContent": null
+        "encryptedContent": null,
+        "kind": "Note"
       }
     ],
     "nextCursor": null

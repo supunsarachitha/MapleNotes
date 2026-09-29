@@ -18,6 +18,9 @@ public sealed class Note : IRevisioned
     /// <summary>How <see cref="Content"/> is protected.</summary>
     public ContentScheme Scheme { get; set; }
 
+    /// <summary>Where the note belongs: the timeline, the Todo tab or the Quick notes tab.</summary>
+    public NoteKind Kind { get; set; }
+
     /// <summary>Pinned notes are listed above the feed.</summary>
     public bool IsPinned { get; set; }
 

@@ -13,7 +13,7 @@ import { Markdown } from "./Markdown";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
 
-function MenuItem({
+export function MenuItem({
   icon: Icon,
   children,
   onSelect,
@@ -69,6 +69,11 @@ export function NoteCard({ note }: { note: Note }) {
           {formatRelative(note.createdAtUtc)}
         </time>
         {edited && <span title={`Edited ${formatAbsolute(note.updatedAtUtc)}`}>· edited</span>}
+        {note.kind !== "Note" && (
+          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+            {note.kind === "Todo" ? "Todo list" : "Quick note"}
+          </span>
+        )}
         {note.isPinned && !note.isArchived && (
           <span className="inline-flex items-center gap-1 text-maple-600 dark:text-maple-400">
             <Pin className="size-3.5" aria-hidden="true" /> Pinned

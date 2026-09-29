@@ -12,6 +12,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { ArchivePage, HomePage } from "./pages/HomePage";
 import { RecoverPage } from "./pages/RecoverPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TodoPage } from "./pages/TodoPage";
 import { UnlockPage } from "./pages/UnlockPage";
 
 function FullScreen({ children }: { children: ReactNode }) {
@@ -98,7 +99,15 @@ export function App() {
 
   return (
     <AppShell user={user}>
-      {path === "/archive" ? <ArchivePage /> : path === "/settings" ? <SettingsPage user={user} /> : <HomePage />}
+      {path === "/archive" ? (
+        <ArchivePage />
+      ) : path === "/settings" ? (
+        <SettingsPage user={user} />
+      ) : path === "/todo" ? (
+        <TodoPage />
+      ) : (
+        <HomePage />
+      )}
     </AppShell>
   );
 }
