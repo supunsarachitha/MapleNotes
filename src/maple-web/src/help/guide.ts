@@ -141,6 +141,13 @@ archive state and files, and notes you already have are skipped, so restoring tw
 single Markdown, text or JSON files as notes.`,
   },
   {
+    id: "https",
+    title: "Opening Maple Notes from other devices",
+    body: `Maple Notes encrypts your password and notes in your browser, and browsers only allow that on secure (HTTPS)
+pages, or on the server itself as \`localhost\`. If you open it at an address like \`http://192.168.1.20:8088\`, it
+explains this instead of signing you in. Ask whoever runs your server for its HTTPS address.`,
+  },
+  {
     id: "storage",
     title: "How much you store",
     body: `**Account** in [Settings](/settings) shows how much space your notes and files take, with how many of each.

@@ -1,6 +1,7 @@
 import { fromBase64, randomBytes, toBase64 } from "../crypto/encoding";
 import { DEFAULT_KDF, deriveAccountKeys, validateKdf, type AccountKeys, type KdfParams } from "../crypto/kdf";
 import { api, ApiError } from "./api";
+import { hasWebCrypto } from "./secureContext";
 import type { CredentialProof, KdfParamsWire } from "./types";
 
 // Password → keys (docs/e2ee-spec.md §1). Shared by sign-in (auth.ts) and end-to-end key management (e2ee.ts).
@@ -30,11 +31,16 @@ async function derive(password: string, kdf: KdfParams): Promise<AccountKeys> {
     // Weak parameters would make the key easier to crack; refuse them whoever sent them.
     throw new ApiError(0, { title: "The server asked for unsafe password settings, so nothing was sent." });
   }
+  if (!hasWebCrypto()) {
+    throw new ApiError(0, {
+      title: "This page is not on a secure connection (HTTPS), so your browser cannot encrypt your password. Open Maple Notes over HTTPS.",
+    });
+  }
   try {
     return await deriveAccountKeys(password, kdf);
   } catch {
     throw new ApiError(0, {
-      title: "Your browser could not prepare your password (it needs about 64 MB of memory). Close other tabs and try again.",
+      title: "Your browser could not prepare your password. Try again; if it keeps failing, close other tabs (this needs about 64 MB of memory).",
     });
   }
 }

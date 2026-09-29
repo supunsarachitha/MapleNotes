@@ -7,6 +7,7 @@ import { useConversionRunner } from "./lib/conversion";
 import { e2ee, useEndToEndKeys } from "./lib/e2ee";
 import { registerMediaWorker } from "./lib/mediaWorker";
 import { setContentSession } from "./lib/noteCrypto";
+import { hasWebCrypto } from "./lib/secureContext";
 import { useAuthStatus } from "./lib/queries";
 import { useLocation } from "./lib/router";
 import { AuthPage } from "./pages/AuthPage";
@@ -25,6 +26,30 @@ function FullScreen({ children }: { children: ReactNode }) {
       <Logo className="size-12" />
       {children}
     </main>
+  );
+}
+
+/** Shown instead of the app on a plain-HTTP page, where the browser offers no Web Crypto (see lib/secureContext.ts). */
+function InsecureConnection() {
+  const port = window.location.port ? `:${window.location.port}` : "";
+  return (
+    <div className="flex max-w-md flex-col gap-3 text-left">
+      <h1 className="text-center text-xl font-semibold">Maple Notes needs a secure connection</h1>
+      <p className="text-sm text-stone-600 dark:text-stone-300">
+        This page was opened over plain HTTP at <strong>{window.location.host}</strong>. Maple Notes encrypts your password
+        and notes in your browser, and browsers only allow that on HTTPS pages, or on the server itself as{" "}
+        <code>localhost</code>. So signing in cannot work at this address.
+      </p>
+      <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600 dark:text-stone-300">
+        <li>
+          Open Maple Notes through <strong>HTTPS</strong>, for example behind a reverse proxy such as Caddy, Nginx Proxy
+          Manager or Traefik (the README shows a complete setup).
+        </li>
+        <li>
+          Or, on the computer running it, open <code>http://localhost{port}</code>.
+        </li>
+      </ul>
+    </div>
   );
 }
 
@@ -55,6 +80,14 @@ export function App() {
   useEffect(() => {
     if (needsMediaWorker) registerMediaWorker();
   }, [needsMediaWorker]);
+
+  if (!hasWebCrypto()) {
+    return (
+      <FullScreen>
+        <InsecureConnection />
+      </FullScreen>
+    );
+  }
 
   if (status.isPending) {
     return (

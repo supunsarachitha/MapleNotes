@@ -214,7 +214,10 @@ amd64 and arm64), so nothing is built on your server. It creates the master key 
 #   (amd64 and arm64). Nothing is built on your server.
 # - On first start, a one-off helper creates the master key in its own volume (maple-notes-key), separate from the
 #   notes (maple-notes-data). Later starts reuse it.
-# - Open http://<your server>:8088 and create the first account; it becomes the administrator.
+# - Open http://localhost:8088 on the server itself and create the first account; it becomes the administrator.
+#   From other computers, Maple Notes must be opened over HTTPS: browsers only allow the encryption it does in the page
+#   on HTTPS or localhost, so http://<server-ip>:8088 cannot sign anyone in. Put it behind an HTTPS reverse proxy, or
+#   use portainer-stack-https.yml (HTTPS by IP address, no domain needed) instead of this stack.
 #
 # BACK UP THE MASTER KEY right after the first start (it encrypts everything; without it the data is lost):
 #   docker run --rm -v maple-notes-key:/key:ro alpine cat /key/master.key
@@ -271,6 +274,110 @@ volumes:
 > **Right after the first start, copy the master key somewhere safe** (the command is at the top of the stack) and
 > keep it apart from backups of `maple-notes-data`. The key volume sits on the same server as the data, like a `.env`
 > file would, so it protects copies of the data volume but not a stolen server disk.
+
+> [!NOTE]
+> **Opening Maple Notes from other computers needs HTTPS.** Maple Notes encrypts your password and notes in the browser,
+> and browsers only allow that on HTTPS pages or on `localhost`. At `http://<server-ip>:8088` the app explains this
+> instead of signing in. Use a reverse proxy with HTTPS ([below](#reverse-proxy-and-https)), or, without a domain name,
+> the stack that follows.
+
+**HTTPS by IP address, without a domain name.** This stack adds [Caddy](https://caddyserver.com) in front of Maple
+Notes, serving it at `https://<server-ip>:8443` with a certificate from Caddy's own local authority, made for whatever
+address you open it by. The browser warns once that it does not know that authority; accept it (or install the
+authority's root certificate on your devices), and everything works. It is also in the repository as
+[`deploy/portainer-stack-https.yml`](deploy/portainer-stack-https.yml).
+
+```yaml
+# Maple Notes over HTTPS without a domain name: a stack to paste into Portainer (Stacks > Add stack > Web editor)
+# and deploy as is, for a home or office network where Maple Notes is opened by the server's IP address.
+#
+# Browsers only allow the encryption Maple Notes does in the page on HTTPS (or localhost), so plain
+# http://<server-ip> cannot sign anyone in. Here Caddy serves Maple Notes over HTTPS on port 8443 with a certificate
+# from its own local authority, made for whatever address you open it by. Open https://<server-ip>:8443 and accept
+# the browser's warning once (the authority is this server's own, not a public one). With a real domain name, use a
+# normal reverse proxy with a public certificate instead (see the README).
+#
+# BACK UP THE MASTER KEY right after the first start (it encrypts everything; without it the data is lost):
+#   docker run --rm -v maple-notes-key:/key:ro alpine cat /key/master.key
+# Keep that copy somewhere else (a password manager), not with backups of maple-notes-data.
+
+services:
+  maple-notes-key:
+    image: alpine:3
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - test -s /key/master.key || (umask 022 && head -c 32 /dev/urandom | base64 > /key/master.key.new && mv /key/master.key.new /key/master.key)
+    volumes:
+      - maple-notes-key:/key
+
+  maple-notes:
+    image: ghcr.io/supunsarachitha/maplenotes:latest
+    pull_policy: always
+    container_name: maple-notes
+    restart: unless-stopped
+    depends_on:
+      maple-notes-key:
+        condition: service_completed_successfully
+    expose:
+      - "8080" # reachable only through Caddy
+    environment:
+      MAPLE_MASTER_KEY_FILE: /run/maple-key/master.key
+      MAPLE_ALLOW_REGISTRATION: "false"
+      MAPLE_MAX_UPLOAD_MB: "25"
+      MAPLE_DEFAULT_ENCRYPTION: "true"
+      MAPLE_LINK_PREVIEWS: "true"
+      MAPLE_TRUSTED_PROXIES: "172.16.0.0/12" # Caddy, on Docker's network
+    volumes:
+      - maple-notes-data:/app/data
+      - maple-notes-key:/run/maple-key:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  maple-notes-https:
+    image: caddy:2
+    container_name: maple-notes-https
+    restart: unless-stopped
+    depends_on:
+      - maple-notes
+    ports:
+      - "8443:443"
+    environment:
+      CADDYFILE: |
+        {
+        	local_certs
+        	skip_install_trust
+        	on_demand_tls {
+        		ask http://maple-notes:8080/healthz
+        	}
+        }
+        https:// {
+        	tls internal {
+        		on_demand
+        	}
+        	reverse_proxy maple-notes:8080
+        }
+    command:
+      - sh
+      - -c
+      - printf '%s' "$$CADDYFILE" > /tmp/Caddyfile && exec caddy run --config /tmp/Caddyfile --adapter caddyfile
+    volumes:
+      - maple-notes-https:/data # Caddy's local authority and certificates, kept so the browser warning comes only once
+
+volumes:
+  maple-notes-data:
+    name: maple-notes-data
+  maple-notes-key:
+    name: maple-notes-key
+  maple-notes-https:
+    name: maple-notes-https
+```
 
 Why not build in Portainer: a stack with `build:` makes Portainer's Compose use BuildKit, which fails when Portainer
 reaches Docker through its agent or a socket proxy ("failed to list workers … frame too large"). Pulling a published
