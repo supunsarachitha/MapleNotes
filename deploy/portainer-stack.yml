@@ -4,7 +4,10 @@
 #   (amd64 and arm64). Nothing is built on your server.
 # - On first start, a one-off helper creates the master key in its own volume (maple-notes-key), separate from the
 #   notes (maple-notes-data). Later starts reuse it.
-# - Open http://<your server>:8088 and create the first account; it becomes the administrator.
+# - Open http://localhost:8088 on the server itself and create the first account; it becomes the administrator.
+#   From other computers, Maple Notes must be opened over HTTPS: browsers only allow the encryption it does in the page
+#   on HTTPS or localhost, so http://<server-ip>:8088 cannot sign anyone in. Put it behind an HTTPS reverse proxy, or
+#   use portainer-stack-https.yml (HTTPS by IP address, no domain needed) instead of this stack.
 #
 # BACK UP THE MASTER KEY right after the first start (it encrypts everything; without it the data is lost):
 #   docker run --rm -v maple-notes-key:/key:ro alpine cat /key/master.key

@@ -7,6 +7,7 @@ public sealed class DocumentationTests
     [InlineData("docker-compose.yml")]
     [InlineData(".env.example")]
     [InlineData("deploy/portainer-stack.yml")]
+    [InlineData("deploy/portainer-stack-https.yml")]
     public void The_readme_shows_the_current_file(string file)
     {
         var root = RepositoryRoot();
