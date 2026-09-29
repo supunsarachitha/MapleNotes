@@ -87,6 +87,94 @@ docker compose up -d --build
 
 Open <http://localhost:8080> and create the first account. It becomes the administrator.
 
+The repository's `docker-compose.yml`, in full:
+
+```yaml
+# Maple Notes: docker compose setup.
+#
+#   1. cp .env.example .env
+#   2. Generate a master key (openssl rand -base64 32) and put it in .env as MAPLE_MASTER_KEY.
+#      Losing this key means losing all data: back it up separately from the data volume.
+#   3. docker compose up -d --build     then open http://localhost:8080
+#
+# All settings: see "Configuration" in README.md.
+
+services:
+  maple-notes:
+    build: .
+    image: maple-notes:latest
+    container_name: maple-notes
+    restart: unless-stopped
+    ports:
+      - "${MAPLE_PORT:-8080}:8080"
+    environment:
+      MAPLE_MASTER_KEY: ${MAPLE_MASTER_KEY:?Set MAPLE_MASTER_KEY in .env (generate one with openssl rand -base64 32)}
+      MAPLE_ALLOW_REGISTRATION: ${MAPLE_ALLOW_REGISTRATION:-false}
+      MAPLE_MAX_UPLOAD_MB: ${MAPLE_MAX_UPLOAD_MB:-25}
+      MAPLE_DEFAULT_ENCRYPTION: ${MAPLE_DEFAULT_ENCRYPTION:-true}
+      MAPLE_TRUSTED_PROXIES: ${MAPLE_TRUSTED_PROXIES:-}
+      MAPLE_LINK_PREVIEWS: ${MAPLE_LINK_PREVIEWS:-true}
+    volumes:
+      - maple-data:/app/data
+    # Hardening: read-only root filesystem, no Linux capabilities, no privilege escalation.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    # Alternative: keep the master key in a Docker secret instead of an environment variable.
+    # Remove MAPLE_MASTER_KEY above, uncomment the lines below and the "secrets:" section at the end, and put the
+    # key in ./secrets/master.key (readable by UID 1654: chmod 0644, inside a directory only you can open).
+    #   environment:
+    #     MAPLE_MASTER_KEY_FILE: /run/secrets/maple_master_key
+    #   secrets:
+    #     - maple_master_key
+
+volumes:
+  maple-data:
+
+# secrets:
+#   maple_master_key:
+#     file: ./secrets/master.key
+```
+
+And `.env.example`, which you copy to `.env` next to it:
+
+```sh
+# Copy to .env and fill in. Never commit .env.
+
+# Root secret for all encryption (database, note content, attachments). REQUIRED.
+# Generate with: openssl rand -base64 32
+# LOSING THIS KEY MEANS LOSING ALL DATA. Back it up separately from the data volume.
+MAPLE_MASTER_KEY=
+
+# Host port that serves Maple Notes.
+MAPLE_PORT=8080
+
+# Let visitors create accounts (the first account can always be created and becomes the administrator).
+# Administrators can also change this in Settings.
+MAPLE_ALLOW_REGISTRATION=false
+
+# Largest attachment, in megabytes.
+MAPLE_MAX_UPLOAD_MB=25
+
+# Encryption at rest for new accounts (each user can change it in Settings).
+MAPLE_DEFAULT_ENCRYPTION=true
+
+# Behind a reverse proxy: the proxy's address or network (comma-separated), e.g. 172.18.0.0/16.
+MAPLE_TRUSTED_PROXIES=
+
+# Let accounts turn on link previews (each account still decides; off by default for them). When on, the server
+# fetches the pages linked from notes. Set to false to keep the server from fetching anything.
+MAPLE_LINK_PREVIEWS=true
+```
+
+The image is built from this repository (`build: .`), so keep both files in the cloned folder. To update, see
+[Upgrading](#upgrading).
+
 > [!IMPORTANT]
 > **Save your master key somewhere safe, such as a password manager, separately from your backups.**
 > It encrypts everything. Without it your data cannot be recovered, by you or by anyone else.
@@ -110,6 +198,83 @@ docker run -d --name maple-notes \
 
 To use a Docker secret instead of an environment variable, set `MAPLE_MASTER_KEY_FILE` to the secret's path
 (see the commented example in `docker-compose.yml`).
+
+### Portainer
+
+Paste this stack into Portainer (**Stacks → Add stack → Web editor**) and deploy it without changes. It pulls the
+image that this repository's CI publishes to GitHub's container registry (`ghcr.io/supunsarachitha/maplenotes`, for
+amd64 and arm64), so nothing is built on your server. It creates the master key on first start, in its own volume
+(`maple-notes-key`), separate from the notes (`maple-notes-data`). It is also in the repository as
+[`deploy/portainer-stack.yml`](deploy/portainer-stack.yml).
+
+```yaml
+# Maple Notes: a stack to paste into Portainer (Stacks > Add stack > Web editor) and deploy as is.
+#
+# - The image comes from GitHub's container registry, published by the repository's CI for every change to main
+#   (amd64 and arm64). Nothing is built on your server.
+# - On first start, a one-off helper creates the master key in its own volume (maple-notes-key), separate from the
+#   notes (maple-notes-data). Later starts reuse it.
+# - Open http://<your server>:8088 and create the first account; it becomes the administrator.
+#
+# BACK UP THE MASTER KEY right after the first start (it encrypts everything; without it the data is lost):
+#   docker run --rm -v maple-notes-key:/key:ro alpine cat /key/master.key
+# Keep that copy somewhere else (a password manager), not with backups of maple-notes-data.
+
+services:
+  maple-notes-key:
+    image: alpine:3
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - test -s /key/master.key || (umask 022 && head -c 32 /dev/urandom | base64 > /key/master.key.new && mv /key/master.key.new /key/master.key)
+    volumes:
+      - maple-notes-key:/key
+
+  maple-notes:
+    image: ghcr.io/supunsarachitha/maplenotes:latest
+    pull_policy: always # fetch the newest image on every deploy (Portainer: "Update the stack" with re-pull)
+    container_name: maple-notes
+    restart: unless-stopped
+    depends_on:
+      maple-notes-key:
+        condition: service_completed_successfully
+    ports:
+      - "8088:8080"
+    environment:
+      MAPLE_MASTER_KEY_FILE: /run/maple-key/master.key
+      MAPLE_ALLOW_REGISTRATION: "false"
+      MAPLE_MAX_UPLOAD_MB: "25"
+      MAPLE_DEFAULT_ENCRYPTION: "true"
+      MAPLE_LINK_PREVIEWS: "true"
+      # Behind a reverse proxy, set its address or network, e.g. 172.16.0.0/12, so real client addresses are used.
+      MAPLE_TRUSTED_PROXIES: ""
+    volumes:
+      - maple-notes-data:/app/data
+      - maple-notes-key:/run/maple-key:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  maple-notes-data:
+    name: maple-notes-data
+  maple-notes-key:
+    name: maple-notes-key
+```
+
+> [!IMPORTANT]
+> **Right after the first start, copy the master key somewhere safe** (the command is at the top of the stack) and
+> keep it apart from backups of `maple-notes-data`. The key volume sits on the same server as the data, like a `.env`
+> file would, so it protects copies of the data volume but not a stolen server disk.
+
+Why not build in Portainer: a stack with `build:` makes Portainer's Compose use BuildKit, which fails when Portainer
+reaches Docker through its agent or a socket proxy ("failed to list workers … frame too large"). Pulling a published
+image avoids that.
 
 **Bind mounts:** if you mount a host directory instead of a named volume, make it writable by the container's user:
 `sudo chown -R 1654:1654 ./data`.
@@ -227,8 +392,61 @@ file todo lists and quick notes in their own folders. The API only gained fields
 
 ## Reverse proxy and HTTPS
 
-Run Maple Notes behind a TLS-terminating reverse proxy. With [Caddy](https://caddyserver.com) in the same compose
-project:
+Run Maple Notes behind a TLS-terminating reverse proxy. Here is a complete setup with [Caddy](https://caddyserver.com),
+which gets and renews certificates automatically. Point your domain's DNS at the server and open ports 80 and 443.
+
+`docker-compose.yml` (replaces the one above; Maple Notes is then reachable only through Caddy):
+
+```yaml
+services:
+  maple-notes:
+    build: .
+    image: maple-notes:latest
+    container_name: maple-notes
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      MAPLE_MASTER_KEY: ${MAPLE_MASTER_KEY:?Set MAPLE_MASTER_KEY in .env (generate one with openssl rand -base64 32)}
+      MAPLE_ALLOW_REGISTRATION: ${MAPLE_ALLOW_REGISTRATION:-false}
+      MAPLE_MAX_UPLOAD_MB: ${MAPLE_MAX_UPLOAD_MB:-25}
+      MAPLE_DEFAULT_ENCRYPTION: ${MAPLE_DEFAULT_ENCRYPTION:-true}
+      MAPLE_LINK_PREVIEWS: ${MAPLE_LINK_PREVIEWS:-true}
+      # Trust forwarded headers from Caddy (Docker's default private networks), so Maple Notes sees real client
+      # addresses (for rate limiting) and HTTPS (for secure cookies and HSTS).
+      MAPLE_TRUSTED_PROXIES: ${MAPLE_TRUSTED_PROXIES:-172.16.0.0/12}
+    volumes:
+      - maple-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  caddy:
+    image: caddy:2
+    container_name: maple-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - maple-notes
+
+volumes:
+  maple-data:
+  caddy-data:
+  caddy-config:
+```
+
+`Caddyfile`, next to it (use your own domain):
 
 ```caddyfile
 notes.example.com {
@@ -236,12 +454,8 @@ notes.example.com {
 }
 ```
 
-Then tell Maple Notes to trust the proxy's forwarded headers, so it sees real client addresses (for rate limiting)
-and HTTPS (for secure cookies and HSTS). For the default Docker network ranges:
-
-```sh
-MAPLE_TRUSTED_PROXIES=172.16.0.0/12
-```
+Then `docker compose up -d --build` and open `https://notes.example.com`. With another proxy, forward to port 8080
+and set `MAPLE_TRUSTED_PROXIES` to the proxy's address or network, so Maple Notes trusts its `X-Forwarded-*` headers.
 
 ## Development
 
