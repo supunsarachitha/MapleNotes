@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { unzipSync } from "fflate";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { api } from "../lib/api";
+import { apiExportSource } from "./download";
 import { concat, fromBase64, fromUtf8, toBase64 } from "../crypto/encoding";
 import type { Attachment, Note } from "../lib/types";
 import { buildExport, type ExportOptions, type ExportSource } from "./exporter";
@@ -71,5 +73,19 @@ describe("browser export", () => {
 
     expect(manifest.problems).toEqual([expect.stringMatching(/_con\.txt: the stored file could not be read, so it was left out\.$/)]);
     expect(manifest.attachmentCount).toBe(4);
+  });
+});
+
+describe("the account's notes for the browser export", () => {
+  it("include todo lists and quick notes, active and archived", async () => {
+    const list = vi.spyOn(api, "listNotes").mockResolvedValue({ items: [], nextCursor: null });
+
+    await apiExportSource("maple").notes(true);
+
+    expect(list.mock.calls.map(([params]) => [params.state, params.kinds])).toEqual([
+      ["active", ["Note", "Todo", "Quick"]],
+      ["archived", ["Note", "Todo", "Quick"]],
+    ]);
+    list.mockRestore();
   });
 });

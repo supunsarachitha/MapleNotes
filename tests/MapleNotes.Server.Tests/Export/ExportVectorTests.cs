@@ -24,6 +24,7 @@ namespace MapleNotes.Server.Tests.Export;
 public sealed class ExportVectorTests
 {
     private const string TimeZone = "Europe/Paris";
+    private const string AllKinds = "kind=note&kind=todo&kind=quick";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
@@ -74,12 +75,16 @@ public sealed class ExportVectorTests
                 };
             }
 
-            async Task Note(string text, string createdAtUtc, string? updatedAtUtc = null, bool pinned = false, bool archived = false, params Attachment[] attachments)
+            async Task Note(
+                string text, string createdAtUtc, string? updatedAtUtc = null, bool pinned = false, bool archived = false,
+                NoteKind kind = NoteKind.Note, string? daily = null, params Attachment[] attachments)
             {
                 var note = new Note
                 {
                     Id = Guid.Parse($"0192f3a2-0000-7000-8000-{++sequence:D12}"),
                     UserId = userId,
+                    Kind = kind,
+                    DailyDate = daily is null ? null : DateOnly.Parse(daily, System.Globalization.CultureInfo.InvariantCulture),
                     IsPinned = pinned,
                     ArchivedAtUtc = archived ? Utc(createdAtUtc) : null,
                     CreatedAtUtc = Utc(createdAtUtc),
@@ -108,6 +113,10 @@ public sealed class ExportVectorTests
             ]);
             await Note(string.Empty, "2025-08-01T09:00:00Z", attachments: [await File("notes.txt", "text/plain", Encoding.UTF8.GetBytes("only a file"), "2025-08-01T09:00:01Z")]);
             await Note("Old idea #archive-me", "2023-05-05T05:05:05Z", archived: true);
+            // Added in 1.2: a todo list, a quick note (archived) and a daily note, whose day is the author's local date.
+            await Note("# Groceries\n\n- [x] oats\n- [ ] maple syrup #groceries", "2025-07-14T08:00:00Z", kind: NoteKind.Todo);
+            await Note("Call the plumber", "2025-07-14T09:00:00Z", archived: true, kind: NoteKind.Quick);
+            await Note("# Tuesday, 15 July 2025\n\nA quiet day", "2025-07-14T22:30:00Z", daily: "2025-07-15");
         }
 
         var exports = new JsonArray();
@@ -124,8 +133,8 @@ public sealed class ExportVectorTests
         return new JsonObject
         {
             ["account"] = "maple",
-            ["active"] = JsonSerializer.SerializeToNode(await client.GetJsonAsync<NotePageResponse>("/api/v1/notes?state=active&limit=100"), ApiClient.Json),
-            ["archived"] = JsonSerializer.SerializeToNode(await client.GetJsonAsync<NotePageResponse>("/api/v1/notes?state=archived&limit=100"), ApiClient.Json),
+            ["active"] = JsonSerializer.SerializeToNode(await client.GetJsonAsync<NotePageResponse>($"/api/v1/notes?state=active&limit=100&{AllKinds}"), ApiClient.Json),
+            ["archived"] = JsonSerializer.SerializeToNode(await client.GetJsonAsync<NotePageResponse>($"/api/v1/notes?state=archived&limit=100&{AllKinds}"), ApiClient.Json),
             ["files"] = new JsonObject(files.Select(f => KeyValuePair.Create(f.Key.ToString(), (JsonNode?)Convert.ToBase64String(f.Value)))),
             ["exports"] = exports,
         };

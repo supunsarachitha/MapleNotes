@@ -61,7 +61,7 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 | F3 | Kinds of notes and the Todo tab | Notes have a kind (migration, API filter, patch). The Todo tab creates and edits checklists that are encrypted like any note. Search, tags and the archive span enabled kinds with labels. The setting (on by default) shows or hides the tab | ✅ Done |
 | F4 | Quick notes | The Quick notes tab with its own composer and list; moving a quick note to Home and back; the setting (on by default) | ✅ Done |
 | F5 | Daily notes | Home's "Today" card creates the day's note on first write; one daily note per date is enforced; the setting (off by default) | ✅ Done |
-| F6 | Exports with kinds and daily notes | Server and browser exports record kind and daily date, and place todo lists and quick notes in their folders (manifest version 2). The shared export vectors cover the new data | ⏳ Not started |
+| F6 | Exports with kinds and daily notes | Server and browser exports record kind and daily date, and place todo lists and quick notes in their folders (manifest version 2). The shared export vectors cover the new data | ✅ Done |
 | F7 | Import and full restore | Export archives in every format and layout, and single `.md`/`.txt`/`.json` files, restore into any account, including end-to-end ones, with progress and a summary. Re-importing skips existing notes. Round-trip tests: export → import into a fresh account → identical export | ⏳ Not started |
 | F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ⏳ Not started |
 
@@ -117,6 +117,13 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   - a second device adding to it rather than starting another;
   - the note converted to end-to-end encryption and still today's;
   - the 18-step suite.
+- **F6:** the vector dataset gained a todo list, an archived quick note, and a daily note written late in the evening
+  UTC (its day is the author's local date, not the UTC one). The web tests reproduce all 13 regenerated archives.
+  This phase also closed a gap left by F3: the browser export listed notes with the default kind, so an end-to-end
+  account's export would have left out its todo lists and quick notes. It now asks for every kind, and a test holds
+  it to that. Verified in Chromium on the production build: one account exported by the server, then, after
+  switching to end-to-end encryption, by the browser, gives the same entries with the same content; the existing
+  end-to-end export run and the 18-step suite pass.
 
 ## Out of scope for 1.2.0
 

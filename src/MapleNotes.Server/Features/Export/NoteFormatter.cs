@@ -1,3 +1,4 @@
+using MapleNotes.Server.Domain;
 using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -36,7 +37,7 @@ public static class NoteFormatter
     };
 
     /// <summary>
-    /// Markdown with YAML front matter (id, dates, tags, state, attachments), the original text, and an
+    /// Markdown with YAML front matter (id, kind, daily date, dates, tags, state, attachments), the original text, and an
     /// "Attachments" section that embeds images and links other files by relative path.
     /// </summary>
     /// <param name="note">The note.</param>
@@ -46,6 +47,12 @@ public static class NoteFormatter
         var text = new StringBuilder();
         text.Append("---\n");
         text.Append("id: ").Append(note.Id).Append('\n');
+        text.Append("kind: ").Append(note.KindName).Append('\n');
+        if (note.DailyDate is { } daily)
+        {
+            text.Append("daily: ").Append(Date(daily)).Append('\n');
+        }
+
         text.Append("created: ").Append(Timestamp(note.Created)).Append('\n');
         text.Append("updated: ").Append(Timestamp(note.Updated)).Append('\n');
         text.Append("tags: [").Append(string.Join(", ", note.Tags.Select(Quote))).Append("]\n");
@@ -77,7 +84,10 @@ public static class NoteFormatter
         return text.ToString();
     }
 
-    /// <summary>Plain text: a short header (dates, tags, attachment paths), a blank line, then the note text.</summary>
+    /// <summary>
+    /// Plain text: a short header (dates, kind and daily date when they matter, tags, state, attachment paths), a blank
+    /// line, then the note text.
+    /// </summary>
     /// <param name="note">The note.</param>
     /// <returns>The text document.</returns>
     public static string PlainText(ExportedNote note)
@@ -87,6 +97,16 @@ public static class NoteFormatter
         if (note.Updated - note.Created > TimeSpan.FromMinutes(1))
         {
             text.Append("Updated: ").Append(Timestamp(note.Updated)).Append('\n');
+        }
+
+        if (note.Kind != NoteKind.Note)
+        {
+            text.Append("Kind: ").Append(note.KindName).Append('\n');
+        }
+
+        if (note.DailyDate is { } daily)
+        {
+            text.Append("Daily: ").Append(Date(daily)).Append('\n');
         }
 
         if (note.Tags.Count > 0)
@@ -115,6 +135,8 @@ public static class NoteFormatter
         JsonSerializer.Serialize(new
         {
             note.Id,
+            Kind = note.KindName,
+            DailyDate = note.DailyDate is { } daily ? Date(daily) : null,
             CreatedAt = Timestamp(note.Created),
             UpdatedAt = Timestamp(note.Updated),
             note.Tags,
@@ -128,6 +150,8 @@ public static class NoteFormatter
     /// <param name="manifest">The manifest object.</param>
     /// <returns>Indented JSON.</returns>
     public static string ManifestJson(object manifest) => JsonSerializer.Serialize(manifest, JsonOptions) + "\n";
+
+    private static string Date(DateOnly value) => value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private static string Timestamp(DateTimeOffset value) =>
         value.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);

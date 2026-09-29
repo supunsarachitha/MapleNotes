@@ -1,3 +1,4 @@
+using MapleNotes.Server.Domain;
 namespace MapleNotes.Server.Features.Export;
 
 /// <summary>File format of the exported notes.</summary>
@@ -73,6 +74,8 @@ public sealed record ExportedAttachment(
 /// <param name="Pinned">Whether the note is pinned.</param>
 /// <param name="Archived">Whether the note is archived.</param>
 /// <param name="Attachments">Attached files included in the export.</param>
+/// <param name="Kind">A timeline note, a todo list or a quick note.</param>
+/// <param name="DailyDate">For a daily note, its day.</param>
 public sealed record ExportedNote(
     Guid Id,
     string Content,
@@ -81,4 +84,10 @@ public sealed record ExportedNote(
     IReadOnlyList<string> Tags,
     bool Pinned,
     bool Archived,
-    IReadOnlyList<ExportedAttachment> Attachments);
+    IReadOnlyList<ExportedAttachment> Attachments,
+    NoteKind Kind = NoteKind.Note,
+    DateOnly? DailyDate = null)
+{
+    /// <summary>The kind as written in exports: <c>note</c>, <c>todo</c> or <c>quick</c>.</summary>
+    public string KindName => Kind.ToString().ToLowerInvariant();
+}

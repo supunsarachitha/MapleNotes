@@ -37,6 +37,7 @@ public sealed record ExportOptions(
 /// <code>
 /// manifest.json                                   what was exported, with every note's path
 /// 2026-09/2026-09-28_1430_buy-maple-syrup.md      one file per note
+/// todo/2026-09/2026-09-28_1500_groceries.md       todo lists, and quick notes under quick-notes/
 /// attachments/5d1e0a7c_sunset.png                 decrypted attached files
 /// </code>
 /// <para>
@@ -169,6 +170,8 @@ public sealed class NoteExporter(
                     {
                         exported.Id,
                         Path = path,
+                        Kind = exported.KindName,
+                        DailyDate = exported.DailyDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                         CreatedAt = exported.Created.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
                         exported.Tags,
                         exported.Archived,
@@ -187,7 +190,7 @@ public sealed class NoteExporter(
             var manifest = new
             {
                 Application = "Maple Notes",
-                ManifestVersion = 1,
+                ManifestVersion = 2, // 2: notes record their kind and daily date
                 ExportedAt = exportedAt.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
                 Account = username,
                 Options = new
@@ -256,7 +259,7 @@ public sealed class NoteExporter(
         var created = TimeZoneInfo.ConvertTime(new DateTimeOffset(note.CreatedAtUtc), options.TimeZone);
         var updated = TimeZoneInfo.ConvertTime(new DateTimeOffset(note.UpdatedAtUtc), options.TimeZone);
 
-        var folder = ExportNaming.Folder(options.Layout, created);
+        var folder = string.Join('/', new[] { KindFolder(note.Kind), ExportNaming.Folder(options.Layout, created) }.Where(f => f.Length > 0));
         var name = $"{created.ToString("yyyy-MM-dd_HHmm", CultureInfo.InvariantCulture)}_{ExportNaming.Slug(content)}.{NoteFormatter.Extension(options.Format)}";
         var notePath = ExportNaming.Unique(folder.Length == 0 ? name : $"{folder}/{name}", usedPaths);
 
@@ -279,7 +282,7 @@ public sealed class NoteExporter(
         var exported = new ExportedNote(
             note.Id, content, created, updated,
             note.Tags.Where(t => t.Name is not null).Select(t => t.Name!).Order(StringComparer.Ordinal).ToList(),
-            note.IsPinned, note.ArchivedAtUtc is not null, exportedAttachments);
+            note.IsPinned, note.ArchivedAtUtc is not null, exportedAttachments, note.Kind, note.DailyDate);
         await WriteTextAsync(zip, notePath, NoteFormatter.Render(exported, options.Format), updated, cancellationToken);
         return (notePath, exported);
     }
@@ -325,6 +328,14 @@ public sealed class NoteExporter(
         await using var stream = await entry.OpenAsync(cancellationToken);
         await stream.WriteAsync(Encoding.UTF8.GetBytes(text), cancellationToken);
     }
+
+    /// <summary>Todo lists and quick notes get their own top-level folders; timeline notes stay at the top.</summary>
+    private static string KindFolder(NoteKind kind) => kind switch
+    {
+        NoteKind.Todo => "todo",
+        NoteKind.Quick => "quick-notes",
+        _ => string.Empty,
+    };
 
     // Media and archives are already compressed; compressing them again only costs time.
     private static CompressionLevel CompressionFor(string contentType) =>

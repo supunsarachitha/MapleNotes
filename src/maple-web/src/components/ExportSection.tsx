@@ -119,7 +119,7 @@ export function ExportSection({
       <h3 className="mt-3 text-sm font-semibold">Export</h3>
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
         Download your notes as a ZIP archive, decrypted, with attachments in an <code>attachments</code> folder linked
-        from each note.
+        from each note. Todo lists and quick notes go in <code>todo</code> and <code>quick-notes</code> folders.
         {inBrowser && " Your notes are end-to-end encrypted, so this browser decrypts them and builds the archive: keep this page open until the download finishes."}
       </p>
 
