@@ -21,8 +21,9 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: false,
-    // The single bundle is ~170 KB gzipped: about a third is React DOM and about 30% the Markdown pipeline, both
-    // needed to render the first note, so splitting would not make the first screen appear sooner.
+    // The main bundle is ~185 KB gzipped: about a third is React DOM and about 30% the Markdown pipeline, both
+    // needed to render the first note, so splitting would not make the first screen appear sooner. Code only some
+    // accounts need (the browser export with fflate, the Argon2id fallback) is loaded on demand.
     chunkSizeWarningLimit: 700,
   },
   test: {

@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   encrypted in the browser, and turning it off decrypts them there. The conversion resumes after a reload, never
   overwrites an edit, keeps note timestamps, and can be reversed midway. Once it finishes, the server deletes the key
   nothing needs any more: an end-to-end account leaves the server with no key to its content.
+- **Export for end-to-end accounts**, built in the browser with the same structure as the server's (checked against
+  the server's own archives for all 12 format and layout combinations) and streamed to disk through the service worker.
 
 ### Changed
 
@@ -47,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `eval`) and same-origin workers.
 - Attachment URLs carry the stored version (`?v=`), so a file whose stored bytes change gets a new URL while
   downloads stay cacheable.
+- `GET /api/v1/export` answers HTTP 409 for an account with end-to-end encrypted content, which only the app can
+  export.
 
 ## [1.0.0] - 2026-09-28
 

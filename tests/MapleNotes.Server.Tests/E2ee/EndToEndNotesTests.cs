@@ -148,6 +148,17 @@ public sealed class EndToEndNotesTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task The_server_refuses_to_export_notes_it_cannot_read()
+    {
+        await CreateAsync(SecretText);
+
+        var response = await _client.GetAsync("/api/v1/export");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("end-to-end", (await EndToEndAccount.ReadAsync<ProblemDetails>(response)).Title, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Accounts_not_in_end_to_end_mode_cannot_send_ciphertext()
     {
         await using var app = new MapleAppFactory();

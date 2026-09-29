@@ -257,6 +257,15 @@ relative path. `manifest.json` describes the export and lists any damaged files.
 archive is therefore produced on a background task into a bounded in-memory pipe (about 1 MB) that the request copies
 to the client asynchronously. Memory use stays flat for any export size, and decrypted data never touches the disk.
 
+The server cannot read end-to-end content, so it refuses to export an account that has any (HTTP 409); the web app
+builds the same archive in the browser instead (`src/maple-web/src/export`, using fflate). It is a line-by-line port
+of the server's naming and formatting, including .NET's JSON escaping, casing and whitespace rules, and it is checked
+against the server: a C# test writes the server's archives for a tricky dataset (time zones across a New Year and a
+daylight-saving change, slug collisions, Unicode, awkward file names) into `export-vectors.json`, and the web tests
+reproduce all 12 format and layout combinations entry by entry. The archive is streamed to disk through the media
+service worker (`/e2ee/export/{id}`, opened in a hidden iframe, since browsers do not pass `<a download>` requests to
+service workers); without the worker it is assembled in memory.
+
 ## Background services
 
 | Service | When | What |

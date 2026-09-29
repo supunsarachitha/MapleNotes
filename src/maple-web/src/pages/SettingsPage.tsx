@@ -294,7 +294,7 @@ export function SettingsPage({ user }: { user: User }) {
       <AccountSection user={user} />
       <EncryptionSection user={user} />
       {user.hasEndToEndKey && <RecoverySection user={user} />}
-      <ExportSection />
+      <ExportSection user={user} />
       <PasswordSection user={user} />
       <SessionsSection />
       {user.role === "Admin" && <AdminSection currentUserId={user.id} />}

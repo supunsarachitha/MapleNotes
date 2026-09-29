@@ -75,6 +75,7 @@ Since v1.1.0 the browser derives sign-in and encryption keys from the password w
 | Component | License | Role |
 |---|---|---|
 | hash-wasm 4.12.0 | MIT | Argon2id (and the BLAKE2b it builds on) compiled to WebAssembly; runs in a Web Worker |
+| fflate 0.8.3 | MIT | Writes the export ZIP in the browser for end-to-end accounts; pure JavaScript, no embedded third-party code |
 
 hash-wasm's license says its embedded C code may carry other permissive licenses. The two files compiled into the
 modules we ship were read on 2026-09-29:

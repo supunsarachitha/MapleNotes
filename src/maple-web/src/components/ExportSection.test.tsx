@@ -51,4 +51,24 @@ describe("ExportSection", () => {
     expect(onDownload).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent("The start date must not be after the end date.");
   });
+
+  it("builds the archive in the browser for an account with end-to-end notes", async () => {
+    const onDownload = vi.fn();
+    const browserExport = vi.fn(async () => undefined);
+    const person = userEvent.setup();
+    render(
+      <ExportSection
+        user={{ id: "u", username: "maple", displayName: "Maple", role: "User", encryptionMode: "EndToEnd", hasEndToEndKey: true, createdAtUtc: "" }}
+        onDownload={onDownload}
+        browserExport={browserExport}
+      />,
+    );
+
+    expect(screen.getByText(/this browser decrypts them and builds the archive/)).toBeInTheDocument();
+    await person.click(screen.getByLabelText(/JSON/));
+    await person.click(screen.getByRole("button", { name: /Download ZIP/ }));
+
+    expect(onDownload).not.toHaveBeenCalled();
+    expect(browserExport).toHaveBeenCalledWith(expect.objectContaining({ format: "json", layout: "month" }), "maple", expect.any(Function));
+  });
 });

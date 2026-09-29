@@ -78,8 +78,8 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 | E2 | End-to-end mode and key management | Three encryption modes and per-item schemes; recovery kit, password-reset-by-recovery-key and unlock screen; the server enforces ciphertext-only writes for E2EE accounts | ✅ Done (`f117e43`) |
 | E3 | Notes, tags and search in the browser | For an E2EE account the database contains no note text or tag names (asserted by scanning); tag filter and search work in the browser | ✅ Done (`f521023`) |
 | E4 | Attachments and the media service worker | Files and their names are stored only as ciphertext; images and video (with seeking) play through the service worker; fallback without it | ✅ Done (`2d59b4e`) |
-| E5 | Switching modes in both directions | Resumable browser-driven conversion with progress; tests interrupt it in both directions; the server holds no content key after entering E2EE | ✅ Done |
-| E6 | Export in the browser | The browser export matches the server export's structure for all 12 format and layout combinations; streamed download verified | ⏳ Not started |
+| E5 | Switching modes in both directions | Resumable browser-driven conversion with progress; tests interrupt it in both directions; the server holds no content key after entering E2EE | ✅ Done (`f2cb839`) |
+| E6 | Export in the browser | The browser export matches the server export's structure for all 12 format and layout combinations; streamed download verified | ✅ Done |
 | E7 | Hardening, documentation and release | CSP updated for the worker and WebAssembly; threat model documented; README, architecture, CHANGELOG (v1.1.0), licensing and notices updated; clean-clone browser run passes | ⏳ Not started |
 
 ### Notes from the phases
@@ -116,6 +116,14 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
   Verified in Chromium on the production build: turning end-to-end encryption on from Settings with 61 notes and a
   photo, a reload midway that resumed, no readable note sent during conversion, tags and the photo working after it;
   then turning it off, again interrupted, until the account had no end-to-end key and plain notes, tags and photo.
+- **E6:** parity is proven with shared vectors, as the crypto was in E0: a C# test writes the server's archives for a
+  fixed, deliberately awkward dataset, and the web tests must reproduce every entry (13 archives: the 12 combinations
+  and a filtered one). This required porting .NET's text rules exactly (JSON escaping of non-ASCII spaces and
+  characters outside the Basic Multilingual Plane, invariant lower-casing of `İ`, which characters count as letters
+  and as white space). The browser test found that Chromium does not pass `<a download>` requests to service workers,
+  so the streamed download opens in a hidden iframe, with a fallback to building in memory. The export code and fflate
+  load only when used. Verified in Chromium on the production build: the server refuses (409), the streamed archive
+  and the in-memory one hold the same decrypted entries.
 
 ## Out of scope for v1.1.0
 

@@ -2,10 +2,12 @@
 import type { DataKeys } from "../crypto/datakey";
 import { fromBase64 } from "../crypto/encoding";
 import { loadLocalKey } from "../crypto/keystore";
+import { EXPORT_PREFIX, exportResponse, registerExport } from "./exportStream";
 import { MEDIA_PREFIX, serveAttachment, type Opened, type Unlocked } from "./media";
 
-// The media service worker: decrypts end-to-end files for the page (see media.ts). It handles only /e2ee/…
-// requests; everything else goes to the network untouched, and nothing is cached.
+// The media service worker: decrypts end-to-end files for the page (see media.ts) and streams exports built in the
+// browser to disk (see exportStream.ts). It handles only /e2ee/… requests; everything else goes to the network
+// untouched, and nothing is cached.
 
 const worker = self as unknown as ServiceWorkerGlobalScope;
 let current: Unlocked | null = null;
@@ -16,7 +18,11 @@ worker.addEventListener("activate", (event) => event.waitUntil(worker.clients.cl
 
 // The page shares its unlocked key when it unlocks, and asks the worker to forget it on sign-out.
 worker.addEventListener("message", (event: ExtendableMessageEvent) => {
-  const message = event.data as { type?: string; userId?: string; keys?: DataKeys };
+  const message = event.data as { type?: string; userId?: string; keys?: DataKeys; id?: string; fileName?: string };
+  if (message.type === "export" && message.id && message.fileName && event.ports[0]) {
+    registerExport(message.id, message.fileName, event.ports[0]);
+    return;
+  }
   if (message.type === "keys" && message.userId && message.keys) current = { userId: message.userId, keys: message.keys };
   if (message.type === "forget") current = null;
   opened.clear();
@@ -24,7 +30,12 @@ worker.addEventListener("message", (event: ExtendableMessageEvent) => {
 
 worker.addEventListener("fetch", (event: FetchEvent) => {
   const url = new URL(event.request.url);
-  if (url.origin !== worker.location.origin || !url.pathname.startsWith(MEDIA_PREFIX)) return;
+  if (url.origin !== worker.location.origin) return;
+  if (url.pathname.startsWith(EXPORT_PREFIX)) {
+    event.respondWith(exportResponse(url.pathname.slice(EXPORT_PREFIX.length)));
+    return;
+  }
+  if (!url.pathname.startsWith(MEDIA_PREFIX)) return;
   event.respondWith(
     serveAttachment(event.request, {
       fetch: (input, init) => fetch(input, { ...init, credentials: "same-origin" }),

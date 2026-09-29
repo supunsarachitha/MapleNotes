@@ -200,6 +200,11 @@ The page shares its unlocked key with the worker; a worker that the browser rest
 session (§7). Without a controlling worker (unsupported, blocked, or before it takes over) the page decrypts the whole
 file into a `blob:` URL instead. The server answers `/e2ee/…` itself with 404, never with the app's page.
 
+**Export:** the server cannot export end-to-end content (409), so the browser builds the archive, with the same
+structure as the server's. The worker streams it to disk: the page registers `/e2ee/export/{random id}` with a
+`MessagePort`, opens it in a hidden iframe, and answers each `pull` with the next chunk. An id works once, and if the
+worker does not start pulling within 10 seconds the page builds the archive in memory instead.
+
 ## 6. Recovery key
 
 ```text
