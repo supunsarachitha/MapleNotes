@@ -4,8 +4,11 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { ToastProvider } from "./components/Toaster";
 import { ApiError } from "./lib/api";
+import { applySavedAppearance } from "./lib/appearance";
 import { queryKeys } from "./lib/queries";
 import "./index.css";
+
+applySavedAppearance(); // before the first paint, so the page never flashes in the wrong theme
 
 // When the session ends (expired, signed out elsewhere, password changed on another device), any API call returns
 // 401. Re-checking the sign-in status then shows the sign-in screen instead of a broken page.

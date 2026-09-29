@@ -1,17 +1,21 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Archive, ArchiveRestore, Copy, MoreHorizontal, Pencil, Pin, PinOff, Trash2, type LucideIcon } from "lucide-react";
+import { Archive, ArchiveRestore, Copy, Home, MoreHorizontal, Pencil, Pin, PinOff, Trash2, Zap, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { formatAbsolute, formatRelative } from "../lib/format";
+import { usePreferences } from "../lib/preferences";
+import { useAuthStatus } from "../lib/queries";
 import { useDeleteNote, usePatchNote } from "../lib/queries";
+import { splitTitle } from "../lib/titles";
 import type { Note } from "../lib/types";
 import { AttachmentGallery } from "./AttachmentGallery";
 import { Composer } from "./Composer";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { LinkPreviews } from "./LinkPreviews";
 import { Markdown } from "./Markdown";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
 
-function MenuItem({
+export function MenuItem({
   icon: Icon,
   children,
   onSelect,
@@ -38,16 +42,22 @@ function MenuItem({
   );
 }
 
-/** One note in a list: rendered Markdown, attachments, and an actions menu (pin, edit, archive, delete). */
-export function NoteCard({ note }: { note: Note }) {
+/**
+ * One note in a list: rendered Markdown, attachments, and an actions menu (pin, edit, move between Home and quick
+ * notes, archive, delete). Lists that mix kinds label todo lists and quick notes.
+ */
+export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const patch = usePatchNote();
   const remove = useDeleteNote();
   const toast = useToast();
+  const { noteTitles, quickNotes, linkPreviews } = usePreferences();
+  const previewsAvailable = useAuthStatus().data?.linkPreviewsAvailable === true;
+  const { title, body } = noteTitles ? splitTitle(note.content) : { title: "", body: note.content };
   const edited = new Date(note.updatedAtUtc).getTime() - new Date(note.createdAtUtc).getTime() > 60_000;
 
-  function change(changes: { isPinned?: boolean; isArchived?: boolean }, message: string) {
+  function change(changes: { isPinned?: boolean; isArchived?: boolean; kind?: Note["kind"] }, message: string) {
     patch.mutate({ id: note.id, ...changes }, {
       onSuccess: () => toast.info(message),
       onError: () => toast.error("That didn't work. Please try again."),
@@ -55,7 +65,8 @@ export function NoteCard({ note }: { note: Note }) {
   }
 
   if (editing) {
-    return <Composer note={note} onDone={() => setEditing(false)} autoFocus />;
+    // Only timeline notes get the title field; quick notes and todo lists are edited as they are.
+    return <Composer note={note} onDone={() => setEditing(false)} allowTitle={note.kind === "Note"} autoFocus />;
   }
 
   return (
@@ -65,6 +76,11 @@ export function NoteCard({ note }: { note: Note }) {
           {formatRelative(note.createdAtUtc)}
         </time>
         {edited && <span title={`Edited ${formatAbsolute(note.updatedAtUtc)}`}>· edited</span>}
+        {showKind && note.kind !== "Note" && (
+          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+            {note.kind === "Todo" ? "Todo list" : "Quick note"}
+          </span>
+        )}
         {note.isPinned && !note.isArchived && (
           <span className="inline-flex items-center gap-1 text-maple-600 dark:text-maple-400">
             <Pin className="size-3.5" aria-hidden="true" /> Pinned
@@ -91,6 +107,16 @@ export function NoteCard({ note }: { note: Note }) {
                     <MenuItem icon={Pencil} onSelect={() => setEditing(true)}>
                       Edit
                     </MenuItem>
+                    {note.kind === "Quick" && (
+                      <MenuItem icon={Home} onSelect={() => change({ kind: "Note" }, "Moved to Home.")}>
+                        Move to Home
+                      </MenuItem>
+                    )}
+                    {note.kind === "Note" && quickNotes && (
+                      <MenuItem icon={Zap} onSelect={() => change({ kind: "Quick" }, "Moved to quick notes.")}>
+                        Move to quick notes
+                      </MenuItem>
+                    )}
                   </>
                 )}
                 <MenuItem
@@ -120,7 +146,9 @@ export function NoteCard({ note }: { note: Note }) {
         </div>
       </header>
 
-      {note.content.trim() && <Markdown content={note.content} />}
+      {title && <h3 className="mb-1 break-words text-lg font-semibold leading-snug">{title}</h3>}
+      {body.trim() && <Markdown content={body} />}
+      {linkPreviews && previewsAvailable && <LinkPreviews content={note.content} />}
       <AttachmentGallery attachments={note.attachments} />
 
       <ConfirmDialog

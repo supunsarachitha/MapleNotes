@@ -1,26 +1,42 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
+import { useId, useState, type FormEvent } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
 import { ExportSection } from "../components/ExportSection";
+import { AppearanceSection, FeaturesSection, WritingSection } from "../components/PreferenceSections";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
 import { useToast } from "../components/Toaster";
-import { Button, Card, ErrorMessage, Switch, TextField } from "../components/ui";
+import { Button, cn, ErrorMessage, Section, Switch, TextField } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
 import { e2ee } from "../lib/e2ee";
-import { formatAbsolute } from "../lib/format";
+import { formatAbsolute, formatBytes } from "../lib/format";
 import { queryKeys, useSignedOut } from "../lib/queries";
 import type { AdminUser, User } from "../lib/types";
 
-export function Section({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) {
+/** A bar split between notes and files, with the numbers beside it. */
+function StorageRow() {
+  const usage = useQuery({ queryKey: queryKeys.storage, queryFn: api.storage });
+  if (!usage.data) return <dd className="text-stone-400">…</dd>;
+  const { notesBytes, noteCount, filesBytes, fileCount, totalBytes } = usage.data;
+  const notesShare = totalBytes > 0 ? (notesBytes / totalBytes) * 100 : 0;
   return (
-    <Card className="p-5">
-      <h2 className="text-base font-semibold">{title}</h2>
-      {description && <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">{description}</p>}
-      <div className="mt-4">{children}</div>
-    </Card>
+    <dd>
+      <span className="font-medium">{formatBytes(totalBytes)}</span>
+      <div
+        className="my-1.5 flex h-2 max-w-72 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800"
+        role="img"
+        aria-label={`Notes ${formatBytes(notesBytes)}, files ${formatBytes(filesBytes)}`}
+      >
+        <div className="bg-maple-700" style={{ width: `${notesShare}%` }} />
+        <div className="bg-maple-400" style={{ width: `${totalBytes > 0 ? 100 - notesShare : 0}%` }} />
+      </div>
+      <span className="text-xs text-stone-500 dark:text-stone-400">
+        Notes {formatBytes(notesBytes)} ({noteCount.toLocaleString()}) · Files {formatBytes(filesBytes)} ({fileCount.toLocaleString()})
+      </span>
+    </dd>
   );
 }
 
@@ -36,6 +52,8 @@ function AccountSection({ user }: { user: User }) {
         <dd>{user.role === "Admin" ? "Administrator" : "Member"}</dd>
         <dt className="text-stone-500 dark:text-stone-400">Member since</dt>
         <dd>{formatAbsolute(user.createdAtUtc)}</dd>
+        <dt className="text-stone-500 dark:text-stone-400">Storage</dt>
+        <StorageRow />
       </dl>
     </Section>
   );
@@ -181,6 +199,25 @@ function DeleteAccountSection({ username }: { username: string }) {
   );
 }
 
+/** What Maple Notes stores on this server and the space left: totals only, never an account's own usage. */
+function InstanceStorageSummary() {
+  const storage = useQuery({ queryKey: queryKeys.instanceStorage, queryFn: api.admin.storage });
+  if (!storage.data) return null;
+  const { totalBytes, databaseBytes, filesBytes, backupsBytes, freeBytes } = storage.data;
+  return (
+    <div className="mb-5 rounded-xl bg-stone-50 p-3 text-sm dark:bg-stone-800/60">
+      <p className="font-medium">Server storage</p>
+      <p className="mt-0.5 text-stone-600 dark:text-stone-300">
+        Maple Notes uses {formatBytes(totalBytes)}
+        {freeBytes !== null && <> · {formatBytes(freeBytes)} free on its volume</>}
+      </p>
+      <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+        Database {formatBytes(databaseBytes)} · Files {formatBytes(filesBytes)} · Backups {formatBytes(backupsBytes)}
+      </p>
+    </div>
+  );
+}
+
 function AdminSection({ currentUserId }: { currentUserId: string }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -215,6 +252,7 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
 
   return (
     <Section title="Administration" description="Administrators manage accounts but can never read anyone's notes.">
+      <InstanceStorageSummary />
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm font-medium">Open registration</p>
@@ -286,19 +324,68 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
   );
 }
 
-/** Account, security and (for administrators) instance settings. */
+/**
+ * Settings that are rarely changed or hard to undo, collapsed until opened. It opens by itself while notes are being
+ * converted after an encryption change, so the progress stays in view.
+ */
+function AdvancedSection({ user }: { user: User }) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  const encryption = useQuery({ queryKey: queryKeys.encryption, queryFn: api.encryption });
+  const expanded = open || encryption.data?.inProgress === true;
+
+  return (
+    <section aria-labelledby={`${id}-heading`} className="flex flex-col gap-4">
+      <h2 id={`${id}-heading`}>
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={`${id}-content`}
+          aria-label="Advanced"
+          aria-describedby={`${id}-description`}
+          onClick={() => setOpen(!expanded)}
+          className="flex w-full items-center gap-3 rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-maple-500 dark:border-stone-800 dark:bg-stone-900 dark:hover:bg-stone-800/60"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-base font-semibold">Advanced</span>
+            <span id={`${id}-description`} className="mt-1 block text-sm font-normal text-stone-600 dark:text-stone-300">
+              Encryption{user.hasEndToEndKey ? ", recovery key" : ""}, sessions and deleting your account.
+            </span>
+          </span>
+          <ChevronDown
+            className={cn("size-5 shrink-0 text-stone-500 transition-transform", expanded && "rotate-180")}
+            aria-hidden="true"
+          />
+        </button>
+      </h2>
+      {expanded && (
+        <div id={`${id}-content`} className="flex flex-col gap-4">
+          <EncryptionSection user={user} />
+          {user.hasEndToEndKey && <RecoverySection user={user} />}
+          <SessionsSection />
+          <DeleteAccountSection username={user.username} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Account and everyday settings first, then backup and restore, then the collapsed Advanced section, and for
+ * administrators the instance settings.
+ */
 export function SettingsPage({ user }: { user: User }) {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Settings</h1>
       <AccountSection user={user} />
-      <EncryptionSection user={user} />
-      {user.hasEndToEndKey && <RecoverySection user={user} />}
+      <AppearanceSection />
+      <WritingSection />
+      <FeaturesSection />
       <ExportSection user={user} />
       <PasswordSection user={user} />
-      <SessionsSection />
+      <AdvancedSection user={user} />
       {user.role === "Admin" && <AdminSection currentUserId={user.id} />}
-      <DeleteAccountSection username={user.username} />
     </div>
   );
 }

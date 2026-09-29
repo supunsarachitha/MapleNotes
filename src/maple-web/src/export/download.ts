@@ -49,7 +49,7 @@ export function apiExportSource(account: string, onNotes?: (count: number) => vo
       for (const state of (includeArchived ? ["active", "archived"] : ["active"]) as NoteState[]) {
         let cursor: string | undefined;
         do {
-          const page = await api.listNotes({ state, cursor, limit: 100 });
+          const page = await api.listNotes({ state, cursor, limit: 100, kinds: ["Note", "Todo", "Quick"] }); // everything
           all.push(...page.items);
           onNotes?.(all.length);
           cursor = page.nextCursor ?? undefined;

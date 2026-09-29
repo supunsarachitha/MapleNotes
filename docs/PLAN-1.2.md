@@ -1,0 +1,271 @@
+# Maple Notes 1.2: development plan
+
+Requested 2026-09-29. This plan adds per-account preferences, note titles, todo lists, quick notes, daily notes, an
+Advanced settings section, and import (full restore) from exports. Work happens on the branch
+`productivity-features`. Earlier plans: [PLAN.md](PLAN.md) (1.0) and [PLAN-E2EE.md](PLAN-E2EE.md) (1.1).
+
+Every feature must work in all three encryption modes, including end-to-end, where the server never sees note text.
+
+## Decisions
+
+| # | Topic | Decision | Why |
+|---|---|---|---|
+| 1 | Where preferences live | On the server, per account (a JSON column on `Users`), returned with the signed-in user and changed with `PUT /api/v1/account/preferences`. | They follow the user to every device. They are layout choices, not content, so they need no encryption (listed in the threat model). |
+| 2 | Note titles | A title is the note's first line written as a Markdown heading (`# Title`). The setting adds a separate title field to the editor and shows that heading as the note's title. | No change to how notes are stored or encrypted. Search, export, import and end-to-end encryption work unchanged, and export file names already come from the first line. Turning the setting off leaves every note intact. |
+| 3 | Date in titles | With titles on, a second setting fills a new note's title with today's date, in a format the user picks from a list with a live preview (for example `2026-09-29`, `29/09/2026`, `Sep 29, 2026`, `Monday, 29 September 2026`). The same format names daily notes. | Presets are clear and cannot produce invalid output. English month and day names match the app's language. |
+| 4 | Kinds of notes | Each note has a kind: `Note` (Home), `Todo` (a todo list) or `Quick` (a quick note), stored in plain form like the pinned and archived flags. | Todo lists and quick notes then reuse everything notes already have: encryption in every mode, attachments, archive, export and import. |
+| 5 | Where each kind appears | Home shows notes, the Todo tab shows todo lists, and the Quick notes tab shows quick notes. Search, tag views and the archive span every enabled kind and label todo lists and quick notes. | Each tab stays focused, while finding things works everywhere. |
+| 6 | Todo lists | Created in the Todo tab: a title and items to tick off, stored as Markdown (`# Title`, then `- [ ] item` lines). The tab edits them as checklists: add, tick, edit and remove items, clear completed ones, rename, pin, archive and delete lists. It is on by default. | Markdown task lists already render everywhere else (search results, exports). |
+| 7 | Quick notes | A separate tab: a scratchpad composer and a list of quick notes kept out of Home. A quick note can be moved to Home, and back. It is on by default. | Short throwaway notes do not clutter the timeline. |
+| 8 | Daily notes | When enabled, Home shows a "Today" card titled with the date. The note is saved the first time you write in it, so unused days leave no empty notes. Each account has at most one daily note per date (enforced by the server); the date is the browser's local date. Off by default. | This avoids empty notes and duplicates when two devices open Home on the same day. |
+| 9 | Turning a feature off | Hides its tab and card. Nothing is deleted: its notes stay in search, exports and backups, and reappear when it is turned back on. | Settings should never destroy data. |
+| 10 | Settings layout | Account and Password first, then "Writing" (titles and dates), "Features" (todo lists, quick notes, daily notes) and "Backup & restore" (export and import). A collapsible "Advanced" section holds Encryption, Recovery key, Sessions and Delete account; it opens by itself while a conversion is running. Administration stays last, for administrators only. | Everyday settings come first; rarely used and risky ones sit together behind one click. |
+| 11 | Import | In the browser, for every account (so end-to-end accounts work too). Accepts Maple Notes export archives (`.zip`, any format and layout) with their attachments, and single `.md`, `.txt` and `.json` files. A ZIP without a manifest is read as a folder of such files. | One code path for all modes. The export's `manifest.json` lists every note's ID, so a restore can recognise notes the account already has, whatever the format. |
+| 12 | What a restore keeps | Text, dates, pinned and archived state, kind, daily date and attachments; tags come from the text as usual. Notes the account already has (same ID) are skipped, so importing the same archive twice is safe. A note whose ID belongs to another account gets a new ID. | Full fidelity without ever overwriting or duplicating existing notes. |
+| 13 | Exports carry the new data | Every format records the kind and the daily date, and todo lists and quick notes go into `todo/` and `quick-notes/` folders. The manifest moves to version 2. The server's and the browser's exports stay identical, checked by the shared export vectors. | Exports are the backup format, so a restore must be able to rebuild everything. |
+| 14 | Version | 1.2.0: new features, no breaking API changes (new fields and parameters only). | Semantic versioning. |
+| 15 | Calendar | A month calendar in the side menu (under the navigation, also in the phone drawer). Days with notes get a dot, today is outlined, and choosing a day opens that day's notes, like a tag view. Days follow the device's time zone; the week starts on the locale's first day. | Browsing by date is how people find "what did I write that week". Note dates are already visible to the server, so the calendar reveals nothing new in end-to-end mode. |
+| 16 | Appearance | Theme (System, Light, Dark) and an accent colour (Maple, Ocean, Forest, Teal, Plum, Amber, Slate) are preferences, applied by the web app. Each accent replaces the six brand shades the interface uses; the device remembers the last choice so the sign-in screen and the first paint match. | The brand colours were already design tokens, so accents are a token swap; checking contrast per accent keeps the app readable. |
+| 17 | Images | A lightbox built on the existing accessible dialog: the image fitted to the screen, arrows and swipes between a note's images, Esc to close, and a download link. Attachment images keep their aspect ratio and fill the width available. | No new dependency, and end-to-end images work because the viewer uses the same decrypted image sources as the note. |
+
+## Design notes
+
+### API changes (all additive)
+
+- `GET /api/v1/notes` takes `kind` (`note`, `todo`, `quick`; repeatable; default `note`).
+- Create requests take `kind` and `dailyDate`; `PATCH` can change the kind. Responses include `kind` and `dailyDate`.
+- `GET /api/v1/notes/daily/{date}` returns the account's daily note for a date. Creating a second one for the same
+  date answers 409 with the existing note's ID.
+- `GET` and `PUT /api/v1/account/preferences` read and change preferences, which are also part of the signed-in
+  user.
+- `POST /api/v1/notes/import/existing` takes up to 500 IDs and returns those this account already has.
+- `POST /api/v1/notes/import` creates one note with its original ID, timestamps, flags, kind and daily date:
+  - plain text for server-side modes, ciphertext for end-to-end accounts;
+  - end-to-end IDs may be old, but must be UUID version 7.
+
+### What changes for end-to-end accounts
+
+- The server additionally learns each note's kind and daily date, and the account's preferences.
+- It still sees no text: titles and todo items are part of the encrypted note, and import encrypts in the browser
+  before anything is sent.
+- The threat model and the spec gain these items.
+
+## Phases
+
+Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ not started
+
+At the end of every phase the preview container (`maple-notes-preview`, port 8092, volume `maple-preview-data`) is
+rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
+
+| # | Phase | Done when | Status |
+|---|---|---|---|
+| F1 | Preferences and the Settings layout | Preferences are stored per account, returned with the user and changed through the API (validated, tested). Settings shows the new layout: the collapsible Advanced section with Encryption, Recovery key, Sessions and Delete account, and "Backup & restore" | ✅ Done (`8230325`) |
+| F2 | Note titles and dates in titles | With titles on, the editor has a title field for new and existing notes and cards show the title. Optional date prefill in the chosen format with a preview. Nothing changes with titles off; works for end-to-end accounts | ✅ Done (`5cbc6d5`) |
+| F3 | Kinds of notes and the Todo tab | Notes have a kind (migration, API filter, patch). The Todo tab creates and edits checklists that are encrypted like any note. Search, tags and the archive span enabled kinds with labels. The setting (on by default) shows or hides the tab | ✅ Done (`327fc66`) |
+| F4 | Quick notes | The Quick notes tab with its own composer and list; moving a quick note to Home and back; the setting (on by default) | ✅ Done (`6ad6b3c`) |
+| F5 | Daily notes | Home's "Today" card creates the day's note on first write; one daily note per date is enforced; the setting (off by default) | ✅ Done (`6d5c8a4`) |
+| F6 | Exports with kinds and daily notes | Server and browser exports record kind and daily date, and place todo lists and quick notes in their folders (manifest version 2). The shared export vectors cover the new data | ✅ Done (`3a6a72a`) |
+| F7 | Import and full restore | Export archives in every format and layout, and single `.md`/`.txt`/`.json` files, restore into any account, including end-to-end ones, with progress and a summary. Re-importing skips existing notes. Round-trip tests: export → import into a fresh account → identical export | ✅ Done (`03df64e`) |
+| F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ✅ Done (`f66f0cb`) |
+| F9 | Calendar in the side menu (requested after F8) | A month calendar in the side menu marks the days that have notes; choosing a day shows that day's notes; works in every encryption mode; a Features switch (on by default); docs, changelog and preview updated | ✅ Done |
+| F10 | Appearance: theme colour and dark mode (requested after F8) | Settings → Appearance offers System, Light or Dark and a choice of accent colours, saved per account and applied at once, with no flash of the wrong theme when the app opens; every accent keeps text contrast at least 4.5:1 in both themes | ✅ Done |
+| F11 | Image viewer and responsive images (requested after F8) | Choosing an image attachment opens a full-screen viewer (next/previous for a note's images, keyboard, swipe, close); attachment images scale to any screen width without overflowing or distorting; works for end-to-end files | ✅ Done |
+| F12 | Tags page (requested after F8) | Tags get their own page from the side menu: every tag with its count, a filter box, nested tags under their parents; the side menu no longer lists tags | ✅ Done |
+| F13 | Formatting toolbar (requested after F8) | The editor has a toolbar (bold, italic, heading, bulleted list, checklist, quote, code, link) that inserts Markdown at the cursor or around the selection, with keyboard shortcuts; works in every editor (notes, edits, quick notes, daily notes) | ✅ Done |
+| F14 | Link previews (requested after F8) | An option (off by default) shows a preview card (title, description, site) for links in notes, fetched by the server with protection against requests to internal addresses; its privacy cost (the server learns the links, including for end-to-end accounts) is explained where it is turned on | ✅ Done |
+| F15 | User guide in the app (requested after F8) | A Help page in the side menu explains every feature for people using the app (not running it), with a table of contents and links to the matching settings; it ships with the app, so it works offline and needs no server changes | ✅ Done |
+| F16 | Storage usage (requested after F15) | Settings → Account shows how much the account stores (notes and files, with counts and a bar); administrators see the server's totals (database, files, backups) and free space, never another account's usage | ✅ Done |
+
+### Notes from the phases
+
+- **F1:** preferences are stored as one JSON column, so fields added later take their defaults in older rows (a 1.0
+  database upgraded in the tests gets the defaults too). The web app applies a change at once and sends changes one
+  after another, each with every change made so far, so quick successive toggles cannot overwrite each other; a
+  failed save rolls back. The Advanced section opens by itself while an encryption conversion is running, so its
+  progress stays visible.
+- **F2:** a prefilled date does not count as writing something: the post button stays disabled until there is text,
+  a file or a typed title, so opening Home never produces empty dated notes. The browser run found that the Advanced
+  button's accessible name included its whole description; it is now named "Advanced", with the description attached
+  separately. Verified in Chromium on the production build:
+  - the Settings layout, and preferences saved on the server and seen by a second device;
+  - a title starting with today's date, stored as a `# heading`;
+  - editing a title, and turning titles off without changing any note;
+  - a titled note on an end-to-end account, sent encrypted;
+  - the existing 18-step suite, with its encryption steps now opening Advanced first.
+- **F3:** the timeline and each tab page over one kind through a second index (`UserId, Kind, CreatedAtUtc, Id`).
+  Existing notes become timeline notes, and a 1.0 database upgraded in the tests shows it. Tag counts follow the kinds
+  the user has turned on, so a tag's count always matches its view. Todo edits show at once and are saved one after
+  another, each carrying the whole list. Two findings:
+  - A unit test found that the list's menu took focus back when it closed, which ended a rename immediately.
+    Renaming now starts once the menu has closed.
+  - Adding `kind` to note responses changed the shared export vectors, which store API responses. They were
+    regenerated, and the browser export still matches every archive.
+
+  Verified in Chromium on the production build:
+  - creating, filling, ticking, editing, renaming, clearing, archiving and restoring a list;
+  - lists kept out of Home but found by search and tags;
+  - turning the feature off (tab, searches) and on;
+  - a list converted to end-to-end encryption and then edited as ciphertext;
+  - a 390 px phone layout;
+  - the 18-step suite.
+- **F4:** quick notes needed no server change beyond F3's kinds. Quick notes and todo lists are edited without the
+  title field, so their text stays exactly as written; "Move to quick notes" appears only while the tab is on.
+  Verified in Chromium on the production build:
+  - posting in the tab, kept out of Home but found by a tag;
+  - moving to Home and back;
+  - turning the tab off and on;
+  - an encrypted quick note on an end-to-end account;
+  - the 18-step suite.
+- **F5:** a unique index on (`UserId`, `DailyDate`) enforces one daily note per day, including when two devices save
+  at the same moment: the second gets 409 and its words are added to the existing note. Opening Home creates
+  nothing; the day's note is saved with its first words, and it is kept out of the feed below the Today card.
+  Adding `dailyDate` to note responses changed the shared export vectors again; they were regenerated. Verified in
+  Chromium on the production build:
+  - off by default;
+  - the Today card titled in the chosen format;
+  - nothing saved by visiting;
+  - the first words starting the note;
+  - a second device adding to it rather than starting another;
+  - the note converted to end-to-end encryption and still today's;
+  - the 18-step suite.
+- **F6:** the vector dataset gained a todo list, an archived quick note, and a daily note written late in the evening
+  UTC (its day is the author's local date, not the UTC one). The web tests reproduce all 13 regenerated archives.
+  This phase also closed a gap left by F3: the browser export listed notes with the default kind, so an end-to-end
+  account's export would have left out its todo lists and quick notes. It now asks for every kind, and a test holds
+  it to that. Verified in Chromium on the production build: one account exported by the server, then, after
+  switching to end-to-end encryption, by the browser, gives the same entries with the same content; the existing
+  end-to-end export run and the 18-step suite pass.
+- **F7:** the browser reads archives with a small ZIP reader of its own. It reads the central directory, then one
+  entry at a time from the chosen file, so large exports are never loaded whole; it also handles ZIP64. The
+  export's manifest gives every note's ID, even in plain-text exports, so restores skip what the account has in
+  every format. Other design points:
+  - A note whose ID belongs to another account is never overwritten. The server says only whether the account
+    itself has an ID; a plain note gets a new ID, and an end-to-end note is encrypted again for one.
+  - The web tests restore every archive in the shared export vectors (13 archives, every format and layout) and
+    compare each note's text, dates, state, kind, daily date and file bytes with the original.
+
+  Verified in Chromium on the production build, across three instances:
+  - an account with every kind of note and a photo, exported, then restored into a fresh instance;
+  - restoring the same export again skips all 6 notes;
+  - the restored account exports the same archive, apart from new attachment IDs and the export time;
+  - an end-to-end account on a fresh instance restores the same archive, stored as ciphertext, and its browser
+    export matches too;
+  - an end-to-end account whose IDs were already taken on its instance restores everything under new IDs.
+- **F8:** the review added two limits. Restored edit times are never in the future, and the browser's ZIP reader
+  refuses entries claiming more than 2 GiB rather than exhausting memory. Everything else in the new surface was
+  already validated: text length and ciphertext, attachment ownership, kinds, IDs, dates, the preference date
+  formats, and 500 IDs per existing-notes check, which only ever reports the caller's own. Verified on an image built
+  from a clean clone of the branch: 355 server and 156 web tests, and 140 browser checks in Chromium across 14 runs.
+  The runs cover every 1.1 suite (the 18-step suite, the 1.0 upgrade, keys, notes, media, the built worker, mode
+  changes and export) and every 1.2 phase (F2–F7).
+- **F9** (requested after F8): the server counts notes per day in the browser's time zone, so days line up with what
+  the user sees, including across daylight-saving changes (tested with Paris on the night the clocks change). A
+  day's notes are listed by the instants the day starts and ends on the device. Nothing new is revealed in
+  end-to-end mode: creation times were already visible, and only the time zone is added. Verified in Chromium on the
+  production build:
+  - today marked with its count, and choosing it lists that day's notes, todo lists included;
+  - an earlier month;
+  - the Calendar switch;
+  - the phone drawer;
+  - an end-to-end account;
+  - the 18-step suite.
+- **F10** (requested after F8): "Device" is handled entirely in CSS. Dark mode follows `prefers-color-scheme` unless
+  `<html>` carries the `.light` or `.dark` class that Light and Dark set, so the default needs no script and the first
+  paint is right. An explicit choice is also remembered on the device and applied before React renders. Each accent
+  replaces the six brand shades through CSS variables; the browser test measures contrast from the real stylesheet:
+  white on the two button shades, and the dark-theme text shade on stone-900. Verified in Chromium on the production
+  build:
+  - Device on a light and on a dark device, and Light and Dark overriding each;
+  - an accent recolouring buttons and the browser's theme colour;
+  - the choice kept after a reload and on the sign-in page;
+  - the 18-step suite.
+- **F11** (requested after F8): the viewer is built on the accessible dialog the app already uses, so focus, Esc
+  and screen readers work as for other dialogs, and it shows the same image sources as the note, including
+  end-to-end images decrypted through the media service worker. Verified in Chromium on the production build:
+  - a tall image keeps its shape at 70% of the screen height, a small one is not enlarged, and several become square
+    thumbnails;
+  - the viewer fits each image, with paging by arrow keys, buttons and a swipe (wrapping around), and Esc;
+  - at 375 px, no horizontal scrolling and the images fitted;
+  - an end-to-end image opens decrypted;
+  - the 18-step suite.
+- **F12** (requested after F8): the Tags page builds the tree in the browser from the same tag list (so end-to-end tag
+  names work). A parent that exists only through nested tags is still a link, since a tag filter includes nested
+  tags. Each link is named for screen readers ("work/meetings, 5 notes"). Updating the browser scripts for the new
+  page exposed an intermittent bug in the Todo tab from F3: a refresh sent before a save could arrive just after it,
+  briefly bring back the older list, and the next edit then saved over the missing item. The card now ignores any
+  version older than its own last save. A unit test recreates that order, and the Todo browser run passed three times
+  in a row. Verified in Chromium on the production build:
+  - 37 tags, with nesting, most-used order, and a filter that finds nested tags;
+  - a tag opening its notes, and the side-menu link with its count;
+  - 375 px width;
+  - the end-to-end notes, Todo, Quick notes and 18-step runs, updated for the page.
+- **F13** (requested after F8): the formatting rules are a pure function from the text and selection to one
+  replacement and a new selection. It wraps or unwraps, adds or removes line prefixes (swapping one list marker for
+  another), makes a code block from several lines, and selects the link address to type over. The editor applies the
+  change with the browser's own text insertion, so Undo works as it does for typing, and sets the text directly where
+  that is unavailable. Verified in Chromium on the production build:
+  - bold keeping the selection, then Undo;
+  - the italic and link shortcuts;
+  - a checklist over several lines, and a heading;
+  - the rendered note;
+  - the toolbar in quick notes, and 375 px width;
+  - the 18-step suite.
+- **F14** (requested after F8): the protection against server-side request forgery sits in the HTTP client's
+  `ConnectCallback`, so it checks the address actually connected to rather than a name that could resolve differently
+  a moment later. The server tests cover the address classification (including IPv4 inside IPv6), link validation,
+  HTML parsing, the account's and the server's switches, caching, and redirects, including one to the cloud metadata
+  address. They run against a fake network injected through a new test-host hook. One unrelated attachment test failed
+  once with a database-open error under parallel load and passed on the next two full runs; it is recorded here in case
+  it comes back. Verified in Chromium against the production container with a real network:
+  - off by default, with nothing fetched until turned on, and the cost explained;
+  - `example.com` previewed;
+  - `localtest.me`, a public name that resolves to 127.0.0.1, refused when connecting;
+  - `host.docker.internal`, the metadata address and a non-standard port refused;
+  - end-to-end accounts warned;
+  - the 18-step suite.
+
+  Afterwards, as the user asked, turning link previews on now opens a confirmation dialog that states the privacy and
+  security cost: the server learns the links (said outright for end-to-end accounts), sites see visits from the server,
+  and a link can make the server fetch a page. Turning them off stays immediate, and the switch shows a warning line.
+  The browser run confirms the dialog appears before anything is saved. Confirmation dialogs now render their
+  description as a `div`, so a paragraph or list inside one is valid HTML.
+- **F15** (requested after F8): the guide is written for people using the app and ships with it (no server
+  change). Each topic is a Markdown section, so it renders like notes, and example tags are written as code so they do
+  not become tag links. A flaky web test found along the way (the toolbar restores the selection on the next frame
+  where the browser cannot insert text natively) now waits for that frame. Verified in Chromium on the production
+  build:
+  - the Help link in the side menu;
+  - every contents entry;
+  - jumping to a section, and a link from the guide into Settings;
+  - 375 px width;
+  - the 18-step suite and the link-preview run.
+- **After F15:** the app icon became the leaf in autumn colours (red at the heart, gold at the tips) without the tile,
+  as the user asked, to feel like the 🍁 emoji. It is original artwork; no emoji font's design is copied (see
+  `docs/licensing.md`).
+- **Final check of the whole of 1.2**, on an image built from a clean clone of the branch:
+  - 399 server tests, 184 web tests, the production build and the license check pass;
+  - 195 browser checks in Chromium across 21 runs pass: every 1.1 suite (the 18-step suite, the 1.0 upgrade, keys,
+    notes, media, the built worker, mode changes, export) and every 1.2 phase (F2–F15, with F7's three-instance
+    restore).
+
+  Two browser scripts were adjusted along the way. The media and export scripts waited for uploads by a colour
+  class that the calendar's dots now share. The daily-notes script checked before the switch to end-to-end
+  encryption had finished converting.
+- **F16** (requested after the final check): as the user asked, nothing that exposes a security or privacy issue was
+  built. Showing each account's usage to administrators was designed first, then dropped: it would tell them more
+  about a person's activity than the note count they already see. Accounts see only their own usage, and
+  administrators see aggregate server totals. The server tests check both, including that the accounts list carries no
+  usage. On Docker Desktop for Mac, free space reports the virtual disk behind a folder mounted from macOS; Linux
+  hosts report the real volume. Verified in Chromium on the production build:
+  - an empty account, then 3 MB after adding a file;
+  - server totals for the administrator only;
+  - no usage in the accounts list;
+  - the 18-step suite.
+
+## Out of scope for 1.2.0
+
+- Restoring a server database backup (`.db`) from the web app; this stays an operator task (see the README).
+- Importing from other apps' formats beyond plain Markdown, text and JSON files.
+- Recurring todo items, due dates and reminders.
+- Templates for daily notes.
+- Reordering todo items by dragging.

@@ -117,11 +117,14 @@ export function Switch({
   onCheckedChange,
   label,
   disabled,
+  describedBy,
 }: {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   label: string;
   disabled?: boolean;
+  /** ID of the element that explains the switch. */
+  describedBy?: string;
 }) {
   return (
     <button
@@ -129,6 +132,7 @@ export function Switch({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      aria-describedby={describedBy}
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
@@ -166,6 +170,27 @@ export function Card({ className, children }: { className?: string; children: Re
     >
       {children}
     </section>
+  );
+}
+
+/** A settings card: a heading, an optional description and its controls. */
+export function Section({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) {
+  return (
+    <Card className="p-5">
+      <h2 className="text-base font-semibold">{title}</h2>
+      {description && <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">{description}</p>}
+      <div className="mt-4">{children}</div>
+    </Card>
+  );
+}
+
+/** A friendly placeholder for an empty list. */
+export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-stone-300 px-6 py-12 text-center dark:border-stone-700">
+      <p className="font-medium">{title}</p>
+      {children && <p className="max-w-sm text-sm text-stone-600 dark:text-stone-300">{children}</p>}
+    </div>
   );
 }
 

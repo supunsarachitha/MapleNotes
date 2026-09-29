@@ -33,6 +33,9 @@ public sealed class NoteService(
     /// <summary>Largest page size.</summary>
     public const int MaxPageSize = 100;
 
+    /// <summary>The most IDs <see cref="FindExistingAsync"/> answers at a time.</summary>
+    public const int MaxImportIds = 500;
+
     /// <summary>Shown in place of a note whose text cannot be decrypted (damaged data).</summary>
     public const string UnreadablePlaceholder = "⚠️ This note could not be decrypted. Its stored data may be damaged.";
 
@@ -68,12 +71,18 @@ public sealed class NoteService(
             throw new ApiValidationException("tagToken", "Tag tokens are 22 base64url characters, at most 100 per request.");
         }
 
-        var filter = new TagFilter(tag, tagTokens);
+        if (query.CreatedFrom >= query.CreatedBefore)
+        {
+            throw new ApiValidationException("createdBefore", "The end must be after the start.");
+        }
+
+        var filter = new TagFilter(tag, tagTokens, Utc(query.CreatedFrom), Utc(query.CreatedBefore));
+        var kinds = ValidateKinds(query.Kinds) ?? [NoteKind.Note];
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
 
         if (search is null)
         {
-            var page = await LoadBatchAsync(userId, query.State, filter, cursor, limit + 1, cancellationToken);
+            var page = await LoadBatchAsync(userId, query.State, kinds, filter, cursor, limit + 1, cancellationToken);
             var items = new List<NoteResponse>(Math.Min(page.Count, limit));
             foreach (var note in page.Take(limit))
             {
@@ -88,7 +97,7 @@ public sealed class NoteService(
         var scanned = 0;
         while (true)
         {
-            var batch = await LoadBatchAsync(userId, query.State, filter, cursor, SearchBatchSize, cancellationToken);
+            var batch = await LoadBatchAsync(userId, query.State, kinds, filter, cursor, SearchBatchSize, cancellationToken);
             foreach (var note in batch)
             {
                 scanned++;
@@ -128,6 +137,18 @@ public sealed class NoteService(
         return note is null ? null : await ToResponseAsync(note, cancellationToken);
     }
 
+    /// <summary>Returns the user's daily note of a day.</summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="date">The day.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The note, or null when the day has none.</returns>
+    public async Task<NoteResponse?> GetDailyAsync(Guid userId, DateOnly date, CancellationToken cancellationToken)
+    {
+        var note = await WithDetails(db.Notes.AsNoTracking())
+            .SingleOrDefaultAsync(n => n.UserId == userId && n.DailyDate == date, cancellationToken);
+        return note is null ? null : await ToResponseAsync(note, cancellationToken);
+    }
+
     /// <summary>Creates a note.</summary>
     /// <param name="userId">The owner.</param>
     /// <param name="request">Text (plain, or encrypted by the browser), attachments and pin state.</param>
@@ -139,6 +160,20 @@ public sealed class NoteService(
     /// end-to-end account or the reverse), or the chosen ID is taken.</exception>
     public async Task<NoteResponse> CreateAsync(Guid userId, CreateNoteRequest request, CancellationToken cancellationToken)
     {
+        ValidateKinds([request.Kind]);
+        if (request.DailyDate is { } day)
+        {
+            if (request.Kind != NoteKind.Note)
+            {
+                throw new ApiValidationException("dailyDate", "Only timeline notes can be daily notes.");
+            }
+
+            if (await db.Notes.AnyAsync(n => n.UserId == userId && n.DailyDate == day, cancellationToken))
+            {
+                throw DailyNoteExists();
+            }
+        }
+
         var attachmentIds = request.AttachmentIds ?? [];
         var now = time.GetUtcNow().UtcDateTime;
         Note note;
@@ -155,7 +190,16 @@ public sealed class NoteService(
                 throw new ApiProblemException(StatusCodes.Status409Conflict, "A note with this ID already exists.");
             }
 
-            note = new Note { Id = request.Id!.Value, UserId = userId, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now };
+            note = new Note
+            {
+                Id = request.Id!.Value,
+                UserId = userId,
+                Kind = request.Kind,
+                DailyDate = request.DailyDate,
+                IsPinned = request.IsPinned,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now,
+            };
             SetEncryptedContent(note, encrypted);
             await AttachAsync(note, attachmentIds, cancellationToken);
             await SetEncryptedTagsAsync(note, encrypted.Tags, cancellationToken);
@@ -168,16 +212,133 @@ public sealed class NoteService(
             }
 
             var content = ValidateContent(request.Content, attachmentIds.Count);
-            note = new Note { UserId = userId, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now };
+            note = new Note
+            {
+                UserId = userId, Kind = request.Kind, DailyDate = request.DailyDate, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now,
+            };
             await SetContentAsync(note, content, cancellationToken);
             await AttachAsync(note, attachmentIds, cancellationToken);
             await SetTagsAsync(note, content, cancellationToken);
         }
 
         db.Notes.Add(note);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException) when (note.DailyDate is not null)
+        {
+            // Most likely another device started the day's note at the same moment.
+            var date = note.DailyDate.Value;
+            if (await db.Notes.AsNoTracking().AnyAsync(n => n.UserId == userId && n.DailyDate == date && n.Id != note.Id, cancellationToken))
+            {
+                throw DailyNoteExists();
+            }
+
+            throw;
+        }
+
         return await ToResponseAsync(note, cancellationToken);
     }
+
+    /// <summary>Returns which of the given note IDs the account already has.</summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="ids">Up to <see cref="MaxImportIds"/> IDs.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The IDs of the account's own notes; other accounts' notes are never revealed.</returns>
+    /// <exception cref="ApiValidationException">Too many IDs.</exception>
+    public async Task<IReadOnlyList<Guid>> FindExistingAsync(Guid userId, IReadOnlyList<Guid> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count > MaxImportIds)
+        {
+            throw new ApiValidationException("ids", $"Ask about at most {MaxImportIds} IDs at a time.");
+        }
+
+        var wanted = ids.Distinct().ToList();
+        return await db.Notes.AsNoTracking()
+            .Where(n => n.UserId == userId && wanted.Contains(n.Id))
+            .Select(n => n.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Restores a note from an export with its original ID, dates, state, kind and daily date. A note the account already
+    /// has is left unchanged, so restoring the same export twice is safe.
+    /// </summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="request">The note.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>Whether it was restored, and the note.</returns>
+    /// <exception cref="ApiValidationException">The content, dates, kind, ID or attachments are not acceptable.</exception>
+    /// <exception cref="ApiProblemException">The request does not match the account's mode, or (end-to-end) the ID is
+    /// used by another account and the note must be encrypted for a new one (409).</exception>
+    public async Task<ImportNoteResponse> ImportAsync(Guid userId, ImportNoteRequest request, CancellationToken cancellationToken)
+    {
+        ValidateKinds([request.Kind]);
+        var now = time.GetUtcNow().UtcDateTime;
+        var created = DateTime.SpecifyKind(request.CreatedAtUtc.ToUniversalTime(), DateTimeKind.Utc);
+        var updated = DateTime.SpecifyKind(request.UpdatedAtUtc.ToUniversalTime(), DateTimeKind.Utc);
+        if (created > now + EndToEndContent.ClientIdTolerance)
+        {
+            throw new ApiValidationException("createdAtUtc", "A note cannot have been created in the future.");
+        }
+
+        // Edit times never lie in the future, nor before the note was created.
+        updated = updated > now ? now : updated;
+        updated = updated < created ? created : updated;
+        if (request.Id is { } requested && await GetAsync(userId, requested, cancellationToken) is { } existing)
+        {
+            return new ImportNoteResponse(false, existing);
+        }
+
+        var taken = request.Id is { } id && await db.Notes.AnyAsync(n => n.Id == id, cancellationToken);
+        var attachmentIds = request.AttachmentIds ?? [];
+        Note note;
+        if (request.Encrypted is { } encrypted)
+        {
+            await RequireEndToEndAsync(userId, cancellationToken);
+            if (EndToEndContent.ValidateImportedId(request.Id, now) is { } idError)
+            {
+                throw new ApiValidationException("id", idError);
+            }
+
+            if (taken)
+            {
+                throw new ApiProblemException(StatusCodes.Status409Conflict, "This note ID is not available.", "Encrypt the note for a new ID.");
+            }
+
+            note = new Note { Id = request.Id!.Value, UserId = userId };
+            SetEncryptedContent(note, encrypted);
+            await AttachAsync(note, attachmentIds, cancellationToken);
+            await SetEncryptedTagsAsync(note, encrypted.Tags, cancellationToken);
+        }
+        else
+        {
+            var content = ValidateContent(request.Content, attachmentIds.Count);
+            note = new Note { Id = request.Id is { } plainId && !taken ? plainId : Guid.CreateVersion7(), UserId = userId };
+            await SetContentAsync(note, content, cancellationToken);
+            await AttachAsync(note, attachmentIds, cancellationToken);
+            await SetTagsAsync(note, content, cancellationToken);
+        }
+
+        note.Kind = request.Kind;
+        note.IsPinned = request.IsPinned;
+        note.ArchivedAtUtc = request.IsArchived ? updated : null;
+        note.CreatedAtUtc = created;
+        note.UpdatedAtUtc = updated;
+        if (request.DailyDate is { } day && request.Kind == NoteKind.Note
+            && !await db.Notes.AnyAsync(n => n.UserId == userId && n.DailyDate == day, cancellationToken))
+        {
+            note.DailyDate = day;
+        }
+
+        db.Notes.Add(note);
+        await db.SaveChangesAsync(cancellationToken);
+        return new ImportNoteResponse(true, await ToResponseAsync(note, cancellationToken));
+    }
+
+    private static ApiProblemException DailyNoteExists() =>
+        new(StatusCodes.Status409Conflict, "This day already has a daily note.", "Open it with GET /api/v1/notes/daily/{date} and add to it.");
 
     /// <summary>Replaces a note's text and, optionally, its set of attachments.</summary>
     /// <param name="userId">The owner.</param>
@@ -241,14 +402,20 @@ public sealed class NoteService(
         return await ToResponseAsync(note, cancellationToken);
     }
 
-    /// <summary>Pins, unpins, archives or restores a note.</summary>
+    /// <summary>Pins, unpins, archives, restores or moves a note.</summary>
     /// <param name="userId">The owner.</param>
     /// <param name="noteId">The note.</param>
     /// <param name="request">The changes.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The updated note, or null when it does not exist or belongs to someone else.</returns>
+    /// <exception cref="ApiValidationException">The kind is not valid.</exception>
     public async Task<NoteResponse?> PatchAsync(Guid userId, Guid noteId, PatchNoteRequest request, CancellationToken cancellationToken)
     {
+        if (request.Kind is { } kind)
+        {
+            ValidateKinds([kind]);
+        }
+
         var note = await WithDetails(db.Notes).SingleOrDefaultAsync(n => n.Id == noteId && n.UserId == userId, cancellationToken);
         if (note is null)
         {
@@ -263,6 +430,12 @@ public sealed class NoteService(
         if (request.IsArchived is { } archived)
         {
             note.ArchivedAtUtc = archived ? note.ArchivedAtUtc ?? time.GetUtcNow().UtcDateTime : null;
+        }
+
+        note.Kind = request.Kind ?? note.Kind;
+        if (note.Kind != NoteKind.Note)
+        {
+            note.DailyDate = null; // a daily note moved out of the timeline no longer holds its day
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -298,10 +471,18 @@ public sealed class NoteService(
 
     /// <summary>Lists the user's tags with the number of active notes using each.</summary>
     /// <param name="userId">The owner.</param>
+    /// <param name="kinds">Count only notes of these kinds; null or empty for every kind.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>Named tags in alphabetical order, then end-to-end tags (tokens and encrypted names).</returns>
-    public async Task<IReadOnlyList<TagResponse>> ListTagsAsync(Guid userId, CancellationToken cancellationToken)
+    /// <exception cref="ApiValidationException">A kind is not valid.</exception>
+    public async Task<IReadOnlyList<TagResponse>> ListTagsAsync(Guid userId, NoteKind[]? kinds, CancellationToken cancellationToken)
     {
+        var counted = db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null);
+        if (ValidateKinds(kinds) is { } wanted)
+        {
+            counted = counted.Where(n => wanted.Contains(n.Kind));
+        }
+
         var rows = await db.Tags
             .Where(t => t.UserId == userId)
             .Select(t => new
@@ -309,7 +490,7 @@ public sealed class NoteService(
                 t.Name,
                 t.Token,
                 t.EncryptedName,
-                Count = db.Notes.Count(n => n.UserId == userId && n.ArchivedAtUtc == null && n.Tags.Any(nt => nt.Id == t.Id)),
+                Count = counted.Count(n => n.Tags.Any(nt => nt.Id == t.Id)),
             })
             .Where(row => row.Count > 0)
             .OrderBy(row => row.Name == null)
@@ -338,7 +519,9 @@ public sealed class NoteService(
             note.UpdatedAtUtc,
             note.Tags.Where(t => t.Name is not null).Select(t => t.Name!).Order(StringComparer.Ordinal).ToList(),
             note.Attachments.OrderBy(a => a.CreatedAtUtc).Select(AttachmentResponse.From).ToList(),
-            endToEnd ? note.Content : null);
+            endToEnd ? note.Content : null,
+            note.Kind,
+            note.DailyDate);
     }
 
     /// <summary>Returns a note's text, decrypting it when necessary.</summary>
@@ -397,9 +580,19 @@ public sealed class NoteService(
         notes.Include(n => n.Attachments).Include(n => n.Tags).AsSplitQuery();
 
     private Task<List<Note>> LoadBatchAsync(
-        Guid userId, NoteState state, TagFilter filter, NoteCursor? cursor, int count, CancellationToken cancellationToken)
+        Guid userId, NoteState state, NoteKind[] kinds, TagFilter filter, NoteCursor? cursor, int count, CancellationToken cancellationToken)
     {
         var notes = db.Notes.AsNoTracking().Where(n => n.UserId == userId);
+        if (kinds.Length == 1)
+        {
+            var kind = kinds[0];
+            notes = notes.Where(n => n.Kind == kind);
+        }
+        else if (kinds.Length < Enum.GetValues<NoteKind>().Length)
+        {
+            notes = notes.Where(n => kinds.Contains(n.Kind));
+        }
+
         notes = state switch
         {
             NoteState.Pinned => notes.Where(n => n.ArchivedAtUtc == null && n.IsPinned),
@@ -407,6 +600,16 @@ public sealed class NoteService(
             NoteState.Archived => notes.Where(n => n.ArchivedAtUtc != null),
             _ => notes.Where(n => n.ArchivedAtUtc == null && !n.IsPinned),
         };
+
+        if (filter.CreatedFrom is { } from)
+        {
+            notes = notes.Where(n => n.CreatedAtUtc >= from);
+        }
+
+        if (filter.CreatedBefore is { } before)
+        {
+            notes = notes.Where(n => n.CreatedAtUtc < before);
+        }
 
         if (filter.IsActive)
         {
@@ -428,6 +631,63 @@ public sealed class NoteService(
             .ThenByDescending(n => n.Id)
             .Take(count)
             .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>Counts the user's active notes per day, in a time zone, for the calendar.</summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="query">The days, time zone and kinds.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The days that have notes, in order.</returns>
+    /// <exception cref="ApiValidationException">The range or the time zone is not valid.</exception>
+    public async Task<IReadOnlyList<CalendarDayResponse>> CalendarAsync(Guid userId, CalendarQuery query, CancellationToken cancellationToken)
+    {
+        if (query.To < query.From || query.To.DayNumber - query.From.DayNumber > 62)
+        {
+            throw new ApiValidationException("to", "Ask for at most 62 days, ending on or after the first.");
+        }
+
+        var zone = TimeZoneInfo.Utc;
+        if (!string.IsNullOrWhiteSpace(query.TimeZone) && !TimeZoneInfo.TryFindSystemTimeZoneById(query.TimeZone.Trim(), out zone))
+        {
+            throw new ApiValidationException("timeZone", $"Unknown time zone '{query.TimeZone}'. Use an IANA name such as Europe/Paris.");
+        }
+
+        var start = Export.NoteExporter.StartOfDayUtc(query.From, zone!);
+        var end = Export.NoteExporter.StartOfDayUtc(query.To.AddDays(1), zone!);
+        var notes = db.Notes.AsNoTracking().Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.CreatedAtUtc >= start && n.CreatedAtUtc < end);
+        if (ValidateKinds(query.Kinds) is { } kinds)
+        {
+            notes = notes.Where(n => kinds.Contains(n.Kind));
+        }
+
+        var times = await notes.Select(n => n.CreatedAtUtc).ToListAsync(cancellationToken);
+        return times
+            .GroupBy(t => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(t, zone!)))
+            .OrderBy(g => g.Key)
+            .Select(g => new CalendarDayResponse(g.Key, g.Count()))
+            .ToList();
+    }
+
+    private static DateTime? Utc(DateTime? value) =>
+        value is { } time ? DateTime.SpecifyKind(time.ToUniversalTime(), DateTimeKind.Utc) : null;
+
+    /// <summary>Checks requested kinds.</summary>
+    /// <param name="kinds">The kinds, possibly null or empty.</param>
+    /// <returns>The distinct kinds, or null when none were given.</returns>
+    /// <exception cref="ApiValidationException">A value is not a <see cref="NoteKind"/>.</exception>
+    private static NoteKind[]? ValidateKinds(NoteKind[]? kinds)
+    {
+        if (kinds is null || kinds.Length == 0)
+        {
+            return null;
+        }
+
+        if (!kinds.All(Enum.IsDefined))
+        {
+            throw new ApiValidationException("kind", "The kind must be Note, Todo or Quick.");
+        }
+
+        return kinds.Distinct().ToArray();
     }
 
     private static bool Matches(NoteResponse note, string search) =>
@@ -560,8 +820,11 @@ public sealed class NoteService(
             .Where(t => t.UserId == userId && !db.Notes.Any(n => n.UserId == userId && n.Tags.Any(nt => nt.Id == t.Id)))
             .ExecuteDeleteAsync(cancellationToken);
 
-    /// <summary>A tag filter: a tag name (plain-text notes) and blind tokens (end-to-end notes), matched with OR.</summary>
-    private readonly record struct TagFilter(string? Name, string[] Tokens)
+    /// <summary>
+    /// A list filter: a tag name (plain-text notes) and blind tokens (end-to-end notes), matched with OR, and an optional
+    /// creation-time range.
+    /// </summary>
+    private readonly record struct TagFilter(string? Name, string[] Tokens, DateTime? CreatedFrom = null, DateTime? CreatedBefore = null)
     {
         public bool IsActive => Name is not null || Tokens.Length > 0;
     }

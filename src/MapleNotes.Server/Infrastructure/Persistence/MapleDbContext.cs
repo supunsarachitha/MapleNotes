@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MapleNotes.Server.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -49,6 +50,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
         configurationBuilder.Properties<DateTime?>().HaveConversion<UtcDateTimeConverter>();
     }
 
+    // Preferences are stored as JSON; fields added later take their default value in older rows.
+    private static readonly JsonSerializerOptions PreferencesJson = new(JsonSerializerDefaults.Web);
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,6 +67,10 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             user.Property(u => u.SecurityStamp).HasMaxLength(64);
             user.Property(u => u.CredentialFormat).HasConversion<string>().HasMaxLength(16);
             user.Property(u => u.EncryptionMode).HasConversion<string>().HasMaxLength(16);
+            user.Property(u => u.Preferences)
+                .HasConversion(
+                    preferences => JsonSerializer.Serialize(preferences, PreferencesJson),
+                    json => ReadPreferences(json));
         });
 
         modelBuilder.Entity<Note>(note =>
@@ -70,8 +78,14 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             note.ToTable("Notes");
             note.HasOne<User>().WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
 
-            // Serves the feed's keyset pagination: WHERE UserId = @u ORDER BY CreatedAtUtc DESC, Id DESC.
+            // Serve keyset pagination (ORDER BY CreatedAtUtc DESC, Id DESC) over all of a user's notes (exports,
+            // searches) and over one kind (the timeline and the Todo and Quick notes tabs).
             note.HasIndex(n => new { n.UserId, n.CreatedAtUtc, n.Id });
+            note.HasIndex(n => new { n.UserId, n.Kind, n.CreatedAtUtc, n.Id });
+            note.Property(n => n.Kind).HasConversion<string>().HasMaxLength(16);
+
+            // At most one daily note per account and day (SQLite treats NULLs as distinct, so other notes are free).
+            note.HasIndex(n => new { n.UserId, n.DailyDate }).IsUnique();
             note.Property(n => n.Revision).IsConcurrencyToken();
 
             note.HasMany(n => n.Attachments).WithOne().HasForeignKey(a => a.NoteId).OnDelete(DeleteBehavior.Cascade);
@@ -127,4 +141,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
     internal sealed class UtcDateTimeConverter() : ValueConverter<DateTime, DateTime>(
         value => value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime(),
         value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
+
+    private static UserPreferences ReadPreferences(string json) =>
+        string.IsNullOrWhiteSpace(json)
+            ? new UserPreferences()
+            : JsonSerializer.Deserialize<UserPreferences>(json, PreferencesJson) ?? new UserPreferences();
 }

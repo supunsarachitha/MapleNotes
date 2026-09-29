@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-29
+
+Titles, todo lists, quick notes, daily notes, and restoring from exports. Every feature works in all three encryption
+modes, and each account chooses which ones it uses.
+
+### Added
+
+- **Preferences** per account, shared by all of its devices: `GET`/`PUT /api/v1/account/preferences`, also returned
+  with the signed-in user.
+- **Note titles** (Settings → Writing, off by default): a title field when writing, stored as the note's first line as
+  a Markdown heading. Titles can start with today's date in one of eight formats.
+- **Todo lists** (Settings → Features, on by default): a Todo tab for checklists. Add, tick, edit and remove items;
+  rename, clear completed, pin, archive and delete lists.
+- **Quick notes** (on by default): a Quick notes tab for short notes kept out of the timeline, which can move to Home
+  and back.
+- **Daily notes** (off by default): today's note at the top of Home, titled with the date and saved when you first
+  write. There is one per day, also when two devices start it at once.
+- **Appearance** (Settings → Appearance): light, dark or the device's theme, and seven accent colours (Maple, Ocean,
+  Forest, Teal, Plum, Amber, Slate), each keeping text contrast at 4.5:1 or better. The device remembers the last
+  choice, so the sign-in screen matches.
+- **Image viewer:** choosing an image attachment opens it full screen, with previous and next (buttons, arrow keys
+  or a swipe) and a download button. End-to-end images are decrypted as usual.
+- **Link previews** (Settings → Features, off by default): the title, description and site of links in notes. The
+  server fetches the pages, so it sees those links, even for end-to-end accounts. Settings shows this cost next to
+  the switch, and turning previews on asks for confirmation in a dialog that explains it. It only
+  connects to public addresses: private, loopback, link-local and similar ranges are refused when the connection is
+  made, including after redirects and for names that point there. Fetches are limited to http(s) on the standard
+  ports, 5 seconds and 512 KB of HTML, and results are cached. `MAPLE_LINK_PREVIEWS=false` turns the feature off for
+  the whole server.
+- **Storage usage:** Settings → Account shows how much the account stores (notes and files, with counts), from
+  `GET /api/v1/account/storage`. Administrators see the server's totals (database, files, backups) and free space
+  from `GET /api/v1/admin/storage`, but never another account's usage.
+- **Help page:** a user guide in the app, from the side menu, covering every feature with links to the matching
+  settings.
+- **Formatting toolbar** in every editor: bold, italic, heading, bulleted list, checklist, quote, code and link, with
+  Ctrl/⌘+B, I and K. Each change can be undone like typing.
+- **Tags page:** every tag with its note count, nested tags under their parents, a filter and A–Z or most-used
+  order. The side menu links to it instead of listing tags.
+- **Calendar** (on by default): a month calendar in the side menu (and the phone drawer) marks the days with notes,
+  in your time zone; choosing a day shows its notes.
+- **Restore** (Settings → Backup & restore): bring back Maple Notes exports (`.zip`, any format and layout, with
+  attachments) and single `.md`, `.txt` and `.json` files. Notes keep their ID, dates, pinned and archived state, kind
+  and daily date. Notes you already have are skipped. For end-to-end accounts the browser encrypts everything first.
+- API: notes have a `kind` (`Note`, `Todo`, `Quick`) and a `dailyDate`. `GET /api/v1/notes` and `GET /api/v1/tags`
+  take repeatable `kind` parameters. `GET /api/v1/notes` also takes `createdFrom` and `createdBefore`. New endpoints: `GET /api/v1/notes/calendar`, `GET /api/v1/notes/daily/{date}`, `POST /api/v1/notes/import` and
+  `POST /api/v1/notes/import/existing`.
+
+### Changed
+
+- **New icon:** the Maple Notes leaf in autumn colours, without the square tile; original artwork, like the emoji in
+  spirit but not copied from any emoji font.
+- **Settings layout:** Account, Writing, Features, Backup & restore and Password come first. Encryption, the recovery
+  key, sessions and account deletion are in a collapsible **Advanced** section, which opens by itself while an
+  encryption change is being applied.
+- Todo lists no longer lose an item when a refresh from the server arrives just after a quick series of edits (found
+  by the browser tests while building 1.2).
+- **Exports** record each note's kind and daily date in every format, and file todo lists and quick notes under
+  `todo/` and `quick-notes/`. The manifest is version 2.
+- Attachment images are responsive: a single image keeps its own shape (never cropped or enlarged, at most 70% of the
+  screen height); several become a grid of square thumbnails, three across on wider screens.
+- Searches, tag views, tag counts and the archive cover every kind of note that is turned on, with todo lists and
+  quick notes labelled.
+
 ## [1.1.0] - 2026-09-29
 
 End-to-end encryption: an account can now have its notes, tags and files encrypted in the browser with a key the
@@ -124,6 +187,7 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/supunsarachitha/MapleNotes/releases/tag/v1.0.0

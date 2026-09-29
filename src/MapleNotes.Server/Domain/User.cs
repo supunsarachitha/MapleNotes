@@ -84,6 +84,9 @@ public sealed class User
     /// <summary>When set and in the future, sign-in is refused until this time (UTC).</summary>
     public DateTime? LockoutEndUtc { get; set; }
 
+    /// <summary>Writing and feature preferences, shared by all of the account's devices.</summary>
+    public UserPreferences Preferences { get; set; } = new();
+
     /// <summary>Disabled accounts cannot sign in; set by an administrator.</summary>
     public bool IsDisabled { get; set; }
 

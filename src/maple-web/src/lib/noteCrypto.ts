@@ -74,6 +74,20 @@ export async function encodeNewNote(content: string): Promise<{ content?: string
   return { id, encrypted: await encryptForNote(id, content) };
 }
 
+/**
+ * Request fields for a note being restored: plain text under its original ID, or, in end-to-end mode, the text
+ * encrypted for that ID (a new one when it has none, it is not a UUID version 7, or `fresh` asks for one).
+ */
+export async function encodeImport(
+  originalId: string | null,
+  content: string,
+  fresh = false,
+): Promise<{ id?: string; content?: string; encrypted?: EncryptedNoteWire }> {
+  if (session?.mode !== "EndToEnd") return originalId ? { id: originalId, content } : { content };
+  const id = !fresh && originalId && /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(originalId) ? originalId : uuidv7();
+  return { id, encrypted: await encryptForNote(id, content) };
+}
+
 /** Request fields for new text of an existing note. Saving any note in end-to-end mode also converts it. */
 export async function encodeNoteUpdate(id: string, content: string): Promise<{ content?: string; encrypted?: EncryptedNoteWire }> {
   return session?.mode === "EndToEnd" ? { encrypted: await encryptForNote(id, content) } : { content };

@@ -114,7 +114,9 @@ A lost or stolen phone or laptop, or a shared computer.
 ### Other users and administrators
 
 Every query filters by the signed-in owner; another user's items answer 404, so their existence is not revealed.
-Administrators manage accounts but have no API to read anyone's notes. An administrator who also runs the server is
+Administrators manage accounts but have no API to read anyone's notes. They see how many notes an account has, but
+not how much it stores: storage usage is shown only to the account itself, and administrators get the server's totals
+only. An administrator who also runs the server is
 one of the adversaries above.
 
 ### Password guessing through the app
@@ -145,6 +147,10 @@ the password to the server one last time.
 | Number of notes and files, and when each was created and updated (also encoded in their IDs) | Tag names |
 | Approximate length of each note and exact size of each file (ciphertext is not padded) | File names, types and contents |
 | Which notes are pinned or archived, and which files belong to which note | Search queries |
+| Which notes are todo lists or quick notes, and which days have a daily note | Titles and todo items (they are part of the note's text) |
+| The account's preferences: which features are on, the date format, theme and accent colour | |
+| The browser's time zone, when the calendar asks for a month | |
+| With link previews turned on (off by default): each link in the notes the browser shows, and the linked pages themselves | |
 | Which notes share a tag, and how many notes each tag has (tag tokens are deterministic per account) | The password, the data key, the recovery key |
 | Which notes and files the browser loads, and which tag token a filter uses | |
 
@@ -155,7 +161,10 @@ server cannot learn a tag's name, but it can see that two notes share one. Token
 
 - **The code comes from the server.** See [above](#a-server-that-is-compromised-and-changes-the-app). This is the
   largest gap and it is inherent to a browser app served by the same host.
-- **Metadata is visible.** Sizes, timestamps, structure and tag equality are listed above.
+- **Metadata is visible.** Sizes, timestamps, structure, kinds, daily dates, preferences and tag equality are listed
+  above.
+- **Restoring an export sends it through this browser.** Exports are decrypted by design, so the archive being
+  restored is plain text on the device until it is encrypted and sent.
 - **Integrity covers items, not the collection.** Deleted, withheld or rolled-back notes cannot be detected.
 - **The recovery key is as powerful as the password.** Anyone who has it can reset the password, sign in and read
   everything. It is shown once; store it offline. It can be replaced in Settings, which makes the old one useless.
@@ -167,6 +176,13 @@ server cannot learn a tag's name, but it can see that two notes share one. Token
   files are deleted normally and may remain recoverable from the storage medium.
 - **Weak passwords can be guessed offline** by whoever holds the database and the master key (see above).
 - **Exports are plain text.** They are decrypted by design.
+- **Link previews reveal links.** To preview a link, the server fetches it, so it learns the address, and so does the
+  site being visited (from the server's address). They are off by default and explained where they are turned on;
+  operators can disable them with `MAPLE_LINK_PREVIEWS=false`.
+- **Link previews make the server fetch addresses chosen by users.** To stop that being used against the server's own
+  network (server-side request forgery), the preview client connects only to public addresses. The check runs on the
+  address actually connected to, after DNS resolution and after every redirect. The client also allows only http(s)
+  on ports 80 and 443, a 5-second limit and 512 KB of HTML, a per-user rate limit, and no cookies or proxy.
 - **Out of scope:**
   - malware or malicious browser extensions on the user's device;
   - a server that deletes data or refuses service;

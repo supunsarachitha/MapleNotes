@@ -3,7 +3,7 @@ import { utf8, uuidN } from "../crypto/encoding";
 import { isInlineImage } from "../lib/media";
 import type { Attachment, Note } from "../lib/types";
 import type { JsonValue } from "./dotnet";
-import { extension, manifestJson, render, type ExportedAttachment, type ExportFormat } from "./format";
+import { extension, kindName, manifestJson, render, type ExportedAttachment, type ExportFormat } from "./format";
 import { folder, relativePath, safeFileName, slug, unique, type ExportLayout } from "./naming";
 import { asLocalDate, dateOnly, fileStamp, parseUtc, timestamp, toZone, utcSortKey } from "./zone";
 
@@ -50,6 +50,9 @@ function alreadyCompressed(contentType: string): boolean {
   );
 }
 
+/** Todo lists and quick notes get their own top-level folders; timeline notes stay at the top. */
+const KIND_FOLDERS: Record<Note["kind"], string> = { Note: "", Todo: "todo", Quick: "quick-notes" };
+
 function compareNotes(a: Note, b: Note): number {
   const byTime = utcSortKey(a.createdAtUtc).localeCompare(utcSortKey(b.createdAtUtc));
   return byTime !== 0 ? byTime : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
@@ -89,7 +92,7 @@ export async function* buildExport(source: ExportSource, options: ExportOptions,
     const created = toZone(createdAt, zone);
     const updated = toZone(updatedAt, zone);
     const name = `${fileStamp(created)}_${slug(note.content)}.${extension(options.format)}`;
-    const place = folder(options.layout, created);
+    const place = [KIND_FOLDERS[note.kind], folder(options.layout, created)].filter(Boolean).join("/");
     const notePath = unique(place ? `${place}/${name}` : name, used);
 
     const attachments: ExportedAttachment[] = [];
@@ -148,6 +151,8 @@ export async function* buildExport(source: ExportSource, options: ExportOptions,
         pinned: note.isPinned,
         archived: note.isArchived,
         attachments,
+        kind: note.kind,
+        dailyDate: note.dailyDate ?? null,
       },
       options.format,
     );
@@ -160,6 +165,8 @@ export async function* buildExport(source: ExportSource, options: ExportOptions,
     manifestNotes.push({
       id: note.id,
       path: notePath,
+      kind: kindName(note.kind),
+      dailyDate: note.dailyDate ?? null,
       createdAt: timestamp(created),
       tags: note.tags,
       archived: note.isArchived,
@@ -175,7 +182,7 @@ export async function* buildExport(source: ExportSource, options: ExportOptions,
     utf8(
       manifestJson({
         application: "Maple Notes",
-        manifestVersion: 1,
+        manifestVersion: 2, // 2: notes record their kind and daily date
         exportedAt: timestamp(exportedAt),
         account: source.account,
         options: {

@@ -103,8 +103,16 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateOnly?>("DailyDate")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsPinned")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("Revision")
                         .IsConcurrencyToken()
@@ -121,7 +129,12 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("UserId", "DailyDate")
+                        .IsUnique();
+
                     b.HasIndex("UserId", "CreatedAtUtc", "Id");
+
+                    b.HasIndex("UserId", "Kind", "CreatedAtUtc", "Id");
 
                     b.ToTable("Notes", (string)null);
                 });
@@ -216,6 +229,10 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.Property<string>("NormalizedUsername")
                         .IsRequired()
                         .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Preferences")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("RecoveryKeyHash")

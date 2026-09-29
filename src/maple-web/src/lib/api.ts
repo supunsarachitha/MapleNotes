@@ -9,12 +9,17 @@ import type {
   EncryptionMode,
   EncryptionStatus,
   KdfParamsWire,
+  LinkPreview,
   Note,
+  NoteKind,
   NotePage,
   NotePageWire,
   NoteState,
   NoteWire,
+  InstanceStorage,
+  Preferences,
   Prelogin,
+  StorageUsage,
   ProblemDetails,
   Tag,
   TagWire,
@@ -27,6 +32,7 @@ import {
   decodeNote,
   decodeTags,
   encodeUpload,
+  encodeImport,
   encodeNewNote,
   encodeNoteUpdate,
   matchesSearch,
@@ -121,13 +127,14 @@ function query(params: Record<string, string | number | string[] | undefined>): 
 const SEARCH_BATCH = 100;
 const SEARCH_SCAN_LIMIT = 5_000;
 
-async function listTags(): Promise<Tag[]> {
-  return decodeTags(await request<TagWire[]>("GET", "/api/v1/tags"));
+async function listTags(kinds?: NoteKind[]): Promise<Tag[]> {
+  return decodeTags(await request<TagWire[]>("GET", `/api/v1/tags${query({ kind: kinds })}`));
 }
 
 async function listNotes(params: NoteListParams): Promise<NotePage> {
   if (params.tag && needsTagList()) await listTags(); // e.g. a link straight to ?tag=work: find work/… first
-  const { tag, ...rest } = params;
+  const { tag, kinds, ...fields } = params;
+  const rest = { ...fields, kind: kinds };
   const filter = tag ? await tagFilterParams(tag) : {};
   if (!params.q || !readsEndToEnd()) {
     const page = await request<NotePageWire>("GET", `/api/v1/notes${query({ ...rest, ...filter })}`);
@@ -140,7 +147,7 @@ async function listNotes(params: NoteListParams): Promise<NotePage> {
   for (let scanned = 0; ; ) {
     const page = await request<NotePageWire>(
       "GET",
-      `/api/v1/notes${query({ state: params.state, cursor, limit: SEARCH_BATCH, ...filter })}`,
+      `/api/v1/notes${query({ state: params.state, kind: kinds, createdFrom: params.createdFrom, createdBefore: params.createdBefore, cursor, limit: SEARCH_BATCH, ...filter })}`,
     );
     const notes = await Promise.all(page.items.map(decodeNote));
     matches.push(...notes.filter((note) => matchesSearch(note, params.q!)));
@@ -153,6 +160,12 @@ async function listNotes(params: NoteListParams): Promise<NotePage> {
 
 export interface NoteListParams {
   state: NoteState;
+  /** Which kinds of notes; the server's default is the timeline ("Note"). */
+  kinds?: NoteKind[];
+  /** Only notes created from this instant (ISO 8601)… */
+  createdFrom?: string;
+  /** …and before this one. */
+  createdBefore?: string;
   cursor?: string;
   limit?: number;
   tag?: string;
@@ -196,9 +209,70 @@ export const api = {
   /** Notes, decrypted; searches and tag filters also cover end-to-end notes (see noteCrypto.ts). */
   listNotes,
 
-  async createNote(content: string, attachmentIds: string[], isPinned = false): Promise<Note> {
+  async createNote(
+    content: string,
+    attachmentIds: string[],
+    options: { isPinned?: boolean; kind?: NoteKind; dailyDate?: string } = {},
+  ): Promise<Note> {
     const fields = await encodeNewNote(content);
-    return decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned }));
+    const { isPinned = false, kind = "Note", dailyDate } = options;
+    return decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind, dailyDate }));
+  },
+
+  /** How many active notes of these kinds were created on each day from `from` to `to` (yyyy-MM-dd), in a time zone. */
+  calendar: (from: string, to: string, timeZone: string, kinds: NoteKind[]) =>
+    request<Array<{ date: string; count: number }>>("GET", `/api/v1/notes/calendar${query({ from, to, timeZone, kind: kinds })}`),
+
+  /** A link's title, description and site, fetched by the server; null when the page has none. */
+  async linkPreview(url: string): Promise<LinkPreview | null> {
+    return (await request<LinkPreview | undefined>("GET", `/api/v1/link-preview${query({ url })}`)) ?? null;
+  },
+
+  /** Which of these note IDs the account already has (at most 500 at a time). */
+  async existingNotes(ids: string[]): Promise<string[]> {
+    return (await request<{ existing: string[] }>("POST", "/api/v1/notes/import/existing", { ids })).existing;
+  },
+
+  /**
+   * Restores one note with its original ID, dates, state, kind and daily date. A note the account already has is
+   * left as it is (`imported: false`). An end-to-end note whose ID another account uses is encrypted again for a new ID.
+   */
+  async importNote(
+    note: { id: string | null; content: string; createdAt: Date; updatedAt: Date; pinned: boolean; archived: boolean; kind: NoteKind; dailyDate: string | null },
+    attachmentIds: string[],
+  ): Promise<{ imported: boolean; note: Note }> {
+    const body = {
+      createdAtUtc: note.createdAt.toISOString(),
+      updatedAtUtc: note.updatedAt.toISOString(),
+      attachmentIds,
+      isPinned: note.pinned,
+      isArchived: note.archived,
+      kind: note.kind,
+      dailyDate: note.dailyDate,
+    };
+    const send = async (fresh: boolean) => {
+      const result = await request<{ imported: boolean; note: NoteWire }>("POST", "/api/v1/notes/import", {
+        ...body,
+        ...(await encodeImport(note.id, note.content, fresh)),
+      });
+      return { imported: result.imported, note: await decodeNote(result.note) };
+    };
+    try {
+      return await send(false);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409 || !readsEndToEnd()) throw error;
+      return send(true);
+    }
+  },
+
+  /** The daily note of a day (`yyyy-MM-dd`), or null when the day has none yet. */
+  async dailyNote(date: string): Promise<Note | null> {
+    try {
+      return await decodeNote(await request<NoteWire>("GET", `/api/v1/notes/daily/${date}`));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
   },
 
   async updateNote(id: string, content: string, attachmentIds: string[]): Promise<Note> {
@@ -206,7 +280,7 @@ export const api = {
     return decodeNote(await request<NoteWire>("PUT", `/api/v1/notes/${id}`, { ...fields, attachmentIds }));
   },
 
-  async patchNote(id: string, changes: { isPinned?: boolean; isArchived?: boolean }): Promise<Note> {
+  async patchNote(id: string, changes: { isPinned?: boolean; isArchived?: boolean; kind?: NoteKind }): Promise<Note> {
     return decodeNote(await request<NoteWire>("PATCH", `/api/v1/notes/${id}`, changes));
   },
 
@@ -216,6 +290,12 @@ export const api = {
   listTags,
 
   deleteAttachment: (id: string) => request<void>("DELETE", `/api/v1/attachments/${id}`),
+
+  /** Writing and feature preferences; the whole object is replaced (fields left out take their defaults). */
+  setPreferences: (preferences: Preferences) => request<Preferences>("PUT", "/api/v1/account/preferences", preferences),
+
+  /** How much this account stores (its own notes and files only). */
+  storage: () => request<StorageUsage>("GET", "/api/v1/account/storage"),
 
   encryption: () => request<EncryptionStatus>("GET", "/api/v1/account/encryption"),
 
@@ -272,6 +352,8 @@ export const api = {
     updateUser: (id: string, changes: { isDisabled?: boolean; role?: UserRole }) =>
       request<void>("PATCH", `/api/v1/admin/users/${id}`, changes),
     deleteUser: (id: string) => request<void>("DELETE", `/api/v1/admin/users/${id}`),
+    /** The instance's totals on its data volume; never another account's usage. */
+    storage: () => request<InstanceStorage>("GET", "/api/v1/admin/storage"),
   },
 };
 

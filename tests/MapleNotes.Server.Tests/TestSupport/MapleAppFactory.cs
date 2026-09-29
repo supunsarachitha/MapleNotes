@@ -37,6 +37,9 @@ public class MapleAppFactory : WebApplicationFactory<Program>
     /// </summary>
     public bool RunEncryptionWorker { get; set; } = true;
 
+    /// <summary>Replaces or adds services for a test (for example a fake network for link previews).</summary>
+    public Action<IServiceCollection>? ConfigureTestServices { get; set; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         if (ProvideMasterKey)
@@ -57,6 +60,8 @@ public class MapleAppFactory : WebApplicationFactory<Program>
             {
                 services.Remove(services.Single(s => s.ImplementationType == typeof(EncryptionMigrationService)));
             }
+
+            ConfigureTestServices?.Invoke(services);
         });
     }
 

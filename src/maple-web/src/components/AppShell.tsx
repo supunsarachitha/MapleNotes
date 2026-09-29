@@ -1,10 +1,13 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Archive, Hash, Home, LogOut, Menu, Search, Settings, X } from "lucide-react";
+import { Archive, CircleHelp, Hash, Home, ListTodo, LogOut, Menu, Search, Settings, X, Zap } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
+import { useEnabledKinds } from "../lib/kinds";
+import { usePreferences } from "../lib/preferences";
 import { useSignedOut, useTags } from "../lib/queries";
 import { Link, navigate, useLocation } from "../lib/router";
 import type { User } from "../lib/types";
+import { Calendar } from "./Calendar";
 import { Logo } from "./Logo";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
@@ -62,7 +65,8 @@ function SearchBox({ onNavigate }: { onNavigate?: () => void }) {
 
 function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) {
   const { path, params } = useLocation();
-  const tags = useTags();
+  const preferences = usePreferences();
+  const tags = useTags(useEnabledKinds());
   const signedOut = useSignedOut();
   const toast = useToast();
   const activeTag = params.get("tag");
@@ -87,8 +91,22 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
       <SearchBox onNavigate={onNavigate} />
 
       <nav aria-label="Main" className="flex flex-col gap-1">
-        <NavLink href="/" icon={Home} active={path === "/" && !activeTag && !params.get("q")} onNavigate={onNavigate}>
+        <NavLink href="/" icon={Home} active={path === "/" && !activeTag && !params.get("q") && !params.get("day")} onNavigate={onNavigate}>
           Home
+        </NavLink>
+        {preferences.todoLists && (
+          <NavLink href="/todo" icon={ListTodo} active={path === "/todo"} onNavigate={onNavigate}>
+            Todo
+          </NavLink>
+        )}
+        {preferences.quickNotes && (
+          <NavLink href="/quick" icon={Zap} active={path === "/quick"} onNavigate={onNavigate}>
+            Quick notes
+          </NavLink>
+        )}
+        <NavLink href="/tags" icon={Hash} active={path === "/tags" || (path === "/" && !!activeTag)} onNavigate={onNavigate}>
+          Tags
+          {tags.data && tags.data.length > 0 && <span className="ml-auto text-xs font-normal text-stone-400">{tags.data.length}</span>}
         </NavLink>
         <NavLink href="/archive" icon={Archive} active={path === "/archive"} onNavigate={onNavigate}>
           Archive
@@ -96,34 +114,13 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
         <NavLink href="/settings" icon={Settings} active={path === "/settings"} onNavigate={onNavigate}>
           Settings
         </NavLink>
+        <NavLink href="/help" icon={CircleHelp} active={path === "/help"} onNavigate={onNavigate}>
+          Help
+        </NavLink>
       </nav>
 
-      {tags.data && tags.data.length > 0 && (
-        <nav aria-label="Tags" className="flex min-h-0 flex-1 flex-col">
-          <h2 className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Tags</h2>
-          <ul className="-mx-1 flex flex-col overflow-y-auto px-1">
-            {tags.data.map((tag) => (
-              <li key={tag.name}>
-                <Link
-                  href={`/?tag=${encodeURIComponent(tag.name)}`}
-                  onClick={onNavigate}
-                  aria-current={activeTag === tag.name ? "page" : undefined}
-                  className={cn(
-                    "flex h-9 items-center gap-2 rounded-lg px-3 text-sm",
-                    activeTag === tag.name
-                      ? "bg-maple-50 text-maple-700 dark:bg-maple-600/15 dark:text-maple-400"
-                      : "text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800",
-                  )}
-                >
-                  <Hash className="size-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{tag.name}</span>
-                  <span className="ml-auto text-xs text-stone-400">{tag.noteCount}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      {preferences.calendar && <Calendar onNavigate={onNavigate} />}
+
 
       <div className="mt-auto flex items-center gap-3 border-t border-stone-200 pt-4 dark:border-stone-800">
         <div

@@ -14,6 +14,59 @@ export interface User {
   /** The account has an end-to-end key, which this browser must unlock to read the account's encrypted content. */
   hasEndToEndKey: boolean;
   createdAtUtc: string;
+  preferences: Preferences;
+}
+
+/** The date formats offered in Settings, as .NET-style patterns (formatted by lib/dates.ts). */
+export const DATE_FORMATS = [
+  "yyyy-MM-dd",
+  "dd/MM/yyyy",
+  "MM/dd/yyyy",
+  "dd.MM.yyyy",
+  "d MMM yyyy",
+  "MMM d, yyyy",
+  "dddd, d MMMM yyyy",
+  "dddd, MMMM d, yyyy",
+] as const;
+
+export type DateFormat = (typeof DATE_FORMATS)[number];
+
+/** Light or dark: follow the device, or always one of them. */
+export const THEMES = ["System", "Light", "Dark"] as const;
+export type Theme = (typeof THEMES)[number];
+
+/** The accent colours offered in Settings (lib/appearance.ts has their shades). */
+export const ACCENTS = ["Maple", "Ocean", "Forest", "Teal", "Plum", "Amber", "Slate"] as const;
+export type Accent = (typeof ACCENTS)[number];
+
+/** An account's writing and feature preferences, shared by all of its devices. */
+export interface Preferences {
+  /** Show a title field when writing; a title is the note's first line, as a Markdown heading. */
+  noteTitles: boolean;
+  /** With titles on, start a new note's title with today's date. */
+  dateInTitles: boolean;
+  /** How dates are written in titles and daily notes. */
+  dateFormat: DateFormat;
+  /** Show the Todo tab. */
+  todoLists: boolean;
+  /** Show the Quick notes tab. */
+  quickNotes: boolean;
+  /** Show today's daily note at the top of Home. */
+  dailyNotes: boolean;
+  /** Show a month calendar in the side menu. */
+  calendar: boolean;
+  /** Show previews of links in notes (the server fetches the pages). */
+  linkPreviews: boolean;
+  theme: Theme;
+  accent: Accent;
+}
+
+/** A preview of a web page linked from a note. */
+export interface LinkPreview {
+  url: string;
+  title: string;
+  description: string | null;
+  siteName: string;
 }
 
 /** Argon2id parameters for deriving an account's keys from its password (docs/e2ee-spec.md §1). */
@@ -41,6 +94,8 @@ export interface AuthStatus {
   setupRequired: boolean;
   registrationOpen: boolean;
   user: User | null;
+  /** Whether this server allows link previews at all. */
+  linkPreviewsAvailable?: boolean;
 }
 
 /** An attachment as components use it: an end-to-end file's name, type and size decrypted. */
@@ -64,9 +119,15 @@ export interface AttachmentWire extends Omit<Attachment, "fileName" | "contentTy
   encryptedMetadata?: string | null;
 }
 
+/** Where a note belongs: the Home timeline, the Todo tab or the Quick notes tab. */
+export type NoteKind = "Note" | "Todo" | "Quick";
+
 /** A note as components use it: plain text, decrypted if it was end-to-end encrypted. */
 export interface Note {
   id: string;
+  kind: NoteKind;
+  /** For a daily note, its day (`yyyy-MM-dd`). */
+  dailyDate?: string | null;
   content: string;
   isPinned: boolean;
   isArchived: boolean;
@@ -113,6 +174,24 @@ export interface TagWire {
   noteCount: number;
   token?: string | null;
   encryptedName?: string | null;
+}
+
+/** How much the signed-in account stores. */
+export interface StorageUsage {
+  notesBytes: number;
+  noteCount: number;
+  filesBytes: number;
+  fileCount: number;
+  totalBytes: number;
+}
+
+/** What the instance stores on its data volume, for administrators (totals only). */
+export interface InstanceStorage {
+  databaseBytes: number;
+  filesBytes: number;
+  backupsBytes: number;
+  freeBytes: number | null;
+  totalBytes: number;
 }
 
 export interface AdminUser {

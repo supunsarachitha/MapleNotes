@@ -24,6 +24,7 @@ let keys: DataKeys;
 function wire(overrides: Partial<NoteWire>): NoteWire {
   return {
     id: v.ids.noteId,
+    kind: "Note",
     content: null,
     isPinned: false,
     isArchived: false,

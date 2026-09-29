@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { Logo } from "./components/Logo";
 import { Button, Spinner } from "./components/ui";
+import { useAppearance } from "./lib/appearance";
 import { useConversionRunner } from "./lib/conversion";
 import { e2ee, useEndToEndKeys } from "./lib/e2ee";
 import { registerMediaWorker } from "./lib/mediaWorker";
@@ -11,7 +12,11 @@ import { useLocation } from "./lib/router";
 import { AuthPage } from "./pages/AuthPage";
 import { ArchivePage, HomePage } from "./pages/HomePage";
 import { RecoverPage } from "./pages/RecoverPage";
+import { HelpPage } from "./pages/HelpPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TagsPage } from "./pages/TagsPage";
+import { QuickNotesPage } from "./pages/QuickNotesPage";
+import { TodoPage } from "./pages/TodoPage";
 import { UnlockPage } from "./pages/UnlockPage";
 
 function FullScreen({ children }: { children: ReactNode }) {
@@ -31,6 +36,7 @@ export function App() {
   const status = useAuthStatus();
   const { path } = useLocation();
   const user = status.data?.user ?? null;
+  useAppearance(user?.preferences.theme, user?.preferences.accent);
   const keys = useEndToEndKeys(user);
   const signedOut = status.data !== undefined && !status.data.user;
   const needsMediaWorker = user?.hasEndToEndKey === true;
@@ -98,7 +104,21 @@ export function App() {
 
   return (
     <AppShell user={user}>
-      {path === "/archive" ? <ArchivePage /> : path === "/settings" ? <SettingsPage user={user} /> : <HomePage />}
+      {path === "/archive" ? (
+        <ArchivePage />
+      ) : path === "/settings" ? (
+        <SettingsPage user={user} />
+      ) : path === "/todo" ? (
+        <TodoPage />
+      ) : path === "/quick" ? (
+        <QuickNotesPage />
+      ) : path === "/tags" ? (
+        <TagsPage />
+      ) : path === "/help" ? (
+        <HelpPage />
+      ) : (
+        <HomePage />
+      )}
     </AppShell>
   );
 }

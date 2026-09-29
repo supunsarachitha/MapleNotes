@@ -1,5 +1,6 @@
 import { jsonString, serializeJson, trimEnd, type JsonValue } from "./dotnet";
 import { linkTarget } from "./naming";
+import type { NoteKind } from "../lib/types";
 import { timestamp, type ZonedTime } from "./zone";
 
 // How exported notes are written, identical to the server's (Features/Export/NoteFormatter.cs).
@@ -26,7 +27,13 @@ export interface ExportedNote {
   pinned: boolean;
   archived: boolean;
   attachments: ExportedAttachment[];
+  kind: NoteKind;
+  /** For a daily note, its day (yyyy-MM-dd). */
+  dailyDate: string | null;
 }
+
+/** The kind as written in exports: note, todo or quick. */
+export const kindName = (kind: NoteKind) => kind.toLowerCase();
 
 export function extension(format: ExportFormat): string {
   return format;
@@ -42,6 +49,8 @@ const escapeLinkText = (text: string) => text.replaceAll("\\", "\\\\").replaceAl
 export function markdown(note: ExportedNote): string {
   let text = "---\n";
   text += `id: ${note.id}\n`;
+  text += `kind: ${kindName(note.kind)}\n`;
+  if (note.dailyDate) text += `daily: ${note.dailyDate}\n`;
   text += `created: ${timestamp(note.created)}\n`;
   text += `updated: ${timestamp(note.updated)}\n`;
   text += `tags: [${note.tags.map(jsonString).join(", ")}]\n`;
@@ -67,6 +76,8 @@ export function markdown(note: ExportedNote): string {
 export function plainText(note: ExportedNote): string {
   let text = `Created: ${timestamp(note.created)}\n`;
   if (note.editedAfterMs > 60_000) text += `Updated: ${timestamp(note.updated)}\n`;
+  if (note.kind !== "Note") text += `Kind: ${kindName(note.kind)}\n`;
+  if (note.dailyDate) text += `Daily: ${note.dailyDate}\n`;
   if (note.tags.length > 0) text += `Tags: ${note.tags.map((tag) => `#${tag}`).join(" ")}\n`;
   if (note.pinned || note.archived) {
     text += `State: ${[note.pinned ? "pinned" : null, note.archived ? "archived" : null].filter(Boolean).join(", ")}\n`;
@@ -78,6 +89,8 @@ export function plainText(note: ExportedNote): string {
 export function json(note: ExportedNote): string {
   return `${serializeJson({
     id: note.id,
+    kind: kindName(note.kind),
+    dailyDate: note.dailyDate,
     createdAt: timestamp(note.created),
     updatedAt: timestamp(note.updated),
     tags: note.tags,

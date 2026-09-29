@@ -3,6 +3,7 @@ using System.Globalization;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Features.EndToEnd;
+using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -30,11 +31,12 @@ namespace MapleNotes.Server.Features.Auth;
 /// <param name="instanceSettings">Instance settings.</param>
 /// <param name="antiforgery">Antiforgery token service.</param>
 /// <param name="time">Clock.</param>
+/// <param name="options">Instance settings (whether link previews are allowed).</param>
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
 public sealed class AuthController(
-    AccountService accounts, InstanceSettingsService instanceSettings, IAntiforgery antiforgery, TimeProvider time)
+    AccountService accounts, InstanceSettingsService instanceSettings, IAntiforgery antiforgery, TimeProvider time, MapleOptions options)
     : ControllerBase
 {
     /// <summary>Returns the visitor's sign-in state and what the instance allows.</summary>
@@ -54,7 +56,7 @@ public sealed class AuthController(
 
         var setupRequired = await accounts.IsSetupRequiredAsync(cancellationToken);
         var registrationOpen = setupRequired || await instanceSettings.IsRegistrationOpenAsync(cancellationToken);
-        return new AuthStatusResponse(setupRequired, registrationOpen, current);
+        return new AuthStatusResponse(setupRequired, registrationOpen, current, options.LinkPreviews);
     }
 
     /// <summary>Issues an antiforgery token for the current visitor and sets its companion cookie.</summary>

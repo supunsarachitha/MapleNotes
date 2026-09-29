@@ -1,7 +1,8 @@
 # Maple Notes: end-to-end encryption plan (v1.1.0)
 
 Approved 2026-09-29. This plan adds end-to-end encryption (E2EE) as an opt-in mode per account. The v1.0.0 plan is
-[PLAN.md](PLAN.md). The byte-level specification is [e2ee-spec.md](e2ee-spec.md), written in phase E0.
+[PLAN.md](PLAN.md). The byte-level specification is [e2ee-spec.md](e2ee-spec.md), written in phase E0. The next plan
+(1.2: titles, todo lists, quick notes, daily notes, import) is [PLAN-1.2.md](PLAN-1.2.md).
 
 ## Decisions
 
@@ -48,7 +49,7 @@ key. It can never unwrap it.
 | Can see | Cannot see |
 |---|---|
 | When notes were created and edited, their sizes and how many there are | Note text |
-| Pinned and archived flags | Tag names (it sees opaque tokens, and which notes share one) |
+| Pinned and archived flags; since 1.2, each note's kind, daily notes' dates and the account's preferences | Tag names (it sees opaque tokens, and which notes share one) |
 | Attachment sizes and upload times | Attachment contents, file names and types |
 | Sign-in times and IP addresses | The password or any key that decrypts content |
 

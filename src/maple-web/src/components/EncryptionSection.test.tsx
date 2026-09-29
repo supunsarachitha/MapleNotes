@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "../lib/api";
 import { auth } from "../lib/auth";
 import { e2ee } from "../lib/e2ee";
+import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import type { EncryptionStatus, User } from "../lib/types";
 import { EncryptionSection } from "./EncryptionSection";
 
@@ -16,6 +17,7 @@ const user: User = {
   encryptionMode: "AtRest",
   hasEndToEndKey: false,
   createdAtUtc: "2026-09-28T12:00:00Z",
+  preferences: DEFAULT_PREFERENCES,
 };
 
 const status = (mode: EncryptionStatus["mode"], remainingItems = 0, totalItems = 10): EncryptionStatus => ({
