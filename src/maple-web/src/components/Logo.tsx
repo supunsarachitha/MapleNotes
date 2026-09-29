@@ -1,16 +1,30 @@
-/** The Maple Notes mark: an original sugar-maple leaf on a deep maple-red tile (same artwork as the favicon). */
+import { useId } from "react";
+
+/**
+ * The Maple Notes mark: an original sugar-maple leaf in autumn colours (same artwork as the favicon). Drawn for
+ * Maple Notes, not taken from an emoji font or icon set.
+ */
 export function Logo({ className = "size-9" }: { className?: string }) {
+  const gradient = useId(); // unique per logo, since the page can show more than one
   return (
     <svg className={className} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="#8f1d21" />
+      <defs>
+        <radialGradient id={gradient} cx="0.5" cy="0.62" r="0.62">
+          <stop offset="0" stopColor="#b3191c" />
+          <stop offset="0.5" stopColor="#e2461b" />
+          <stop offset="0.8" stopColor="#f28a1f" />
+          <stop offset="1" stopColor="#f8b82e" />
+        </radialGradient>
+      </defs>
+      <path d="M16 19.8Q16.3 24.6 17.6 28.2" fill="none" stroke="#7c2d12" strokeWidth="1.7" strokeLinecap="round" />
       <path
         d="M16 3.2L16.9 5L18 4.3L18.2 6.2L19.9 5.9L19 8.6Q18.9 11.6 21.3 10.6L21.7 8.4L22.6 9.3L24 7.2L24.6 8.6L27.9 7.4L26.3 10.6L27.2 12.2L24.6 13.4Q23.1 15.2 24.6 16.4L26.3 19L22.6 18.7Q18.8 18.5 16.7 20.4L15.3 20.4Q13.2 18.5 9.4 18.7L5.7 19L7.4 16.4Q8.9 15.2 7.4 13.4L4.8 12.2L5.7 10.6L4.1 7.4L7.4 8.6L8 7.2L9.4 9.3L10.3 8.4L10.7 10.6Q13.1 11.6 13 8.6L12.1 5.9L13.8 6.2L14 4.3L15.1 5Z"
-        fill="#fff"
-        stroke="#fff"
+        fill={`url(#${gradient})`}
+        stroke={`url(#${gradient})`}
         strokeWidth="1"
         strokeLinejoin="round"
       />
-      <path d="M16 19.8Q16.3 24.6 17.6 28.2" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M16 19.6L16 6.5M16 19.6L24.6 9.6M16 19.6L7.4 9.6M16 19.6L23.4 17.2M16 19.6L8.6 17.2" fill="none" stroke="#7f1d1d" strokeOpacity="0.45" strokeWidth="0.7" strokeLinecap="round" />
     </svg>
   );
 }

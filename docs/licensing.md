@@ -100,9 +100,11 @@ independent Argon2id) and `fake-indexeddb` (Apache-2.0; browser storage in unit 
 ## Brand assets
 
 The Maple Notes icon (`src/maple-web/public/favicon.svg`) is original artwork drawn for this project: a
-17-point sugar-maple leaf with rounded sinuses and a curved stem. It deliberately does not reproduce the
-Canadian flag's 11-point maple leaf, an official national emblem whose use in marks is restricted in Canada,
-and it is not taken from any icon library. Keep new brand assets original or under an allowed license.
+17-point sugar-maple leaf with rounded sinuses and a curved stem, coloured like an autumn leaf (red at the heart,
+golden at the tips). It deliberately does not reproduce the Canadian flag's 11-point maple leaf, an official national
+emblem whose use in marks is restricted in Canada. It is not taken from any icon library or emoji font: the colour
+style was chosen to feel like the 🍁 emoji, but Apple's, Google's and others' emoji artwork is not copied. Keep new
+brand assets original or under an allowed license.
 
 ## Container image
 

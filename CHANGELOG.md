@@ -53,6 +53,8 @@ modes, and each account chooses which ones it uses.
 
 ### Changed
 
+- **New icon:** the Maple Notes leaf in autumn colours, without the square tile; original artwork, like the emoji in
+  spirit but not copied from any emoji font.
 - **Settings layout:** Account, Writing, Features, Backup & restore and Password come first. Encryption, the recovery
   key, sessions and account deletion are in a collapsible **Advanced** section, which opens by itself while an
   encryption change is being applied.
