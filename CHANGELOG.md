@@ -7,11 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-29
+
+End-to-end encryption: an account can now have its notes, tags and files encrypted in the browser with a key the
+server never sees. See the README's upgrade notes before upgrading from 1.0.0, and
+[docs/threat-model.md](docs/threat-model.md) for what each mode protects.
+
 ### Security
 
 - **Key-derived sign-in:** the password never leaves the browser. It is turned into an authentication key with
   Argon2id (64 MiB, 3 passes, run in a Web Worker) and HKDF, and the server stores only a PBKDF2 hash of that key. This
   is the foundation for end-to-end encryption. Accounts created with 1.0.0 upgrade automatically at their next sign-in.
+- API responses are sent with `Cache-Control: no-store` unless they set their own caching, so decrypted notes are not
+  kept in the browser's disk cache.
 
 ### Added
 
@@ -35,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing needs any more: an end-to-end account leaves the server with no key to its content.
 - **Export for end-to-end accounts**, built in the browser with the same structure as the server's (checked against
   the server's own archives for all 12 format and layout combinations) and streamed to disk through the service worker.
+- **Documentation:** the end-to-end encryption specification with shared test vectors (`docs/e2ee-spec.md`), a threat
+  model (`docs/threat-model.md`), and upgrade and forgotten-password notes in the README.
 
 ### Changed
 
@@ -114,5 +124,6 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/supunsarachitha/MapleNotes/releases/tag/v1.0.0

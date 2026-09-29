@@ -55,7 +55,7 @@ export function RecoverPage() {
   return (
     <AuthLayout
       heading="Reset your password"
-      intro="Accounts with end-to-end encryption can set a new password with their recovery key. Without it, ask your administrator."
+      intro="Accounts with end-to-end encryption can set a new password with their recovery key. Maple Notes has no other way to reset a forgotten password."
       footer={
         <Link href="/login" className={linkClass}>
           Back to sign in

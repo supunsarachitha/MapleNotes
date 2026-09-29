@@ -25,6 +25,16 @@ public sealed class SecurityHeadersTests(MapleAppFactory factory) : IClassFixtur
     }
 
     [Fact]
+    public async Task Api_responses_are_not_stored_by_browsers()
+    {
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/v1/auth/status", TestContext.Current.CancellationToken);
+
+        Assert.True(response.Headers.CacheControl?.NoStore);
+    }
+
+    [Fact]
     public async Task Openapi_document_includes_the_xml_documentation()
     {
         using var client = factory.CreateClient();

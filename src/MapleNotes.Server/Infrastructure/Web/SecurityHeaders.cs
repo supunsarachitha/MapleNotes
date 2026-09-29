@@ -26,7 +26,9 @@ internal static class SecurityHeaders
 
     /// <summary>
     /// Adds the headers. Responses that already set a Content-Security-Policy (attachments) keep theirs. The optional
-    /// API reference page needs inline scripts, so it gets no policy.
+    /// API reference page needs inline scripts, so it gets no policy. API responses are not stored by browsers
+    /// (<c>Cache-Control: no-store</c>) unless they choose their own caching: they carry decrypted notes, and while an
+    /// account changes to end-to-end encryption, plain text that must not linger on disk.
     /// </summary>
     /// <param name="app">The application pipeline.</param>
     /// <returns>The same pipeline.</returns>
@@ -42,6 +44,11 @@ internal static class SecurityHeaders
                 headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
                 headers["Cross-Origin-Opener-Policy"] = "same-origin";
                 headers["Cross-Origin-Resource-Policy"] = "same-origin";
+
+                if (context.Request.Path.StartsWithSegments("/api") && !headers.ContainsKey(HeaderNames.CacheControl))
+                {
+                    headers.CacheControl = "no-store";
+                }
 
                 var isApiReference = context.Request.Path.StartsWithSegments("/scalar") || context.Request.Path.StartsWithSegments("/openapi");
                 if (!headers.ContainsKey(HeaderNames.ContentSecurityPolicy) && !isApiReference)

@@ -1,8 +1,10 @@
 # Maple Notes architecture
 
 This document describes how Maple Notes is built and why. It is written for contributors and for operators who
-want to understand exactly what the encryption does and does not protect. The plan and history live in
-[PLAN.md](PLAN.md) and [../CHANGELOG.md](../CHANGELOG.md); third-party licensing is in [licensing.md](licensing.md).
+want to understand exactly what the encryption does and does not protect. The plans and history live in
+[PLAN.md](PLAN.md), [PLAN-E2EE.md](PLAN-E2EE.md) and [../CHANGELOG.md](../CHANGELOG.md). The end-to-end encryption
+formats are specified in [e2ee-spec.md](e2ee-spec.md), and what they protect against in
+[threat-model.md](threat-model.md). Third-party licensing is in [licensing.md](licensing.md).
 
 ## Overview
 
@@ -12,7 +14,7 @@ app. All state lives in one directory (`/app/data` in the container). The only s
 
 ```mermaid
 flowchart LR
-    browser["Browser<br/>React SPA"] -- "HTTPS (via your proxy)<br/>cookie + antiforgery header" --> server
+    browser["Browser<br/>React SPA + service worker<br/>(end-to-end crypto)"] -- "HTTPS (via your proxy)<br/>cookie + antiforgery header" --> server
     subgraph container["Container (non-root, read-only root filesystem)"]
         server["ASP.NET Core 10<br/>API + static SPA"]
         worker1["Encryption migration worker"]
@@ -36,9 +38,13 @@ flowchart LR
 |---|---|
 | `src/MapleNotes.Server/Program.cs` | Entry point: command-line modes, middleware pipeline, service registration. |
 | `src/MapleNotes.Server/Domain/` | Entities: `User`, `Note`, `Attachment`, `Tag`, `InstanceSetting`. |
-| `src/MapleNotes.Server/Features/` | One folder per feature: `Auth`, `Admin`, `Notes`, `Attachments`, `Encryption`, `Export`. Each has its controller, request/response records and service. |
+| `src/MapleNotes.Server/Features/` | One folder per feature: `Auth`, `Admin`, `Notes`, `Attachments`, `Encryption`, `EndToEnd` (key material, recovery, browser conversion), `Export`. Each has its controller, request/response records and service. |
 | `src/MapleNotes.Server/Infrastructure/` | Cross-cutting code: `Configuration`, `Crypto`, `Persistence` (EF Core, migrations, backups), `Storage` (attachment files), `Hosting`, `Web` (auth, antiforgery, security headers, rate limits). |
 | `src/maple-web/` | React + TypeScript + Vite + Tailwind CSS single-page app. |
+| `src/maple-web/src/crypto/` | Browser cryptography: Argon2id in a Web Worker, HKDF, envelopes, the attachment format, recovery keys, key storage, and the shared test vectors. |
+| `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`). |
+| `src/maple-web/src/sw/` | The service worker (`/sw.js`, built separately by `vite.sw.config.ts`): decrypts end-to-end media and streams browser exports. |
+| `src/maple-web/src/export/` | The browser export, a port of the server's, with the shared export vectors. |
 | `tests/MapleNotes.Server.Tests/` | Unit and integration tests (xUnit v3, `WebApplicationFactory`). |
 | `scripts/` | License check and third-party notice generator. |
 
@@ -57,8 +63,8 @@ carry a valid antiforgery token. Both are enforced globally, so a new endpoint i
 |---|---|
 | `User` | Username (unique, case-insensitive), PBKDF2 hash of the key derived from the password with its Argon2id salt and parameters, role, encryption mode (`Off`, `AtRest`, `EndToEnd`), server-held wrapped data key (absent once an end-to-end account needs none), end-to-end key material (the browser's data key wrapped by the password and by the recovery key, and a hash of the recovery authentication key), security stamp, lockout state. |
 | `Note` | Owner, content bytes, `Scheme` (`None`, `Server`, `EndToEnd`), pinned, `ArchivedAtUtc` (archive = soft delete), timestamps, `Revision` (concurrency token). |
-| `Attachment` | Owner, optional note, sanitized file name, content type, size, storage key, `Scheme`, `Revision`. |
-| `Tag` / `NoteTags` | Per-user tags parsed from `#tags` in note text. |
+| `Attachment` | Owner, optional note, sanitized file name, content type, size, storage key, `Scheme`, `Revision`. End-to-end files store a placeholder name and type, and their real ones encrypted in `EncryptedMetadata`. |
+| `Tag` / `NoteTags` | Per-user tags parsed from `#tags` in note text. Tags of end-to-end notes have no name: a blind token (HMAC) and the name encrypted by the browser. |
 | `InstanceSetting` | Runtime settings changed by administrators (open registration). |
 
 All IDs are UUID version 7, so they sort by creation time. Every query that touches notes, tags or attachments filters
@@ -72,7 +78,8 @@ never shift later pages. Pinned notes are a separate list shown above the feed.
 
 Search runs over decrypted text, so it cannot use the database. It scans the user's notes in batches of 200 and
 decrypts them in memory, scanning at most 5,000 notes per request. If it reaches that limit it returns what it has
-found plus a cursor to continue from, so response time stays bounded on large accounts.
+found plus a cursor to continue from, so response time stays bounded on large accounts. The server cannot search
+end-to-end notes; for those accounts the web app pages through the feed and searches the decrypted text itself.
 
 ### Files on disk
 
@@ -107,6 +114,27 @@ flowchart TD
 
 Each derived key uses its own HKDF label (`maple-notes/v1/...`), so learning one key reveals nothing about the others
 or the master key.
+
+Accounts with end-to-end encryption have a second hierarchy that lives in the browser. Its root is independent of the
+master key, and the server only ever sees it wrapped ([e2ee-spec.md](e2ee-spec.md) §1, §3, §6):
+
+```mermaid
+flowchart TD
+    pw(["Password"]) -- "Argon2id (64 MiB) in the browser" --> ms["Master secret"]
+    ms -- HKDF --> ak["authKey<br/>(sent at sign-in; server keeps a PBKDF2 hash)"]
+    ms -- HKDF --> wk["wrapKey<br/>(never leaves the browser)"]
+    rk(["Recovery key<br/>32 random bytes, shown once"]) -- HKDF --> rwk["recoveryWrapKey"]
+    rk -- HKDF --> rak["recoveryAuthKey<br/>(server keeps a PBKDF2 hash)"]
+    wk -- "AES-256-GCM wrap" --> dk["End-to-end data key<br/>32 random bytes from the browser<br/>(server stores two wrapped copies)"]
+    rwk -- "AES-256-GCM wrap" --> dk
+    dk -- HKDF --> nk["Note key"] --> n2["Note text"]
+    dk -- HKDF --> mdk["Metadata key"] --> md["Tag names, file names and types"]
+    dk -- HKDF --> tik["Tag index key<br/>(HMAC-SHA256)"] --> tt["Tag tokens"]
+    dk -- "HKDF per file" --> fk["File keys"] --> f2["Attachment files"]
+```
+
+The sign-in key hierarchy (password → `authKey`) applies to every account; the wrapping and data keys exist only once
+an account has turned on end-to-end encryption.
 
 ### Database
 
@@ -153,16 +181,17 @@ volume cannot be used to forge a session.
 
 ### What the encryption protects
 
-| Threat | Protected? |
-|---|---|
-| Stolen disk, copied volume or leaked backup (without the master key) | **Yes.** The database, attachments and key ring are all ciphertext. |
-| Someone with shell access to the running server, or who knows the master key | **No.** The server holds the keys; this is encryption at rest, not end-to-end encryption. |
-| Tampering with stored ciphertext | **Detected.** Authenticated encryption everywhere. |
-| An administrator reading users' notes through the app | **No API exists** for it. |
-| Leftover copies after account deletion | **Unreadable.** Deleting the account destroys its wrapped data key; database backups made before the deletion still contain it until they are rotated out. |
+| Threat | Off / encrypted at rest | End-to-end |
+|---|---|---|
+| Stolen disk, copied volume or leaked backup (without the master key) | **Protected.** The database, attachments and key ring are all ciphertext. | **Protected**, twice over. |
+| Someone who knows the master key, or reads the server's memory or data while it runs | **Not protected.** The server holds the keys. | **Protected.** The server never has the key; it sees ciphertext, sizes, timestamps, and which notes share a tag. |
+| Someone who takes over the server and changes the web app it serves | **Not protected.** | **Not protected** once the user signs in or unlocks with the modified app, which could capture the password. See [threat-model.md](threat-model.md). |
+| Tampering with stored ciphertext | **Detected.** Authenticated encryption everywhere. | **Detected**, in the browser. |
+| An administrator reading users' notes through the app | **No API exists** for it. | Impossible without the user's password or recovery key. |
+| Leftover copies after account deletion | **Unreadable.** Deleting the account destroys its wrapped data key; database backups made before the deletion still contain it until they are rotated out. | Backups keep the wrapped keys, which open only with the password or recovery key of that time. |
 
-The per-user switch in Settings controls the extra per-account layer on note text and attachment files. The
-database is always encrypted.
+Each account chooses its mode in Settings; the database is always encrypted. [threat-model.md](threat-model.md)
+covers each adversary, what end-to-end encryption still reveals, and its limits.
 
 ## Encryption modes and migration
 
@@ -271,7 +300,7 @@ service workers); without the worker it is assembled in memory.
 | Service | When | What |
 |---|---|---|
 | `StartupInitializer` | Before anything else starts | Validates settings and the master key, creates the data layout, backs up and migrates the database. Problems stop startup with a one-line message. |
-| `EncryptionMigrationService` | Startup, on toggle, every 5 minutes | Converts content to match each user's encryption setting. |
+| `EncryptionMigrationService` | Startup, on a mode change, every 5 minutes | Converts content between `None` and `Server` to match each account's mode. The browser converts to and from end-to-end encryption. |
 | `AttachmentCleanupService` | Startup, then hourly | Removes uploads never attached to a note (after 24 h), orphan files (after 1 h) and interrupted writes. |
 
 ## HTTP hardening
@@ -280,6 +309,9 @@ service workers); without the worker it is assembled in memory.
   script, no `eval`, no framing; `'wasm-unsafe-eval'` lets the Argon2id worker compile WebAssembly),
   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy: no-referrer`, `Permissions-Policy` and
   `Cross-Origin-Opener/Resource-Policy`.
+- API responses carry `Cache-Control: no-store` unless they set their own, so decrypted notes are not kept in the
+  browser's disk cache. Attachments are the exception: they are cached as immutable under URLs that change with the
+  stored bytes (`?v={Revision}`).
 - HSTS is sent on HTTPS requests outside Development.
 - Request bodies are limited to 2 MB except uploads.
 - `X-Forwarded-*` headers are honoured only from `MAPLE_TRUSTED_PROXIES`.
@@ -287,15 +319,24 @@ service workers); without the worker it is assembled in memory.
 
 ## Testing
 
-- **Server:** about 280 xUnit tests.
+- **Server:** about 330 xUnit tests.
   - Crypto primitives, including tampering, truncation, reordering, wrong keys and every chunk boundary.
-  - The storage layer and startup.
-  - End-to-end API behaviour through `WebApplicationFactory`: authentication, isolation between users, notes,
-    attachments, encryption migration with crash simulation, and export across every format and layout.
+  - The storage layer and startup, including the upgrade of a 1.0 database.
+  - API behaviour through `WebApplicationFactory`: authentication (key-derived sign-in, legacy upgrade, unknown
+    users), isolation between users, notes, attachments, encryption migration with crash simulation, and export across
+    every format and layout.
+  - End-to-end encryption, with a C# implementation of the browser's side: key setup, unlock, recovery, notes, tags
+    and files as ciphertext, conversion in both directions (interrupted, concurrent edits, key cleanup), and a scan of
+    the raw database for the plain text.
   - The real server binary run as a process, for command-line behaviour.
-- **Web:** Vitest and Testing Library for the API client, router, Markdown safety, composer, encryption settings and
-  export options.
-- **Releases:** additionally smoke-tested in a real browser against the built container at desktop and 375 px widths.
+- **Shared vectors:** `test-vectors.json` (every end-to-end derivation and format) and `export-vectors.json` (the
+  server's export archives) are written by the C# tests and checked by the web tests, so both implementations agree
+  byte for byte.
+- **Web:** about 105 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
+  conversion, the service worker's range decryption, the browser export against the server's archives, Markdown
+  safety, composer, and the settings and recovery screens.
+- **Releases:** additionally tested in a real browser (Playwright, Chromium) against the built container at desktop
+  and 375 px widths, including end-to-end setup, unlock, recovery, video seeking, mode changes and export.
 
 ## Operations
 
@@ -303,5 +344,6 @@ service workers); without the worker it is assembled in memory.
   copy of the database while the server runs. Copy `backups/`, `attachments/` and `keys/` from the volume. Store the
   master key separately from these files.
 - **Upgrades:** schema migrations run automatically at startup, after an automatic encrypted backup.
-- **Key rotation:** not in v1. The formats are versioned (key version bytes in every envelope and file header) so
-  rotation can be added without migrating the format.
+- **Key rotation:** not implemented. The formats are versioned (key version bytes in every envelope and file header)
+  so rotation can be added without migrating the format. Changing the password re-wraps an end-to-end data key but
+  does not replace it.

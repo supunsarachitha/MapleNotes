@@ -1,0 +1,190 @@
+# Threat model
+
+This document says what Maple Notes' encryption protects against, what it does not, and what it still reveals. It is
+written for operators choosing how to run an instance, for users choosing an encryption mode, and for contributors
+changing anything security-relevant. The formats are specified in [e2ee-spec.md](e2ee-spec.md); how they fit into the
+server is in [architecture.md](architecture.md#cryptography).
+
+## What is protected
+
+| Asset | Where it lives |
+|---|---|
+| Note text, tags, file names, types and contents | The database and the `attachments/` directory, plus the browser while it shows them. |
+| Passwords | Only in the browser. The server receives a key derived from the password, never the password itself (except once for accounts created by 1.0, see [Legacy accounts](#legacy-accounts)). |
+| Recovery keys | With the user, shown once. The server stores a hash of a key derived from it. |
+| Sessions | An HttpOnly cookie in the browser, checked against the database on every request. |
+
+## The three modes
+
+Every account has a mode, chosen in Settings. The database file is encrypted in all of them.
+
+| Mode | Who can read notes and files |
+|---|---|
+| Off | The server, and anyone with the database and the master key. |
+| Encrypted at rest (default) | The same. Each account's content has its own key, wrapped by a key derived from the master key, so deleting an account makes its content unreadable. |
+| End-to-end | Only a browser holding the account's password or recovery key. The server stores ciphertext and wrapped keys it cannot open. |
+
+## Adversaries
+
+### A copy of the disk, volume or backups, without the master key
+
+Stolen disks, a leaked backup, a cloud snapshot, a decommissioned drive.
+
+- **All modes:** protected. The database is encrypted with a key derived from the master key, and so are the
+  attachment files (per account, in the at-rest and end-to-end modes) and the Data Protection key ring that signs
+  sessions. The master key is never stored in the data volume.
+- **What leaks:** the number and approximate sizes of files in `attachments/`, and file times.
+
+### The master key together with the data
+
+The operator, someone who read the `.env` file or the Docker secret along with a backup, or anyone who can read the
+running server's memory.
+
+- **Off and at rest:** not protected. The master key opens the database and every per-account key.
+- **End-to-end:** the content stays protected. The attacker gets usernames, the metadata listed in
+  [What the server sees](#what-the-server-sees-in-end-to-end-mode), and for each end-to-end account the Argon2id salt
+  and parameters, a PBKDF2 hash of the sign-in key and the wrapped data key. With those they can **guess passwords
+  offline**: every guess costs one Argon2id derivation (64 MiB, 3 passes) and is checked against the wrapped key. A
+  long, unique password or passphrase defeats this; a short or reused one may not. Recovery keys are 256 random bits
+  and cannot be guessed.
+
+### A server that is compromised but serves the genuine app
+
+Someone who reads the database, the requests and the memory of the running server but does not change the code it
+sends to browsers. This includes an operator who is curious but not malicious.
+
+- **Off and at rest:** not protected; the server decrypts content to serve it.
+- **End-to-end:** protected. Requests carry ciphertext, tag tokens and the sign-in key. The sign-in key is derived
+  separately from the key that wraps the data key, so seeing it does not help to decrypt anything; it is only a
+  credential for this server. Search runs in the browser and never sends the search text.
+
+### A server that is compromised and changes the app
+
+Someone who controls the server and replaces the web app it delivers, for example with a version that sends the
+password or the unlocked key elsewhere.
+
+- **All modes:** not protected. The browser loads Maple Notes' code from the same server that stores the data, on
+  every visit, and the Content-Security-Policy that restricts that code is also sent by the server. A modified app
+  captures the password at the next sign-in or unlock, or the unlocked key of an open session.
+- **What end-to-end encryption still gives:** content that was stored before the takeover, of users who do not sign
+  in or unlock while it lasts, stays unreadable. So do accounts whose owners notice and stop using the instance.
+- This is the main limit of end-to-end encryption in any web app. Maple Notes does not publish build hashes or offer
+  a way to verify the code a browser receives. Guard the server itself (see [Recommendations](#recommendations)).
+
+A malicious server can also withhold, delete or roll back data without breaking the encryption. Each note, tag name,
+file and wrapped key is authenticated and bound to its account and ID, so the server cannot swap one item for another
+or alter an item without the browser noticing. But it can hide items, restore an older version of a note, attach a
+file to a different note, or change pinned and archived flags, since those are not encrypted.
+
+### The network
+
+- Maple Notes expects HTTPS from a reverse proxy. Behind it, cookies are `Secure` and HSTS is sent.
+- **Without HTTPS,** anyone on the network path can read everything the server can, and inject code like a
+  compromised server. End-to-end encryption does not replace TLS.
+
+### Cross-site scripting in the app
+
+Script injected into Maple Notes' own origin runs with the user's session. It can read notes the page has decrypted,
+use the unlocked key, and fetch the session secret that opens the key saved for the session, so it gets the same
+access as the user.
+
+Defences:
+- Markdown is rendered without raw HTML.
+- The Content-Security-Policy allows scripts only from the app's origin: no inline script and no `eval`.
+- Attachments are served with `nosniff` and a sandboxing policy, and anything that is not passive media is sent as a
+  download. Neither the server nor the media service worker ever renders an uploaded file as part of the app.
+- The unlocked key is a non-extractable `CryptoKey`. This keeps it out of reach of code that only sees memory, but
+  not of script running in the page.
+
+### Someone with the device
+
+A lost or stolen phone or laptop, or a shared computer.
+
+- **With a live session** (the browser was left signed in, or "keep me signed in" was used, which lasts 30 days),
+  the app opens and, for end-to-end accounts, unlocks by itself. Signing out everywhere from another device, or
+  changing the password there, ends every other session at once, and the saved key becomes useless with it.
+- **Without a live session,** the browser holds nothing useful. The key saved in IndexedDB is sealed with a secret
+  that exists only in the session, and API responses are sent with `Cache-Control: no-store`.
+- **Left behind:**
+  - Files viewed before an account switched to end-to-end encryption can remain in the browser's HTTP cache, in
+    plain form, until the browser evicts them. After the switch, files arrive encrypted and are decrypted on demand
+    with `no-store`.
+  - Exports are plain archives wherever they are saved.
+
+### Other users and administrators
+
+Every query filters by the signed-in owner; another user's items answer 404, so their existence is not revealed.
+Administrators manage accounts but have no API to read anyone's notes. An administrator who also runs the server is
+one of the adversaries above.
+
+### Password guessing through the app
+
+- Five failed attempts lock an account for 15 minutes, and sign-in, prelogin and recovery are rate-limited per client
+  IP.
+- Unknown usernames receive the same answer as real ones (default parameters and a stable pseudo-salt), so they
+  cannot be told apart, with one temporary exception (below).
+
+### Legacy accounts
+
+Accounts created by version 1.0 stored a hash of the password itself. Until such an account signs in once with 1.1
+or later, prelogin marks it as needing an upgrade, which reveals that the username exists, and the next sign-in sends
+the password to the server one last time.
+
+### Forgotten passwords
+
+- **End-to-end accounts:** the recovery key resets the password, re-wraps the data key and issues a new recovery key.
+  Without both the password and the recovery key, the content cannot be recovered by anyone.
+- **Other accounts:** Maple Notes sends no email and administrators cannot reset passwords, so there is currently no
+  reset.
+
+## What the server sees in end-to-end mode
+
+| Visible to the server | Hidden from it |
+|---|---|
+| Usernames, sign-in times, IP addresses | Note text |
+| Number of notes and files, and when each was created and updated (also encoded in their IDs) | Tag names |
+| Approximate length of each note and exact size of each file (ciphertext is not padded) | File names, types and contents |
+| Which notes are pinned or archived, and which files belong to which note | Search queries |
+| Which notes share a tag, and how many notes each tag has (tag tokens are deterministic per account) | The password, the data key, the recovery key |
+| Which notes and files the browser loads, and which tag token a filter uses | |
+
+Tag tokens are the same for every note with the same tag, which is what lets the server filter and count by tag. The
+server cannot learn a tag's name, but it can see that two notes share one. Tokens differ between accounts.
+
+## Limits and trade-offs
+
+- **The code comes from the server.** See [above](#a-server-that-is-compromised-and-changes-the-app). This is the
+  largest gap and it is inherent to a browser app served by the same host.
+- **Metadata is visible.** Sizes, timestamps, structure and tag equality are listed above.
+- **Integrity covers items, not the collection.** Deleted, withheld or rolled-back notes cannot be detected.
+- **The recovery key is as powerful as the password.** Anyone who has it can reset the password, sign in and read
+  everything. It is shown once; store it offline. It can be replaced in Settings, which makes the old one useless.
+- **Keys are not rotated.** Changing the password or the recovery key re-wraps the same data key. Someone who once
+  obtained the unlocked data key can read later content too.
+- **Changing mode takes time.** When an account switches to end-to-end encryption, existing content stays readable to
+  the server until the browser has converted each item, and backups taken before the switch keep the old copies until
+  they are rotated out. SQLCipher overwrites deleted database content (`secure_delete`), but replaced attachment
+  files are deleted normally and may remain recoverable from the storage medium.
+- **Weak passwords can be guessed offline** by whoever holds the database and the master key (see above).
+- **Exports are plain text.** They are decrypted by design.
+- **Out of scope:**
+  - malware or malicious browser extensions on the user's device;
+  - a server that deletes data or refuses service;
+  - traffic analysis beyond what is listed above;
+  - side channels on the server's host.
+
+## Recommendations
+
+**Operators**
+- Serve Maple Notes only over HTTPS, and set `MAPLE_TRUSTED_PROXIES` to the proxy's address.
+- Keep the master key out of the data volume and away from backups (a password manager or a Docker secret).
+- Treat shell access to the host and the ability to change the container image as full access to every account's
+  sessions. Limit who has them, and build images from a source you trust.
+- Keep the instance up to date, and rotate old backups: they keep deleted accounts and pre-switch content.
+
+**Users**
+- Use end-to-end encryption if you do not fully trust whoever runs the server or its storage.
+- Use a long, unique password (a passphrase from a password manager).
+- Store the recovery key offline, and replace it if it may have been seen.
+- Avoid "keep me signed in" on shared devices. If a device is lost, sign out everywhere from another one.
+- Treat exports as plain copies of your notes.

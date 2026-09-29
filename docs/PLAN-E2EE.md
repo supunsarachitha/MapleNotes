@@ -53,8 +53,9 @@ key. It can never unwrap it.
 | Sign-in times and IP addresses | The password or any key that decrypts content |
 
 A web app's code is delivered by its server, so a compromised server could deliver malicious code. This limit is
-inherent to browser-based E2EE and will be documented. The strict Content-Security-Policy, the lack of third-party
-scripts and published build hashes reduce the risk.
+inherent to browser-based E2EE and is documented in [threat-model.md](threat-model.md). The strict
+Content-Security-Policy and the lack of third-party scripts make injected code harder to run, but they cannot stop a
+server that changes the app itself.
 
 ### Modes and transitions
 
@@ -79,8 +80,8 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 | E3 | Notes, tags and search in the browser | For an E2EE account the database contains no note text or tag names (asserted by scanning); tag filter and search work in the browser | ✅ Done (`f521023`) |
 | E4 | Attachments and the media service worker | Files and their names are stored only as ciphertext; images and video (with seeking) play through the service worker; fallback without it | ✅ Done (`2d59b4e`) |
 | E5 | Switching modes in both directions | Resumable browser-driven conversion with progress; tests interrupt it in both directions; the server holds no content key after entering E2EE | ✅ Done (`f2cb839`) |
-| E6 | Export in the browser | The browser export matches the server export's structure for all 12 format and layout combinations; streamed download verified | ✅ Done |
-| E7 | Hardening, documentation and release | CSP updated for the worker and WebAssembly; threat model documented; README, architecture, CHANGELOG (v1.1.0), licensing and notices updated; clean-clone browser run passes | ⏳ Not started |
+| E6 | Export in the browser | The browser export matches the server export's structure for all 12 format and layout combinations; streamed download verified | ✅ Done (`9fc3207`) |
+| E7 | Hardening, documentation and release | CSP updated for the worker and WebAssembly; threat model documented; README, architecture, CHANGELOG (v1.1.0), licensing and notices updated; clean-clone browser run passes | ✅ Done |
 
 ### Notes from the phases
 
@@ -124,6 +125,21 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
   so the streamed download opens in a hidden iframe, with a fallback to building in memory. The export code and fflate
   load only when used. Verified in Chromium on the production build: the server refuses (409), the streamed archive
   and the in-memory one hold the same decrypted entries.
+- **E7:** the security review found two things to fix:
+  - API responses were cacheable by default, and they carry decrypted notes (and, during a switch to end-to-end
+    encryption, plain text). They are now sent with `Cache-Control: no-store` unless they set their own caching.
+  - The recovery page told users without a recovery key to ask an administrator, who has no way to reset a password.
+
+  The final Content-Security-Policy is the one from E1 and E4. The earlier mention of published build hashes was
+  dropped: they do not exist, and [threat-model.md](threat-model.md) states plainly that a server which changes the
+  app defeats end-to-end encryption. Verified on an image built from a clean clone of the branch: 330 server and 105
+  web tests, and 80 browser checks in Chromium on the production build, turning end-to-end encryption on through
+  Settings. The checks cover:
+  - the 18-step suite and the 1.0 upgrade on a copy of 1.0 data;
+  - key setup, unlock and recovery;
+  - notes and tags;
+  - media with and without the service worker, and the built worker;
+  - both directions of a mode change, and export.
 
 ## Out of scope for v1.1.0
 
