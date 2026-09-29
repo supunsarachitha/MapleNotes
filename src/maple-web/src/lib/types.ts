@@ -176,6 +176,24 @@ export interface TagWire {
   encryptedName?: string | null;
 }
 
+/** How much the signed-in account stores. */
+export interface StorageUsage {
+  notesBytes: number;
+  noteCount: number;
+  filesBytes: number;
+  fileCount: number;
+  totalBytes: number;
+}
+
+/** What the instance stores on its data volume, for administrators (totals only). */
+export interface InstanceStorage {
+  databaseBytes: number;
+  filesBytes: number;
+  backupsBytes: number;
+  freeBytes: number | null;
+  totalBytes: number;
+}
+
 export interface AdminUser {
   id: string;
   username: string;

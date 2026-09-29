@@ -7,6 +7,7 @@ using MapleNotes.Server.Features.Export;
 using MapleNotes.Server.Features.LinkPreviews;
 using MapleNotes.Server.Features.Notes;
 using MapleNotes.Server.Features.Preferences;
+using MapleNotes.Server.Features.Storage;
 
 namespace MapleNotes.Server.Features;
 
@@ -23,6 +24,7 @@ internal static class FeatureServiceCollectionExtensions
         services.AddScoped<InstanceSettingsService>();
         services.AddScoped<UserAdministrationService>();
         services.AddScoped<PreferencesService>();
+        services.AddScoped<StorageService>();
 
         services.AddScoped<NoteService>();
         services.AddScoped<AttachmentService>();

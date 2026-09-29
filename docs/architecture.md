@@ -340,6 +340,13 @@ server-side request forgery (`Features/LinkPreviews/NetworkGuard.cs`):
 The HTML is read with a few regular expressions (Open Graph tags, then `<title>` and the description), never
 executed, and the text is shown as plain text.
 
+## Storage usage
+
+`GET /api/v1/account/storage` sums the signed-in account's stored note bytes (ciphertext for encrypted notes) and file
+sizes, with counts, in two database queries. `GET /api/v1/admin/storage`, for administrators, measures the data volume
+itself: the database and its write-ahead log, the attachment and backup directories, and the free space the container
+sees on the volume. It deliberately reports totals only; no endpoint gives one account's usage to anyone else.
+
 ## Background services
 
 | Service | When | What |

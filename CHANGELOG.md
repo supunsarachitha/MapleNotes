@@ -36,6 +36,9 @@ modes, and each account chooses which ones it uses.
   made, including after redirects and for names that point there. Fetches are limited to http(s) on the standard
   ports, 5 seconds and 512 KB of HTML, and results are cached. `MAPLE_LINK_PREVIEWS=false` turns the feature off for
   the whole server.
+- **Storage usage:** Settings → Account shows how much the account stores (notes and files, with counts), from
+  `GET /api/v1/account/storage`. Administrators see the server's totals (database, files, backups) and free space
+  from `GET /api/v1/admin/storage`, but never another account's usage.
 - **Help page:** a user guide in the app, from the side menu, covering every feature with links to the matching
   settings.
 - **Formatting toolbar** in every editor: bold, italic, heading, bulleted list, checklist, quote, code and link, with

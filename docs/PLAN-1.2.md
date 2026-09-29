@@ -74,6 +74,7 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 | F13 | Formatting toolbar (requested after F8) | The editor has a toolbar (bold, italic, heading, bulleted list, checklist, quote, code, link) that inserts Markdown at the cursor or around the selection, with keyboard shortcuts; works in every editor (notes, edits, quick notes, daily notes) | ✅ Done |
 | F14 | Link previews (requested after F8) | An option (off by default) shows a preview card (title, description, site) for links in notes, fetched by the server with protection against requests to internal addresses; its privacy cost (the server learns the links, including for end-to-end accounts) is explained where it is turned on | ✅ Done |
 | F15 | User guide in the app (requested after F8) | A Help page in the side menu explains every feature for people using the app (not running it), with a table of contents and links to the matching settings; it ships with the app, so it works offline and needs no server changes | ✅ Done |
+| F16 | Storage usage (requested after F15) | Settings → Account shows how much the account stores (notes and files, with counts and a bar); administrators see the server's totals (database, files, backups) and free space, never another account's usage | ✅ Done |
 
 ### Notes from the phases
 
@@ -250,6 +251,16 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   Two browser scripts were adjusted along the way. The media and export scripts waited for uploads by a colour
   class that the calendar's dots now share. The daily-notes script checked before the switch to end-to-end
   encryption had finished converting.
+- **F16** (requested after the final check): as the user asked, nothing that exposes a security or privacy issue was
+  built. Showing each account's usage to administrators was designed first, then dropped: it would tell them more
+  about a person's activity than the note count they already see. Accounts see only their own usage, and
+  administrators see aggregate server totals. The server tests check both, including that the accounts list carries no
+  usage. On Docker Desktop for Mac, free space reports the virtual disk behind a folder mounted from macOS; Linux
+  hosts report the real volume. Verified in Chromium on the production build:
+  - an empty account, then 3 MB after adding a file;
+  - server totals for the administrator only;
+  - no usage in the accounts list;
+  - the 18-step suite.
 
 ## Out of scope for 1.2.0
 

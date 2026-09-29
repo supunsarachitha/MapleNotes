@@ -20,14 +20,15 @@ const user: User = {
   preferences: DEFAULT_PREFERENCES,
 };
 
-function renderSettings(status: EncryptionStatus) {
+function renderSettings(status: EncryptionStatus, account: User = user) {
   vi.spyOn(api, "encryption").mockResolvedValue(status);
+  vi.spyOn(api, "storage").mockResolvedValue({ notesBytes: 3 * 1024, noteCount: 12, filesBytes: 5 * 1024 * 1024, fileCount: 4, totalBytes: 5 * 1024 * 1024 + 3 * 1024 });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData<AuthStatus>(queryKeys.status, { setupRequired: false, registrationOpen: false, user });
+  client.setQueryData<AuthStatus>(queryKeys.status, { setupRequired: false, registrationOpen: false, user: account });
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <SettingsPage user={user} />
+        <SettingsPage user={account} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -98,5 +99,26 @@ describe("Settings", () => {
 
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, theme: "Dark", accent: "Forest" }));
     expect(screen.getByRole("radio", { name: "Forest" })).toBeChecked();
+  });
+
+  it("shows how much the account stores, and asks nothing about the server", async () => {
+    const instance = vi.spyOn(api.admin, "storage");
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
+
+    expect(await screen.findByText("5.0 MB")).toBeInTheDocument();
+    expect(screen.getByText("Notes 3.0 KB (12) · Files 5.0 MB (4)")).toBeInTheDocument();
+    expect(instance).not.toHaveBeenCalled(); // server totals are for administrators
+  });
+
+  it("shows administrators the server's totals", async () => {
+    vi.spyOn(api.admin, "settings").mockResolvedValue({ allowRegistration: false });
+    vi.spyOn(api.admin, "users").mockResolvedValue([]);
+    vi.spyOn(api.admin, "storage").mockResolvedValue({
+      databaseBytes: 2 * 1024 * 1024, filesBytes: 40 * 1024 * 1024, backupsBytes: 6 * 1024 * 1024, freeBytes: 20 * 1024 ** 3, totalBytes: 48 * 1024 * 1024,
+    });
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, { ...user, role: "Admin" });
+
+    expect(await screen.findByText(/Maple Notes uses 48 MB/)).toHaveTextContent("20 GB free on its volume");
+    expect(screen.getByText("Database 2.0 MB · Files 40 MB · Backups 6.0 MB")).toBeInTheDocument();
   });
 });

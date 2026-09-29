@@ -15,6 +15,8 @@ export const queryKeys = {
   adminSettings: ["admin", "settings"] as const,
   adminUsers: ["admin", "users"] as const,
   encryption: ["account", "encryption"] as const,
+  storage: ["notes", "storage"] as const, // under "notes", so it refreshes when notes change
+  instanceStorage: ["admin", "storage"] as const,
 };
 
 export const PAGE_SIZE = 20;

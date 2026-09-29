@@ -141,6 +141,13 @@ archive state and files, and notes you already have are skipped, so restoring tw
 single Markdown, text or JSON files as notes.`,
   },
   {
+    id: "storage",
+    title: "How much you store",
+    body: `**Account** in [Settings](/settings) shows how much space your notes and files take, with how many of each.
+Archived notes and files count too; deleting them frees the space. Only you see your own usage: administrators see
+the server's totals, never yours.`,
+  },
+  {
     id: "shortcuts",
     title: "Keyboard shortcuts",
     body: `| Keys | What they do |

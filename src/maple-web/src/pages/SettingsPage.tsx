@@ -12,9 +12,33 @@ import { Button, cn, ErrorMessage, Section, Switch, TextField } from "../compone
 import { api, ApiError } from "../lib/api";
 import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
 import { e2ee } from "../lib/e2ee";
-import { formatAbsolute } from "../lib/format";
+import { formatAbsolute, formatBytes } from "../lib/format";
 import { queryKeys, useSignedOut } from "../lib/queries";
 import type { AdminUser, User } from "../lib/types";
+
+/** A bar split between notes and files, with the numbers beside it. */
+function StorageRow() {
+  const usage = useQuery({ queryKey: queryKeys.storage, queryFn: api.storage });
+  if (!usage.data) return <dd className="text-stone-400">…</dd>;
+  const { notesBytes, noteCount, filesBytes, fileCount, totalBytes } = usage.data;
+  const notesShare = totalBytes > 0 ? (notesBytes / totalBytes) * 100 : 0;
+  return (
+    <dd>
+      <span className="font-medium">{formatBytes(totalBytes)}</span>
+      <div
+        className="my-1.5 flex h-2 max-w-72 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800"
+        role="img"
+        aria-label={`Notes ${formatBytes(notesBytes)}, files ${formatBytes(filesBytes)}`}
+      >
+        <div className="bg-maple-700" style={{ width: `${notesShare}%` }} />
+        <div className="bg-maple-400" style={{ width: `${totalBytes > 0 ? 100 - notesShare : 0}%` }} />
+      </div>
+      <span className="text-xs text-stone-500 dark:text-stone-400">
+        Notes {formatBytes(notesBytes)} ({noteCount.toLocaleString()}) · Files {formatBytes(filesBytes)} ({fileCount.toLocaleString()})
+      </span>
+    </dd>
+  );
+}
 
 function AccountSection({ user }: { user: User }) {
   return (
@@ -28,6 +52,8 @@ function AccountSection({ user }: { user: User }) {
         <dd>{user.role === "Admin" ? "Administrator" : "Member"}</dd>
         <dt className="text-stone-500 dark:text-stone-400">Member since</dt>
         <dd>{formatAbsolute(user.createdAtUtc)}</dd>
+        <dt className="text-stone-500 dark:text-stone-400">Storage</dt>
+        <StorageRow />
       </dl>
     </Section>
   );
@@ -173,6 +199,25 @@ function DeleteAccountSection({ username }: { username: string }) {
   );
 }
 
+/** What Maple Notes stores on this server and the space left: totals only, never an account's own usage. */
+function InstanceStorageSummary() {
+  const storage = useQuery({ queryKey: queryKeys.instanceStorage, queryFn: api.admin.storage });
+  if (!storage.data) return null;
+  const { totalBytes, databaseBytes, filesBytes, backupsBytes, freeBytes } = storage.data;
+  return (
+    <div className="mb-5 rounded-xl bg-stone-50 p-3 text-sm dark:bg-stone-800/60">
+      <p className="font-medium">Server storage</p>
+      <p className="mt-0.5 text-stone-600 dark:text-stone-300">
+        Maple Notes uses {formatBytes(totalBytes)}
+        {freeBytes !== null && <> · {formatBytes(freeBytes)} free on its volume</>}
+      </p>
+      <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+        Database {formatBytes(databaseBytes)} · Files {formatBytes(filesBytes)} · Backups {formatBytes(backupsBytes)}
+      </p>
+    </div>
+  );
+}
+
 function AdminSection({ currentUserId }: { currentUserId: string }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -207,6 +252,7 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
 
   return (
     <Section title="Administration" description="Administrators manage accounts but can never read anyone's notes.">
+      <InstanceStorageSummary />
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm font-medium">Open registration</p>

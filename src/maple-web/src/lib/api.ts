@@ -16,8 +16,10 @@ import type {
   NotePageWire,
   NoteState,
   NoteWire,
+  InstanceStorage,
   Preferences,
   Prelogin,
+  StorageUsage,
   ProblemDetails,
   Tag,
   TagWire,
@@ -292,6 +294,9 @@ export const api = {
   /** Writing and feature preferences; the whole object is replaced (fields left out take their defaults). */
   setPreferences: (preferences: Preferences) => request<Preferences>("PUT", "/api/v1/account/preferences", preferences),
 
+  /** How much this account stores (its own notes and files only). */
+  storage: () => request<StorageUsage>("GET", "/api/v1/account/storage"),
+
   encryption: () => request<EncryptionStatus>("GET", "/api/v1/account/encryption"),
 
   /** Off or at rest; or back to end-to-end while the account still has its key (the first time uses e2ee.enable). */
@@ -347,6 +352,8 @@ export const api = {
     updateUser: (id: string, changes: { isDisabled?: boolean; role?: UserRole }) =>
       request<void>("PATCH", `/api/v1/admin/users/${id}`, changes),
     deleteUser: (id: string) => request<void>("DELETE", `/api/v1/admin/users/${id}`),
+    /** The instance's totals on its data volume; never another account's usage. */
+    storage: () => request<InstanceStorage>("GET", "/api/v1/admin/storage"),
   },
 };
 
