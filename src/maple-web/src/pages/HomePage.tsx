@@ -1,10 +1,12 @@
-import { Hash, Search, X } from "lucide-react";
+import { CalendarDays, Hash, Search, X } from "lucide-react";
 import { Composer } from "../components/Composer";
 import { NoteList } from "../components/NoteList";
 import { EmptyState } from "../components/ui";
 import { NoteCard } from "../components/NoteCard";
 import { useTodaysNote } from "../lib/daily";
+import { formatDate, parseDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
+import { usePreferences } from "../lib/preferences";
 import { Link, useLocation } from "../lib/router";
 
 function FilterHeader({ icon: Icon, label }: { icon: typeof Hash; label: string }) {
@@ -47,8 +49,26 @@ export function HomePage() {
   const kinds = useEnabledKinds();
   const tag = params.get("tag") ?? undefined;
   const q = params.get("q") ?? undefined;
+  const dayKey = params.get("day") ?? undefined;
+  const day = dayKey ? parseDateKey(dayKey) : null;
+  const { dateFormat } = usePreferences();
   const today = useTodaysNote();
   const hideIds = today.enabled && today.query.data ? [today.query.data.id] : [];
+
+  if (day && dayKey) {
+    return (
+      <>
+        <FilterHeader icon={CalendarDays} label={formatDate(day, dateFormat)} />
+        <NoteList
+          key={dayKey}
+          state="active"
+          kinds={kinds}
+          day={dayKey}
+          empty={<EmptyState title="No notes on this day">Archived notes are not included.</EmptyState>}
+        />
+      </>
+    );
+  }
 
   if (tag || q) {
     return (

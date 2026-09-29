@@ -7,6 +7,7 @@ import { usePreferences } from "../lib/preferences";
 import { useSignedOut, useTags } from "../lib/queries";
 import { Link, navigate, useLocation } from "../lib/router";
 import type { User } from "../lib/types";
+import { Calendar } from "./Calendar";
 import { Logo } from "./Logo";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
@@ -90,7 +91,7 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
       <SearchBox onNavigate={onNavigate} />
 
       <nav aria-label="Main" className="flex flex-col gap-1">
-        <NavLink href="/" icon={Home} active={path === "/" && !activeTag && !params.get("q")} onNavigate={onNavigate}>
+        <NavLink href="/" icon={Home} active={path === "/" && !activeTag && !params.get("q") && !params.get("day")} onNavigate={onNavigate}>
           Home
         </NavLink>
         {preferences.todoLists && (
@@ -110,6 +111,8 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
           Settings
         </NavLink>
       </nav>
+
+      {preferences.calendar && <Calendar onNavigate={onNavigate} />}
 
       {tags.data && tags.data.length > 0 && (
         <nav aria-label="Tags" className="flex min-h-0 flex-1 flex-col">

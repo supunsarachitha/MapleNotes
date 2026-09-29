@@ -45,6 +45,8 @@ export interface Preferences {
   quickNotes: boolean;
   /** Show today's daily note at the top of Home. */
   dailyNotes: boolean;
+  /** Show a month calendar in the side menu. */
+  calendar: boolean;
 }
 
 /** Argon2id parameters for deriving an account's keys from its password (docs/e2ee-spec.md §1). */

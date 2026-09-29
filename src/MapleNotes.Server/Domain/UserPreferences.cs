@@ -39,4 +39,7 @@ public sealed record UserPreferences
 
     /// <summary>Show today's daily note at the top of Home.</summary>
     public bool DailyNotes { get; init; }
+
+    /// <summary>Show a month calendar in the side menu for finding notes by date.</summary>
+    public bool Calendar { get; init; } = true;
 }

@@ -24,6 +24,7 @@ Every feature must work in all three encryption modes, including end-to-end, whe
 | 12 | What a restore keeps | Text, dates, pinned and archived state, kind, daily date and attachments; tags come from the text as usual. Notes the account already has (same ID) are skipped, so importing the same archive twice is safe. A note whose ID belongs to another account gets a new ID. | Full fidelity without ever overwriting or duplicating existing notes. |
 | 13 | Exports carry the new data | Every format records the kind and the daily date, and todo lists and quick notes go into `todo/` and `quick-notes/` folders. The manifest moves to version 2. The server's and the browser's exports stay identical, checked by the shared export vectors. | Exports are the backup format, so a restore must be able to rebuild everything. |
 | 14 | Version | 1.2.0: new features, no breaking API changes (new fields and parameters only). | Semantic versioning. |
+| 15 | Calendar | A month calendar in the side menu (under the navigation, also in the phone drawer). Days with notes get a dot, today is outlined, and choosing a day opens that day's notes, like a tag view. Days follow the device's time zone; the week starts on the locale's first day. | Browsing by date is how people find "what did I write that week". Note dates are already visible to the server, so the calendar reveals nothing new in end-to-end mode. |
 
 ## Design notes
 
@@ -64,6 +65,7 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 | F6 | Exports with kinds and daily notes | Server and browser exports record kind and daily date, and place todo lists and quick notes in their folders (manifest version 2). The shared export vectors cover the new data | ✅ Done (`3a6a72a`) |
 | F7 | Import and full restore | Export archives in every format and layout, and single `.md`/`.txt`/`.json` files, restore into any account, including end-to-end ones, with progress and a summary. Re-importing skips existing notes. Round-trip tests: export → import into a fresh account → identical export | ✅ Done (`03df64e`) |
 | F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ✅ Done (`f66f0cb`) |
+| F9 | Calendar in the side menu (requested after F8) | A month calendar in the side menu marks the days that have notes; choosing a day shows that day's notes; works in every encryption mode; a Features switch (on by default); docs, changelog and preview updated | ✅ Done |
 
 ### Notes from the phases
 
@@ -147,6 +149,17 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   from a clean clone of the branch: 355 server and 156 web tests, and 140 browser checks in Chromium across 14 runs.
   The runs cover every 1.1 suite (the 18-step suite, the 1.0 upgrade, keys, notes, media, the built worker, mode
   changes and export) and every 1.2 phase (F2–F7).
+- **F9** (requested after F8): the server counts notes per day in the browser's time zone, so days line up with what
+  the user sees, including across daylight-saving changes (tested with Paris on the night the clocks change). A
+  day's notes are listed by the instants the day starts and ends on the device. Nothing new is revealed in
+  end-to-end mode: creation times were already visible, and only the time zone is added. Verified in Chromium on the
+  production build:
+  - today marked with its count, and choosing it lists that day's notes, todo lists included;
+  - an earlier month;
+  - the Calendar switch;
+  - the phone drawer;
+  - an end-to-end account;
+  - the 18-step suite.
 
 ## Out of scope for 1.2.0
 

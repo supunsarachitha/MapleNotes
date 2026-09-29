@@ -146,7 +146,8 @@ the password to the server one last time.
 | Approximate length of each note and exact size of each file (ciphertext is not padded) | File names, types and contents |
 | Which notes are pinned or archived, and which files belong to which note | Search queries |
 | Which notes are todo lists or quick notes, and which days have a daily note | Titles and todo items (they are part of the note's text) |
-| The account's preferences: whether titles, todo lists, quick notes and daily notes are on, and the date format | |
+| The account's preferences: whether titles, todo lists, quick notes, daily notes and the calendar are on, and the date format | |
+| The browser's time zone, when the calendar asks for a month | |
 | Which notes share a tag, and how many notes each tag has (tag tokens are deterministic per account) | The password, the data key, the recovery key |
 | Which notes and files the browser loads, and which tag token a filter uses | |
 

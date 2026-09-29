@@ -12,6 +12,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   todoLists: true,
   quickNotes: true,
   dailyNotes: false,
+  calendar: true,
 };
 
 /** The signed-in user's preferences (from the sign-in status, so every device sees the same). */

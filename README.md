@@ -27,7 +27,8 @@
 - **Quick notes.** A scratchpad tab for short notes that stay out of your timeline; move one to Home when it is worth
   keeping.
 - **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.
-- **Your choice of features.** Each account turns titles, todo lists, quick notes and daily notes on or off in
+- **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.
+- **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes and the calendar on or off in
   Settings, on every device at once. Turning a feature off hides it and deletes nothing.
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists, tables, code) and clickable `#tags`, including
   nested tags such as `#work/meetings`, with a tag list and tag filter.

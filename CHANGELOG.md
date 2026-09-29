@@ -24,11 +24,13 @@ modes, and each account chooses which ones it uses.
   and back.
 - **Daily notes** (off by default): today's note at the top of Home, titled with the date and saved when you first
   write. There is one per day, also when two devices start it at once.
+- **Calendar** (on by default): a month calendar in the side menu (and the phone drawer) marks the days with notes,
+  in your time zone; choosing a day shows its notes.
 - **Restore** (Settings → Backup & restore): bring back Maple Notes exports (`.zip`, any format and layout, with
   attachments) and single `.md`, `.txt` and `.json` files. Notes keep their ID, dates, pinned and archived state, kind
   and daily date. Notes you already have are skipped. For end-to-end accounts the browser encrypts everything first.
 - API: notes have a `kind` (`Note`, `Todo`, `Quick`) and a `dailyDate`. `GET /api/v1/notes` and `GET /api/v1/tags`
-  take repeatable `kind` parameters. New endpoints: `GET /api/v1/notes/daily/{date}`, `POST /api/v1/notes/import` and
+  take repeatable `kind` parameters. `GET /api/v1/notes` also takes `createdFrom` and `createdBefore`. New endpoints: `GET /api/v1/notes/calendar`, `GET /api/v1/notes/daily/{date}`, `POST /api/v1/notes/import` and
   `POST /api/v1/notes/import/existing`.
 
 ### Changed

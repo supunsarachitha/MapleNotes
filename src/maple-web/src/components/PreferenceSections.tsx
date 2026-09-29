@@ -67,6 +67,12 @@ export function FeaturesSection() {
           checked={preferences.dailyNotes}
           onChange={(dailyNotes) => save({ dailyNotes })}
         />
+        <PreferenceSwitch
+          label="Calendar"
+          description="A month calendar in the side menu. Days with notes are marked; choose one to see its notes."
+          checked={preferences.calendar}
+          onChange={(calendar) => save({ calendar })}
+        />
       </div>
     </Section>
   );

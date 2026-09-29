@@ -346,7 +346,11 @@ public sealed class NoteExporter(
             ? CompressionLevel.NoCompression
             : CompressionLevel.Fastest;
 
-    private static DateTime StartOfDayUtc(DateOnly date, TimeZoneInfo timeZone)
+    /// <summary>When a day starts in a time zone, in UTC (after the gap if a daylight-saving change skips midnight).</summary>
+    /// <param name="date">The day.</param>
+    /// <param name="timeZone">The time zone.</param>
+    /// <returns>The first instant of the day, in UTC.</returns>
+    internal static DateTime StartOfDayUtc(DateOnly date, TimeZoneInfo timeZone)
     {
         var local = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
         while (timeZone.IsInvalidTime(local))

@@ -71,7 +71,12 @@ public sealed class NoteService(
             throw new ApiValidationException("tagToken", "Tag tokens are 22 base64url characters, at most 100 per request.");
         }
 
-        var filter = new TagFilter(tag, tagTokens);
+        if (query.CreatedFrom >= query.CreatedBefore)
+        {
+            throw new ApiValidationException("createdBefore", "The end must be after the start.");
+        }
+
+        var filter = new TagFilter(tag, tagTokens, Utc(query.CreatedFrom), Utc(query.CreatedBefore));
         var kinds = ValidateKinds(query.Kinds) ?? [NoteKind.Note];
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
 
@@ -596,6 +601,16 @@ public sealed class NoteService(
             _ => notes.Where(n => n.ArchivedAtUtc == null && !n.IsPinned),
         };
 
+        if (filter.CreatedFrom is { } from)
+        {
+            notes = notes.Where(n => n.CreatedAtUtc >= from);
+        }
+
+        if (filter.CreatedBefore is { } before)
+        {
+            notes = notes.Where(n => n.CreatedAtUtc < before);
+        }
+
         if (filter.IsActive)
         {
             var (tag, tokens) = (filter.Name, filter.Tokens);
@@ -617,6 +632,44 @@ public sealed class NoteService(
             .Take(count)
             .ToListAsync(cancellationToken);
     }
+
+    /// <summary>Counts the user's active notes per day, in a time zone, for the calendar.</summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="query">The days, time zone and kinds.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The days that have notes, in order.</returns>
+    /// <exception cref="ApiValidationException">The range or the time zone is not valid.</exception>
+    public async Task<IReadOnlyList<CalendarDayResponse>> CalendarAsync(Guid userId, CalendarQuery query, CancellationToken cancellationToken)
+    {
+        if (query.To < query.From || query.To.DayNumber - query.From.DayNumber > 62)
+        {
+            throw new ApiValidationException("to", "Ask for at most 62 days, ending on or after the first.");
+        }
+
+        var zone = TimeZoneInfo.Utc;
+        if (!string.IsNullOrWhiteSpace(query.TimeZone) && !TimeZoneInfo.TryFindSystemTimeZoneById(query.TimeZone.Trim(), out zone))
+        {
+            throw new ApiValidationException("timeZone", $"Unknown time zone '{query.TimeZone}'. Use an IANA name such as Europe/Paris.");
+        }
+
+        var start = Export.NoteExporter.StartOfDayUtc(query.From, zone!);
+        var end = Export.NoteExporter.StartOfDayUtc(query.To.AddDays(1), zone!);
+        var notes = db.Notes.AsNoTracking().Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.CreatedAtUtc >= start && n.CreatedAtUtc < end);
+        if (ValidateKinds(query.Kinds) is { } kinds)
+        {
+            notes = notes.Where(n => kinds.Contains(n.Kind));
+        }
+
+        var times = await notes.Select(n => n.CreatedAtUtc).ToListAsync(cancellationToken);
+        return times
+            .GroupBy(t => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(t, zone!)))
+            .OrderBy(g => g.Key)
+            .Select(g => new CalendarDayResponse(g.Key, g.Count()))
+            .ToList();
+    }
+
+    private static DateTime? Utc(DateTime? value) =>
+        value is { } time ? DateTime.SpecifyKind(time.ToUniversalTime(), DateTimeKind.Utc) : null;
 
     /// <summary>Checks requested kinds.</summary>
     /// <param name="kinds">The kinds, possibly null or empty.</param>
@@ -767,8 +820,11 @@ public sealed class NoteService(
             .Where(t => t.UserId == userId && !db.Notes.Any(n => n.UserId == userId && n.Tags.Any(nt => nt.Id == t.Id)))
             .ExecuteDeleteAsync(cancellationToken);
 
-    /// <summary>A tag filter: a tag name (plain-text notes) and blind tokens (end-to-end notes), matched with OR.</summary>
-    private readonly record struct TagFilter(string? Name, string[] Tokens)
+    /// <summary>
+    /// A list filter: a tag name (plain-text notes) and blind tokens (end-to-end notes), matched with OR, and an optional
+    /// creation-time range.
+    /// </summary>
+    private readonly record struct TagFilter(string? Name, string[] Tokens, DateTime? CreatedFrom = null, DateTime? CreatedBefore = null)
     {
         public bool IsActive => Name is not null || Tokens.Length > 0;
     }

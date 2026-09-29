@@ -144,7 +144,7 @@ async function listNotes(params: NoteListParams): Promise<NotePage> {
   for (let scanned = 0; ; ) {
     const page = await request<NotePageWire>(
       "GET",
-      `/api/v1/notes${query({ state: params.state, kind: kinds, cursor, limit: SEARCH_BATCH, ...filter })}`,
+      `/api/v1/notes${query({ state: params.state, kind: kinds, createdFrom: params.createdFrom, createdBefore: params.createdBefore, cursor, limit: SEARCH_BATCH, ...filter })}`,
     );
     const notes = await Promise.all(page.items.map(decodeNote));
     matches.push(...notes.filter((note) => matchesSearch(note, params.q!)));
@@ -159,6 +159,10 @@ export interface NoteListParams {
   state: NoteState;
   /** Which kinds of notes; the server's default is the timeline ("Note"). */
   kinds?: NoteKind[];
+  /** Only notes created from this instant (ISO 8601)… */
+  createdFrom?: string;
+  /** …and before this one. */
+  createdBefore?: string;
   cursor?: string;
   limit?: number;
   tag?: string;
@@ -211,6 +215,10 @@ export const api = {
     const { isPinned = false, kind = "Note", dailyDate } = options;
     return decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind, dailyDate }));
   },
+
+  /** How many active notes of these kinds were created on each day from `from` to `to` (yyyy-MM-dd), in a time zone. */
+  calendar: (from: string, to: string, timeZone: string, kinds: NoteKind[]) =>
+    request<Array<{ date: string; count: number }>>("GET", `/api/v1/notes/calendar${query({ from, to, timeZone, kind: kinds })}`),
 
   /** Which of these note IDs the account already has (at most 500 at a time). */
   async existingNotes(ids: string[]): Promise<string[]> {

@@ -1,13 +1,15 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import { e2ee } from "./e2ee";
+import { dayRange } from "./dates";
 import type { AuthStatus, NoteKind, NoteState } from "./types";
 
 export const queryKeys = {
   status: ["auth", "status"] as const,
   notes: ["notes"] as const,
-  noteList: (state: NoteState, tag?: string, q?: string, kinds: NoteKind[] = ["Note"]) =>
-    ["notes", state, tag ?? "", q ?? "", kinds.join(",")] as const,
+  noteList: (state: NoteState, tag?: string, q?: string, kinds: NoteKind[] = ["Note"], day?: string) =>
+    ["notes", state, tag ?? "", q ?? "", kinds.join(","), day ?? ""] as const,
+  calendar: (month: string, kinds: NoteKind[]) => ["notes", "calendar", month, kinds.join(",")] as const,
   tags: ["tags"] as const,
   tagList: (kinds: NoteKind[]) => ["tags", kinds.join(",")] as const,
   adminSettings: ["admin", "settings"] as const,
@@ -35,11 +37,12 @@ export function useSignedOut() {
   };
 }
 
-/** One infinitely scrolling list of notes of the given kinds (cursor pagination). */
-export function useNotes(state: NoteState, tag?: string, q?: string, kinds: NoteKind[] = ["Note"]) {
+/** One infinitely scrolling list of notes of the given kinds, optionally of one local day (cursor pagination). */
+export function useNotes(state: NoteState, tag?: string, q?: string, kinds: NoteKind[] = ["Note"], day?: string) {
   return useInfiniteQuery({
-    queryKey: queryKeys.noteList(state, tag, q, kinds),
-    queryFn: ({ pageParam }) => api.listNotes({ state, tag, q, kinds, cursor: pageParam, limit: PAGE_SIZE }),
+    queryKey: queryKeys.noteList(state, tag, q, kinds, day),
+    queryFn: ({ pageParam }) =>
+      api.listNotes({ state, tag, q, kinds, cursor: pageParam, limit: PAGE_SIZE, ...(day ? dayRange(day) : {}) }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });

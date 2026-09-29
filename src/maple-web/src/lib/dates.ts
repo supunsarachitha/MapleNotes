@@ -36,6 +36,22 @@ export function formatDate(date: Date, format: DateFormat): string {
   return format.replace(/yyyy|MMMM|MMM|MM|dddd|dd|d/g, (token) => tokens[token]!);
 }
 
+/** Parses `yyyy-MM-dd` as a local date (midnight on this device), or null. */
+export function parseDateKey(key: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return localDateKey(date) === key ? date : null;
+}
+
+/** The instants a local day starts and ends, for asking the server for that day's notes. */
+export function dayRange(key: string): { createdFrom?: string; createdBefore?: string } {
+  const start = parseDateKey(key);
+  if (!start) return {};
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+  return { createdFrom: start.toISOString(), createdBefore: end.toISOString() };
+}
+
 /** A local date as `yyyy-MM-dd`: the calendar day on this device, which names a daily note. */
 export function localDateKey(date: Date): string {
   return `${String(date.getFullYear()).padStart(4, "0")}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;

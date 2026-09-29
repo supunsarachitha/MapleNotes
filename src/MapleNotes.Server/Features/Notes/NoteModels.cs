@@ -56,7 +56,35 @@ public sealed record NoteListQuery
     /// </summary>
     [FromQuery(Name = "q")]
     public string? Search { get; init; }
+
+    /// <summary>Only notes created at or after this instant (for example the start of a day in the user's time zone).</summary>
+    public DateTime? CreatedFrom { get; init; }
+
+    /// <summary>Only notes created before this instant.</summary>
+    public DateTime? CreatedBefore { get; init; }
 }
+
+/// <summary>Query parameters for the calendar: which days, in which time zone, counting which kinds of notes.</summary>
+public sealed record CalendarQuery
+{
+    /// <summary>First day (inclusive).</summary>
+    public DateOnly From { get; init; }
+
+    /// <summary>Last day (inclusive); at most 62 days after <see cref="From"/>.</summary>
+    public DateOnly To { get; init; }
+
+    /// <summary>IANA time zone whose calendar days are counted, e.g. <c>Europe/Paris</c>. Default: UTC.</summary>
+    public string? TimeZone { get; init; }
+
+    /// <summary>Count only notes of these kinds (repeat the parameter); default: every kind.</summary>
+    [FromQuery(Name = "kind")]
+    public NoteKind[]? Kinds { get; init; }
+}
+
+/// <summary>A day that has active notes, and how many were created that day.</summary>
+/// <param name="Date">The day, in the requested time zone.</param>
+/// <param name="Count">Number of active notes created that day.</param>
+public sealed record CalendarDayResponse(DateOnly Date, int Count);
 
 /// <summary>
 /// A note as returned by the API: decrypted when the server encrypted it, as stored when the browser did.

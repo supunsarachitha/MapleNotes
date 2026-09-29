@@ -77,7 +77,9 @@ by the signed-in owner; requests for another user's items return 404, never 403,
 The feed uses keyset (cursor) pagination on `(CreatedAtUtc, Id)` descending, backed by an index on
 `(UserId, CreatedAtUtc, Id)`, and one on `(UserId, Kind, CreatedAtUtc, Id)` for the timeline and the Todo and Quick
 notes tabs, which each list one kind. Searches, tag views, tag counts and the archive cover every kind the user has
-turned on. A cursor is the position of the last item shown, so notes posted while the user scrolls
+turned on. The side-menu calendar counts active notes per day with `GET /api/v1/notes/calendar`, which converts
+creation times to the browser's time zone on the server (a month at a time, at most 62 days); a day's notes are the
+feed filtered by `createdFrom`/`createdBefore`, the instants that day starts and ends on the device. A cursor is the position of the last item shown, so notes posted while the user scrolls
 never shift later pages. Pinned notes are a separate list shown above the feed.
 
 Search runs over decrypted text, so it cannot use the database. It scans the user's notes in batches of 200 and

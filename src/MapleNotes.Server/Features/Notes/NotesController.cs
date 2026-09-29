@@ -39,6 +39,18 @@ public sealed class NotesController(NoteService notes) : ControllerBase
     public async Task<ActionResult<NoteResponse>> Get(Guid id, CancellationToken cancellationToken) =>
         await notes.GetAsync(User.GetUserId(), id, cancellationToken) is { } note ? note : NotFound();
 
+    /// <summary>Counts active notes per day, for a calendar.</summary>
+    /// <param name="query">The days (at most 62), the time zone whose days are counted, and which kinds to count.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The days that have notes, with how many.</returns>
+    /// <response code="200">The days.</response>
+    /// <response code="400">The range, time zone or a kind is not valid.</response>
+    [HttpGet("calendar")]
+    [ProducesResponseType<IReadOnlyList<CalendarDayResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public Task<IReadOnlyList<CalendarDayResponse>> Calendar([FromQuery] CalendarQuery query, CancellationToken cancellationToken) =>
+        notes.CalendarAsync(User.GetUserId(), query, cancellationToken);
+
     /// <summary>Returns the daily note of a day.</summary>
     /// <param name="date">The day, as <c>yyyy-MM-dd</c>.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
