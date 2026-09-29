@@ -53,23 +53,34 @@ public sealed record CredentialProof(byte[] AuthKey, string? Password = null);
 /// <param name="Current">Proof of the current password.</param>
 /// <param name="NewKdf">Parameters for the new password, with a new random salt.</param>
 /// <param name="NewAuthKey">The authentication key derived from the new password (base64).</param>
-public sealed record ChangePasswordRequest(CredentialProof Current, KdfParameters NewKdf, byte[] NewAuthKey);
+/// <param name="NewWrappedKey">
+/// For an account with an end-to-end key, required: the same data key wrapped with the new password's wrapping key.
+/// Must be omitted otherwise.
+/// </param>
+public sealed record ChangePasswordRequest(
+    CredentialProof Current, KdfParameters NewKdf, byte[] NewAuthKey, byte[]? NewWrappedKey = null);
 
 /// <summary>A user account as returned by the API.</summary>
 /// <param name="Id">Account ID.</param>
 /// <param name="Username">Login name.</param>
 /// <param name="DisplayName">Name shown in the interface.</param>
 /// <param name="Role">Account role.</param>
-/// <param name="EncryptionEnabled">Whether the account's notes and attachments are encrypted at rest.</param>
+/// <param name="EncryptionMode">How the account's new notes and attachments are protected.</param>
+/// <param name="HasEndToEndKey">
+/// Whether the account has an end-to-end key: the browser then needs it unlocked to read (and, in end-to-end mode,
+/// to write) content.
+/// </param>
 /// <param name="CreatedAtUtc">When the account was created.</param>
 public sealed record UserResponse(
-    Guid Id, string Username, string DisplayName, UserRole Role, bool EncryptionEnabled, DateTime CreatedAtUtc)
+    Guid Id, string Username, string DisplayName, UserRole Role, EncryptionMode EncryptionMode, bool HasEndToEndKey,
+    DateTime CreatedAtUtc)
 {
     /// <summary>Maps an account entity to its API representation.</summary>
     /// <param name="user">The account.</param>
     /// <returns>The API representation.</returns>
     public static UserResponse From(User user) =>
-        new(user.Id, user.Username, user.DisplayName, user.Role, user.EncryptionEnabled, user.CreatedAtUtc);
+        new(user.Id, user.Username, user.DisplayName, user.Role, user.EncryptionMode, user.E2eeWrappedKey is not null,
+            user.CreatedAtUtc);
 }
 
 /// <summary>Sign-in state of the current visitor and what the instance allows.</summary>

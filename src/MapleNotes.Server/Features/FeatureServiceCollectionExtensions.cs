@@ -2,6 +2,7 @@ using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Features.Attachments;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Features.Encryption;
+using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Features.Export;
 using MapleNotes.Server.Features.Notes;
 
@@ -28,6 +29,7 @@ internal static class FeatureServiceCollectionExtensions
         services.AddScoped<NoteExporter>();
 
         services.AddScoped<EncryptionSettingsService>();
+        services.AddScoped<EndToEndService>();
         services.AddScoped<EncryptionMigrator>();
         services.AddSingleton<EncryptionMigrationSignal>();
         services.AddHostedService<EncryptionMigrationService>();

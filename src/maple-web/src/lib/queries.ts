@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
+import { e2ee } from "./e2ee";
 import type { AuthStatus, NoteState } from "./types";
 
 export const queryKeys = {
@@ -18,12 +19,13 @@ export function useAuthStatus() {
 }
 
 /**
- * After signing out: switch to the sign-in screen immediately and forget every cached note of the previous user,
- * then confirm the state with the server.
+ * After signing out: switch to the sign-in screen immediately, forget every cached note and the end-to-end key of the
+ * previous user, then confirm the state with the server.
  */
 export function useSignedOut() {
   const client = useQueryClient();
   return () => {
+    void e2ee.forget();
     client.setQueryData<AuthStatus>(queryKeys.status, (status) => (status ? { ...status, user: null } : status));
     client.removeQueries({ predicate: (query) => query.queryKey[0] !== "auth" });
     void client.invalidateQueries({ queryKey: queryKeys.status });

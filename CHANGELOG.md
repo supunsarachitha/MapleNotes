@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `POST /api/v1/auth/prelogin` returns an account's key-derivation parameters and answers in the same shape for
   unknown usernames. It has its own rate limit.
+- **End-to-end key management:** accounts have an encryption mode (off, at rest or end-to-end) and every note and
+  attachment its own scheme. The browser creates the end-to-end key and stores it on the server only wrapped by the
+  password and by a recovery key. Includes an unlock screen, password reset with the recovery key, a new recovery key
+  from Settings, and keeping the unlocked key in the browser sealed under a secret that ends with the session.
 
 ### Changed
 
@@ -24,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   account deletion take an authentication key or a `proof` instead of a password; see the OpenAPI document and
   `docs/e2ee-spec.md`. The bundled web app is updated.
 - Password rules (at least 10 characters) are checked by the web app, since the server no longer sees passwords.
+- **API (breaking for third-party clients):** `GET`/`PUT /api/v1/account/encryption` use `mode` (`Off`, `AtRest`,
+  `EndToEnd`) instead of `enabled`, and accounts carry `encryptionMode` and `hasEndToEndKey` instead of
+  `encryptionEnabled`.
 - The Content-Security-Policy allows WebAssembly compilation (`'wasm-unsafe-eval'`, which does not allow JavaScript
   `eval`) and same-origin workers.
 

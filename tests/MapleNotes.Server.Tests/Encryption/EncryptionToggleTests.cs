@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
+using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Attachments;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Features.Encryption;
@@ -36,11 +37,11 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
     [Fact]
     public async Task Changing_the_setting_requires_the_password()
     {
-        var response = await _client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(false, await _client.ProofAsync("not my password")));
+        var response = await _client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(EncryptionMode.Off, await _client.ProofAsync("not my password")));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("password", (await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(ApiClient.Json, Ct))!.Errors.Keys);
-        Assert.True((await StatusAsync()).Enabled);
+        Assert.Equal(EncryptionMode.AtRest, (await StatusAsync()).Mode);
     }
 
     [Fact]
@@ -52,10 +53,10 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
         var afterToggle = await CreateNoteAsync("written after switching off");
         var feedWhileMixed = await ListActiveAsync();
 
-        Assert.False(status.Enabled);
+        Assert.Equal(EncryptionMode.Off, status.Mode);
         Assert.True(status.InProgress);
         Assert.Equal(notes.Count + 1, status.RemainingItems); // the notes plus the attachment
-        Assert.False((await StoredNoteAsync(afterToggle.Id)).IsEncrypted); // new content follows the setting at once
+        Assert.Equal(ContentScheme.None, (await StoredNoteAsync(afterToggle.Id)).Scheme); // new content follows the setting at once
         Assert.Equal(notes.Count + 1, feedWhileMixed.Count);          // mixed encrypted/plain content all readable
 
         var result = await MigrateAsync();
@@ -67,12 +68,12 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
         foreach (var note in notes)
         {
             var stored = await StoredNoteAsync(note.Id);
-            Assert.False(stored.IsEncrypted);
+            Assert.Equal(ContentScheme.None, stored.Scheme);
             Assert.Equal(note.Content, Encoding.UTF8.GetString(stored.Content));
         }
 
         var storedFile = await StoredAttachmentAsync(file.Id);
-        Assert.False(storedFile.IsEncrypted);
+        Assert.Equal(ContentScheme.None, storedFile.Scheme);
         Assert.Equal(fileContent, await File.ReadAllBytesAsync(StoredPath(storedFile.StorageKey), Ct));
         Assert.Equal(fileContent, await _client.Http.GetByteArrayAsync(file.Url, Ct));
         Assert.Single(AllStoredFiles()); // the encrypted original was removed
@@ -90,11 +91,11 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
 
         foreach (var note in notes)
         {
-            Assert.True((await StoredNoteAsync(note.Id)).IsEncrypted);
+            Assert.Equal(ContentScheme.Server, (await StoredNoteAsync(note.Id)).Scheme);
         }
 
         var storedFile = await StoredAttachmentAsync(file.Id);
-        Assert.True(storedFile.IsEncrypted);
+        Assert.Equal(ContentScheme.Server, storedFile.Scheme);
         Assert.True(AttachmentCipher.HasEncryptedHeader(await File.ReadAllBytesAsync(StoredPath(storedFile.StorageKey), Ct)));
         Assert.Equal(fileContent, await _client.Http.GetByteArrayAsync(file.Url, Ct));
         Assert.Equal(notes.Select(n => n.Content).Order(), (await ListActiveAsync()).Select(n => n.Content).Order());
@@ -112,7 +113,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
 
         // The database still points at the original, which still downloads correctly; the new copy is a stray file.
         var afterCrash = await StoredAttachmentAsync(file.Id);
-        Assert.True(afterCrash.IsEncrypted);
+        Assert.Equal(ContentScheme.Server, afterCrash.Scheme);
         Assert.Equal(originalKey, afterCrash.StorageKey);
         Assert.Equal(fileContent, await _client.Http.GetByteArrayAsync(file.Url, Ct));
         Assert.Equal(2, AllStoredFiles().Count);
@@ -120,7 +121,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
         var rerun = await MigrateAsync();
 
         Assert.True(rerun.Completed);
-        Assert.False((await StoredAttachmentAsync(file.Id)).IsEncrypted);
+        Assert.Equal(ContentScheme.None, (await StoredAttachmentAsync(file.Id)).Scheme);
         Assert.Equal(fileContent, await _client.Http.GetByteArrayAsync(file.Url, Ct));
 
         // The stray copy from the crash is an orphan and is removed by the regular cleanup.
@@ -145,7 +146,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
 
         foreach (var note in notes)
         {
-            Assert.True((await StoredNoteAsync(note.Id)).IsEncrypted); // nothing half-converted
+            Assert.Equal(ContentScheme.Server, (await StoredNoteAsync(note.Id)).Scheme); // nothing half-converted
         }
 
         Assert.Equal(notes.Select(n => n.Content).Order(), (await ListActiveAsync()).Select(n => n.Content).Order());
@@ -167,7 +168,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
         Assert.False(interrupted.Completed);
         var stored = await StoredNoteAsync(note.Id);
         Assert.Equal("edited during conversion", Encoding.UTF8.GetString(stored.Content));
-        Assert.False(stored.IsEncrypted); // saved by the edit under the new setting
+        Assert.Equal(ContentScheme.None, stored.Scheme); // saved by the edit under the new setting
         Assert.True((await MigrateAsync()).Completed);
     }
 
@@ -182,7 +183,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
             (await client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest($"note {i}"))).EnsureSuccessStatusCode();
         }
 
-        (await client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(false, await client.ProofAsync()))).EnsureSuccessStatusCode();
+        (await client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(EncryptionMode.Off, await client.ProofAsync()))).EnsureSuccessStatusCode();
 
         EncryptionStatusResponse? status = null;
         for (var attempt = 0; attempt < 100; attempt++)
@@ -230,7 +231,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
 
     private async Task<EncryptionStatusResponse> SetEncryptionAsync(bool enabled)
     {
-        var response = await _client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(enabled, await _client.ProofAsync()));
+        var response = await _client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(enabled ? EncryptionMode.AtRest : EncryptionMode.Off, await _client.ProofAsync()));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<EncryptionStatusResponse>(ApiClient.Json, Ct))!;
     }

@@ -1,4 +1,5 @@
 using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Persistence;
@@ -8,8 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace MapleNotes.Server.Features.Attachments;
 
 /// <summary>
-/// Stores, reads and deletes attachments, encrypting them with the owner's data key when the owner has encryption at
-/// rest switched on.
+/// Stores, reads and deletes attachments, encrypting them with the owner's data key when the owner uses encryption at
+/// rest.
 /// </summary>
 /// <param name="db">Database context.</param>
 /// <param name="store">File store.</param>
@@ -30,14 +31,15 @@ public sealed class AttachmentService(
     /// <param name="cancellationToken">Cancels the upload; nothing is kept.</param>
     /// <returns>The stored attachment.</returns>
     /// <exception cref="UploadTooLargeException">The file is larger than <c>MAPLE_MAX_UPLOAD_MB</c>.</exception>
+    /// <exception cref="Infrastructure.Web.ApiProblemException">The account uses end-to-end encryption.</exception>
     public async Task<Attachment> UploadAsync(
         Guid userId, string? fileName, string? contentType, Stream content, CancellationToken cancellationToken)
     {
+        var scheme = ContentSchemes.ForPlainText(await keys.GetModeAsync(userId, cancellationToken));
         var id = Guid.CreateVersion7();
         var storageKey = AttachmentStore.CreateStorageKey(id);
-        var encrypt = await keys.IsEncryptionEnabledAsync(userId, cancellationToken);
         var limited = new LengthLimitedStream(content, options.MaxUploadBytes);
-        var key = encrypt ? await keys.GetKeyAsync(userId, cancellationToken) : null;
+        var key = scheme == ContentScheme.Server ? await keys.GetKeyAsync(userId, cancellationToken) : null;
 
         await store.WriteAsync(storageKey, (file, ct) => key is null
             ? limited.CopyToAsync(file, ct)
@@ -52,7 +54,7 @@ public sealed class AttachmentService(
             ContentType = UploadPolicy.ResolveContentType(contentType, safeName),
             SizeBytes = limited.BytesRead,
             StorageKey = storageKey,
-            IsEncrypted = encrypt,
+            Scheme = scheme,
             CreatedAtUtc = time.GetUtcNow().UtcDateTime,
         };
 
@@ -90,11 +92,14 @@ public sealed class AttachmentService(
     /// <summary>Opens the content of an attachment the caller has already loaded (and authorized).</summary>
     /// <param name="attachment">The attachment.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
-    /// <returns>A seekable stream of the decrypted content; the caller disposes it.</returns>
+    /// <returns>
+    /// A seekable stream of the content, decrypted when the server encrypted it; an end-to-end encrypted file is
+    /// returned as stored, for the browser to decrypt. The caller disposes it.
+    /// </returns>
     public async Task<Stream> OpenContentAsync(Attachment attachment, CancellationToken cancellationToken)
     {
         var file = store.OpenRead(attachment.StorageKey);
-        if (!attachment.IsEncrypted)
+        if (attachment.Scheme != ContentScheme.Server)
         {
             return file;
         }

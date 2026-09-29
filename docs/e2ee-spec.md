@@ -91,6 +91,24 @@ fileKey      = HKDF(dataKey, salt = file salt, info "maple-notes/v2/e2ee/attachm
 In the browser the data key is imported as a non-extractable HKDF key, and the subkeys are derived as
 non-extractable `CryptoKey`s.
 
+**Switching on** (`POST /api/v1/account/e2ee`): the browser generates the data key and a recovery key (§6), wraps the
+data key twice (with `wrapKey` under the `data-key` context and with `recoveryWrapKey` under the `recovery` context),
+opens each wrapping again to check it, and sends both with a proof of the password (§1) and `recoveryAuthKey`. The
+server sets the account's mode to end-to-end and stores the two wrapped keys and a PBKDF2 hash of `recoveryAuthKey`.
+It refuses a second data key for the same account (409).
+
+**Unlocking:** `GET /api/v1/account/e2ee` returns the password-wrapped key to the signed-in account; the browser
+unwraps it with `wrapKey`. Signing in unlocks at the same time, since it derives `wrapKey` anyway.
+
+**Password change:** the request carries the data key re-wrapped with the new password's `wrapKey` (`newWrappedKey`).
+The server requires it for accounts with an end-to-end key and refuses it for others. It cannot check what a wrapped
+key contains, so the browser opens every new wrapping before sending it.
+
+**Modes and schemes:** an account's mode is `Off`, `AtRest` or `EndToEnd`, and every note and attachment records its
+own scheme (`None`, `Server` or `EndToEnd`), so mixed content stays readable while an account changes mode. In
+end-to-end mode the server accepts only ciphertext for new content and answers plain text with 409; the background
+worker that converts between `None` and `Server` never touches end-to-end content or end-to-end accounts.
+
 ## 4. Tags
 
 - **Which words are tags:** the same rules as the server's tag parser. A `#` is not preceded by a letter, digit,
@@ -135,9 +153,36 @@ recoveryAuthKey  = HKDF(recoveryKey, info "maple-notes/v2/recovery/auth")
   not decode to exactly 32 bytes with zero padding bits.
 - **Server storage:** the data key wrapped with `recoveryWrapKey` (§2), and a PBKDF2 hash of `recoveryAuthKey`,
   which proves knowledge of the recovery key when resetting a forgotten password.
-- **After a recovery:** the browser generates a new recovery key.
+- **Reset with the recovery key** (anonymous, rate-limited like sign-in):
+  1. `POST /api/v1/auth/recovery/key` `{ username, recoveryAuthKey }` returns `{ userId, recoveryWrappedKey }`. An
+     unknown username, an account without a recovery key and a wrong key all get the same 401, taking the same time.
+  2. The browser unwraps the data key with `recoveryWrapKey`, derives keys for the new password (§1, fresh salt),
+     generates a new recovery key, and sends `POST /api/v1/auth/recovery/reset` with the old `recoveryAuthKey`, the new
+     parameters and `authKey`, the data key wrapped for the new password and for the new recovery key, and the new
+     `recoveryAuthKey`. The server replaces all of it, signs out every session, lifts a sign-in lockout and signs
+     this browser in.
+- **After a recovery** the used recovery key no longer works; the browser shows the new one once.
+- **Replacing** (`PUT /api/v1/account/e2ee/recovery`, with a proof of the password) wraps the data key for a new
+  recovery key; the old one stops working.
 
-## 7. Test vectors
+## 7. Keeping the key in the browser
+
+While the app is open, the unlocked data key exists only as non-extractable `CryptoKey`s. Between page loads it is
+kept in IndexedDB (database `maple-notes`, store `unlocked-keys`), sealed under the session's secret:
+
+```text
+sessionKey  = 32 random bytes, created at sign-in and carried in the encrypted, HttpOnly session cookie
+saved       = envelope(sessionKey, dataKey, context "maple-notes/v2/local/{userId}", key version = data-key version)
+```
+
+`GET /api/v1/auth/session-key` returns `sessionKey` to its own session only, with `Cache-Control: no-store`. The saved
+copy is therefore useless once the session ends (sign-out, expiry, "sign out everywhere", a password change or reset
+elsewhere, a disabled account), and the server alone has nothing to open either. A copy that no longer opens is
+deleted; the browser then asks for the password (the unlock screen). Signing out, or finding the session gone, deletes
+all saved copies. Re-issuing the cookie for the same session (a password change on this device, a role change) keeps
+`sessionKey`; a session created before version 1.1 gets one on its first request for it.
+
+## 8. Test vectors
 
 `src/maple-web/src/crypto/test-vectors.json` fixes every input: the password, salts, nonces, data key, recovery key,
 IDs and a two-chunk attachment. It also records every output: the derived keys, the envelopes, the tag token, the

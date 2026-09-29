@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Attachments;
+using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Infrastructure.Storage;
@@ -12,7 +13,7 @@ namespace MapleNotes.Server.Features.Notes;
 
 /// <summary>
 /// Creates, reads, updates, archives and deletes notes. Every operation is scoped to the owner, and note text is
-/// encrypted or decrypted transparently according to the owner's encryption-at-rest setting.
+/// encrypted or decrypted transparently according to the owner's encryption mode and each note's scheme.
 /// </summary>
 /// <param name="db">Database context.</param>
 /// <param name="keys">Per-request data keys.</param>
@@ -33,6 +34,9 @@ public sealed class NoteService(
 
     /// <summary>Shown in place of a note whose text cannot be decrypted (damaged data).</summary>
     public const string UnreadablePlaceholder = "⚠️ This note could not be decrypted. Its stored data may be damaged.";
+
+    /// <summary>Stands in for the text of an end-to-end encrypted note, which only the owner's browser can read.</summary>
+    public const string EndToEndPlaceholder = "🔒 This note is end-to-end encrypted.";
 
     // Search decrypts notes in memory, scanning in batches. One request scans at most this many notes, then returns
     // what it found with a cursor so the client can continue: response time stays bounded on large accounts.
@@ -279,9 +283,14 @@ public sealed class NoteService(
     /// <returns>The Markdown text, or <see cref="UnreadablePlaceholder"/> when the ciphertext is damaged.</returns>
     internal async Task<string> ReadContentAsync(Note note, CancellationToken cancellationToken)
     {
-        if (!note.IsEncrypted)
+        if (note.Scheme == ContentScheme.None)
         {
             return Encoding.UTF8.GetString(note.Content);
+        }
+
+        if (note.Scheme == ContentScheme.EndToEnd)
+        {
+            return EndToEndPlaceholder;
         }
 
         try
@@ -351,16 +360,11 @@ public sealed class NoteService(
 
     private async Task SetContentAsync(Note note, string content, CancellationToken cancellationToken)
     {
-        if (await keys.IsEncryptionEnabledAsync(note.UserId, cancellationToken))
-        {
-            note.Content = NoteCipher.Encrypt(await keys.GetKeyAsync(note.UserId, cancellationToken), note.UserId, note.Id, content);
-            note.IsEncrypted = true;
-        }
-        else
-        {
-            note.Content = Encoding.UTF8.GetBytes(content);
-            note.IsEncrypted = false;
-        }
+        var scheme = ContentSchemes.ForPlainText(await keys.GetModeAsync(note.UserId, cancellationToken));
+        note.Content = scheme == ContentScheme.Server
+            ? NoteCipher.Encrypt(await keys.GetKeyAsync(note.UserId, cancellationToken), note.UserId, note.Id, content)
+            : Encoding.UTF8.GetBytes(content);
+        note.Scheme = scheme;
     }
 
     private async Task AttachAsync(Note note, IReadOnlyCollection<Guid> attachmentIds, CancellationToken cancellationToken)

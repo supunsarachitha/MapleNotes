@@ -74,8 +74,8 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 | # | Phase | Done when | Status |
 |---|---|---|---|
 | E0 | Crypto specification and shared test vectors | `docs/e2ee-spec.md` written; TypeScript and C# implementations produce identical results for the committed test vectors | ✅ Done (`bfdaaf4`) |
-| E1 | Key-derived sign-in for every account | The server never receives a password (register, sign-in, password change, re-authentication); legacy accounts upgrade at sign-in; unknown usernames are indistinguishable; all existing tests pass on the new flow | ✅ Done |
-| E2 | End-to-end mode and key management | Three encryption modes and per-item schemes; recovery kit, password-reset-by-recovery-key and unlock screen; the server enforces ciphertext-only writes for E2EE accounts | ⏳ Not started |
+| E1 | Key-derived sign-in for every account | The server never receives a password (register, sign-in, password change, re-authentication); legacy accounts upgrade at sign-in; unknown usernames are indistinguishable; all existing tests pass on the new flow | ✅ Done (`d819094`) |
+| E2 | End-to-end mode and key management | Three encryption modes and per-item schemes; recovery kit, password-reset-by-recovery-key and unlock screen; the server enforces ciphertext-only writes for E2EE accounts | ✅ Done |
 | E3 | Notes, tags and search in the browser | For an E2EE account the database contains no note text or tag names (asserted by scanning); tag filter and search work in the browser | ⏳ Not started |
 | E4 | Attachments and the media service worker | Files and their names are stored only as ciphertext; images and video (with seeking) play through the service worker; fallback without it | ⏳ Not started |
 | E5 | Switching modes in both directions | Resumable browser-driven conversion with progress; tests interrupt it in both directions; the server holds no content key after entering E2EE | ⏳ Not started |
@@ -90,6 +90,12 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
   WebAssembly (`worker-src 'self'`, `'wasm-unsafe-eval'`) was needed for sign-in to work, so it moved forward from E7;
   E7 still reviews the final policy. Verified in Chromium: the 18-step browser suite on a fresh instance, and the
   one-time upgrade on a copy of 1.0.0 data.
+- **E2:** the unlocked key is kept in IndexedDB sealed under a per-session secret carried in the HttpOnly session
+  cookie (spec §7), so a saved copy is useless once the session ends. The Settings switch into end-to-end mode arrives
+  with the conversion of existing content in E5; until then the app stays fully usable for every account. Verified in
+  Chromium through the Vite dev server (the page imports the app's own `e2ee` module to switch an account): setup,
+  saved-key restore after a reload, the unlock screen on a second browser, reset with the recovery key (which signs
+  out other devices), sign-in with the new password, and a new recovery key from Settings.
 
 ## Out of scope for v1.1.0
 

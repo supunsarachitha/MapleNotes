@@ -204,7 +204,7 @@ public sealed class KeyDerivedSignInTests
         await MakeLegacyAsync(app, "maple", ApiClient.DefaultPassword);
 
         var proof = await client.ProofAsync();
-        var response = await client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(false, proof));
+        var response = await client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(EncryptionMode.Off, proof));
 
         Assert.Equal(ApiClient.DefaultPassword, proof.Password);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

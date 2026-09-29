@@ -43,12 +43,25 @@ export function wrapDataKey(wrappingKey: CryptoKey, raw: Uint8Array, context: st
   return seal(wrappingKey, raw, context, { keyVersion: DATA_KEY_VERSION, nonce });
 }
 
+/** Unwraps a data key to its raw bytes, for re-wrapping it. The caller wipes `raw` when done. */
+export async function unwrapRawDataKey(
+  wrappingKey: CryptoKey,
+  wrapped: Uint8Array,
+  context: string,
+): Promise<{ raw: Bytes; version: number }> {
+  const raw = await open(wrappingKey, wrapped, context);
+  if (raw.length !== 32) {
+    raw.fill(0);
+    throw new Error("The stored data key has an unexpected length.");
+  }
+  return { raw, version: wrapped[1] ?? DATA_KEY_VERSION };
+}
+
 /** Unwraps a data key and imports it; the raw bytes are wiped afterwards. */
 export async function unwrapDataKey(wrappingKey: CryptoKey, wrapped: Uint8Array, context: string): Promise<DataKeys> {
-  const raw = await open(wrappingKey, wrapped, context);
+  const { raw, version } = await unwrapRawDataKey(wrappingKey, wrapped, context);
   try {
-    if (raw.length !== 32) throw new Error("The stored data key has an unexpected length.");
-    return await importDataKey(raw, wrapped[1] ?? DATA_KEY_VERSION);
+    return await importDataKey(raw, version);
   } finally {
     raw.fill(0);
   }

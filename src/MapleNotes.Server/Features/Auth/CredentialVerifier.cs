@@ -74,6 +74,29 @@ public sealed class CredentialVerifier(IPasswordHasher<User> hasher)
         return result != PasswordVerificationResult.Failed;
     }
 
+    /// <summary>Hashes the authentication key derived from an end-to-end recovery key (docs/e2ee-spec.md §6).</summary>
+    /// <param name="user">The account.</param>
+    /// <param name="recoveryAuthKey">The recovery authentication key.</param>
+    /// <returns>The hash to store in <see cref="User.RecoveryKeyHash"/>.</returns>
+    public string HashRecoveryKey(User user, byte[] recoveryAuthKey) =>
+        hasher.HashPassword(user, Convert.ToBase64String(recoveryAuthKey));
+
+    /// <summary>Checks the authentication key derived from the account's recovery key.</summary>
+    /// <param name="user">The account.</param>
+    /// <param name="recoveryAuthKey">The key to check.</param>
+    /// <returns>False when it is wrong or the account has no recovery key (taking the same time either way).</returns>
+    public bool VerifyRecoveryKey(User user, byte[]? recoveryAuthKey)
+    {
+        if (user.RecoveryKeyHash is null || !KeyDerivation.IsAuthKey(recoveryAuthKey))
+        {
+            SimulateCheck();
+            return false;
+        }
+
+        return hasher.VerifyHashedPassword(user, user.RecoveryKeyHash, Convert.ToBase64String(recoveryAuthKey))
+            != PasswordVerificationResult.Failed;
+    }
+
     /// <summary>Spends the time of a real check, for requests about accounts that do not exist.</summary>
     public void SimulateCheck() =>
         hasher.VerifyHashedPassword(null!, _dummyHash.Value, Convert.ToBase64String(new byte[KeyDerivation.AuthKeyBytes]));

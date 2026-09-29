@@ -32,7 +32,7 @@ public sealed class AuthTests
         Assert.True(before.RegistrationOpen);
         Assert.Null(before.User);
         Assert.Equal(UserRole.Admin, user.Role);
-        Assert.True(user.EncryptionEnabled);
+        Assert.Equal(EncryptionMode.AtRest, user.EncryptionMode);
         Assert.False(after!.SetupRequired);
         Assert.Equal("maple", after.User!.Username);
     }

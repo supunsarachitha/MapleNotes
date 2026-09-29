@@ -27,8 +27,8 @@ public sealed class Attachment : IRevisioned
     /// <summary>Location of the file inside the attachment store (see <c>AttachmentStore</c>).</summary>
     public required string StorageKey { get; set; }
 
-    /// <summary>Whether the stored file is encrypted with the owner's data key.</summary>
-    public bool IsEncrypted { get; set; }
+    /// <summary>How the stored file is protected.</summary>
+    public ContentScheme Scheme { get; set; }
 
     /// <summary>When the file was uploaded (UTC).</summary>
     public DateTime CreatedAtUtc { get; set; }

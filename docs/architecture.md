@@ -55,9 +55,9 @@ carry a valid antiforgery token. Both are enforced globally, so a new endpoint i
 
 | Entity | Notes |
 |---|---|
-| `User` | Username (unique, case-insensitive), PBKDF2 password hash, role, wrapped data key, encryption setting, security stamp, lockout state. |
-| `Note` | Owner, content bytes, `IsEncrypted`, pinned, `ArchivedAtUtc` (archive = soft delete), timestamps, `Revision` (concurrency token). |
-| `Attachment` | Owner, optional note, sanitized file name, content type, size, storage key, `IsEncrypted`, `Revision`. |
+| `User` | Username (unique, case-insensitive), PBKDF2 hash of the key derived from the password with its Argon2id salt and parameters, role, encryption mode (`Off`, `AtRest`, `EndToEnd`), server-held wrapped data key (absent once an end-to-end account needs none), end-to-end key material (the browser's data key wrapped by the password and by the recovery key, and a hash of the recovery authentication key), security stamp, lockout state. |
+| `Note` | Owner, content bytes, `Scheme` (`None`, `Server`, `EndToEnd`), pinned, `ArchivedAtUtc` (archive = soft delete), timestamps, `Revision` (concurrency token). |
+| `Attachment` | Owner, optional note, sanitized file name, content type, size, storage key, `Scheme`, `Revision`. |
 | `Tag` / `NoteTags` | Per-user tags parsed from `#tags` in note text. |
 | `InstanceSetting` | Runtime settings changed by administrators (open registration). |
 
@@ -164,14 +164,20 @@ volume cannot be used to forge a session.
 The per-user switch in Settings controls the extra per-account layer on note text and attachment files. The
 database is always encrypted.
 
-## Encryption toggle and migration
+## Encryption modes and migration
 
-Switching the setting (password required) only changes `User.EncryptionEnabled`; new content follows the new setting
-at once. The background `EncryptionMigrationService` brings existing content in line. It runs at startup, when
-signalled by a toggle, and every five minutes. It converts every note and attachment whose own `IsEncrypted` flag
-differs from the user's setting. Because the target is re-read before every batch and every item records its own
-state, the process is resumable, idempotent and self-correcting: flipping the setting back mid-way simply converges
-the other way.
+Every account has a mode: `Off`, `AtRest` (encrypted by the server with a key it holds) or `EndToEnd` (encrypted by
+the browser with a key the server never sees; see [e2ee-spec.md](e2ee-spec.md)). Every note and attachment records its
+own scheme (`None`, `Server` or `EndToEnd`), so content stays readable while an account changes mode.
+
+Switching encryption at rest on or off (proof of the password required) only changes `User.EncryptionMode`; new
+content follows the new mode at once. The background `EncryptionMigrationService` brings existing content in line. It
+runs at startup, when signalled by a change, and every five minutes. It converts every note and attachment whose
+scheme (`None` or `Server`) does not match the account's mode. Because the target is re-read before every batch and
+every item records its own state, the process is resumable, idempotent and self-correcting: flipping the setting back
+mid-way simply converges the other way. The server never touches end-to-end content or the content of end-to-end
+accounts: it cannot read the former, and in end-to-end mode it accepts new content only as ciphertext (plain text gets
+HTTP 409). Content is converted to and from end-to-end encryption by the browser, which holds the key.
 
 Crash safety:
 - **Notes** convert in batches of 100, each saved in one transaction. A crash rolls the whole batch back.

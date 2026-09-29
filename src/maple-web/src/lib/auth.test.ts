@@ -4,6 +4,7 @@ import v from "../crypto/test-vectors.json";
 import { fromBase64 } from "../crypto/encoding";
 import { refreshAntiforgeryToken } from "./api";
 import { auth, validateNewPassword } from "./auth";
+import type { User } from "./types";
 
 // Sign-in runs the real key derivation. The server's answers are faked with the shared test vectors, so the key sent
 // must be exactly the one the C# implementation computed (docs/e2ee-spec.md §1).
@@ -13,7 +14,15 @@ function json(body: unknown, status = 200): Response {
 }
 
 const vectorKdf = { salt: v.kdf.saltB64, memoryKiB: v.kdf.memoryKiB, iterations: v.kdf.iterations, parallelism: v.kdf.parallelism };
-const user = { id: v.ids.userId, username: "maple", displayName: "maple", role: "User", encryptionEnabled: true, createdAtUtc: "" };
+const user: User = {
+  id: v.ids.userId,
+  username: "maple",
+  displayName: "maple",
+  role: "User",
+  encryptionMode: "AtRest",
+  hasEndToEndKey: false,
+  createdAtUtc: "",
+};
 
 describe("key-derived sign-in", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -84,7 +93,7 @@ describe("key-derived sign-in", () => {
   it("changes the password with proof of the current one and a new salt", async () => {
     fetchMock.mockResolvedValueOnce(json({ kdf: vectorKdf, upgrade: false })).mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    await auth.changePassword("maple", v.kdf.password, "a brand new passphrase");
+    await auth.changePassword(user, v.kdf.password, "a brand new passphrase");
 
     const sent = body(1) as { current: { authKey: string }; newKdf: typeof vectorKdf; newAuthKey: string };
     expect(url(1)).toBe("/api/v1/auth/password");

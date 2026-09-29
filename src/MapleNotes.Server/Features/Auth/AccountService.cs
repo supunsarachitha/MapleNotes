@@ -185,7 +185,7 @@ public sealed class AccountService(
             KdfParallelism = request.Kdf.Parallelism,
             Role = isFirstUser ? UserRole.Admin : UserRole.User,
             WrappedDataKey = dataKeys.CreateWrappedKey(userId),
-            EncryptionEnabled = options.DefaultEncryption,
+            EncryptionMode = options.DefaultEncryption ? EncryptionMode.AtRest : EncryptionMode.Off,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
         };
@@ -286,11 +286,25 @@ public sealed class AccountService(
                 new Dictionary<string, string[]> { ["currentPassword"] = ["The current password is not correct."] });
         }
 
+        // The end-to-end key is wrapped with a key derived from the password, so it must be re-wrapped with it.
+        if (user.E2eeWrappedKey is not null != request.NewWrappedKey is not null
+            || (request.NewWrappedKey is not null && !EndToEnd.EndToEndKeys.IsWrappedKey(request.NewWrappedKey)))
+        {
+            await db.SaveChangesAsync(cancellationToken); // keeps a legacy credential upgrade
+            return new AccountResult(null, AccountError.InvalidInput, new Dictionary<string, string[]>
+            {
+                ["newWrappedKey"] = [user.E2eeWrappedKey is null
+                    ? "This account has no end-to-end key to re-wrap."
+                    : "The end-to-end key must be re-wrapped with the new password."],
+            });
+        }
+
         user.KdfSalt = request.NewKdf.Salt;
         user.KdfMemoryKiB = request.NewKdf.MemoryKiB;
         user.KdfIterations = request.NewKdf.Iterations;
         user.KdfParallelism = request.NewKdf.Parallelism;
         credentials.SetAuthKey(user, request.NewAuthKey);
+        user.E2eeWrappedKey = request.NewWrappedKey ?? user.E2eeWrappedKey;
         user.SecurityStamp = User.NewSecurityStamp();
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);

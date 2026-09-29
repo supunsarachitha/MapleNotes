@@ -46,13 +46,31 @@ public sealed class User
     public UserRole Role { get; set; } = UserRole.User;
 
     /// <summary>
-    /// The user's data key, encrypted with the instance key-encryption key. Deleting the row destroys it, which
-    /// makes any leftover encrypted content of this user unreadable.
+    /// The user's server-held data key (for <see cref="ContentScheme.Server"/> content), encrypted with the instance
+    /// key-encryption key. Deleting the row destroys it, which makes any leftover encrypted content of this user
+    /// unreadable. Null once an end-to-end account has no server-encrypted content left: the server then holds no
+    /// key to any of the account's content.
     /// </summary>
-    public required byte[] WrappedDataKey { get; set; }
+    public byte[]? WrappedDataKey { get; set; }
 
-    /// <summary>Whether new and existing note bodies and attachments are encrypted with the user's data key.</summary>
-    public bool EncryptionEnabled { get; set; }
+    /// <summary>
+    /// How new content is protected. Existing items are converted to match: by the server between
+    /// <see cref="EncryptionMode.Off"/> and <see cref="EncryptionMode.AtRest"/>, by the browser to and from
+    /// <see cref="EncryptionMode.EndToEnd"/>.
+    /// </summary>
+    public EncryptionMode EncryptionMode { get; set; }
+
+    /// <summary>
+    /// The end-to-end data key, wrapped by the browser with the key derived from the password
+    /// (docs/e2ee-spec.md §2–§3). The server cannot unwrap it. Null when the account has no end-to-end key.
+    /// </summary>
+    public byte[]? E2eeWrappedKey { get; set; }
+
+    /// <summary>The end-to-end data key wrapped with the recovery key (docs/e2ee-spec.md §6).</summary>
+    public byte[]? E2eeRecoveryWrappedKey { get; set; }
+
+    /// <summary>PBKDF2 hash of the authentication key derived from the recovery key; proves it for a password reset.</summary>
+    public string? RecoveryKeyHash { get; set; }
 
     /// <summary>
     /// Random value embedded in sign-in cookies. Changing it (password change, "sign out everywhere") invalidates

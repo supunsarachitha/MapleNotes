@@ -2,12 +2,17 @@
 
 export type UserRole = "User" | "Admin";
 
+/** How an account protects new notes and files (the database itself is always encrypted). */
+export type EncryptionMode = "Off" | "AtRest" | "EndToEnd";
+
 export interface User {
   id: string;
   username: string;
   displayName: string;
   role: UserRole;
-  encryptionEnabled: boolean;
+  encryptionMode: EncryptionMode;
+  /** The account has an end-to-end key, which this browser must unlock to read the account's encrypted content. */
+  hasEndToEndKey: boolean;
   createdAtUtc: string;
 }
 
@@ -83,7 +88,7 @@ export interface AdminUser {
 }
 
 export interface EncryptionStatus {
-  enabled: boolean;
+  mode: EncryptionMode;
   /** True while existing notes and files are still being converted in the background. */
   inProgress: boolean;
   totalItems: number;

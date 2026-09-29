@@ -10,13 +10,13 @@ public sealed class Note : IRevisioned
     public Guid UserId { get; init; }
 
     /// <summary>
-    /// The Markdown body: UTF-8 bytes when <see cref="IsEncrypted"/> is false, otherwise an AES-256-GCM envelope
-    /// produced with the owner's data key.
+    /// The Markdown body, according to <see cref="Scheme"/>: UTF-8 bytes, an AES-256-GCM envelope made by the server
+    /// with the owner's data key, or an envelope made by the owner's browser (docs/e2ee-spec.md §2).
     /// </summary>
     public byte[] Content { get; set; } = [];
 
-    /// <summary>Whether <see cref="Content"/> is encrypted.</summary>
-    public bool IsEncrypted { get; set; }
+    /// <summary>How <see cref="Content"/> is protected.</summary>
+    public ContentScheme Scheme { get; set; }
 
     /// <summary>Pinned notes are listed above the feed.</summary>
     public bool IsPinned { get; set; }

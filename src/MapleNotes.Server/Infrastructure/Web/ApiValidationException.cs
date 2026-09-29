@@ -17,8 +17,25 @@ public sealed class ApiValidationException(string field, string message) : Excep
 }
 
 /// <summary>
-/// Turns expected service exceptions into problem responses: <see cref="ApiValidationException"/> into HTTP 400 and
-/// optimistic-concurrency conflicts (the same note or file changed at the same moment) into HTTP 409.
+/// Thrown by services when a request cannot be carried out in the current state, for example plain text sent to an
+/// end-to-end encrypted account. Converted to a problem response with the given status by <see cref="ApiExceptionFilter"/>.
+/// </summary>
+/// <param name="statusCode">HTTP status, usually 409.</param>
+/// <param name="title">What went wrong, for the user.</param>
+/// <param name="detail">How to fix it.</param>
+public sealed class ApiProblemException(int statusCode, string title, string? detail = null) : Exception(title)
+{
+    /// <summary>HTTP status of the response.</summary>
+    public int StatusCode { get; } = statusCode;
+
+    /// <summary>How to fix the problem.</summary>
+    public string? Detail { get; } = detail;
+}
+
+/// <summary>
+/// Turns expected service exceptions into problem responses: <see cref="ApiValidationException"/> into HTTP 400,
+/// <see cref="ApiProblemException"/> into its status, and optimistic-concurrency conflicts (the same note or file
+/// changed at the same moment) into HTTP 409.
 /// </summary>
 internal sealed class ApiExceptionFilter : IExceptionFilter
 {
@@ -33,6 +50,19 @@ internal sealed class ApiExceptionFilter : IExceptionFilter
                 {
                     Status = StatusCodes.Status400BadRequest,
                 });
+                context.ExceptionHandled = true;
+                break;
+
+            case ApiProblemException problem:
+                context.Result = new ObjectResult(new ProblemDetails
+                {
+                    Status = problem.StatusCode,
+                    Title = problem.Message,
+                    Detail = problem.Detail,
+                })
+                {
+                    StatusCode = problem.StatusCode,
+                };
                 context.ExceptionHandled = true;
                 break;
 

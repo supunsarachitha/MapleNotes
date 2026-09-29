@@ -11,7 +11,7 @@ namespace MapleNotes.Server.Features.Encryption;
 /// <param name="Proof">Proof of the account password, to confirm.</param>
 public sealed record DeleteAccountRequest(CredentialProof Proof);
 
-/// <summary>The signed-in user's account: encryption at rest and account deletion.</summary>
+/// <summary>The signed-in user's account: encryption mode and account deletion.</summary>
 /// <param name="accounts">Account operations.</param>
 /// <param name="encryption">Encryption-at-rest setting.</param>
 [ApiController]
@@ -19,7 +19,7 @@ public sealed record DeleteAccountRequest(CredentialProof Proof);
 [Produces("application/json")]
 public sealed class AccountController(AccountService accounts, EncryptionSettingsService encryption) : ControllerBase
 {
-    /// <summary>Returns whether encryption at rest is on and how far converting existing content has progressed.</summary>
+    /// <summary>Returns the encryption mode and how far converting existing content has progressed.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The setting and the progress.</returns>
     /// <response code="200">The status.</response>
@@ -30,21 +30,24 @@ public sealed class AccountController(AccountService accounts, EncryptionSetting
 
     /// <summary>Switches encryption at rest for notes and attachments on or off.</summary>
     /// <remarks>
-    /// Requires proof of the account password (see <see cref="CredentialProof"/>). New content follows the new setting immediately; existing notes and files are
-    /// converted in the background (poll <c>GET /api/v1/account/encryption</c> for progress). The database itself is
-    /// always encrypted, whatever this setting.
+    /// Requires proof of the account password (see <see cref="CredentialProof"/>). New content follows the new mode
+    /// immediately; existing notes and files are converted in the background (poll
+    /// <c>GET /api/v1/account/encryption</c> for progress). The database itself is always encrypted, whatever this
+    /// setting. End-to-end encryption has its own endpoints under <c>/api/v1/account/e2ee</c>.
     /// </remarks>
-    /// <param name="request">The new setting and proof of the password.</param>
+    /// <param name="request">The new mode (off or at rest) and proof of the password.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The status after the change.</returns>
     /// <response code="200">The setting was saved; conversion runs in the background.</response>
-    /// <response code="400">The password is wrong.</response>
+    /// <response code="400">The password is wrong, or the mode is not off or at rest.</response>
+    /// <response code="409">The account uses end-to-end encryption.</response>
     [HttpPut("encryption")]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType<EncryptionStatusResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public Task<EncryptionStatusResponse> SetEncryption(UpdateEncryptionRequest request, CancellationToken cancellationToken) =>
-        encryption.SetEnabledAsync(User.GetUserId(), request, cancellationToken);
+        encryption.SetModeAsync(User.GetUserId(), request, cancellationToken);
 
     /// <summary>Permanently deletes the account with all of its notes and files, then signs out.</summary>
     /// <param name="request">Proof of the account password.</param>

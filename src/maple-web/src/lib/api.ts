@@ -3,6 +3,7 @@ import type {
   Attachment,
   AuthStatus,
   CredentialProof,
+  EncryptionMode,
   EncryptionStatus,
   KdfParamsWire,
   Note,
@@ -130,8 +131,11 @@ export const api = {
     await refreshAntiforgeryToken();
   },
 
-  changePassword: (body: { current: CredentialProof; newKdf: KdfParamsWire; newAuthKey: string }) =>
+  changePassword: (body: { current: CredentialProof; newKdf: KdfParamsWire; newAuthKey: string; newWrappedKey?: string }) =>
     request<void>("PUT", "/api/v1/auth/password", body),
+
+  /** This session's secret (see crypto/keystore.ts). */
+  sessionKey: () => request<{ key: string }>("GET", "/api/v1/auth/session-key"),
 
   async signOutEverywhere(): Promise<void> {
     await request<void>("POST", "/api/v1/auth/sign-out-everywhere");
@@ -157,8 +161,36 @@ export const api = {
 
   encryption: () => request<EncryptionStatus>("GET", "/api/v1/account/encryption"),
 
-  setEncryption: (enabled: boolean, proof: CredentialProof) =>
-    request<EncryptionStatus>("PUT", "/api/v1/account/encryption", { enabled, proof }),
+  setEncryption: (mode: Exclude<EncryptionMode, "EndToEnd">, proof: CredentialProof) =>
+    request<EncryptionStatus>("PUT", "/api/v1/account/encryption", { mode, proof }),
+
+  /** End-to-end key material; the server stores it wrapped and cannot open it (docs/e2ee-spec.md §3, §6). */
+  e2ee: {
+    key: () => request<{ wrappedKey: string }>("GET", "/api/v1/account/e2ee"),
+    enable: (body: { proof: CredentialProof; wrappedKey: string; recoveryWrappedKey: string; recoveryAuthKey: string }) =>
+      request<EncryptionStatus>("POST", "/api/v1/account/e2ee", body),
+    replaceRecoveryKey: (body: { proof: CredentialProof; recoveryWrappedKey: string; recoveryAuthKey: string }) =>
+      request<void>("PUT", "/api/v1/account/e2ee/recovery", body),
+  },
+
+  /** Password reset with the recovery key of an end-to-end account. */
+  recovery: {
+    key: (username: string, recoveryAuthKey: string) =>
+      request<{ userId: string; recoveryWrappedKey: string }>("POST", "/api/v1/auth/recovery/key", { username, recoveryAuthKey }),
+    async reset(body: {
+      username: string;
+      recoveryAuthKey: string;
+      newKdf: KdfParamsWire;
+      newAuthKey: string;
+      newWrappedKey: string;
+      newRecoveryWrappedKey: string;
+      newRecoveryAuthKey: string;
+    }): Promise<User> {
+      const user = await request<User>("POST", "/api/v1/auth/recovery/reset", body);
+      await refreshAntiforgeryToken();
+      return user;
+    },
+  },
 
   async deleteAccount(proof: CredentialProof): Promise<void> {
     await request<void>("DELETE", "/api/v1/account", { proof });

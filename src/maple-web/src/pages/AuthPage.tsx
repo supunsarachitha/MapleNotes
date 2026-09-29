@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
-import { Logo } from "../components/Logo";
+import { AuthLayout, linkClass } from "../components/AuthLayout";
 import { Button, ErrorMessage, TextField } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
@@ -54,90 +54,89 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
   const generalError = error && !error.fieldError("username") && !error.fieldError("password") ? error.message : null;
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-stone-100 px-4 py-10 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <Logo className="size-14" />
-          <h1 className="text-2xl font-semibold tracking-tight">{text.heading}</h1>
-          <p className="text-sm text-stone-600 dark:text-stone-300">{text.intro}</p>
-        </div>
-
-        <form
-          onSubmit={(event) => void submit(event)}
-          className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-800 dark:bg-stone-900"
-        >
-          {generalError && <ErrorMessage>{generalError}</ErrorMessage>}
-          <TextField
-            label="Username"
-            name="username"
-            autoComplete="username"
-            autoCapitalize="none"
-            spellCheck={false}
-            required
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            error={error?.fieldError("username")}
-            hint={mode !== "login" ? "3–32 letters, digits, dots, dashes or underscores." : undefined}
-          />
-          {mode !== "login" && (
-            <TextField
-              label="Display name (optional)"
-              name="displayName"
-              autoComplete="nickname"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              error={error?.fieldError("displayName")}
-            />
-          )}
-          <TextField
-            label="Password"
-            name="password"
-            type="password"
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            required
-            minLength={mode === "login" ? undefined : MIN_PASSWORD_LENGTH}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            error={error?.fieldError("password")}
-            hint={
-              mode !== "login"
-                ? `At least ${MIN_PASSWORD_LENGTH} characters. A few random words work well. It never leaves this device.`
-                : undefined
-            }
-          />
-          {mode === "login" && (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(event) => setRememberMe(event.target.checked)}
-                className="size-4 accent-maple-600"
-              />
-              Keep me signed in for 30 days
-            </label>
-          )}
-          <Button type="submit" busy={busy} className="mt-1 h-11">
-            {text.action}
-          </Button>
-        </form>
-
-        {mode === "login" && registrationOpen && (
-          <p className="mt-4 text-center text-sm text-stone-600 dark:text-stone-300">
-            New here?{" "}
-            <Link href="/register" className="font-medium text-maple-700 underline-offset-2 hover:underline dark:text-maple-400">
-              Create an account
+    <AuthLayout
+      heading={text.heading}
+      intro={text.intro}
+      footer={
+        mode === "login" ? (
+          <div className="flex flex-col gap-2">
+            <Link href="/recover" className={linkClass}>
+              Forgot your password?
             </Link>
-          </p>
-        )}
-        {mode === "register" && (
-          <p className="mt-4 text-center text-sm text-stone-600 dark:text-stone-300">
+            {registrationOpen && (
+              <p>
+                New here?{" "}
+                <Link href="/register" className={linkClass}>
+                  Create an account
+                </Link>
+              </p>
+            )}
+          </div>
+        ) : mode === "register" ? (
+          <p>
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-maple-700 underline-offset-2 hover:underline dark:text-maple-400">
+            <Link href="/login" className={linkClass}>
               Sign in
             </Link>
           </p>
+        ) : undefined
+      }
+    >
+      <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">
+        {generalError && <ErrorMessage>{generalError}</ErrorMessage>}
+        <TextField
+          label="Username"
+          name="username"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          error={error?.fieldError("username")}
+          hint={mode !== "login" ? "3–32 letters, digits, dots, dashes or underscores." : undefined}
+        />
+        {mode !== "login" && (
+          <TextField
+            label="Display name (optional)"
+            name="displayName"
+            autoComplete="nickname"
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            error={error?.fieldError("displayName")}
+          />
         )}
-      </div>
-    </main>
+        <TextField
+          label="Password"
+          name="password"
+          type="password"
+          autoComplete={mode === "login" ? "current-password" : "new-password"}
+          required
+          minLength={mode === "login" ? undefined : MIN_PASSWORD_LENGTH}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          error={error?.fieldError("password")}
+          hint={
+            mode !== "login"
+              ? `At least ${MIN_PASSWORD_LENGTH} characters. A few random words work well. It never leaves this device.`
+              : undefined
+          }
+        />
+        {mode === "login" && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(event) => setRememberMe(event.target.checked)}
+              className="size-4 accent-maple-600"
+            />
+            Keep me signed in for 30 days
+          </label>
+        )}
+        <Button type="submit" busy={busy} className="mt-1 h-11">
+          {text.action}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }

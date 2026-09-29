@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Admin;
+using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -209,9 +210,37 @@ public sealed class AuthController(
             return ValidationProblem(new ValidationProblemDetails(result.ValidationErrors!.ToDictionary()));
         }
 
+        // Same session, same secret: the key this browser saved stays usable, while every other session ends.
         var current = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        await SignInAsync(result.User!, current.Properties?.IsPersistent ?? false);
+        await SessionSignIn.SignInAsync(HttpContext, result.User!, current.Properties?.IsPersistent ?? false, User.GetSessionKey());
         return NoContent();
+    }
+
+    /// <summary>Returns this session's secret, which the browser uses to keep its unlocked end-to-end key encrypted.</summary>
+    /// <remarks>
+    /// The secret lives only in the encrypted, HttpOnly session cookie. A key saved in the browser under it becomes
+    /// useless when the session ends, and the server alone has nothing to decrypt. A session from before version 1.1
+    /// gets a secret now.
+    /// </remarks>
+    /// <returns>The secret.</returns>
+    /// <response code="200">The secret (never cached).</response>
+    /// <response code="401">Not signed in.</response>
+    [HttpGet("session-key")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<SessionKeyResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<SessionKeyResponse> GetSessionKey()
+    {
+        if (User.GetSessionKey() is not { } sessionKey)
+        {
+            var current = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            var user = await accounts.FindAsync(User.GetUserId(), HttpContext.RequestAborted)
+                ?? throw new InvalidOperationException("The signed-in account no longer exists.");
+            sessionKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+            await SessionSignIn.SignInAsync(HttpContext, user, current.Properties?.IsPersistent ?? false, sessionKey);
+        }
+
+        return new SessionKeyResponse(Convert.FromBase64String(sessionKey));
     }
 
     /// <summary>Signs out every session of the account, including this one.</summary>
@@ -227,9 +256,5 @@ public sealed class AuthController(
         return NoContent();
     }
 
-    private Task SignInAsync(User user, bool isPersistent) =>
-        HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            UserPrincipal.Create(user),
-            new AuthenticationProperties { IsPersistent = isPersistent, AllowRefresh = true });
+    private Task SignInAsync(User user, bool isPersistent) => SessionSignIn.SignInAsync(HttpContext, user, isPersistent);
 }

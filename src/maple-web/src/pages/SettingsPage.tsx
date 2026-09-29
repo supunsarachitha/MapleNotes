@@ -4,10 +4,12 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
 import { ExportSection } from "../components/ExportSection";
 import { PasswordDialog } from "../components/PasswordDialog";
+import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
 import { useToast } from "../components/Toaster";
 import { Button, Card, ErrorMessage, Switch, TextField } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
+import { e2ee } from "../lib/e2ee";
 import { formatAbsolute } from "../lib/format";
 import { queryKeys, useSignedOut } from "../lib/queries";
 import type { AdminUser, User } from "../lib/types";
@@ -39,13 +41,13 @@ function AccountSection({ user }: { user: User }) {
   );
 }
 
-function PasswordSection({ username }: { username: string }) {
+function PasswordSection({ user }: { user: User }) {
   const toast = useToast();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [error, setError] = useState<ApiError | null>(null);
   const change = useMutation({
-    mutationFn: () => auth.changePassword(username, current, next),
+    mutationFn: () => auth.changePassword(user, current, next),
     onSuccess: () => {
       setCurrent("");
       setNext("");
@@ -93,6 +95,35 @@ function PasswordSection({ username }: { username: string }) {
           Change password
         </Button>
       </form>
+    </Section>
+  );
+}
+
+/** Replaces the recovery key of an end-to-end account; the new one is shown once. */
+function RecoverySection({ user }: { user: User }) {
+  const [confirming, setConfirming] = useState(false);
+  const [newKey, setNewKey] = useState<string | null>(null);
+
+  return (
+    <Section
+      title="Recovery key"
+      description="If you forget your password, your recovery key lets you set a new one without losing your notes. Create a new one if you lost it or someone else may have seen it."
+    >
+      <Button variant="secondary" onClick={() => setConfirming(true)}>
+        Create a new recovery key…
+      </Button>
+      <PasswordDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title="Create a new recovery key?"
+        description={<p>Your current recovery key stops working. You will see the new one once, so be ready to save it.</p>}
+        confirmLabel="Create"
+        onConfirm={async (password) => {
+          setNewKey(await e2ee.replaceRecoveryKey(user, password));
+          setConfirming(false);
+        }}
+      />
+      <RecoveryKitDialog recoveryKey={newKey} username={user.username} onDone={() => setNewKey(null)} />
     </Section>
   );
 }
@@ -261,9 +292,10 @@ export function SettingsPage({ user }: { user: User }) {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Settings</h1>
       <AccountSection user={user} />
-      <EncryptionSection username={user.username} />
+      <EncryptionSection user={user} />
+      {user.hasEndToEndKey && <RecoverySection user={user} />}
       <ExportSection />
-      <PasswordSection username={user.username} />
+      <PasswordSection user={user} />
       <SessionsSection />
       {user.role === "Admin" && <AdminSection currentUserId={user.id} />}
       <DeleteAccountSection username={user.username} />
