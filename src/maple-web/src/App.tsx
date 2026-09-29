@@ -12,6 +12,7 @@ import { useLocation } from "./lib/router";
 import { AuthPage } from "./pages/AuthPage";
 import { ArchivePage, HomePage } from "./pages/HomePage";
 import { RecoverPage } from "./pages/RecoverPage";
+import { HelpPage } from "./pages/HelpPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TagsPage } from "./pages/TagsPage";
 import { QuickNotesPage } from "./pages/QuickNotesPage";
@@ -113,6 +114,8 @@ export function App() {
         <QuickNotesPage />
       ) : path === "/tags" ? (
         <TagsPage />
+      ) : path === "/help" ? (
+        <HelpPage />
       ) : (
         <HomePage />
       )}

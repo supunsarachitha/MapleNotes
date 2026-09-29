@@ -34,6 +34,8 @@ function renderComposer(props: Parameters<typeof Composer>[0] = {}, preferences:
   );
 }
 
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+
 const savedNote: Note = {
   id: "n1",
   kind: "Note",
@@ -158,10 +160,12 @@ describe("Composer", () => {
     box.setSelectionRange(4, 9); // "maple"
     await user.click(within(screen.getByRole("toolbar", { name: "Formatting" })).getByRole("button", { name: "Bold" }));
     await waitFor(() => expect(box).toHaveValue("Buy **maple** syrup"));
+    await nextFrame(); // the toolbar restores the selection on the next frame here (no native text insertion in tests)
 
     box.setSelectionRange(0, 0);
     await user.click(screen.getByRole("button", { name: "Checklist" }));
     await waitFor(() => expect(box).toHaveValue("- [ ] Buy **maple** syrup"));
+    await nextFrame();
 
     box.setSelectionRange(box.value.length, box.value.length);
     await user.keyboard("{Control>}k{/Control}");

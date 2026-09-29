@@ -73,7 +73,7 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 | F12 | Tags page (requested after F8) | Tags get their own page from the side menu: every tag with its count, a filter box, nested tags under their parents; the side menu no longer lists tags | ✅ Done |
 | F13 | Formatting toolbar (requested after F8) | The editor has a toolbar (bold, italic, heading, bulleted list, checklist, quote, code, link) that inserts Markdown at the cursor or around the selection, with keyboard shortcuts; works in every editor (notes, edits, quick notes, daily notes) | ✅ Done |
 | F14 | Link previews (requested after F8) | An option (off by default) shows a preview card (title, description, site) for links in notes, fetched by the server with protection against requests to internal addresses; its privacy cost (the server learns the links, including for end-to-end accounts) is explained where it is turned on | ✅ Done |
-| F15 | User guide in the app (requested after F8) | A Help page in the side menu explains every feature for people using the app (not running it), with a table of contents and links to the matching settings; it ships with the app, so it works offline and needs no server changes | ⏳ Not started |
+| F15 | User guide in the app (requested after F8) | A Help page in the side menu explains every feature for people using the app (not running it), with a table of contents and links to the matching settings; it ships with the app, so it works offline and needs no server changes | ✅ Done |
 
 ### Notes from the phases
 
@@ -222,6 +222,22 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   - `host.docker.internal`, the metadata address and a non-standard port refused;
   - end-to-end accounts warned;
   - the 18-step suite.
+
+  Afterwards, as the user asked, turning link previews on now opens a confirmation dialog that states the privacy and
+  security cost: the server learns the links (said outright for end-to-end accounts), sites see visits from the server,
+  and a link can make the server fetch a page. Turning them off stays immediate, and the switch shows a warning line.
+  The browser run confirms the dialog appears before anything is saved. Confirmation dialogs now render their
+  description as a `div`, so a paragraph or list inside one is valid HTML.
+- **F15** (requested after F8): the guide is written for people using the app and ships with it (no server
+  change). Each topic is a Markdown section, so it renders like notes, and example tags are written as code so they do
+  not become tag links. A flaky web test found along the way (the toolbar restores the selection on the next frame
+  where the browser cannot insert text natively) now waits for that frame. Verified in Chromium on the production
+  build:
+  - the Help link in the side menu;
+  - every contents entry;
+  - jumping to a section, and a link from the guide into Settings;
+  - 375 px width;
+  - the 18-step suite and the link-preview run.
 
 ## Out of scope for 1.2.0
 

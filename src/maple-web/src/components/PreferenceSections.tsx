@@ -1,10 +1,11 @@
-import { Monitor, Moon, Sun } from "lucide-react";
-import { useId, type ReactNode } from "react";
+import { Monitor, Moon, Sun, TriangleAlert } from "lucide-react";
+import { useId, useState, type ReactNode } from "react";
 import { ACCENT_COLORS } from "../lib/appearance";
 import { formatDate } from "../lib/dates";
 import { usePreferences, useUpdatePreferences } from "../lib/preferences";
 import { useAuthStatus } from "../lib/queries";
 import { ACCENTS, DATE_FORMATS, THEMES, type DateFormat, type Preferences } from "../lib/types";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { useToast } from "./Toaster";
 import { Section, Switch, cn } from "./ui";
 
@@ -121,6 +122,7 @@ export function FeaturesSection() {
   const save = useSavePreferences();
   const status = useAuthStatus().data;
   const endToEnd = status?.user?.encryptionMode === "EndToEnd";
+  const [confirmPreviews, setConfirmPreviews] = useState(false);
 
   return (
     <Section title="Features" description="Turning a feature off hides it; nothing is deleted.">
@@ -154,15 +156,47 @@ export function FeaturesSection() {
             label="Link previews"
             description={
               <>
-                Show the title and description of links in your notes. To get them, this server visits each linked
-                page, so it learns which links you save
-                {endToEnd ? <strong> — even though your notes are end-to-end encrypted</strong> : null}. Off by default.
+                Show the title and description of links in your notes.
+                <span className="mt-1 flex items-start gap-1.5 text-amber-800 dark:text-amber-300">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    Privacy cost: this server visits each linked page, so it learns which links you save
+                    {endToEnd ? <strong> — even though your notes are end-to-end encrypted</strong> : null}.
+                  </span>
+                </span>
               </>
             }
             checked={preferences.linkPreviews}
-            onChange={(linkPreviews) => save({ linkPreviews })}
+            // Turning previews on asks first; turning them off is immediate.
+            onChange={(linkPreviews) => (linkPreviews ? setConfirmPreviews(true) : save({ linkPreviews: false }))}
           />
         )}
+        <ConfirmDialog
+          open={confirmPreviews}
+          onOpenChange={setConfirmPreviews}
+          title="Turn on link previews?"
+          description={
+            <>
+              <p>To show a preview, this server visits every link in the notes you open. That means:</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>
+                  The server learns the addresses you save.
+                  {endToEnd && (
+                    <strong> Your notes are end-to-end encrypted, but the links in them would no longer be private from the server.</strong>
+                  )}
+                </li>
+                <li>The sites you link to see a visit from the server, though not from you.</li>
+                <li>A link can make the server fetch a page you did not mean to open. The server only visits public web addresses.</li>
+              </ul>
+              <p className="mt-2">You can turn previews off again at any time.</p>
+            </>
+          }
+          confirmLabel="Turn on"
+          onConfirm={() => {
+            setConfirmPreviews(false);
+            save({ linkPreviews: true });
+          }}
+        />
       </div>
     </Section>
   );

@@ -51,6 +51,7 @@
   year/month/day folders, with attachments linked by relative path. Restore such an export into any account, even on
   another server: notes keep their dates, pins, archive state, kind and files, and notes you already have are skipped.
   Single Markdown, text and JSON files can be added too. With end-to-end encryption, your browser does both.
+- **Help built in.** A user guide in the app explains every feature, and works offline.
 - **Accounts.** Multiple users with secure authentication. The first account becomes the administrator, who can open
   registration, disable or remove accounts, and appoint other administrators. Administrators never see anyone's notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.

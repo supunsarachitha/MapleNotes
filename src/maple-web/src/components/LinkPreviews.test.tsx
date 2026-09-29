@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../lib/api";
 import { linksIn } from "../lib/links";
@@ -71,6 +72,28 @@ describe("link previews", () => {
 
     expect(screen.getByRole("switch", { name: "Link previews" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByText(/even though your notes are end-to-end encrypted/)).toBeInTheDocument();
+    expect(screen.getByText(/Privacy cost/)).toBeInTheDocument();
+  });
+
+  it("asks before turning previews on, and turns them off at once", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    const user = userEvent.setup();
+    renderWith(<FeaturesSection />, {});
+
+    await user.click(screen.getByRole("switch", { name: "Link previews" }));
+    const dialog = screen.getByRole("dialog", { name: "Turn on link previews?" });
+    expect(dialog).toHaveTextContent("The server learns the addresses you save.");
+    expect(save).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("switch", { name: "Link previews" })).toHaveAttribute("aria-checked", "false");
+
+    await user.click(screen.getByRole("switch", { name: "Link previews" }));
+    await user.click(screen.getByRole("button", { name: "Turn on" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, linkPreviews: true }));
+
+    await user.click(screen.getByRole("switch", { name: "Link previews" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, linkPreviews: false }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("hides the switch when the server does not allow previews", () => {
