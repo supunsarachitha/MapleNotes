@@ -1,7 +1,6 @@
-using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Infrastructure.Web;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace MapleNotes.Server.Features.Encryption;
@@ -15,16 +14,16 @@ public sealed record EncryptionStatusResponse(bool Enabled, bool InProgress, int
 
 /// <summary>Request to switch encryption at rest on or off.</summary>
 /// <param name="Enabled">The new setting.</param>
-/// <param name="Password">The account password, to confirm a security-relevant change.</param>
-public sealed record UpdateEncryptionRequest(bool Enabled, string Password);
+/// <param name="Proof">Proof of the account password, to confirm a security-relevant change.</param>
+public sealed record UpdateEncryptionRequest(bool Enabled, CredentialProof Proof);
 
 /// <summary>Reads and changes a user's encryption-at-rest setting.</summary>
 /// <param name="db">Database context.</param>
-/// <param name="passwordHasher">Verifies the confirmation password.</param>
+/// <param name="credentials">Checks the proof of the password.</param>
 /// <param name="signal">Wakes the background migration worker.</param>
 /// <param name="time">Clock.</param>
 public sealed class EncryptionSettingsService(
-    MapleDbContext db, IPasswordHasher<User> passwordHasher, EncryptionMigrationSignal signal, TimeProvider time)
+    MapleDbContext db, CredentialVerifier credentials, EncryptionMigrationSignal signal, TimeProvider time)
 {
     /// <summary>Returns the setting and the conversion progress.</summary>
     /// <param name="userId">The user.</param>
@@ -42,27 +41,32 @@ public sealed class EncryptionSettingsService(
     }
 
     /// <summary>
-    /// Switches encryption at rest on or off after confirming the password. New content follows the new setting
+    /// Switches encryption at rest on or off after checking proof of the password. New content follows the new setting
     /// immediately; existing content is converted in the background.
     /// </summary>
     /// <param name="userId">The user.</param>
-    /// <param name="request">The new setting and the password.</param>
+    /// <param name="request">The new setting and proof of the password.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The status after the change.</returns>
     /// <exception cref="ApiValidationException">The password is wrong.</exception>
     public async Task<EncryptionStatusResponse> SetEnabledAsync(Guid userId, UpdateEncryptionRequest request, CancellationToken cancellationToken)
     {
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password ?? string.Empty) == PasswordVerificationResult.Failed)
+        if (!credentials.Verify(user, request.Proof?.AuthKey, request.Proof?.Password))
         {
             throw new ApiValidationException("password", "The password is not correct.");
         }
 
-        if (user.EncryptionEnabled != request.Enabled)
+        var changed = user.EncryptionEnabled != request.Enabled;
+        if (changed)
         {
             user.EncryptionEnabled = request.Enabled;
             user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
-            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        await db.SaveChangesAsync(cancellationToken); // also keeps a legacy credential upgrade
+        if (changed)
+        {
             signal.Notify();
         }
 

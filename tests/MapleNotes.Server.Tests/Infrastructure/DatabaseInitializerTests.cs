@@ -6,6 +6,8 @@ using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Tests.TestSupport;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MapleNotes.Server.Tests.Infrastructure;
@@ -105,6 +107,43 @@ public sealed class DatabaseInitializerTests : IDisposable
 
         var remaining = Directory.GetFiles(_options.BackupsDirectory).Order().ToArray();
         Assert.Equal(paths.TakeLast(DatabaseInitializer.BackupsToKeep).Order(), remaining);
+    }
+
+    [Fact]
+    public async Task Upgrading_from_1_0_keeps_password_hashes_and_marks_them_for_upgrade()
+    {
+        using var keys = new KeyMaterial(_masterKey);
+        await using (var v10 = CreateContext(keys))
+        {
+            await v10.GetService<IMigrator>().MigrateAsync("20260929024608_AddRevisionTokens", TestContext.Current.CancellationToken);
+            foreach (var name in new[] { "alice", "bob" })
+            {
+                // The 1.0 schema, which the current model can no longer write.
+                await v10.Database.ExecuteSqlAsync($"""
+                    INSERT INTO "Users" ("Id", "Username", "NormalizedUsername", "DisplayName", "PasswordHash", "Role",
+                        "WrappedDataKey", "EncryptionEnabled", "SecurityStamp", "AccessFailedCount", "IsDisabled",
+                        "CreatedAtUtc", "UpdatedAtUtc")
+                    VALUES ({Guid.CreateVersion7().ToString().ToUpperInvariant()}, {name}, {name.ToUpperInvariant()}, {name},
+                        {"1.0 hash of " + name}, 'User', {new byte[] { 1, 2, 3 }}, 1, 'STAMP', 0, 0,
+                        '2026-09-28 12:00:00', '2026-09-28 12:00:00')
+                    """, TestContext.Current.CancellationToken);
+            }
+        }
+
+        await InitializeAsync(_masterKey);
+
+        await using var db = CreateContext(keys);
+        var users = await db.Users.OrderBy(u => u.Username).ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, users.Count);
+        Assert.All(users, user =>
+        {
+            Assert.Equal(CredentialFormat.LegacyPassword, user.CredentialFormat);
+            Assert.Equal("1.0 hash of " + user.Username, user.CredentialHash);
+            Assert.Equal(16, user.KdfSalt.Length);
+            Assert.Equal((65536, 3, 1), (user.KdfMemoryKiB, user.KdfIterations, user.KdfParallelism));
+        });
+        Assert.NotEqual(users[0].KdfSalt, users[1].KdfSalt);
+        Assert.Single(Directory.GetFiles(_options.BackupsDirectory)); // taken before migrating
     }
 
     public void Dispose()

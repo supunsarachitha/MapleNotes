@@ -14,9 +14,16 @@ namespace MapleNotes.Server.Features.Auth;
 
 /// <summary>Account sign-up, sign-in and session management.</summary>
 /// <remarks>
+/// <para>
+/// The password never leaves the browser. To sign in, the browser asks <c>POST /api/v1/auth/prelogin</c> for the
+/// account's Argon2id parameters, derives an authentication key from the password, and sends only that key
+/// (docs/e2ee-spec.md §1). Registration and password changes send a key in the same way.
+/// </para>
+/// <para>
 /// Sessions use an HttpOnly, SameSite=Strict cookie. Every state-changing request (POST, PUT, PATCH, DELETE) must
 /// carry the antiforgery token from <c>GET /api/v1/auth/antiforgery</c> in the <c>X-XSRF-TOKEN</c> header; fetch a
 /// new token after signing in or out, because tokens are bound to the signed-in user.
+/// </para>
 /// </remarks>
 /// <param name="accounts">Account operations.</param>
 /// <param name="instanceSettings">Instance settings.</param>
@@ -61,8 +68,27 @@ public sealed class AuthController(
         return new AntiforgeryTokenResponse(tokens.RequestToken!, tokens.HeaderName!);
     }
 
+    /// <summary>Returns the key-derivation parameters the browser needs to sign in to an account.</summary>
+    /// <remarks>
+    /// The answer has the same shape for unknown usernames (default parameters and a stable pseudo-salt), so it does
+    /// not reveal which accounts exist. The only exception is <c>upgrade: true</c>, which marks an account created
+    /// before version 1.1 until its owner next signs in.
+    /// </remarks>
+    /// <param name="request">The username.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The parameters.</returns>
+    /// <response code="200">The parameters to derive the authentication key with.</response>
+    /// <response code="429">Too many requests from this address; retry later.</response>
+    [HttpPost("prelogin")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.Prelogin)]
+    [ProducesResponseType<PreloginResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public Task<PreloginResponse> Prelogin(PreloginRequest request, CancellationToken cancellationToken) =>
+        accounts.GetPreloginAsync(request.Username, cancellationToken);
+
     /// <summary>Creates an account and signs it in. The first account on an instance becomes the administrator.</summary>
-    /// <param name="request">Username, password and optional display name.</param>
+    /// <param name="request">Username, key-derivation parameters, authentication key and optional display name.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The new account.</returns>
     /// <response code="201">The account was created and is signed in.</response>
@@ -96,12 +122,13 @@ public sealed class AuthController(
         }
     }
 
-    /// <summary>Signs in with a username and password.</summary>
+    /// <summary>Signs in with a username and the authentication key derived from the password.</summary>
     /// <remarks>After 5 consecutive failures the account is locked for 15 minutes.</remarks>
     /// <param name="request">Credentials and whether to keep the session for 30 days.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The signed-in account.</returns>
     /// <response code="200">Signed in; the session cookie is set.</response>
+    /// <response code="400">The authentication key is malformed.</response>
     /// <response code="401">Unknown username or wrong password.</response>
     /// <response code="403">The account is disabled.</response>
     /// <response code="429">Locked out or rate-limited; see the Retry-After header.</response>
@@ -109,17 +136,20 @@ public sealed class AuthController(
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<UserResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
-        var result = await accounts.ValidateCredentialsAsync(request.Username, request.Password, cancellationToken);
+        var result = await accounts.ValidateCredentialsAsync(request, cancellationToken);
         switch (result.Error)
         {
             case AccountError.None:
                 await SignInAsync(result.User!, request.RememberMe);
                 return UserResponse.From(result.User!);
+            case AccountError.InvalidInput:
+                return ValidationProblem(new ValidationProblemDetails(result.ValidationErrors!.ToDictionary()));
             case AccountError.LockedOut:
                 var seconds = Math.Max(1, (int)Math.Ceiling((result.LockedUntilUtc!.Value - time.GetUtcNow().UtcDateTime).TotalSeconds));
                 Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
@@ -158,11 +188,15 @@ public sealed class AuthController(
         await accounts.FindAsync(User.GetUserId(), cancellationToken) is { } user ? UserResponse.From(user) : Unauthorized();
 
     /// <summary>Changes the password. Every other session of the account is signed out; this one stays signed in.</summary>
-    /// <param name="request">Current and new password.</param>
+    /// <remarks>
+    /// The browser proves the current password with its authentication key, then sends the parameters (with a new
+    /// salt) and the authentication key of the new password. Password strength rules are applied by the web app.
+    /// </remarks>
+    /// <param name="request">Proof of the current password; new parameters and authentication key.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>No content.</returns>
     /// <response code="204">The password was changed.</response>
-    /// <response code="400">The current password is wrong or the new one is too weak.</response>
+    /// <response code="400">The current password is wrong, or the new parameters or key are invalid.</response>
     [HttpPut("password")]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

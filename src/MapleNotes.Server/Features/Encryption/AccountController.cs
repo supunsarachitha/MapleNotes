@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace MapleNotes.Server.Features.Encryption;
 
 /// <summary>Request to delete the signed-in account.</summary>
-/// <param name="Password">The account password, to confirm.</param>
-public sealed record DeleteAccountRequest(string Password);
+/// <param name="Proof">Proof of the account password, to confirm.</param>
+public sealed record DeleteAccountRequest(CredentialProof Proof);
 
 /// <summary>The signed-in user's account: encryption at rest and account deletion.</summary>
 /// <param name="accounts">Account operations.</param>
@@ -30,11 +30,11 @@ public sealed class AccountController(AccountService accounts, EncryptionSetting
 
     /// <summary>Switches encryption at rest for notes and attachments on or off.</summary>
     /// <remarks>
-    /// Requires the account password. New content follows the new setting immediately; existing notes and files are
+    /// Requires proof of the account password (see <see cref="CredentialProof"/>). New content follows the new setting immediately; existing notes and files are
     /// converted in the background (poll <c>GET /api/v1/account/encryption</c> for progress). The database itself is
     /// always encrypted, whatever this setting.
     /// </remarks>
-    /// <param name="request">The new setting and the password.</param>
+    /// <param name="request">The new setting and proof of the password.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The status after the change.</returns>
     /// <response code="200">The setting was saved; conversion runs in the background.</response>
@@ -47,7 +47,7 @@ public sealed class AccountController(AccountService accounts, EncryptionSetting
         encryption.SetEnabledAsync(User.GetUserId(), request, cancellationToken);
 
     /// <summary>Permanently deletes the account with all of its notes and files, then signs out.</summary>
-    /// <param name="request">The account password.</param>
+    /// <param name="request">Proof of the account password.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>No content.</returns>
     /// <response code="204">The account was deleted.</response>
@@ -60,7 +60,7 @@ public sealed class AccountController(AccountService accounts, EncryptionSetting
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(DeleteAccountRequest request, CancellationToken cancellationToken)
     {
-        var result = await accounts.DeleteOwnAccountAsync(User.GetUserId(), request.Password, cancellationToken);
+        var result = await accounts.DeleteOwnAccountAsync(User.GetUserId(), request.Proof, cancellationToken);
         switch (result.Error)
         {
             case AccountError.None:

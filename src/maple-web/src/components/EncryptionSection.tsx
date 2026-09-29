@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lock, LockOpen } from "lucide-react";
 import { useState } from "react";
 import { api } from "../lib/api";
+import { auth } from "../lib/auth";
 import { queryKeys } from "../lib/queries";
 import type { EncryptionStatus } from "../lib/types";
 import { PasswordDialog } from "./PasswordDialog";
@@ -13,7 +14,7 @@ export const encryptionKey = ["account", "encryption"] as const;
  * The encryption-at-rest switch. Changing it requires the password; existing notes and files are then converted in
  * the background, and progress is polled while that runs.
  */
-export function EncryptionSection() {
+export function EncryptionSection({ username }: { username: string }) {
   const queryClient = useQueryClient();
   const status = useQuery({
     queryKey: encryptionKey,
@@ -24,7 +25,7 @@ export function EncryptionSection() {
 
   async function confirm(password: string) {
     if (target === null) return;
-    const updated = await api.setEncryption(target, password);
+    const updated = await api.setEncryption(target, await auth.proveIdentity(username, password));
     queryClient.setQueryData<EncryptionStatus>(encryptionKey, updated);
     setTarget(null);
     await queryClient.invalidateQueries({ queryKey: queryKeys.status });

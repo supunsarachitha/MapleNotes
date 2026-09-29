@@ -18,9 +18,10 @@ public sealed class SecurityHeadersTests(MapleAppFactory factory) : IClassFixtur
         Assert.Equal("DENY", Header(response, "X-Frame-Options"));
         Assert.Equal("no-referrer", Header(response, "Referrer-Policy"));
         var csp = Header(response, "Content-Security-Policy");
-        Assert.Contains("script-src 'self'", csp, StringComparison.Ordinal);
+        Assert.Contains("script-src 'self' 'wasm-unsafe-eval';", csp, StringComparison.Ordinal); // WebAssembly, not eval
+        Assert.Contains("worker-src 'self'", csp, StringComparison.Ordinal);
         Assert.Contains("frame-ancestors 'none'", csp, StringComparison.Ordinal);
-        Assert.DoesNotContain("unsafe-eval", csp, StringComparison.Ordinal);
+        Assert.DoesNotContain("'unsafe-eval'", csp, StringComparison.Ordinal);
     }
 
     [Fact]

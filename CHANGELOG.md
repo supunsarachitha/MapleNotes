@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Key-derived sign-in:** the password never leaves the browser. It is turned into an authentication key with
+  Argon2id (64 MiB, 3 passes, run in a Web Worker) and HKDF, and the server stores only a PBKDF2 hash of that key. This
+  is the foundation for end-to-end encryption. Accounts created with 1.0.0 upgrade automatically at their next sign-in.
+
+### Added
+
+- `POST /api/v1/auth/prelogin` returns an account's key-derivation parameters and answers in the same shape for
+  unknown usernames. It has its own rate limit.
+
+### Changed
+
+- **API (breaking for third-party clients):** sign-in, registration, password change, the encryption setting and
+  account deletion take an authentication key or a `proof` instead of a password; see the OpenAPI document and
+  `docs/e2ee-spec.md`. The bundled web app is updated.
+- Password rules (at least 10 characters) are checked by the web app, since the server no longer sees passwords.
+- The Content-Security-Policy allows WebAssembly compilation (`'wasm-unsafe-eval'`, which does not allow JavaScript
+  `eval`) and same-origin workers.
+
 ## [1.0.0] - 2026-09-28
 
 First release.

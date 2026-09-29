@@ -6,11 +6,16 @@ namespace MapleNotes.Server.Infrastructure.Web;
 internal static class SecurityHeaders
 {
     /// <summary>
-    /// Content-Security-Policy for the application: scripts only from this origin (no inline scripts), no plugins,
-    /// no framing. Images and media may also come from <c>blob:</c> URLs for upload previews.
+    /// Content-Security-Policy for the application: scripts and workers only from this origin (no inline scripts, no
+    /// <c>eval</c>), no plugins, no framing. Images and media may also come from <c>blob:</c> URLs for upload previews.
     /// </summary>
+    /// <remarks>
+    /// <c>'wasm-unsafe-eval'</c> lets the page and its workers compile WebAssembly, which the password derivation
+    /// (Argon2id) needs. Despite its name it does not allow JavaScript <c>eval</c> or <c>new Function</c>.
+    /// </remarks>
     public const string AppContentSecurityPolicy =
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; " +
+        "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' blob: data:; " +
         "media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; " +
         "form-action 'self'; frame-ancestors 'none'";
 

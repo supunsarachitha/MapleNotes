@@ -67,6 +67,29 @@ on-disk format, so databases open with the official `sqlcipher` tool (verified i
 SQLCipher 4.5.6). "SQLCipher" is a trademark of Zetetic LLC; this project refers to it only to describe
 file-format compatibility.
 
+## Password-derivation component
+
+Since v1.1.0 the browser derives sign-in and encryption keys from the password with Argon2id (see
+[e2ee-spec.md](e2ee-spec.md)).
+
+| Component | License | Role |
+|---|---|---|
+| hash-wasm 4.12.0 | MIT | Argon2id (and the BLAKE2b it builds on) compiled to WebAssembly; runs in a Web Worker |
+
+hash-wasm's license says its embedded C code may carry other permissive licenses. The two files compiled into the
+modules we ship were read on 2026-09-29:
+
+| Embedded code | License | Notice obligation |
+|---|---|---|
+| `src/argon2.c`, "based on" Go's `golang.org/x/crypto/argon2` | BSD-3-Clause (The Go Authors) | **Binary distribution must reproduce the notice**; done in `THIRD-PARTY-NOTICES.md` |
+| `src/blake2b.c`, BLAKE2 reference code (Samuel Neves) | CC0-1.0, OpenSSL or Apache-2.0 (our choice: CC0) | None |
+
+Embedded-code notices live in `scripts/notices/*-embedded.md` and are appended to `THIRD-PARTY-NOTICES.md`
+automatically.
+
+Development-only additions, which do not ship: `Konscious.Security.Cryptography.Argon2` (MIT; the test suite's
+independent Argon2id) and `fake-indexeddb` (Apache-2.0; browser storage in unit tests).
+
 ## Reviewed exceptions
 
 | Package | License | Scope | Decision |

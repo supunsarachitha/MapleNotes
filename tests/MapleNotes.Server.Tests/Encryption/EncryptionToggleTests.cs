@@ -36,7 +36,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
     [Fact]
     public async Task Changing_the_setting_requires_the_password()
     {
-        var response = await _client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(false, "not my password"));
+        var response = await _client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(false, await _client.ProofAsync("not my password")));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("password", (await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(ApiClient.Json, Ct))!.Errors.Keys);
@@ -182,7 +182,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
             (await client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest($"note {i}"))).EnsureSuccessStatusCode();
         }
 
-        (await client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(false, ApiClient.DefaultPassword))).EnsureSuccessStatusCode();
+        (await client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(false, await client.ProofAsync()))).EnsureSuccessStatusCode();
 
         EncryptionStatusResponse? status = null;
         for (var attempt = 0; attempt < 100; attempt++)
@@ -230,7 +230,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
 
     private async Task<EncryptionStatusResponse> SetEncryptionAsync(bool enabled)
     {
-        var response = await _client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(enabled, ApiClient.DefaultPassword));
+        var response = await _client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(enabled, await _client.ProofAsync()));
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<EncryptionStatusResponse>(ApiClient.Json, Ct))!;
     }
@@ -321,7 +321,7 @@ public sealed class AccountDeletionTests : IAsyncLifetime
 
         using var request = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/account")
         {
-            Content = JsonContent.Create(new DeleteAccountRequest(ApiClient.DefaultPassword), options: ApiClient.Json),
+            Content = JsonContent.Create(new DeleteAccountRequest(await _member.ProofAsync()), options: ApiClient.Json),
         };
         var response = await _member.Http.SendAsync(request, Ct);
 
@@ -343,7 +343,7 @@ public sealed class AccountDeletionTests : IAsyncLifetime
     {
         using var request = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/account")
         {
-            Content = JsonContent.Create(new DeleteAccountRequest("wrong password!"), options: ApiClient.Json),
+            Content = JsonContent.Create(new DeleteAccountRequest(await _member.ProofAsync("wrong password!")), options: ApiClient.Json),
         };
 
         var response = await _member.Http.SendAsync(request, Ct);
@@ -357,7 +357,7 @@ public sealed class AccountDeletionTests : IAsyncLifetime
     {
         using var request = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/account")
         {
-            Content = JsonContent.Create(new DeleteAccountRequest(ApiClient.DefaultPassword), options: ApiClient.Json),
+            Content = JsonContent.Create(new DeleteAccountRequest(await _admin.ProofAsync()), options: ApiClient.Json),
         };
 
         var response = await _admin.Http.SendAsync(request, Ct);

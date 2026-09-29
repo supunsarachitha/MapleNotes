@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
-import { argon2Master, type KdfParams } from "./argon2";
+import { argon2Master } from "./argon2";
+import type { KdfParams } from "./params";
 
 // Runs Argon2id off the main thread (it takes a moment and uses 64 MiB of memory by design).
 self.onmessage = async (event: MessageEvent<{ id: number; password: string; params: KdfParams }>) => {

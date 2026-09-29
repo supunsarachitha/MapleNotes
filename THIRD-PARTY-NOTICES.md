@@ -73,6 +73,7 @@ notices (MIT) and the licenses of its Ubuntu packages inside the image.
 | estree-util-is-identifier-name (npm) | 3.0.0 | MIT |  |
 | extend (npm) | 3.0.2 | MIT | <https://github.com/justmoon/node-extend> |
 | get-nonce (npm) | 1.0.1 | MIT |  |
+| hash-wasm (npm) | 4.12.0 | MIT | <https://github.com/Daninet/hash-wasm> |
 | hast-util-to-jsx-runtime (npm) | 2.3.6 | MIT |  |
 | hast-util-whitespace (npm) | 3.0.0 | MIT |  |
 | html-url-attributes (npm) | 3.0.1 | MIT | <https://github.com/rehypejs/rehype-minify/tree/main/packages/html-url-attributes> |
@@ -626,6 +627,49 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+### hash-wasm 4.12.0
+
+```text
+MIT License
+
+Copyright (c) 2020 Dani Biró
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Embedded C implementations might use other, similarly permissive licenses.
+Check the beginning of the files from the /src directory.
+
+Special thank you to the authors of original C algorithms:
+- Alexander Peslyak <solar@openwall.com>
+- Aleksey Kravchenko <rhash.admin@gmail.com>
+- Colin Percival
+- Stephan Brumme <create@stephan-brumme.com>
+- Steve Reid <steve@edmweb.com>
+- Samuel Neves <sneves@dei.uc.pt>
+- Solar Designer <solar@openwall.com>
+- Project Nayuki
+- ARM Limited
+- Yanbo Li dreamfly281@gmail.com, goldboar@163.comYanbo Li
+- Mark Adler
+- Yann Collet
 ```
 
 ### html-url-attributes 3.0.1
@@ -1392,6 +1436,53 @@ Apache License
    See the License for the specific language governing permissions and
    limitations under the License.
 ```
+
+## Code compiled into hash-wasm's WebAssembly modules
+
+The web app's password-derivation worker includes hash-wasm's `argon2` and `blake2b` WebAssembly modules. hash-wasm
+itself is MIT (above); its license notes that the C code compiled into the modules may carry other permissive
+licenses. These are the files Maple Notes ships (sources audited for v4.12.0).
+
+### Argon2 (`src/argon2.c`) — BSD-3-Clause
+
+Written for hash-wasm "based on Golang's Argon2 implementation from crypto package" (`golang.org/x/crypto/argon2`),
+which is distributed under this license:
+
+```text
+Copyright 2009 The Go Authors.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+   * Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following disclaimer
+in the documentation and/or other materials provided with the
+distribution.
+   * Neither the name of Google LLC nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+### BLAKE2b (`src/blake2b.c`) — CC0 1.0
+
+The BLAKE2 reference implementation, Copyright 2012 Samuel Neves, offered under CC0 1.0, the OpenSSL License or the
+Apache License 2.0 at the recipient's option. Maple Notes uses it under CC0 1.0 Universal, which requires no notice;
+it is listed for completeness.
 
 ## Code compiled into the native SQLite3 Multiple Ciphers library
 

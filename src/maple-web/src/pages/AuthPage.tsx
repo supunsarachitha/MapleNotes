@@ -2,7 +2,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { Logo } from "../components/Logo";
 import { Button, ErrorMessage, TextField } from "../components/ui";
-import { api, ApiError } from "../lib/api";
+import { ApiError } from "../lib/api";
+import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
 import { queryKeys } from "../lib/queries";
 import { Link, navigate } from "../lib/router";
 
@@ -31,11 +32,16 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    const weakPassword = mode === "login" ? null : validateNewPassword(password);
+    if (weakPassword) {
+      setError(new ApiError(400, { errors: { password: [weakPassword] } }));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      if (mode === "login") await api.login(username, password, rememberMe);
-      else await api.register(username, password, displayName || undefined);
+      if (mode === "login") await auth.signIn(username, password, rememberMe);
+      else await auth.register(username, password, displayName || undefined);
       navigate("/", { replace: true });
       await queryClient.invalidateQueries({ queryKey: queryKeys.status });
     } catch (caught) {
@@ -89,11 +95,15 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
             type="password"
             autoComplete={mode === "login" ? "current-password" : "new-password"}
             required
-            minLength={mode === "login" ? undefined : 10}
+            minLength={mode === "login" ? undefined : MIN_PASSWORD_LENGTH}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             error={error?.fieldError("password")}
-            hint={mode !== "login" ? "At least 10 characters. A few random words work well." : undefined}
+            hint={
+              mode !== "login"
+                ? `At least ${MIN_PASSWORD_LENGTH} characters. A few random words work well. It never leaves this device.`
+                : undefined
+            }
           />
           {mode === "login" && (
             <label className="flex items-center gap-2 text-sm">

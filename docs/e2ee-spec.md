@@ -34,13 +34,24 @@ wrapKey  = HKDF(master, info "maple-notes/v2/wrap")
   - `authKey` is the sign-in credential. The server stores it only as a PBKDF2-HMAC-SHA512 hash (ASP.NET Core
     Identity v3, 210,000 iterations), computed over its base64 text.
   - `wrapKey` never leaves the browser.
-- **Prelogin:** the browser learns the salt and parameters from `POST /api/v1/auth/prelogin`.
+- **Prelogin:** the browser learns the salt and parameters from `POST /api/v1/auth/prelogin` (`{ "username" }` →
+  `{ "kdf": { "salt", "memoryKiB", "iterations", "parallelism" }, "upgrade" }`). It is rate-limited per client IP
+  like sign-in, with a separate budget.
   - For an unknown username, the server answers with the default parameters and a deterministic pseudo-salt:
-    `HMAC-SHA256(HKDF(serverMasterKey, "maple-notes/v1/prelogin"), UTF-8(upper-invariant username))`, first 16
-    bytes. The answer therefore looks the same whether or not the account exists.
-- **Legacy accounts** (created before format version 2, holding a hash of the raw password) get `upgrade: true`
-  from prelogin. At their next sign-in, the browser sends the password once together with the new `authKey`, and the
-  server replaces the hash.
+    `HMAC-SHA256(preloginKey, UTF-8(trimmed, upper-invariant username))`, first 16 bytes. `preloginKey` is derived
+    from the instance master key like the other instance keys (HKDF label `maple-notes/v1/prelogin`, see
+    [architecture.md](architecture.md#key-hierarchy)); it is internal to the server, so this step is not part of the
+    cross-implementation vectors. The answer therefore looks the same whether or not the account exists, and stays the
+    same across requests.
+- **Registration and password changes:** the browser picks a fresh random salt and the default parameters and sends
+  them with the new `authKey`. A password change also proves the current password (below).
+- **Proof of the password:** security-relevant changes (password, encryption settings, deleting the account) carry
+  `{ "authKey", "password"? }`, derived with the account's parameters from prelogin.
+- **Legacy accounts** (created by version 1.0, holding a hash of the password itself) have their stored hash kept and
+  receive a random salt and the default parameters when the database is upgraded; prelogin answers `upgrade: true` for
+  them. The next sign-in or proof then sends the password once together with the new `authKey`: the server checks the
+  password against the old hash and replaces it with a hash of `authKey`. Until that happens, `upgrade: true` reveals
+  that the account exists; this is the only exception to the rule above, and it ends at the owner's next sign-in.
 
 ## 2. Envelope (AES-256-GCM)
 

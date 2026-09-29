@@ -105,7 +105,7 @@ All settings are environment variables.
 | `MAPLE_DEFAULT_ENCRYPTION` | `true` | Whether new accounts start with encryption at rest on. |
 | `MAPLE_MAX_UPLOAD_MB` | `25` | Largest attachment, 1–2048 MB. |
 | `MAPLE_TRUSTED_PROXIES` | — | Reverse proxy addresses or CIDR ranges whose `X-Forwarded-*` headers are trusted, e.g. `172.16.0.0/12`. |
-| `MAPLE_AUTH_RATE_LIMIT` | `10` | Sign-in, registration and password attempts per client IP per minute. |
+| `MAPLE_AUTH_RATE_LIMIT` | `10` | Sign-in, registration and password attempts per client IP per minute (prelogin has a separate budget of the same size). |
 | `MAPLE_API_DOCS` | `false` | Publish the OpenAPI document (`/openapi/v1.json`) and API reference (`/scalar`). |
 | `ASPNETCORE_HTTP_PORTS` | `8080` | Port inside the container. |
 | `AllowedHosts` | `*` | Restrict accepted host names, e.g. `notes.example.com`. |
@@ -118,7 +118,7 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 |---|---|
 | Database | The whole SQLite file is encrypted (SQLCipher v4 format, AES-256) with a key derived from the master key. Always on. |
 | Notes and attachments | With encryption at rest on (the default), each account's notes and files are also encrypted with the account's own key, using AES-256-GCM. Each user can switch this in Settings. |
-| Passwords | PBKDF2-HMAC-SHA512 with 210,000 iterations; lockout after 5 failed attempts; rate limiting. |
+| Passwords | Never leave the browser: it derives a sign-in key with Argon2id (64 MiB), and the server stores only a PBKDF2-HMAC-SHA512 hash of that key (210,000 iterations). Lockout after 5 failed attempts; rate limiting. |
 | Sessions | HttpOnly, SameSite=Strict cookies, checked on every request, so a password change or "sign out everywhere" takes effect at once. |
 | Web | Strict Content-Security-Policy, antiforgery tokens, and uploaded files never run as web content. |
 
@@ -207,7 +207,7 @@ In Development, the interactive API reference is at <http://localhost:5051/scala
 |---|---|
 | Server | ASP.NET Core 10 (LTS), controllers, built-in OpenAPI with XML docs |
 | Data | Entity Framework Core 10, SQLite with [SQLite3 Multiple Ciphers](https://utelle.github.io/SQLite3MultipleCiphers/) (SQLCipher v4 format) |
-| Crypto | .NET `AesGcm` and `HKDF`, ASP.NET Core Data Protection, Identity password hasher |
+| Crypto | .NET `AesGcm` and `HKDF`, ASP.NET Core Data Protection, Identity password hasher; in the browser, WebCrypto and Argon2id from `hash-wasm` |
 | Web | React 19, TypeScript, Vite, Tailwind CSS 4, TanStack Query, Radix UI, react-markdown |
 | Tests | xUnit v3, `WebApplicationFactory`, Vitest, Testing Library |
 | Container | Multi-stage, multi-architecture build; chiseled Ubuntu runtime image |

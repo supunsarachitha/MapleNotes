@@ -3,19 +3,22 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "../lib/api";
+import { auth } from "../lib/auth";
 import { EncryptionSection } from "./EncryptionSection";
 
 function renderSection() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <EncryptionSection />
+      <EncryptionSection username="maple" />
     </QueryClientProvider>,
   );
 }
 
 describe("EncryptionSection", () => {
   it("asks for the password before switching, then shows conversion progress", async () => {
+    const proof = { authKey: "derived-key" };
+    const proveIdentity = vi.spyOn(auth, "proveIdentity").mockResolvedValue(proof);
     vi.spyOn(api, "encryption").mockResolvedValue({ enabled: true, inProgress: false, totalItems: 10, remainingItems: 0 });
     vi.spyOn(api, "status").mockResolvedValue({ setupRequired: false, registrationOpen: false, user: null });
     const setEncryption = vi
@@ -32,12 +35,14 @@ describe("EncryptionSection", () => {
     await user.type(screen.getByLabelText("Your password"), "correct horse battery staple");
     await user.click(screen.getByRole("button", { name: "Turn off" }));
 
-    await waitFor(() => expect(setEncryption).toHaveBeenCalledWith(false, "correct horse battery staple"));
+    await waitFor(() => expect(setEncryption).toHaveBeenCalledWith(false, proof));
+    expect(proveIdentity).toHaveBeenCalledWith("maple", "correct horse battery staple");
     expect(await screen.findByRole("progressbar", { name: "Conversion progress" })).toHaveAttribute("aria-valuenow", "30");
     expect(screen.getByText("3 of 10")).toBeInTheDocument();
   });
 
   it("keeps the dialog open and explains a wrong password", async () => {
+    vi.spyOn(auth, "proveIdentity").mockResolvedValue({ authKey: "derived-key" });
     vi.spyOn(api, "encryption").mockResolvedValue({ enabled: true, inProgress: false, totalItems: 0, remainingItems: 0 });
     vi.spyOn(api, "setEncryption").mockRejectedValue(new ApiError(400, { errors: { password: ["The password is not correct."] } }));
     const user = userEvent.setup();

@@ -73,14 +73,23 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 
 | # | Phase | Done when | Status |
 |---|---|---|---|
-| E0 | Crypto specification and shared test vectors | `docs/e2ee-spec.md` written; TypeScript and C# implementations produce identical results for the committed test vectors | ✅ Done |
-| E1 | Key-derived sign-in for every account | The server never receives a password (register, sign-in, password change, re-authentication); legacy accounts upgrade at sign-in; unknown usernames are indistinguishable; all existing tests pass on the new flow | ⏳ Not started |
+| E0 | Crypto specification and shared test vectors | `docs/e2ee-spec.md` written; TypeScript and C# implementations produce identical results for the committed test vectors | ✅ Done (`bfdaaf4`) |
+| E1 | Key-derived sign-in for every account | The server never receives a password (register, sign-in, password change, re-authentication); legacy accounts upgrade at sign-in; unknown usernames are indistinguishable; all existing tests pass on the new flow | ✅ Done |
 | E2 | End-to-end mode and key management | Three encryption modes and per-item schemes; recovery kit, password-reset-by-recovery-key and unlock screen; the server enforces ciphertext-only writes for E2EE accounts | ⏳ Not started |
 | E3 | Notes, tags and search in the browser | For an E2EE account the database contains no note text or tag names (asserted by scanning); tag filter and search work in the browser | ⏳ Not started |
 | E4 | Attachments and the media service worker | Files and their names are stored only as ciphertext; images and video (with seeking) play through the service worker; fallback without it | ⏳ Not started |
 | E5 | Switching modes in both directions | Resumable browser-driven conversion with progress; tests interrupt it in both directions; the server holds no content key after entering E2EE | ⏳ Not started |
 | E6 | Export in the browser | The browser export matches the server export's structure for all 12 format and layout combinations; streamed download verified | ⏳ Not started |
 | E7 | Hardening, documentation and release | CSP updated for the worker and WebAssembly; threat model documented; README, architecture, CHANGELOG (v1.1.0), licensing and notices updated; clean-clone browser run passes | ⏳ Not started |
+
+### Notes from the phases
+
+- **E1:** unknown usernames are indistinguishable from real accounts at prelogin and sign-in. The one exception is an
+  account created by 1.0.0 that has not signed in since the upgrade: prelogin answers `upgrade: true` for it until
+  its next sign-in (documented in the spec). The Content-Security-Policy change for the Argon2id worker and
+  WebAssembly (`worker-src 'self'`, `'wasm-unsafe-eval'`) was needed for sign-in to work, so it moved forward from E7;
+  E7 still reviews the final policy. Verified in Chromium: the 18-step browser suite on a fresh instance, and the
+  one-time upgrade on a copy of 1.0.0 data.
 
 ## Out of scope for v1.1.0
 

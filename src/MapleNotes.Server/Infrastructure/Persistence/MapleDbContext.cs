@@ -61,6 +61,7 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             user.Property(u => u.DisplayName).HasMaxLength(100);
             user.Property(u => u.Role).HasConversion<string>().HasMaxLength(16);
             user.Property(u => u.SecurityStamp).HasMaxLength(64);
+            user.Property(u => u.CredentialFormat).HasConversion<string>().HasMaxLength(16);
         });
 
         modelBuilder.Entity<Note>(note =>

@@ -1,9 +1,10 @@
+using System.Security.Cryptography;
+using System.Text;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace MapleNotes.Server.Features.Auth;
@@ -23,7 +24,7 @@ public enum AccountError
     /// <summary>The username is already in use.</summary>
     UsernameTaken,
 
-    /// <summary>Unknown username or wrong password (deliberately indistinguishable).</summary>
+    /// <summary>Unknown username or wrong credential (deliberately indistinguishable).</summary>
     InvalidCredentials,
 
     /// <summary>Too many failed attempts; see <see cref="AccountResult.LockedUntilUtc"/>.</summary>
@@ -59,10 +60,15 @@ public sealed record AccountResult(
 }
 
 /// <summary>
-/// Account operations: registration, credential checks, password changes and session revocation.
+/// Account operations: prelogin, registration, credential checks, password changes and session revocation.
 /// </summary>
+/// <remarks>
+/// Sign-in is key-derived (docs/e2ee-spec.md §1): the browser turns the password into an authentication key with
+/// Argon2id and the account's parameters from <see cref="GetPreloginAsync"/>, and only that key reaches the server.
+/// </remarks>
 /// <param name="db">Database context.</param>
-/// <param name="passwordHasher">Password hasher (PBKDF2-HMAC-SHA512, 210,000 iterations).</param>
+/// <param name="credentials">Stores and checks credentials.</param>
+/// <param name="keys">Instance keys (for prelogin pseudo-salts).</param>
 /// <param name="dataKeys">Creates each new account's data key.</param>
 /// <param name="instanceSettings">Instance settings (open registration).</param>
 /// <param name="options">Instance settings from the environment.</param>
@@ -70,7 +76,8 @@ public sealed record AccountResult(
 /// <param name="time">Clock.</param>
 public sealed class AccountService(
     MapleDbContext db,
-    IPasswordHasher<User> passwordHasher,
+    CredentialVerifier credentials,
+    KeyMaterial keys,
     DataKeyService dataKeys,
     InstanceSettingsService instanceSettings,
     MapleOptions options,
@@ -83,17 +90,43 @@ public sealed class AccountService(
     /// <summary>How long a lockout lasts.</summary>
     public static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
-    // A real hash of a random password. Unknown usernames are checked against it so that a failed sign-in takes the
-    // same time whether or not the account exists, which prevents discovering usernames by timing.
-    private static readonly Lazy<string> TimingDummyHash = new(() =>
-        new PasswordHasher<User>(Microsoft.Extensions.Options.Options.Create(PasswordHashing.Options))
-            .HashPassword(null!, Guid.NewGuid().ToString()));
-
     /// <summary>Returns true when no account exists yet.</summary>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>Whether the instance still needs its first (administrator) account.</returns>
     public async Task<bool> IsSetupRequiredAsync(CancellationToken cancellationToken) =>
         !await db.Users.AnyAsync(cancellationToken);
+
+    /// <summary>
+    /// Returns the key-derivation parameters for a username, answering in the same shape whether or not the account
+    /// exists.
+    /// </summary>
+    /// <remarks>
+    /// For an unknown username the salt is <c>HMAC-SHA256(preloginKey, normalized username)</c> truncated to 16
+    /// bytes: stable across requests, like a real account's salt, and unpredictable without the instance key.
+    /// </remarks>
+    /// <param name="username">Login name (case-insensitive).</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The parameters, and whether the account must send its password once to upgrade.</returns>
+    public async Task<PreloginResponse> GetPreloginAsync(string username, CancellationToken cancellationToken)
+    {
+        var normalizedUsername = CredentialRules.NormalizeUsername(username);
+        var account = await db.Users.AsNoTracking()
+            .Where(u => u.NormalizedUsername == normalizedUsername)
+            .Select(u => new { u.KdfSalt, u.KdfMemoryKiB, u.KdfIterations, u.KdfParallelism, u.CredentialFormat })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return account is null
+            ? new PreloginResponse(
+                new KdfParameters(
+                    HMACSHA256.HashData(keys.PreloginKey, Encoding.UTF8.GetBytes(normalizedUsername))[..KeyDerivation.SaltBytes],
+                    KeyDerivation.DefaultMemoryKiB,
+                    KeyDerivation.DefaultIterations,
+                    KeyDerivation.DefaultParallelism),
+                Upgrade: false)
+            : new PreloginResponse(
+                new KdfParameters(account.KdfSalt, account.KdfMemoryKiB, account.KdfIterations, account.KdfParallelism),
+                Upgrade: account.CredentialFormat == CredentialFormat.LegacyPassword);
+    }
 
     /// <summary>
     /// Creates an account. The first account on an instance becomes the administrator and can always be created;
@@ -104,7 +137,17 @@ public sealed class AccountService(
     /// <returns>The new account, or why it could not be created.</returns>
     public async Task<AccountResult> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
-        var errors = CredentialRules.ValidateNewAccount(request.Username, request.Password, request.DisplayName);
+        var errors = CredentialRules.ValidateNewAccount(request.Username, request.DisplayName);
+        if (KeyDerivation.Validate(request.Kdf) is { } kdfError)
+        {
+            errors["kdf"] = [kdfError];
+        }
+
+        if (!KeyDerivation.IsAuthKey(request.AuthKey))
+        {
+            errors["authKey"] = [$"The authentication key must be {KeyDerivation.AuthKeyBytes} bytes."];
+        }
+
         if (errors.Count > 0)
         {
             return new AccountResult(null, AccountError.InvalidInput, errors);
@@ -135,14 +178,18 @@ public sealed class AccountService(
             Username = username,
             NormalizedUsername = normalizedUsername,
             DisplayName = string.IsNullOrWhiteSpace(request.DisplayName) ? username : request.DisplayName.Trim(),
-            PasswordHash = string.Empty,
+            CredentialHash = string.Empty,
+            KdfSalt = request.Kdf.Salt,
+            KdfMemoryKiB = request.Kdf.MemoryKiB,
+            KdfIterations = request.Kdf.Iterations,
+            KdfParallelism = request.Kdf.Parallelism,
             Role = isFirstUser ? UserRole.Admin : UserRole.User,
             WrappedDataKey = dataKeys.CreateWrappedKey(userId),
             EncryptionEnabled = options.DefaultEncryption,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
         };
-        user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+        credentials.SetAuthKey(user, request.AuthKey);
 
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
@@ -151,19 +198,25 @@ public sealed class AccountService(
     }
 
     /// <summary>
-    /// Checks a username and password, applying lockout after repeated failures.
+    /// Checks sign-in credentials, applying lockout after repeated failures. A legacy account is upgraded to
+    /// key-derived sign-in when the request also carries its correct password.
     /// </summary>
-    /// <param name="username">Login name (case-insensitive).</param>
-    /// <param name="password">Password.</param>
+    /// <param name="request">Username, authentication key and, for a legacy account, the password.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The account when the credentials are valid, or why sign-in was refused.</returns>
-    public async Task<AccountResult> ValidateCredentialsAsync(string username, string password, CancellationToken cancellationToken)
+    public async Task<AccountResult> ValidateCredentialsAsync(LoginRequest request, CancellationToken cancellationToken)
     {
-        var normalizedUsername = CredentialRules.NormalizeUsername(username);
+        if (!KeyDerivation.IsAuthKey(request.AuthKey))
+        {
+            return new AccountResult(null, AccountError.InvalidInput,
+                new Dictionary<string, string[]> { ["authKey"] = [$"The authentication key must be {KeyDerivation.AuthKeyBytes} bytes."] });
+        }
+
+        var normalizedUsername = CredentialRules.NormalizeUsername(request.Username);
         var user = await db.Users.SingleOrDefaultAsync(u => u.NormalizedUsername == normalizedUsername, cancellationToken);
         if (user is null)
         {
-            passwordHasher.VerifyHashedPassword(null!, TimingDummyHash.Value, password);
+            credentials.SimulateCheck();
             return AccountResult.Fail(AccountError.InvalidCredentials);
         }
 
@@ -173,8 +226,7 @@ public sealed class AccountService(
             return new AccountResult(null, AccountError.LockedOut, LockedUntilUtc: user.LockoutEndUtc);
         }
 
-        var verification = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
-        if (verification == PasswordVerificationResult.Failed)
+        if (!credentials.Verify(user, request.AuthKey, request.Password))
         {
             user.AccessFailedCount++;
             if (user.AccessFailedCount >= MaxFailedAttempts)
@@ -191,13 +243,8 @@ public sealed class AccountService(
 
         if (user.IsDisabled)
         {
+            await db.SaveChangesAsync(cancellationToken); // keeps a legacy upgrade: the credential was right
             return AccountResult.Fail(AccountError.Disabled);
-        }
-
-        if (verification == PasswordVerificationResult.SuccessRehashNeeded)
-        {
-            // Stored with older, weaker parameters: upgrade transparently now that the password is known.
-            user.PasswordHash = passwordHasher.HashPassword(user, password);
         }
 
         user.AccessFailedCount = 0;
@@ -207,28 +254,43 @@ public sealed class AccountService(
     }
 
     /// <summary>
-    /// Changes a user's password and signs out all of their other sessions.
+    /// Changes a user's password (that is, their key-derivation salt and authentication key) and signs out all of
+    /// their other sessions.
     /// </summary>
     /// <param name="userId">The account.</param>
-    /// <param name="request">Current and new password.</param>
+    /// <param name="request">Proof of the current password, and the new parameters and key.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The updated account, or why the change was refused.</returns>
     public async Task<AccountResult> ChangePasswordAsync(Guid userId, ChangePasswordRequest request, CancellationToken cancellationToken)
     {
+        var errors = new Dictionary<string, string[]>();
+        if (KeyDerivation.Validate(request.NewKdf) is { } kdfError)
+        {
+            errors["newKdf"] = [kdfError];
+        }
+
+        if (!KeyDerivation.IsAuthKey(request.NewAuthKey))
+        {
+            errors["newAuthKey"] = [$"The authentication key must be {KeyDerivation.AuthKeyBytes} bytes."];
+        }
+
+        if (errors.Count > 0)
+        {
+            return new AccountResult(null, AccountError.InvalidInput, errors);
+        }
+
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword) == PasswordVerificationResult.Failed)
+        if (!credentials.Verify(user, request.Current?.AuthKey, request.Current?.Password))
         {
             return new AccountResult(null, AccountError.InvalidInput,
                 new Dictionary<string, string[]> { ["currentPassword"] = ["The current password is not correct."] });
         }
 
-        if (CredentialRules.ValidatePassword(request.NewPassword) is { } error)
-        {
-            return new AccountResult(null, AccountError.InvalidInput,
-                new Dictionary<string, string[]> { ["newPassword"] = [error] });
-        }
-
-        user.PasswordHash = passwordHasher.HashPassword(user, request.NewPassword);
+        user.KdfSalt = request.NewKdf.Salt;
+        user.KdfMemoryKiB = request.NewKdf.MemoryKiB;
+        user.KdfIterations = request.NewKdf.Iterations;
+        user.KdfParallelism = request.NewKdf.Parallelism;
+        credentials.SetAuthKey(user, request.NewAuthKey);
         user.SecurityStamp = User.NewSecurityStamp();
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);
@@ -248,16 +310,16 @@ public sealed class AccountService(
     }
 
     /// <summary>
-    /// Permanently deletes the user's own account, with all notes and files, after confirming the password.
+    /// Permanently deletes the user's own account, with all notes and files, after checking proof of the password.
     /// </summary>
     /// <param name="userId">The account.</param>
-    /// <param name="password">The account password.</param>
+    /// <param name="proof">Proof of the account password.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>Success, a wrong password, or <see cref="AccountError.LastAdministrator"/>.</returns>
-    public async Task<AccountResult> DeleteOwnAccountAsync(Guid userId, string? password, CancellationToken cancellationToken)
+    public async Task<AccountResult> DeleteOwnAccountAsync(Guid userId, CredentialProof? proof, CancellationToken cancellationToken)
     {
-        var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == userId, cancellationToken);
-        if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password ?? string.Empty) == PasswordVerificationResult.Failed)
+        var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
+        if (!credentials.Verify(user, proof?.AuthKey, proof?.Password))
         {
             return new AccountResult(null, AccountError.InvalidInput,
                 new Dictionary<string, string[]> { ["password"] = ["The password is not correct."] });
@@ -267,6 +329,7 @@ public sealed class AccountService(
             u => u.Id != userId && u.Role == UserRole.Admin && !u.IsDisabled, cancellationToken);
         if (user.Role == UserRole.Admin && !otherAdministrators)
         {
+            await db.SaveChangesAsync(cancellationToken); // keeps a legacy upgrade: the password was right
             return AccountResult.Fail(AccountError.LastAdministrator);
         }
 

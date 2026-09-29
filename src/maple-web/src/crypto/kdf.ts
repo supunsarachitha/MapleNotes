@@ -1,10 +1,10 @@
-import { argon2Master, validateKdf, type KdfParams } from "./argon2";
 import { concat, utf8, type Bytes } from "./encoding";
+import { validateKdf, type KdfParams } from "./params";
 
 // Password-derived keys and HKDF helpers (docs/e2ee-spec.md §1). The expensive Argon2id step runs in a Web Worker in
 // the browser so the page stays responsive; where Workers are unavailable (tests) it runs inline.
 
-export { DEFAULT_KDF, validateKdf, type KdfParams } from "./argon2";
+export { DEFAULT_KDF, validateKdf, type KdfParams } from "./params";
 
 const EMPTY_SALT = new Uint8Array(0);
 
@@ -31,7 +31,10 @@ function kdfWorker(): Worker | null {
 export async function deriveMasterSecret(password: string, params: KdfParams): Promise<Bytes> {
   validateKdf(params);
   const target = kdfWorker();
-  if (!target) return argon2Master(password, params);
+  if (!target) {
+    const { argon2Master } = await import("./argon2");
+    return argon2Master(password, params);
+  }
   const id = nextRequest++;
   return new Promise<Bytes>((resolve, reject) => {
     pending.set(id, { resolve, reject });

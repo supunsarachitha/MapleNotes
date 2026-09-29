@@ -2,10 +2,13 @@ import type {
   AdminUser,
   Attachment,
   AuthStatus,
+  CredentialProof,
   EncryptionStatus,
+  KdfParamsWire,
   Note,
   NotePage,
   NoteState,
+  Prelogin,
   ProblemDetails,
   Tag,
   User,
@@ -104,17 +107,20 @@ export interface NoteListParams {
   q?: string;
 }
 
+// Sign-in endpoints take keys derived from the password, never the password itself; lib/auth.ts derives them.
 export const api = {
   status: () => request<AuthStatus>("GET", "/api/v1/auth/status"),
 
-  async login(username: string, password: string, rememberMe: boolean): Promise<User> {
-    const user = await request<User>("POST", "/api/v1/auth/login", { username, password, rememberMe });
+  prelogin: (username: string) => request<Prelogin>("POST", "/api/v1/auth/prelogin", { username }),
+
+  async login(body: { username: string; authKey: string; rememberMe: boolean; password?: string }): Promise<User> {
+    const user = await request<User>("POST", "/api/v1/auth/login", body);
     await refreshAntiforgeryToken();
     return user;
   },
 
-  async register(username: string, password: string, displayName?: string): Promise<User> {
-    const user = await request<User>("POST", "/api/v1/auth/register", { username, password, displayName });
+  async register(body: { username: string; kdf: KdfParamsWire; authKey: string; displayName?: string }): Promise<User> {
+    const user = await request<User>("POST", "/api/v1/auth/register", body);
     await refreshAntiforgeryToken();
     return user;
   },
@@ -124,8 +130,8 @@ export const api = {
     await refreshAntiforgeryToken();
   },
 
-  changePassword: (currentPassword: string, newPassword: string) =>
-    request<void>("PUT", "/api/v1/auth/password", { currentPassword, newPassword }),
+  changePassword: (body: { current: CredentialProof; newKdf: KdfParamsWire; newAuthKey: string }) =>
+    request<void>("PUT", "/api/v1/auth/password", body),
 
   async signOutEverywhere(): Promise<void> {
     await request<void>("POST", "/api/v1/auth/sign-out-everywhere");
@@ -151,11 +157,11 @@ export const api = {
 
   encryption: () => request<EncryptionStatus>("GET", "/api/v1/account/encryption"),
 
-  setEncryption: (enabled: boolean, password: string) =>
-    request<EncryptionStatus>("PUT", "/api/v1/account/encryption", { enabled, password }),
+  setEncryption: (enabled: boolean, proof: CredentialProof) =>
+    request<EncryptionStatus>("PUT", "/api/v1/account/encryption", { enabled, proof }),
 
-  async deleteAccount(password: string): Promise<void> {
-    await request<void>("DELETE", "/api/v1/account", { password });
+  async deleteAccount(proof: CredentialProof): Promise<void> {
+    await request<void>("DELETE", "/api/v1/account", { proof });
     await refreshAntiforgeryToken();
   },
 

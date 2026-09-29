@@ -97,6 +97,7 @@ flowchart TD
     mk(["MAPLE_MASTER_KEY<br/>256-bit, never stored"]) -- HKDF-SHA256 --> dbk["Database key<br/>(SQLCipher raw key)"]
     mk -- HKDF-SHA256 --> kek["Key-encryption key"]
     mk -- HKDF-SHA256 --> dpk["Data Protection wrapping key"]
+    mk -- HKDF-SHA256 --> pk["Prelogin key<br/>(pseudo-salts for unknown usernames)"]
     mk -- HKDF-SHA256 --> fp["Fingerprint<br/>(8 hex chars, safe to log)"]
     kek -- "AES-256-GCM wrap<br/>bound to the user ID" --> dek["Per-user data key<br/>(stored wrapped in Users)"]
     dek -- "AES-256-GCM envelope" --> notes["Note text"]
@@ -187,11 +188,20 @@ note transaction, and a concurrent edit.
 
 ## Authentication and sessions
 
-- Passwords: ASP.NET Core Identity's hasher, PBKDF2-HMAC-SHA512 with 210,000 iterations (the OWASP
-  recommendation). Hashes with older parameters are upgraded at the next sign-in.
-- Sign-in answers identically for unknown users and wrong passwords, including timing: unknown usernames are checked
-  against a dummy hash. Five consecutive failures lock the account for 15 minutes, and authentication endpoints are
-  rate-limited per client IP (`MAPLE_AUTH_RATE_LIMIT`).
+- Key-derived sign-in ([e2ee-spec.md §1](e2ee-spec.md#1-password-derived-keys-every-account)): the password never
+  reaches the server. The browser asks `POST /api/v1/auth/prelogin` for the account's Argon2id parameters (64 MiB,
+  3 passes, a random 16-byte salt per account), derives a master secret in a Web Worker, and splits it with HKDF into
+  an authentication key, which it sends, and a wrapping key, which stays in the browser for end-to-end encryption.
+  Registration, password changes and every password confirmation work the same way. Password rules (at least 10
+  characters) are therefore checked by the web app.
+- The server stores the authentication key only as a hash: ASP.NET Core Identity's hasher, PBKDF2-HMAC-SHA512 with
+  210,000 iterations (the OWASP recommendation). Hashes with older parameters are upgraded at the next sign-in.
+  Accounts created by 1.0.0 keep their password hash, marked `LegacyPassword`, until their next sign-in sends the
+  password once with the new key.
+- Prelogin and sign-in answer identically for unknown users and wrong passwords, including timing: unknown usernames
+  get the default parameters with a stable pseudo-salt derived from the prelogin key, and are checked against a dummy
+  hash. Five consecutive failures lock the account for 15 minutes, and prelogin and the authentication endpoints are
+  rate-limited per client IP (`MAPLE_AUTH_RATE_LIMIT`, a separate budget for each).
 - Session cookie: `HttpOnly`, `SameSite=Strict`, `Secure` over HTTPS, 30-day sliding expiry with "keep me signed
   in", otherwise a browser-session cookie. It is validated against the database on **every** request, so a
   password change, "sign out everywhere", disabling or deleting an account takes effect immediately.
@@ -233,8 +243,9 @@ to the client asynchronously. Memory use stays flat for any export size, and dec
 
 ## HTTP hardening
 
-- Every response sets `Content-Security-Policy` (script from the app's own origin only, no inline script, no
-  framing), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy: no-referrer`, `Permissions-Policy` and
+- Every response sets `Content-Security-Policy` (scripts and workers from the app's own origin only, no inline
+  script, no `eval`, no framing; `'wasm-unsafe-eval'` lets the Argon2id worker compile WebAssembly),
+  `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy: no-referrer`, `Permissions-Policy` and
   `Cross-Origin-Opener/Resource-Policy`.
 - HSTS is sent on HTTPS requests outside Development.
 - Request bodies are limited to 2 MB except uploads.

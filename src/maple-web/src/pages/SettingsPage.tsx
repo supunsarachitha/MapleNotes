@@ -7,6 +7,7 @@ import { PasswordDialog } from "../components/PasswordDialog";
 import { useToast } from "../components/Toaster";
 import { Button, Card, ErrorMessage, Switch, TextField } from "../components/ui";
 import { api, ApiError } from "../lib/api";
+import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
 import { formatAbsolute } from "../lib/format";
 import { queryKeys, useSignedOut } from "../lib/queries";
 import type { AdminUser, User } from "../lib/types";
@@ -38,13 +39,13 @@ function AccountSection({ user }: { user: User }) {
   );
 }
 
-function PasswordSection() {
+function PasswordSection({ username }: { username: string }) {
   const toast = useToast();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [error, setError] = useState<ApiError | null>(null);
   const change = useMutation({
-    mutationFn: () => api.changePassword(current, next),
+    mutationFn: () => auth.changePassword(username, current, next),
     onSuccess: () => {
       setCurrent("");
       setNext("");
@@ -56,6 +57,11 @@ function PasswordSection() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    const weakPassword = validateNewPassword(next);
+    if (weakPassword) {
+      setError(new ApiError(400, { errors: { newPassword: [weakPassword] } }));
+      return;
+    }
     change.mutate();
   }
 
@@ -77,11 +83,11 @@ function PasswordSection() {
           type="password"
           autoComplete="new-password"
           required
-          minLength={10}
+          minLength={MIN_PASSWORD_LENGTH}
           value={next}
           onChange={(event) => setNext(event.target.value)}
           error={error?.fieldError("newPassword")}
-          hint="At least 10 characters."
+          hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
         />
         <Button type="submit" busy={change.isPending} className="self-start">
           Change password
@@ -114,7 +120,7 @@ function SessionsSection() {
   );
 }
 
-function DeleteAccountSection() {
+function DeleteAccountSection({ username }: { username: string }) {
   const signedOut = useSignedOut();
   const [open, setOpen] = useState(false);
 
@@ -136,7 +142,7 @@ function DeleteAccountSection() {
         }
         confirmLabel="Delete forever"
         onConfirm={async (password) => {
-          await api.deleteAccount(password);
+          await api.deleteAccount(await auth.proveIdentity(username, password));
           signedOut();
         }}
       />
@@ -255,12 +261,12 @@ export function SettingsPage({ user }: { user: User }) {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">Settings</h1>
       <AccountSection user={user} />
-      <EncryptionSection />
+      <EncryptionSection username={user.username} />
       <ExportSection />
-      <PasswordSection />
+      <PasswordSection username={user.username} />
       <SessionsSection />
       {user.role === "Admin" && <AdminSection currentUserId={user.id} />}
-      <DeleteAccountSection />
+      <DeleteAccountSection username={user.username} />
     </div>
   );
 }

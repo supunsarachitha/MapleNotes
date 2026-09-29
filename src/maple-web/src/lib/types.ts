@@ -11,6 +11,27 @@ export interface User {
   createdAtUtc: string;
 }
 
+/** Argon2id parameters for deriving an account's keys from its password (docs/e2ee-spec.md §1). */
+export interface KdfParamsWire {
+  /** 16 bytes, base64. */
+  salt: string;
+  memoryKiB: number;
+  iterations: number;
+  parallelism: number;
+}
+
+export interface Prelogin {
+  kdf: KdfParamsWire;
+  /** The account predates key-derived sign-in: send the password once alongside the key so the server can upgrade it. */
+  upgrade: boolean;
+}
+
+/** Proof of the account password: the derived authentication key (and, for an account being upgraded, the password). */
+export interface CredentialProof {
+  authKey: string;
+  password?: string;
+}
+
 export interface AuthStatus {
   setupRequired: boolean;
   registrationOpen: boolean;
