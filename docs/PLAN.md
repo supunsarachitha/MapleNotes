@@ -1,7 +1,8 @@
 # Maple Notes: development plan
 
 Approved 2026-09-28. This is the working plan for v1.0.0; all phases are complete. The architecture reference
-is [architecture.md](architecture.md).
+is [architecture.md](architecture.md). The follow-up plan for end-to-end encryption (v1.1.0) is
+[PLAN-E2EE.md](PLAN-E2EE.md).
 
 ## Decisions
 
