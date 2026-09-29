@@ -27,6 +27,8 @@
 - **Quick notes.** A scratchpad tab for short notes that stay out of your timeline; move one to Home when it is worth
   keeping.
 - **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.
+- **Link previews.** Optionally, the title and description of links in your notes. Off by default: the server fetches
+  the pages, so it sees the links.
 - **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.
 - **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes and the calendar on or off in
   Settings, on every device at once. Turning a feature off hides it and deletes nothing.
@@ -123,6 +125,7 @@ All settings are environment variables.
 | `MAPLE_MAX_UPLOAD_MB` | `25` | Largest attachment, 1–2048 MB. |
 | `MAPLE_TRUSTED_PROXIES` | — | Reverse proxy addresses or CIDR ranges whose `X-Forwarded-*` headers are trusted, e.g. `172.16.0.0/12`. |
 | `MAPLE_AUTH_RATE_LIMIT` | `10` | Sign-in, registration and password attempts per client IP per minute (prelogin has a separate budget of the same size). |
+| `MAPLE_LINK_PREVIEWS` | `true` | Let accounts turn on link previews, for which the server fetches linked pages (public addresses only). Set to `false` to keep the server from fetching anything. |
 | `MAPLE_API_DOCS` | `false` | Publish the OpenAPI document (`/openapi/v1.json`) and API reference (`/scalar`). |
 | `ASPNETCORE_HTTP_PORTS` | `8080` | Port inside the container. |
 | `AllowedHosts` | `*` | Restrict accepted host names, e.g. `notes.example.com`. |
@@ -145,7 +148,7 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 - With end-to-end encryption, even the server cannot read your notes, titles, todo items, tags, file names or files.
   Someone with the master key, the database or full control of the server's data sees only ciphertext, sizes,
   timestamps, which kind each note is (timeline, todo list or quick note), which days have a daily note, and your
-  feature settings.
+  feature settings (and, if you turn on link previews, the links in your notes).
 
 **What it does not protect:**
 - Without end-to-end encryption, the server holds the keys while it runs, so someone who controls the running server,

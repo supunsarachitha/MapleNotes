@@ -3,6 +3,7 @@ import { useId, type ReactNode } from "react";
 import { ACCENT_COLORS } from "../lib/appearance";
 import { formatDate } from "../lib/dates";
 import { usePreferences, useUpdatePreferences } from "../lib/preferences";
+import { useAuthStatus } from "../lib/queries";
 import { ACCENTS, DATE_FORMATS, THEMES, type DateFormat, type Preferences } from "../lib/types";
 import { useToast } from "./Toaster";
 import { Section, Switch, cn } from "./ui";
@@ -118,6 +119,8 @@ export function AppearanceSection() {
 export function FeaturesSection() {
   const preferences = usePreferences();
   const save = useSavePreferences();
+  const status = useAuthStatus().data;
+  const endToEnd = status?.user?.encryptionMode === "EndToEnd";
 
   return (
     <Section title="Features" description="Turning a feature off hides it; nothing is deleted.">
@@ -146,6 +149,20 @@ export function FeaturesSection() {
           checked={preferences.calendar}
           onChange={(calendar) => save({ calendar })}
         />
+        {status?.linkPreviewsAvailable && (
+          <PreferenceSwitch
+            label="Link previews"
+            description={
+              <>
+                Show the title and description of links in your notes. To get them, this server visits each linked
+                page, so it learns which links you save
+                {endToEnd ? <strong> — even though your notes are end-to-end encrypted</strong> : null}. Off by default.
+              </>
+            }
+            checked={preferences.linkPreviews}
+            onChange={(linkPreviews) => save({ linkPreviews })}
+          />
+        )}
       </div>
     </Section>
   );

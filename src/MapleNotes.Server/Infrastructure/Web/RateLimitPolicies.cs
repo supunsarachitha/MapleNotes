@@ -14,4 +14,7 @@ public static class RateLimitPolicies
     /// <see cref="Authentication"/> but a separate budget, since every sign-in makes one of each.
     /// </summary>
     public const string Prelogin = "prelogin";
+
+    /// <summary>Limits link previews per signed-in user per minute (60), bounding the requests the server makes for them.</summary>
+    public const string LinkPreview = "link-preview";
 }

@@ -3,12 +3,14 @@ import { Archive, ArchiveRestore, Copy, Home, MoreHorizontal, Pencil, Pin, PinOf
 import { useState } from "react";
 import { formatAbsolute, formatRelative } from "../lib/format";
 import { usePreferences } from "../lib/preferences";
+import { useAuthStatus } from "../lib/queries";
 import { useDeleteNote, usePatchNote } from "../lib/queries";
 import { splitTitle } from "../lib/titles";
 import type { Note } from "../lib/types";
 import { AttachmentGallery } from "./AttachmentGallery";
 import { Composer } from "./Composer";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { LinkPreviews } from "./LinkPreviews";
 import { Markdown } from "./Markdown";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
@@ -50,7 +52,8 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
   const patch = usePatchNote();
   const remove = useDeleteNote();
   const toast = useToast();
-  const { noteTitles, quickNotes } = usePreferences();
+  const { noteTitles, quickNotes, linkPreviews } = usePreferences();
+  const previewsAvailable = useAuthStatus().data?.linkPreviewsAvailable === true;
   const { title, body } = noteTitles ? splitTitle(note.content) : { title: "", body: note.content };
   const edited = new Date(note.updatedAtUtc).getTime() - new Date(note.createdAtUtc).getTime() > 60_000;
 
@@ -145,6 +148,7 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
 
       {title && <h3 className="mb-1 break-words text-lg font-semibold leading-snug">{title}</h3>}
       {body.trim() && <Markdown content={body} />}
+      {linkPreviews && previewsAvailable && <LinkPreviews content={note.content} />}
       <AttachmentGallery attachments={note.attachments} />
 
       <ConfirmDialog

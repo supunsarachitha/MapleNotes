@@ -148,6 +148,7 @@ the password to the server one last time.
 | Which notes are todo lists or quick notes, and which days have a daily note | Titles and todo items (they are part of the note's text) |
 | The account's preferences: which features are on, the date format, theme and accent colour | |
 | The browser's time zone, when the calendar asks for a month | |
+| With link previews turned on (off by default): each link in the notes the browser shows, and the linked pages themselves | |
 | Which notes share a tag, and how many notes each tag has (tag tokens are deterministic per account) | The password, the data key, the recovery key |
 | Which notes and files the browser loads, and which tag token a filter uses | |
 
@@ -173,6 +174,13 @@ server cannot learn a tag's name, but it can see that two notes share one. Token
   files are deleted normally and may remain recoverable from the storage medium.
 - **Weak passwords can be guessed offline** by whoever holds the database and the master key (see above).
 - **Exports are plain text.** They are decrypted by design.
+- **Link previews reveal links.** To preview a link, the server fetches it, so it learns the address, and so does the
+  site being visited (from the server's address). They are off by default and explained where they are turned on;
+  operators can disable them with `MAPLE_LINK_PREVIEWS=false`.
+- **Link previews make the server fetch addresses chosen by users.** To stop that being used against the server's own
+  network (server-side request forgery), the preview client connects only to public addresses. The check runs on the
+  address actually connected to, after DNS resolution and after every redirect. The client also allows only http(s)
+  on ports 80 and 443, a 5-second limit and 512 KB of HTML, a per-user rate limit, and no cookies or proxy.
 - **Out of scope:**
   - malware or malicious browser extensions on the user's device;
   - a server that deletes data or refuses service;

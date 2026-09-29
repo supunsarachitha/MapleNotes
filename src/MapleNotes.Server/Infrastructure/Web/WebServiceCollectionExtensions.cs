@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using MapleNotes.Server.Domain;
@@ -103,6 +104,10 @@ internal static class WebServiceCollectionExtensions
                         QueueLimit = 0,
                     }));
             }
+
+            limiter.AddPolicy(RateLimitPolicies.LinkPreview, context => RateLimitPartition.GetFixedWindowLimiter(
+                context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
         });
 
         // Behind a reverse proxy, the client address and scheme arrive in X-Forwarded-* headers. They are trusted only

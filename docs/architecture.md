@@ -321,6 +321,25 @@ The web tests restore every archive in the shared export vectors and compare eac
 browser test restores an export into fresh instances (one of them end-to-end) and exports them again, getting the same
 archive.
 
+## Link previews
+
+`GET /api/v1/link-preview?url=` returns a page's title, description and site name. It is available only when the
+server allows it (`MAPLE_LINK_PREVIEWS`) and the account turned it on. The server fetches the page itself, so the
+browser never contacts other sites and the Content-Security-Policy stays closed. The fetch is guarded against
+server-side request forgery (`Features/LinkPreviews/NetworkGuard.cs`):
+- Only http(s) links on ports 80 and 443, without user names, are allowed. Names such as `localhost`, `*.local` and
+  `*.internal`, and private address literals, are refused before anything is sent.
+- The HTTP client's `ConnectCallback` resolves the name and connects to a public address only: not loopback,
+  private, link-local (including cloud metadata), carrier-grade NAT, reserved, multicast, IPv6 local or documentation
+  ranges, nor IPv4 addresses embedded in IPv6. The check runs on the address actually used, so DNS rebinding cannot
+  get around it.
+- Redirects are followed by hand, at most three, each checked again.
+- A fetch reads at most 512 KB of HTML within 5 seconds, sends no cookies and uses no proxy.
+- Results, including "no preview", are cached in memory, and each user may ask for 60 previews a minute.
+
+The HTML is read with a few regular expressions (Open Graph tags, then `<title>` and the description), never
+executed, and the text is shown as plain text.
+
 ## Background services
 
 | Service | When | What |

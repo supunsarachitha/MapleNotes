@@ -13,6 +13,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   quickNotes: true,
   dailyNotes: false,
   calendar: true,
+  linkPreviews: false,
   theme: "System",
   accent: "Maple",
 };

@@ -9,6 +9,7 @@ import type {
   EncryptionMode,
   EncryptionStatus,
   KdfParamsWire,
+  LinkPreview,
   Note,
   NoteKind,
   NotePage,
@@ -219,6 +220,11 @@ export const api = {
   /** How many active notes of these kinds were created on each day from `from` to `to` (yyyy-MM-dd), in a time zone. */
   calendar: (from: string, to: string, timeZone: string, kinds: NoteKind[]) =>
     request<Array<{ date: string; count: number }>>("GET", `/api/v1/notes/calendar${query({ from, to, timeZone, kind: kinds })}`),
+
+  /** A link's title, description and site, fetched by the server; null when the page has none. */
+  async linkPreview(url: string): Promise<LinkPreview | null> {
+    return (await request<LinkPreview | undefined>("GET", `/api/v1/link-preview${query({ url })}`)) ?? null;
+  },
 
   /** Which of these note IDs the account already has (at most 500 at a time). */
   async existingNotes(ids: string[]): Promise<string[]> {

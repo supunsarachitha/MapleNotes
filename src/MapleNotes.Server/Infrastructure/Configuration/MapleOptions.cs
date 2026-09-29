@@ -37,6 +37,12 @@ public sealed class MapleOptions
     /// </summary>
     public const string ApiDocsKey = "MAPLE_API_DOCS";
 
+    /// <summary>
+    /// Environment variable that allows link previews on this server (default true). Each account still has to turn
+    /// them on; set it to false to keep the server from fetching any links.
+    /// </summary>
+    public const string LinkPreviewsKey = "MAPLE_LINK_PREVIEWS";
+
     /// <summary>Absolute path of the directory holding the database, attachments, key ring and backups.</summary>
     public required string DataDirectory { get; init; }
 
@@ -60,6 +66,9 @@ public sealed class MapleOptions
 
     /// <summary>Sign-in, registration and password-change attempts allowed per client IP address per minute.</summary>
     public int AuthenticationRateLimit { get; init; } = 10;
+
+    /// <summary>Whether accounts may turn on link previews, which make the server fetch the pages linked from notes.</summary>
+    public bool LinkPreviews { get; init; } = true;
 
     /// <summary>Path of the encrypted SQLite database file.</summary>
     public string DatabasePath => Path.Combine(DataDirectory, "maple.db");
@@ -96,6 +105,7 @@ public sealed class MapleOptions
             DefaultEncryption = ReadBoolean(configuration, DefaultEncryptionKey, defaultValue: true),
             TrustedProxies = ReadNetworks(configuration, TrustedProxiesKey),
             AuthenticationRateLimit = ReadInteger(configuration, AuthenticationRateLimitKey, defaultValue: 10, min: 1, max: 10_000),
+            LinkPreviews = ReadBoolean(configuration, LinkPreviewsKey, defaultValue: true),
         };
     }
 

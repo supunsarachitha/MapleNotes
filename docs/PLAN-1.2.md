@@ -72,7 +72,7 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 | F11 | Image viewer and responsive images (requested after F8) | Choosing an image attachment opens a full-screen viewer (next/previous for a note's images, keyboard, swipe, close); attachment images scale to any screen width without overflowing or distorting; works for end-to-end files | ✅ Done |
 | F12 | Tags page (requested after F8) | Tags get their own page from the side menu: every tag with its count, a filter box, nested tags under their parents; the side menu no longer lists tags | ✅ Done |
 | F13 | Formatting toolbar (requested after F8) | The editor has a toolbar (bold, italic, heading, bulleted list, checklist, quote, code, link) that inserts Markdown at the cursor or around the selection, with keyboard shortcuts; works in every editor (notes, edits, quick notes, daily notes) | ✅ Done |
-| F14 | Link previews (requested after F8) | An option (off by default) shows a preview card (title, description, site) for links in notes, fetched by the server with protection against requests to internal addresses; its privacy cost (the server learns the links, including for end-to-end accounts) is explained where it is turned on | ⏳ Not started |
+| F14 | Link previews (requested after F8) | An option (off by default) shows a preview card (title, description, site) for links in notes, fetched by the server with protection against requests to internal addresses; its privacy cost (the server learns the links, including for end-to-end accounts) is explained where it is turned on | ✅ Done |
 | F15 | User guide in the app (requested after F8) | A Help page in the side menu explains every feature for people using the app (not running it), with a table of contents and links to the matching settings; it ships with the app, so it works offline and needs no server changes | ⏳ Not started |
 
 ### Notes from the phases
@@ -208,6 +208,19 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   - a checklist over several lines, and a heading;
   - the rendered note;
   - the toolbar in quick notes, and 375 px width;
+  - the 18-step suite.
+- **F14** (requested after F8): the protection against server-side request forgery sits in the HTTP client's
+  `ConnectCallback`, so it checks the address actually connected to rather than a name that could resolve differently
+  a moment later. The server tests cover the address classification (including IPv4 inside IPv6), link validation,
+  HTML parsing, the account's and the server's switches, caching, and redirects, including one to the cloud metadata
+  address. They run against a fake network injected through a new test-host hook. One unrelated attachment test failed
+  once with a database-open error under parallel load and passed on the next two full runs; it is recorded here in case
+  it comes back. Verified in Chromium against the production container with a real network:
+  - off by default, with nothing fetched until turned on, and the cost explained;
+  - `example.com` previewed;
+  - `localtest.me`, a public name that resolves to 127.0.0.1, refused when connecting;
+  - `host.docker.internal`, the metadata address and a non-standard port refused;
+  - end-to-end accounts warned;
   - the 18-step suite.
 
 ## Out of scope for 1.2.0

@@ -49,6 +49,12 @@ public sealed record UserPreferences
     /// <summary>Show a month calendar in the side menu for finding notes by date.</summary>
     public bool Calendar { get; init; } = true;
 
+    /// <summary>
+    /// Show previews of links in notes. The server then fetches the linked pages, so it learns those links, also for
+    /// end-to-end accounts; off by default.
+    /// </summary>
+    public bool LinkPreviews { get; init; }
+
     /// <summary>Light or dark: one of <see cref="Themes"/>.</summary>
     public string Theme { get; init; } = "System";
 

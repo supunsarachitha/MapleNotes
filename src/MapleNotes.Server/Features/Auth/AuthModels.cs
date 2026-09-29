@@ -88,7 +88,8 @@ public sealed record UserResponse(
 /// <param name="SetupRequired">True when no account exists yet; the first account becomes the administrator.</param>
 /// <param name="RegistrationOpen">Whether visitors can create accounts.</param>
 /// <param name="User">The signed-in user, or null.</param>
-public sealed record AuthStatusResponse(bool SetupRequired, bool RegistrationOpen, UserResponse? User);
+/// <param name="LinkPreviewsAvailable">Whether this server allows link previews (<c>MAPLE_LINK_PREVIEWS</c>).</param>
+public sealed record AuthStatusResponse(bool SetupRequired, bool RegistrationOpen, UserResponse? User, bool LinkPreviewsAvailable = false);
 
 /// <summary>An antiforgery token to send with every state-changing request.</summary>
 /// <param name="Token">Token value.</param>

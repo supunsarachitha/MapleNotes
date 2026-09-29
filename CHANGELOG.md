@@ -29,6 +29,12 @@ modes, and each account chooses which ones it uses.
   choice, so the sign-in screen matches.
 - **Image viewer:** choosing an image attachment opens it full screen, with previous and next (buttons, arrow keys
   or a swipe) and a download button. End-to-end images are decrypted as usual.
+- **Link previews** (Settings → Features, off by default): the title, description and site of links in notes. The
+  server fetches the pages, as Settings explains, so it sees those links, even for end-to-end accounts. It only
+  connects to public addresses: private, loopback, link-local and similar ranges are refused when the connection is
+  made, including after redirects and for names that point there. Fetches are limited to http(s) on the standard
+  ports, 5 seconds and 512 KB of HTML, and results are cached. `MAPLE_LINK_PREVIEWS=false` turns the feature off for
+  the whole server.
 - **Formatting toolbar** in every editor: bold, italic, heading, bulleted list, checklist, quote, code and link, with
   Ctrl/⌘+B, I and K. Each change can be undone like typing.
 - **Tags page:** every tag with its note count, nested tags under their parents, a filter and A–Z or most-used

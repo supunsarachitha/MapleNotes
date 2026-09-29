@@ -55,8 +55,18 @@ export interface Preferences {
   dailyNotes: boolean;
   /** Show a month calendar in the side menu. */
   calendar: boolean;
+  /** Show previews of links in notes (the server fetches the pages). */
+  linkPreviews: boolean;
   theme: Theme;
   accent: Accent;
+}
+
+/** A preview of a web page linked from a note. */
+export interface LinkPreview {
+  url: string;
+  title: string;
+  description: string | null;
+  siteName: string;
 }
 
 /** Argon2id parameters for deriving an account's keys from its password (docs/e2ee-spec.md §1). */
@@ -84,6 +94,8 @@ export interface AuthStatus {
   setupRequired: boolean;
   registrationOpen: boolean;
   user: User | null;
+  /** Whether this server allows link previews at all. */
+  linkPreviewsAvailable?: boolean;
 }
 
 /** An attachment as components use it: an end-to-end file's name, type and size decrypted. */
