@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 import { useId, useState } from "react";
 import type { User } from "../lib/types";
+import { RestorePanel } from "./RestorePanel";
 import { Button, Card, ErrorMessage, cn } from "./ui";
 
 export type ExportFormat = "md" | "txt" | "json";
@@ -231,6 +232,7 @@ export function ExportSection({
           </span>
         </div>
       </div>
+      <RestorePanel endToEnd={inBrowser} />
     </Card>
   );
 }

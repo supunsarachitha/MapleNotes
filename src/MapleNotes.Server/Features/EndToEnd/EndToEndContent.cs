@@ -85,15 +85,30 @@ public static class EndToEndContent
     /// <returns>An error message, or null when the ID is acceptable.</returns>
     public static string? ValidateClientId(Guid? id, DateTime nowUtc)
     {
-        if (id is not { } value || value.Version != 7 || (value.Variant & 0b1100) != 0b1000)
+        if (!IsVersion7(id))
         {
             return "End-to-end encrypted items need an ID chosen by the app: a UUID version 7.";
         }
 
-        var milliseconds = long.Parse(value.ToString("N").AsSpan(0, 12), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-        var created = DateTimeOffset.FromUnixTimeMilliseconds(milliseconds).UtcDateTime;
-        return (created - nowUtc).Duration() > ClientIdTolerance
+        return (IdTime(id!.Value) - nowUtc).Duration() > ClientIdTolerance
             ? "The ID's timestamp is too far from the server's clock. Check the device's date and time."
             : null;
     }
+
+    /// <summary>
+    /// Checks the ID of an end-to-end note being restored from an export: a UUID version 7, which may be old (it keeps
+    /// the note's original ID) but not in the future beyond <see cref="ClientIdTolerance"/>.
+    /// </summary>
+    /// <param name="id">The ID.</param>
+    /// <param name="nowUtc">The server's clock.</param>
+    /// <returns>An error message, or null when the ID is acceptable.</returns>
+    public static string? ValidateImportedId(Guid? id, DateTime nowUtc) =>
+        !IsVersion7(id) ? "End-to-end encrypted notes need a UUID version 7 as their ID."
+        : IdTime(id!.Value) - nowUtc > ClientIdTolerance ? "The ID's timestamp is in the future."
+        : null;
+
+    private static bool IsVersion7(Guid? id) => id is { Version: 7 } value && (value.Variant & 0b1100) == 0b1000;
+
+    private static DateTime IdTime(Guid id) =>
+        DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(id.ToString("N").AsSpan(0, 12), NumberStyles.HexNumber, CultureInfo.InvariantCulture)).UtcDateTime;
 }

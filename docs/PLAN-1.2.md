@@ -62,7 +62,7 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 | F4 | Quick notes | The Quick notes tab with its own composer and list; moving a quick note to Home and back; the setting (on by default) | ✅ Done |
 | F5 | Daily notes | Home's "Today" card creates the day's note on first write; one daily note per date is enforced; the setting (off by default) | ✅ Done |
 | F6 | Exports with kinds and daily notes | Server and browser exports record kind and daily date, and place todo lists and quick notes in their folders (manifest version 2). The shared export vectors cover the new data | ✅ Done |
-| F7 | Import and full restore | Export archives in every format and layout, and single `.md`/`.txt`/`.json` files, restore into any account, including end-to-end ones, with progress and a summary. Re-importing skips existing notes. Round-trip tests: export → import into a fresh account → identical export | ⏳ Not started |
+| F7 | Import and full restore | Export archives in every format and layout, and single `.md`/`.txt`/`.json` files, restore into any account, including end-to-end ones, with progress and a summary. Re-importing skips existing notes. Round-trip tests: export → import into a fresh account → identical export | ✅ Done |
 | F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ⏳ Not started |
 
 ### Notes from the phases
@@ -124,6 +124,22 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   it to that. Verified in Chromium on the production build: one account exported by the server, then, after
   switching to end-to-end encryption, by the browser, gives the same entries with the same content; the existing
   end-to-end export run and the 18-step suite pass.
+- **F7:** the browser reads archives with a small ZIP reader of its own. It reads the central directory, then one
+  entry at a time from the chosen file, so large exports are never loaded whole; it also handles ZIP64. The
+  export's manifest gives every note's ID, even in plain-text exports, so restores skip what the account has in
+  every format. Other design points:
+  - A note whose ID belongs to another account is never overwritten. The server says only whether the account
+    itself has an ID; a plain note gets a new ID, and an end-to-end note is encrypted again for one.
+  - The web tests restore every archive in the shared export vectors (13 archives, every format and layout) and
+    compare each note's text, dates, state, kind, daily date and file bytes with the original.
+
+  Verified in Chromium on the production build, across three instances:
+  - an account with every kind of note and a photo, exported, then restored into a fresh instance;
+  - restoring the same export again skips all 6 notes;
+  - the restored account exports the same archive, apart from new attachment IDs and the export time;
+  - an end-to-end account on a fresh instance restores the same archive, stored as ciphertext, and its browser
+    export matches too;
+  - an end-to-end account whose IDs were already taken on its instance restores everything under new IDs.
 
 ## Out of scope for 1.2.0
 

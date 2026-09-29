@@ -68,6 +68,38 @@ public sealed class NotesController(NoteService notes) : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = note.Id }, note);
     }
 
+    /// <summary>Tells which notes of an export the account already has, so restoring can skip them.</summary>
+    /// <param name="request">Up to 500 note IDs.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The IDs the account already has.</returns>
+    /// <response code="200">The IDs.</response>
+    /// <response code="400">Too many IDs.</response>
+    [HttpPost("import/existing")]
+    [ProducesResponseType<ImportExistingResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ImportExistingResponse> ImportExisting(ImportExistingRequest request, CancellationToken cancellationToken) =>
+        new(await notes.FindExistingAsync(User.GetUserId(), request.Ids ?? [], cancellationToken));
+
+    /// <summary>Restores one note from an export, keeping its ID, dates, state, kind and daily date.</summary>
+    /// <remarks>Upload its files first, as for a new note. A note the account already has is left unchanged.</remarks>
+    /// <param name="request">The note.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>Whether it was restored, and the note.</returns>
+    /// <response code="201">The note was restored.</response>
+    /// <response code="200">The account already had this note; nothing changed.</response>
+    /// <response code="400">The note is not valid.</response>
+    /// <response code="409">The request does not match the account's encryption mode, or an end-to-end note's ID is not available.</response>
+    [HttpPost("import")]
+    [ProducesResponseType<ImportNoteResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ImportNoteResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ImportNoteResponse>> Import(ImportNoteRequest request, CancellationToken cancellationToken)
+    {
+        var result = await notes.ImportAsync(User.GetUserId(), request, cancellationToken);
+        return result.Imported ? CreatedAtAction(nameof(Get), new { id = result.Note.Id }, result) : Ok(result);
+    }
+
     /// <summary>Replaces a note's text and, optionally, its attachments.</summary>
     /// <param name="id">Note ID.</param>
     /// <param name="request">New text; optionally the complete list of attachment IDs to keep.</param>

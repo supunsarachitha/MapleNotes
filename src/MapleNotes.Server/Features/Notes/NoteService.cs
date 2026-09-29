@@ -33,6 +33,9 @@ public sealed class NoteService(
     /// <summary>Largest page size.</summary>
     public const int MaxPageSize = 100;
 
+    /// <summary>The most IDs <see cref="FindExistingAsync"/> answers at a time.</summary>
+    public const int MaxImportIds = 500;
+
     /// <summary>Shown in place of a note whose text cannot be decrypted (damaged data).</summary>
     public const string UnreadablePlaceholder = "⚠️ This note could not be decrypted. Its stored data may be damaged.";
 
@@ -231,6 +234,100 @@ public sealed class NoteService(
         }
 
         return await ToResponseAsync(note, cancellationToken);
+    }
+
+    /// <summary>Returns which of the given note IDs the account already has.</summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="ids">Up to <see cref="MaxImportIds"/> IDs.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The IDs of the account's own notes; other accounts' notes are never revealed.</returns>
+    /// <exception cref="ApiValidationException">Too many IDs.</exception>
+    public async Task<IReadOnlyList<Guid>> FindExistingAsync(Guid userId, IReadOnlyList<Guid> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count > MaxImportIds)
+        {
+            throw new ApiValidationException("ids", $"Ask about at most {MaxImportIds} IDs at a time.");
+        }
+
+        var wanted = ids.Distinct().ToList();
+        return await db.Notes.AsNoTracking()
+            .Where(n => n.UserId == userId && wanted.Contains(n.Id))
+            .Select(n => n.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Restores a note from an export with its original ID, dates, state, kind and daily date. A note the account already
+    /// has is left unchanged, so restoring the same export twice is safe.
+    /// </summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="request">The note.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>Whether it was restored, and the note.</returns>
+    /// <exception cref="ApiValidationException">The content, dates, kind, ID or attachments are not acceptable.</exception>
+    /// <exception cref="ApiProblemException">The request does not match the account's mode, or (end-to-end) the ID is
+    /// used by another account and the note must be encrypted for a new one (409).</exception>
+    public async Task<ImportNoteResponse> ImportAsync(Guid userId, ImportNoteRequest request, CancellationToken cancellationToken)
+    {
+        ValidateKinds([request.Kind]);
+        var now = time.GetUtcNow().UtcDateTime;
+        var created = DateTime.SpecifyKind(request.CreatedAtUtc.ToUniversalTime(), DateTimeKind.Utc);
+        var updated = DateTime.SpecifyKind(request.UpdatedAtUtc.ToUniversalTime(), DateTimeKind.Utc);
+        if (created > now + EndToEndContent.ClientIdTolerance)
+        {
+            throw new ApiValidationException("createdAtUtc", "A note cannot have been created in the future.");
+        }
+
+        updated = updated < created ? created : updated;
+        if (request.Id is { } requested && await GetAsync(userId, requested, cancellationToken) is { } existing)
+        {
+            return new ImportNoteResponse(false, existing);
+        }
+
+        var taken = request.Id is { } id && await db.Notes.AnyAsync(n => n.Id == id, cancellationToken);
+        var attachmentIds = request.AttachmentIds ?? [];
+        Note note;
+        if (request.Encrypted is { } encrypted)
+        {
+            await RequireEndToEndAsync(userId, cancellationToken);
+            if (EndToEndContent.ValidateImportedId(request.Id, now) is { } idError)
+            {
+                throw new ApiValidationException("id", idError);
+            }
+
+            if (taken)
+            {
+                throw new ApiProblemException(StatusCodes.Status409Conflict, "This note ID is not available.", "Encrypt the note for a new ID.");
+            }
+
+            note = new Note { Id = request.Id!.Value, UserId = userId };
+            SetEncryptedContent(note, encrypted);
+            await AttachAsync(note, attachmentIds, cancellationToken);
+            await SetEncryptedTagsAsync(note, encrypted.Tags, cancellationToken);
+        }
+        else
+        {
+            var content = ValidateContent(request.Content, attachmentIds.Count);
+            note = new Note { Id = request.Id is { } plainId && !taken ? plainId : Guid.CreateVersion7(), UserId = userId };
+            await SetContentAsync(note, content, cancellationToken);
+            await AttachAsync(note, attachmentIds, cancellationToken);
+            await SetTagsAsync(note, content, cancellationToken);
+        }
+
+        note.Kind = request.Kind;
+        note.IsPinned = request.IsPinned;
+        note.ArchivedAtUtc = request.IsArchived ? updated : null;
+        note.CreatedAtUtc = created;
+        note.UpdatedAtUtc = updated;
+        if (request.DailyDate is { } day && request.Kind == NoteKind.Note
+            && !await db.Notes.AnyAsync(n => n.UserId == userId && n.DailyDate == day, cancellationToken))
+        {
+            note.DailyDate = day;
+        }
+
+        db.Notes.Add(note);
+        await db.SaveChangesAsync(cancellationToken);
+        return new ImportNoteResponse(true, await ToResponseAsync(note, cancellationToken));
     }
 
     private static ApiProblemException DailyNoteExists() =>

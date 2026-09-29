@@ -1,8 +1,13 @@
-import { DEFAULT_PREFERENCES } from "../lib/preferences";
-import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+import { render as renderDom, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { buildExportUrl, ExportSection } from "./ExportSection";
+
+// The section includes the restore panel, which refreshes note lists after a restore.
+const render = (ui: ReactElement) => renderDom(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
 describe("buildExportUrl", () => {
   it("includes every option and omits empty dates", () => {

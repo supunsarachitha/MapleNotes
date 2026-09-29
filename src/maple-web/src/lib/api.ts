@@ -29,6 +29,7 @@ import {
   decodeNote,
   decodeTags,
   encodeUpload,
+  encodeImport,
   encodeNewNote,
   encodeNoteUpdate,
   matchesSearch,
@@ -209,6 +210,43 @@ export const api = {
     const fields = await encodeNewNote(content);
     const { isPinned = false, kind = "Note", dailyDate } = options;
     return decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind, dailyDate }));
+  },
+
+  /** Which of these note IDs the account already has (at most 500 at a time). */
+  async existingNotes(ids: string[]): Promise<string[]> {
+    return (await request<{ existing: string[] }>("POST", "/api/v1/notes/import/existing", { ids })).existing;
+  },
+
+  /**
+   * Restores one note with its original ID, dates, state, kind and daily date. A note the account already has is
+   * left as it is (`imported: false`). An end-to-end note whose ID another account uses is encrypted again for a new ID.
+   */
+  async importNote(
+    note: { id: string | null; content: string; createdAt: Date; updatedAt: Date; pinned: boolean; archived: boolean; kind: NoteKind; dailyDate: string | null },
+    attachmentIds: string[],
+  ): Promise<{ imported: boolean; note: Note }> {
+    const body = {
+      createdAtUtc: note.createdAt.toISOString(),
+      updatedAtUtc: note.updatedAt.toISOString(),
+      attachmentIds,
+      isPinned: note.pinned,
+      isArchived: note.archived,
+      kind: note.kind,
+      dailyDate: note.dailyDate,
+    };
+    const send = async (fresh: boolean) => {
+      const result = await request<{ imported: boolean; note: NoteWire }>("POST", "/api/v1/notes/import", {
+        ...body,
+        ...(await encodeImport(note.id, note.content, fresh)),
+      });
+      return { imported: result.imported, note: await decodeNote(result.note) };
+    };
+    try {
+      return await send(false);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409 || !readsEndToEnd()) throw error;
+      return send(true);
+    }
   },
 
   /** The daily note of a day (`yyyy-MM-dd`), or null when the day has none yet. */

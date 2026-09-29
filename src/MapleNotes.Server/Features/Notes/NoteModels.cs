@@ -121,6 +121,44 @@ public sealed record CreateNoteRequest(
     NoteKind Kind = NoteKind.Note,
     DateOnly? DailyDate = null);
 
+/// <summary>A note restored from an export, with its original ID, dates, state, kind and daily date.</summary>
+/// <remarks>Like a new note, it is plain text for most accounts and encrypted by the browser for end-to-end ones.</remarks>
+/// <param name="CreatedAtUtc">When the note was originally created.</param>
+/// <param name="UpdatedAtUtc">When it was last edited; not before <paramref name="CreatedAtUtc"/>.</param>
+/// <param name="Id">The note's original ID. A plain note whose ID another account uses gets a new one; an end-to-end
+/// note must then be encrypted again for a new ID (409).</param>
+/// <param name="Content">Markdown text (plain accounts).</param>
+/// <param name="Encrypted">Encrypted text and tags (end-to-end accounts).</param>
+/// <param name="AttachmentIds">IDs of uploaded files to attach.</param>
+/// <param name="IsPinned">Whether it was pinned.</param>
+/// <param name="IsArchived">Whether it was archived.</param>
+/// <param name="Kind">Timeline note, todo list or quick note.</param>
+/// <param name="DailyDate">Its day, for a daily note. Dropped if the account already has a daily note for that day.</param>
+public sealed record ImportNoteRequest(
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc,
+    Guid? Id = null,
+    string? Content = null,
+    EncryptedNote? Encrypted = null,
+    IReadOnlyList<Guid>? AttachmentIds = null,
+    bool IsPinned = false,
+    bool IsArchived = false,
+    NoteKind Kind = NoteKind.Note,
+    DateOnly? DailyDate = null);
+
+/// <summary>The result of restoring one note.</summary>
+/// <param name="Imported">False when the account already had the note (same ID), which was left unchanged.</param>
+/// <param name="Note">The restored note, or the one the account already had.</param>
+public sealed record ImportNoteResponse(bool Imported, NoteResponse Note);
+
+/// <summary>IDs of notes about to be restored.</summary>
+/// <param name="Ids">Up to 500 note IDs.</param>
+public sealed record ImportExistingRequest(IReadOnlyList<Guid> Ids);
+
+/// <summary>Which of the IDs the account already has; restoring skips those.</summary>
+/// <param name="Existing">The IDs of notes the account has.</param>
+public sealed record ImportExistingResponse(IReadOnlyList<Guid> Existing);
+
 /// <summary>Request to replace a note's text (and optionally its attachments).</summary>
 /// <param name="Content">New Markdown text; accounts in end-to-end mode send <paramref name="Encrypted"/> instead.</param>
 /// <param name="AttachmentIds">
