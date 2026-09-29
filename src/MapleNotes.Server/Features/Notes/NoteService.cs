@@ -3,6 +3,7 @@ using System.Text;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Attachments;
 using MapleNotes.Server.Features.Encryption;
+using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Infrastructure.Storage;
@@ -61,11 +62,18 @@ public sealed class NoteService(
         }
 
         var tag = string.IsNullOrWhiteSpace(query.Tag) ? null : query.Tag.Trim().TrimStart('#').ToLowerInvariant();
+        var tagTokens = query.TagTokens ?? [];
+        if (tagTokens.Length > EndToEndContent.MaxTagsPerNote || !tagTokens.All(EndToEndContent.IsTagToken))
+        {
+            throw new ApiValidationException("tagToken", "Tag tokens are 22 base64url characters, at most 100 per request.");
+        }
+
+        var filter = new TagFilter(tag, tagTokens);
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
 
         if (search is null)
         {
-            var page = await LoadBatchAsync(userId, query.State, tag, cursor, limit + 1, cancellationToken);
+            var page = await LoadBatchAsync(userId, query.State, filter, cursor, limit + 1, cancellationToken);
             var items = new List<NoteResponse>(Math.Min(page.Count, limit));
             foreach (var note in page.Take(limit))
             {
@@ -80,7 +88,7 @@ public sealed class NoteService(
         var scanned = 0;
         while (true)
         {
-            var batch = await LoadBatchAsync(userId, query.State, tag, cursor, SearchBatchSize, cancellationToken);
+            var batch = await LoadBatchAsync(userId, query.State, filter, cursor, SearchBatchSize, cancellationToken);
             foreach (var note in batch)
             {
                 scanned++;
@@ -122,21 +130,49 @@ public sealed class NoteService(
 
     /// <summary>Creates a note.</summary>
     /// <param name="userId">The owner.</param>
-    /// <param name="request">Text, attachments and pin state.</param>
+    /// <param name="request">Text (plain, or encrypted by the browser), attachments and pin state.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The new note.</returns>
-    /// <exception cref="ApiValidationException">The text is too long, empty without attachments, or an attachment
-    /// ID is not an unattached upload of this user.</exception>
+    /// <exception cref="ApiValidationException">The text is too long, empty without attachments, malformed when
+    /// encrypted, or an attachment ID is not an unattached upload of this user.</exception>
+    /// <exception cref="ApiProblemException">The request does not match the account's mode (plain text for an
+    /// end-to-end account or the reverse), or the chosen ID is taken.</exception>
     public async Task<NoteResponse> CreateAsync(Guid userId, CreateNoteRequest request, CancellationToken cancellationToken)
     {
         var attachmentIds = request.AttachmentIds ?? [];
-        var content = ValidateContent(request.Content, attachmentIds.Count);
         var now = time.GetUtcNow().UtcDateTime;
-        var note = new Note { UserId = userId, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now };
+        Note note;
+        if (request.Encrypted is { } encrypted)
+        {
+            await RequireEndToEndAsync(userId, cancellationToken);
+            if (EndToEndContent.ValidateClientId(request.Id, now) is { } idError)
+            {
+                throw new ApiValidationException("id", idError);
+            }
 
-        await SetContentAsync(note, content, cancellationToken);
-        await AttachAsync(note, attachmentIds, cancellationToken);
-        await SetTagsAsync(note, content, cancellationToken);
+            if (await db.Notes.AnyAsync(n => n.Id == request.Id, cancellationToken))
+            {
+                throw new ApiProblemException(StatusCodes.Status409Conflict, "A note with this ID already exists.");
+            }
+
+            note = new Note { Id = request.Id!.Value, UserId = userId, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now };
+            SetEncryptedContent(note, encrypted);
+            await AttachAsync(note, attachmentIds, cancellationToken);
+            await SetEncryptedTagsAsync(note, encrypted.Tags, cancellationToken);
+        }
+        else
+        {
+            if (request.Id is not null)
+            {
+                throw new ApiValidationException("id", "Only end-to-end encrypted notes bring their own ID.");
+            }
+
+            var content = ValidateContent(request.Content, attachmentIds.Count);
+            note = new Note { UserId = userId, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now };
+            await SetContentAsync(note, content, cancellationToken);
+            await AttachAsync(note, attachmentIds, cancellationToken);
+            await SetTagsAsync(note, content, cancellationToken);
+        }
 
         db.Notes.Add(note);
         await db.SaveChangesAsync(cancellationToken);
@@ -159,8 +195,17 @@ public sealed class NoteService(
         }
 
         var wantedIds = request.AttachmentIds ?? note.Attachments.Select(a => a.Id).ToList();
-        var content = ValidateContent(request.Content, wantedIds.Count);
-        await SetContentAsync(note, content, cancellationToken);
+        string? content = null;
+        if (request.Encrypted is { } encrypted)
+        {
+            await RequireEndToEndAsync(userId, cancellationToken);
+            SetEncryptedContent(note, encrypted);
+        }
+        else
+        {
+            content = ValidateContent(request.Content, wantedIds.Count);
+            await SetContentAsync(note, content, cancellationToken);
+        }
 
         var removedFiles = new List<string>();
         if (request.AttachmentIds is not null)
@@ -175,7 +220,15 @@ public sealed class NoteService(
             await AttachAsync(note, wantedIds.Where(id => note.Attachments.All(a => a.Id != id)).ToList(), cancellationToken);
         }
 
-        await SetTagsAsync(note, content, cancellationToken);
+        if (content is null)
+        {
+            await SetEncryptedTagsAsync(note, request.Encrypted!.Tags, cancellationToken);
+        }
+        else
+        {
+            await SetTagsAsync(note, content, cancellationToken);
+        }
+
         note.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);
 
@@ -246,7 +299,7 @@ public sealed class NoteService(
     /// <summary>Lists the user's tags with the number of active notes using each.</summary>
     /// <param name="userId">The owner.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
-    /// <returns>Tags in alphabetical order.</returns>
+    /// <returns>Named tags in alphabetical order, then end-to-end tags (tokens and encrypted names).</returns>
     public async Task<IReadOnlyList<TagResponse>> ListTagsAsync(Guid userId, CancellationToken cancellationToken)
     {
         var rows = await db.Tags
@@ -254,28 +307,39 @@ public sealed class NoteService(
             .Select(t => new
             {
                 t.Name,
+                t.Token,
+                t.EncryptedName,
                 Count = db.Notes.Count(n => n.UserId == userId && n.ArchivedAtUtc == null && n.Tags.Any(nt => nt.Id == t.Id)),
             })
             .Where(row => row.Count > 0)
-            .OrderBy(row => row.Name)
+            .OrderBy(row => row.Name == null)
+            .ThenBy(row => row.Name)
+            .ThenBy(row => row.Token)
             .ToListAsync(cancellationToken);
-        return rows.Select(row => new TagResponse(row.Name, row.Count)).ToList();
+        return rows.Select(row => new TagResponse(row.Name, row.Count, row.Token, row.EncryptedName)).ToList();
     }
 
-    /// <summary>Decrypts (if needed) and maps a loaded note, with its tags and attachments, to its API form.</summary>
+    /// <summary>
+    /// Maps a loaded note, with its tags and attachments, to its API form: decrypted when the server encrypted it, as
+    /// stored when the browser did.
+    /// </summary>
     /// <param name="note">A note loaded with <c>Tags</c> and <c>Attachments</c>.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The API representation.</returns>
-    internal async Task<NoteResponse> ToResponseAsync(Note note, CancellationToken cancellationToken) =>
-        new(
+    internal async Task<NoteResponse> ToResponseAsync(Note note, CancellationToken cancellationToken)
+    {
+        var endToEnd = note.Scheme == ContentScheme.EndToEnd;
+        return new(
             note.Id,
-            await ReadContentAsync(note, cancellationToken),
+            endToEnd ? null : await ReadContentAsync(note, cancellationToken),
             note.IsPinned,
             note.ArchivedAtUtc is not null,
             note.CreatedAtUtc,
             note.UpdatedAtUtc,
-            note.Tags.Select(t => t.Name).Order(StringComparer.Ordinal).ToList(),
-            note.Attachments.OrderBy(a => a.CreatedAtUtc).Select(AttachmentResponse.From).ToList());
+            note.Tags.Where(t => t.Name is not null).Select(t => t.Name!).Order(StringComparer.Ordinal).ToList(),
+            note.Attachments.OrderBy(a => a.CreatedAtUtc).Select(AttachmentResponse.From).ToList(),
+            endToEnd ? note.Content : null);
+    }
 
     /// <summary>Returns a note's text, decrypting it when necessary.</summary>
     /// <param name="note">The note.</param>
@@ -308,7 +372,7 @@ public sealed class NoteService(
         notes.Include(n => n.Attachments).Include(n => n.Tags).AsSplitQuery();
 
     private Task<List<Note>> LoadBatchAsync(
-        Guid userId, NoteState state, string? tag, NoteCursor? cursor, int count, CancellationToken cancellationToken)
+        Guid userId, NoteState state, TagFilter filter, NoteCursor? cursor, int count, CancellationToken cancellationToken)
     {
         var notes = db.Notes.AsNoTracking().Where(n => n.UserId == userId);
         notes = state switch
@@ -319,10 +383,13 @@ public sealed class NoteService(
             _ => notes.Where(n => n.ArchivedAtUtc == null && !n.IsPinned),
         };
 
-        if (tag is not null)
+        if (filter.IsActive)
         {
+            var (tag, tokens) = (filter.Name, filter.Tokens);
             var nestedPrefix = tag + "/";
-            notes = notes.Where(n => n.Tags.Any(t => t.Name == tag || t.Name.StartsWith(nestedPrefix)));
+            notes = notes.Where(n => n.Tags.Any(t =>
+                (tag != null && t.Name != null && (t.Name == tag || t.Name.StartsWith(nestedPrefix)))
+                || (t.Token != null && tokens.Contains(t.Token))));
         }
 
         if (cursor is { } position)
@@ -339,7 +406,7 @@ public sealed class NoteService(
     }
 
     private static bool Matches(NoteResponse note, string search) =>
-        note.Content.Contains(search, StringComparison.OrdinalIgnoreCase)
+        note.Content?.Contains(search, StringComparison.OrdinalIgnoreCase) == true
         || note.Attachments.Any(a => a.FileName.Contains(search, StringComparison.OrdinalIgnoreCase));
 
     private static string ValidateContent(string? content, int attachmentCount)
@@ -367,6 +434,56 @@ public sealed class NoteService(
         note.Scheme = scheme;
     }
 
+    private async Task RequireEndToEndAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        if (await keys.GetModeAsync(userId, cancellationToken) != EncryptionMode.EndToEnd)
+        {
+            throw new ApiProblemException(
+                StatusCodes.Status409Conflict,
+                "This account does not use end-to-end encryption.",
+                "Send the note as plain text; the server protects it according to the account's settings.");
+        }
+    }
+
+    private static void SetEncryptedContent(Note note, EncryptedNote encrypted)
+    {
+        if (!EndToEndContent.IsEnvelope(encrypted.Content, EndToEndContent.MaxNoteEnvelopeBytes))
+        {
+            throw new ApiValidationException("encrypted.content", "This is not encrypted note text.");
+        }
+
+        note.Content = encrypted.Content;
+        note.Scheme = ContentScheme.EndToEnd;
+    }
+
+    private async Task SetEncryptedTagsAsync(Note note, IReadOnlyList<EncryptedTag>? tags, CancellationToken cancellationToken)
+    {
+        tags ??= [];
+        if (tags.Count > EndToEndContent.MaxTagsPerNote
+            || !tags.All(t => EndToEndContent.IsTagToken(t.Token) && EndToEndContent.IsEnvelope(t.Name, EndToEndContent.MaxTagNameEnvelopeBytes)))
+        {
+            throw new ApiValidationException("encrypted.tags", "Each tag needs a 22-character token and an encrypted name, at most 100 per note.");
+        }
+
+        var tokens = tags.Select(t => t.Token).Distinct().ToList();
+        var existing = tokens.Count == 0
+            ? []
+            : await db.Tags.Where(t => t.UserId == note.UserId && t.Token != null && tokens.Contains(t.Token)).ToListAsync(cancellationToken);
+
+        note.Tags.Clear();
+        foreach (var encrypted in tags.DistinctBy(t => t.Token))
+        {
+            var tag = existing.FirstOrDefault(t => t.Token == encrypted.Token);
+            if (tag is null)
+            {
+                tag = new Tag { UserId = note.UserId, Token = encrypted.Token, EncryptedName = encrypted.Name };
+                db.Tags.Add(tag);
+            }
+
+            note.Tags.Add(tag);
+        }
+    }
+
     private async Task AttachAsync(Note note, IReadOnlyCollection<Guid> attachmentIds, CancellationToken cancellationToken)
     {
         if (attachmentIds.Count == 0)
@@ -391,7 +508,7 @@ public sealed class NoteService(
         var names = TagParser.Extract(content);
         var existing = names.Count == 0
             ? []
-            : await db.Tags.Where(t => t.UserId == note.UserId && names.Contains(t.Name)).ToListAsync(cancellationToken);
+            : await db.Tags.Where(t => t.UserId == note.UserId && t.Name != null && names.Contains(t.Name)).ToListAsync(cancellationToken);
 
         note.Tags.Clear();
         foreach (var name in names)
@@ -413,4 +530,10 @@ public sealed class NoteService(
         db.Tags
             .Where(t => t.UserId == userId && !db.Notes.Any(n => n.UserId == userId && n.Tags.Any(nt => nt.Id == t.Id)))
             .ExecuteDeleteAsync(cancellationToken);
+
+    /// <summary>A tag filter: a tag name (plain-text notes) and blind tokens (end-to-end notes), matched with OR.</summary>
+    private readonly record struct TagFilter(string? Name, string[] Tokens)
+    {
+        public bool IsActive => Name is not null || Tokens.Length > 0;
+    }
 }

@@ -267,7 +267,7 @@ public sealed class NoteExporter(
 
         var exported = new ExportedNote(
             note.Id, content, created, updated,
-            note.Tags.Select(t => t.Name).Order(StringComparer.Ordinal).ToList(),
+            note.Tags.Where(t => t.Name is not null).Select(t => t.Name!).Order(StringComparer.Ordinal).ToList(),
             note.IsPinned, note.ArchivedAtUtc is not null, exportedAttachments);
         await WriteTextAsync(zip, notePath, NoteFormatter.Render(exported, options.Format), updated, cancellationToken);
         return (notePath, exported);

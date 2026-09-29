@@ -3,6 +3,7 @@ import { AppShell } from "./components/AppShell";
 import { Logo } from "./components/Logo";
 import { Button, Spinner } from "./components/ui";
 import { e2ee, useEndToEndKeys } from "./lib/e2ee";
+import { setContentSession } from "./lib/noteCrypto";
 import { useAuthStatus } from "./lib/queries";
 import { useLocation } from "./lib/router";
 import { AuthPage } from "./pages/AuthPage";
@@ -33,7 +34,9 @@ export function App() {
 
   // A key saved during a session that has ended cannot be opened any more; remove it.
   useEffect(() => {
-    if (signedOut) void e2ee.forget();
+    if (!signedOut) return;
+    setContentSession(null);
+    void e2ee.forget();
   }, [signedOut]);
 
   if (status.isPending) {
@@ -77,6 +80,10 @@ export function App() {
   if (keys.status === "locked") {
     return <UnlockPage user={user} />;
   }
+
+  // Set while rendering, not in an effect: the note lists below start loading in their own effects, which run
+  // before this component's, and must already encrypt and decrypt for this account. The assignment is idempotent.
+  setContentSession({ userId: user.id, mode: user.encryptionMode, keys: keys.status === "unlocked" ? keys.keys : null });
 
   return (
     <AppShell user={user}>

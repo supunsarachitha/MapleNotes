@@ -75,8 +75,8 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
 |---|---|---|---|
 | E0 | Crypto specification and shared test vectors | `docs/e2ee-spec.md` written; TypeScript and C# implementations produce identical results for the committed test vectors | ✅ Done (`bfdaaf4`) |
 | E1 | Key-derived sign-in for every account | The server never receives a password (register, sign-in, password change, re-authentication); legacy accounts upgrade at sign-in; unknown usernames are indistinguishable; all existing tests pass on the new flow | ✅ Done (`d819094`) |
-| E2 | End-to-end mode and key management | Three encryption modes and per-item schemes; recovery kit, password-reset-by-recovery-key and unlock screen; the server enforces ciphertext-only writes for E2EE accounts | ✅ Done |
-| E3 | Notes, tags and search in the browser | For an E2EE account the database contains no note text or tag names (asserted by scanning); tag filter and search work in the browser | ⏳ Not started |
+| E2 | End-to-end mode and key management | Three encryption modes and per-item schemes; recovery kit, password-reset-by-recovery-key and unlock screen; the server enforces ciphertext-only writes for E2EE accounts | ✅ Done (`f117e43`) |
+| E3 | Notes, tags and search in the browser | For an E2EE account the database contains no note text or tag names (asserted by scanning); tag filter and search work in the browser | ✅ Done |
 | E4 | Attachments and the media service worker | Files and their names are stored only as ciphertext; images and video (with seeking) play through the service worker; fallback without it | ⏳ Not started |
 | E5 | Switching modes in both directions | Resumable browser-driven conversion with progress; tests interrupt it in both directions; the server holds no content key after entering E2EE | ⏳ Not started |
 | E6 | Export in the browser | The browser export matches the server export's structure for all 12 format and layout combinations; streamed download verified | ⏳ Not started |
@@ -96,6 +96,12 @@ Status is updated as each phase finishes. ✅ done · 🚧 in progress · ⏳ no
   Chromium through the Vite dev server (the page imports the app's own `e2ee` module to switch an account): setup,
   saved-key restore after a reload, the unlock screen on a second browser, reset with the recovery key (which signs
   out other devices), sign-in with the new password, and a new recovery key from Settings.
+- **E3:** a server test reads every value of every table of the decrypted database and finds no note text or tag
+  names (with a positive control proving the scan reads stored values). While designing the browser check, one leak
+  was found and closed: tag filters sent the tag's name alongside its tokens; the name is now sent only while
+  plain-text notes still carry that tag. Verified in Chromium: posting, editing and pinning encrypted notes, decrypted
+  tag names, a nested tag filter, search, and a reload, with none of the 28 requests carrying note text or tag names;
+  the 18-step suite still passes for ordinary accounts.
 
 ## Out of scope for v1.1.0
 

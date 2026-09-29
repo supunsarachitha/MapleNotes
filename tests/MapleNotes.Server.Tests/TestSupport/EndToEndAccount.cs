@@ -1,7 +1,9 @@
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using System.Text;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Features.EndToEnd;
+using MapleNotes.Server.Features.Notes;
 
 namespace MapleNotes.Server.Tests.TestSupport;
 
@@ -51,6 +53,27 @@ internal sealed record EndToEndAccount(Guid UserId, byte[] DataKey, byte[] Recov
     /// <summary>Wraps the data key for a new password with the given parameters.</summary>
     public byte[] WrapFor(string password, KdfParameters kdf) =>
         E2eeCrypto.Seal(ApiClient.DeriveKeys(password, kdf).WrapKey, DataKey, E2eeCrypto.DataKeyContext(UserId));
+
+    /// <summary>Encrypts note text and its tags as the web app does (docs/e2ee-spec.md §2, §4).</summary>
+    public EncryptedNote EncryptNote(Guid noteId, string text) =>
+        new(E2eeCrypto.EncryptNote(DataKey, UserId, noteId, text), TagParser.Extract(text).Select(EncryptTag).ToList());
+
+    /// <summary>A tag's blind token and encrypted name.</summary>
+    public EncryptedTag EncryptTag(string name)
+    {
+        var token = E2eeCrypto.TagToken(DataKey, name);
+        return new EncryptedTag(token, E2eeCrypto.EncryptTagName(DataKey, UserId, token, name));
+    }
+
+    /// <summary>The blind token of a tag name.</summary>
+    public string Token(string name) => E2eeCrypto.TagToken(DataKey, name);
+
+    /// <summary>Decrypts a note returned by the API.</summary>
+    public string Decrypt(NoteResponse note) => E2eeCrypto.DecryptNote(DataKey, UserId, note.Id, note.EncryptedContent!);
+
+    /// <summary>Decrypts the name of an end-to-end tag returned by the API.</summary>
+    public string DecryptName(TagResponse tag) =>
+        Encoding.UTF8.GetString(E2eeCrypto.Open(E2eeCrypto.SubKeys(DataKey).Metadata, tag.EncryptedName!, E2eeCrypto.TagContext(UserId, tag.Token!)));
 
     /// <summary>Reads a JSON response body.</summary>
     public static async Task<T> ReadAsync<T>(HttpResponseMessage response) =>

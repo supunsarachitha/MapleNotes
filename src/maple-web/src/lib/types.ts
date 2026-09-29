@@ -53,6 +53,7 @@ export interface Attachment {
   createdAtUtc: string;
 }
 
+/** A note as components use it: plain text, decrypted if it was end-to-end encrypted. */
 export interface Note {
   id: string;
   content: string;
@@ -69,12 +70,37 @@ export interface NotePage {
   nextCursor: string | null;
 }
 
+/** A note as the API returns it: end-to-end encrypted notes carry `encryptedContent` instead of `content`. */
+export interface NoteWire extends Omit<Note, "content"> {
+  content: string | null;
+  encryptedContent?: string | null;
+}
+
+export interface NotePageWire {
+  items: NoteWire[];
+  nextCursor: string | null;
+}
+
+/** Note text encrypted in the browser, with blind tag tokens and encrypted tag names (docs/e2ee-spec.md §2, §4). */
+export interface EncryptedNoteWire {
+  content: string;
+  tags: Array<{ token: string; name: string }>;
+}
+
 /** feed: active unpinned notes; pinned; active: all active notes (search/tags); archived. */
 export type NoteState = "feed" | "pinned" | "active" | "archived";
 
 export interface Tag {
   name: string;
   noteCount: number;
+}
+
+/** A tag as the API returns it: end-to-end tags have a token and an encrypted name instead of a name. */
+export interface TagWire {
+  name: string | null;
+  noteCount: number;
+  token?: string | null;
+  encryptedName?: string | null;
 }
 
 export interface AdminUser {

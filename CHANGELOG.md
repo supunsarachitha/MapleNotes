@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attachment its own scheme. The browser creates the end-to-end key and stores it on the server only wrapped by the
   password and by a recovery key. Includes an unlock screen, password reset with the recovery key, a new recovery key
   from Settings, and keeping the unlocked key in the browser sealed under a secret that ends with the session.
+- **End-to-end encrypted notes and tags:** in end-to-end mode the browser encrypts each note under an ID it chooses,
+  and turns tags into blind tokens with encrypted names; the server filters and counts by token. Search and nested tag
+  filters work in the browser, and neither note text, tag names nor search terms reach the server.
 
 ### Changed
 

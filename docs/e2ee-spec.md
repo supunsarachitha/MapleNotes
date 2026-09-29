@@ -76,6 +76,15 @@ AAD = bytes [0..1] ‖ UTF-8(context)
 
 The plaintext of a wrapped data key is exactly its 32 bytes.
 
+**Notes in the API.** An account in end-to-end mode creates a note with `{ id, encrypted: { content, tags } }`
+instead of `{ content }`: `id` is the UUID version 7 chosen by the browser (bound into the context above),
+`encrypted.content` the note envelope, and `encrypted.tags` the note's tags as `{ token, name }` (§4). Updates send
+`encrypted` for the note's existing ID; saving a note that the server encrypted converts it. The server checks sizes,
+headers, tokens and the ID, and answers ciphertext from an account in another mode with 409. Notes come back with
+`content: null` and `encryptedContent` set; the browser decrypts them and reads their tags from the text. Server-side
+search (`q`) never matches an end-to-end note: the browser searches instead, scanning pages of notes and returning the
+matches with the cursor to continue from, and never sends the search text.
+
 ## 3. The E2EE data key and its subkeys
 
 The data key is 32 random bytes generated in the browser when E2EE is switched on. It never leaves the browser
@@ -118,9 +127,12 @@ worker that converts between `None` and `Server` never touches end-to-end conten
 - **Normalization:** NFC, then JavaScript's `toLowerCase()` (Unicode default case mapping).
 - **Token:** `base64url(HMAC-SHA256(tagIndexKey, UTF-8(normalized name))[0..16])`, which is 22 characters.
 - **Storage:** the server stores the token, the note–tag links and the encrypted tag name (§2). It can filter and
-  count by token but never learns the name.
-- **Nested tags:** filtering by `work` sends the tokens of `work` and of every known tag below it (`work/…`). The
-  browser knows these from the decrypted tag list.
+  count by token but never learns the name. `GET /api/v1/tags` returns `{ name: null, token, encryptedName,
+  noteCount }` for such tags; the browser decrypts the names.
+- **Nested tags:** filtering by `work` sends the tokens of `work` and of every known tag below it (`work/…`) as
+  repeated `tagToken` parameters. The browser knows these from the decrypted tag list, which it loads first if needed.
+- **Names in filters:** the browser adds `tag=work` only while plain-text notes of the account carry that tag (during
+  a conversion), so the server never receives a tag name it does not already store.
 
 ## 5. Attachments
 

@@ -179,6 +179,10 @@ mid-way simply converges the other way. The server never touches end-to-end cont
 accounts: it cannot read the former, and in end-to-end mode it accepts new content only as ciphertext (plain text gets
 HTTP 409). Content is converted to and from end-to-end encryption by the browser, which holds the key.
 
+For an end-to-end account the web app encrypts and decrypts at its API boundary (`src/maple-web/src/lib/noteCrypto.ts`),
+so the rest of the interface works with plain notes: new notes get an ID chosen in the browser, tags become blind
+tokens with encrypted names, tag filters send tokens, and search runs in the browser over decrypted pages of notes.
+
 Crash safety:
 - **Notes** convert in batches of 100, each saved in one transaction. A crash rolls the whole batch back.
 - **Attachments** are written as a new file under a new storage key. Only then is the database row switched to the

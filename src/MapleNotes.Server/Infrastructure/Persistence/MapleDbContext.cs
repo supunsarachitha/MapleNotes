@@ -102,6 +102,8 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             tag.HasOne<User>().WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
             tag.Property(t => t.Name).HasMaxLength(64);
             tag.HasIndex(t => new { t.UserId, t.Name }).IsUnique();
+            tag.Property(t => t.Token).HasMaxLength(22);
+            tag.HasIndex(t => new { t.UserId, t.Token }).IsUnique();
         });
 
         modelBuilder.Entity<InstanceSetting>(setting =>
