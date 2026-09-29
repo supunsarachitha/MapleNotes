@@ -238,6 +238,18 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   - jumping to a section, and a link from the guide into Settings;
   - 375 px width;
   - the 18-step suite and the link-preview run.
+- **After F15:** the app icon became the leaf in autumn colours (red at the heart, gold at the tips) without the tile,
+  as the user asked, to feel like the 🍁 emoji. It is original artwork; no emoji font's design is copied (see
+  `docs/licensing.md`).
+- **Final check of the whole of 1.2**, on an image built from a clean clone of the branch:
+  - 399 server tests, 184 web tests, the production build and the license check pass;
+  - 195 browser checks in Chromium across 21 runs pass: every 1.1 suite (the 18-step suite, the 1.0 upgrade, keys,
+    notes, media, the built worker, mode changes, export) and every 1.2 phase (F2–F15, with F7's three-instance
+    restore).
+
+  Two browser scripts were adjusted along the way. The media and export scripts waited for uploads by a colour
+  class that the calendar's dots now share. The daily-notes script checked before the switch to end-to-end
+  encryption had finished converting.
 
 ## Out of scope for 1.2.0
 
