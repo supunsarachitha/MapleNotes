@@ -27,6 +27,8 @@ modes, and each account chooses which ones it uses.
 - **Appearance** (Settings → Appearance): light, dark or the device's theme, and seven accent colours (Maple, Ocean,
   Forest, Teal, Plum, Amber, Slate), each keeping text contrast at 4.5:1 or better. The device remembers the last
   choice, so the sign-in screen matches.
+- **Image viewer:** choosing an image attachment opens it full screen, with previous and next (buttons, arrow keys
+  or a swipe) and a download button. End-to-end images are decrypted as usual.
 - **Calendar** (on by default): a month calendar in the side menu (and the phone drawer) marks the days with notes,
   in your time zone; choosing a day shows its notes.
 - **Restore** (Settings → Backup & restore): bring back Maple Notes exports (`.zip`, any format and layout, with
@@ -43,6 +45,8 @@ modes, and each account chooses which ones it uses.
   encryption change is being applied.
 - **Exports** record each note's kind and daily date in every format, and file todo lists and quick notes under
   `todo/` and `quick-notes/`. The manifest is version 2.
+- Attachment images are responsive: a single image keeps its own shape (never cropped or enlarged, at most 70% of the
+  screen height); several become a grid of square thumbnails, three across on wider screens.
 - Searches, tag views, tag counts and the archive cover every kind of note that is turned on, with todo lists and
   quick notes labelled.
 

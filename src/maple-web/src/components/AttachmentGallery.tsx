@@ -1,19 +1,22 @@
 import { FileText } from "lucide-react";
+import { useState } from "react";
 import { formatBytes } from "../lib/format";
 import { useAttachmentSrc } from "../lib/mediaWorker";
 import type { Attachment } from "../lib/types";
+import { ImageViewer } from "./ImageViewer";
 import { cn, Spinner } from "./ui";
 
-function GalleryImage({ image, single }: { image: Attachment; single: boolean }) {
+function GalleryImage({ image, single, onOpen }: { image: Attachment; single: boolean; onOpen: () => void }) {
   const src = useAttachmentSrc(image);
   return (
-    <a
-      href={src}
-      target="_blank"
-      rel="noopener"
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`View ${image.fileName}`}
       className={cn(
-        "flex items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-800",
-        !src && (single ? "min-h-40" : "aspect-square"),
+        "flex items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-maple-500 dark:border-stone-800 dark:bg-stone-800",
+        single ? "max-w-full self-start" : "aspect-square w-full",
+        !src && single && "min-h-40 w-full",
       )}
     >
       {src ? (
@@ -22,12 +25,13 @@ function GalleryImage({ image, single }: { image: Attachment; single: boolean })
           alt={image.fileName}
           loading="lazy"
           decoding="async"
-          className={cn("w-full object-cover", single ? "max-h-[28rem]" : "aspect-square")}
+          // One image keeps its shape at up to its own size; several become square thumbnails.
+          className={single ? "block h-auto max-h-[70vh] w-auto max-w-full object-contain" : "size-full object-cover"}
         />
       ) : (
         <Spinner className="size-5 text-stone-400" />
       )}
-    </a>
+    </button>
   );
 }
 
@@ -73,10 +77,11 @@ export function AttachmentThumbnail({ attachment }: { attachment: Attachment }) 
 }
 
 /**
- * Images as a grid, audio and video with native players, other files as download chips. End-to-end files are
+ * Images (one at its own shape, several as a grid of thumbnails, each opening the image viewer), audio and video with native players, other files as download chips. End-to-end files are
  * decrypted in the browser (see useAttachmentSrc).
  */
 export function AttachmentGallery({ attachments }: { attachments: Attachment[] }) {
+  const [viewing, setViewing] = useState<number | null>(null);
   if (attachments.length === 0) return null;
 
   const images = attachments.filter((a) => a.isImage);
@@ -87,12 +92,13 @@ export function AttachmentGallery({ attachments }: { attachments: Attachment[] }
   return (
     <div className="mt-3 flex flex-col gap-2">
       {images.length > 0 && (
-        <div className={cn("grid gap-2", images.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
-          {images.map((image) => (
-            <GalleryImage key={image.id} image={image} single={images.length === 1} />
+        <div className={cn("gap-2", images.length === 1 ? "flex" : "grid grid-cols-2", images.length >= 3 && "sm:grid-cols-3")}>
+          {images.map((image, index) => (
+            <GalleryImage key={image.id} image={image} single={images.length === 1} onOpen={() => setViewing(index)} />
           ))}
         </div>
       )}
+      <ImageViewer images={images} index={viewing} onIndexChange={setViewing} onClose={() => setViewing(null)} />
 
       {videos.map((video) => (
         <VideoPlayer key={video.id} video={video} />

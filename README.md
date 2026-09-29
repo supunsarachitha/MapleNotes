@@ -33,7 +33,8 @@
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists, tables, code) and clickable `#tags`, including
   nested tags such as `#work/meetings`, with a tag list and tag filter.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
-  upload progress. Images and media play inline; video seeking works on iOS.
+  upload progress. Images keep their shape on any screen and open in a full-screen viewer; audio and video play
+  inline, and video seeking works on iOS.
 - **Search.** Finds text in your notes, including encrypted ones. With end-to-end encryption, search runs in your
   browser.
 - **Encryption, chosen per account.**

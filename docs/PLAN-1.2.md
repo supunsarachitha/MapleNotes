@@ -69,7 +69,11 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
 | F8 | Documentation, hardening and release | README (features, screenshots), architecture, spec and threat model, CHANGELOG (1.2.0), versions and notices updated; clean-clone browser run passes | ✅ Done (`f66f0cb`) |
 | F9 | Calendar in the side menu (requested after F8) | A month calendar in the side menu marks the days that have notes; choosing a day shows that day's notes; works in every encryption mode; a Features switch (on by default); docs, changelog and preview updated | ✅ Done |
 | F10 | Appearance: theme colour and dark mode (requested after F8) | Settings → Appearance offers System, Light or Dark and a choice of accent colours, saved per account and applied at once, with no flash of the wrong theme when the app opens; every accent keeps text contrast at least 4.5:1 in both themes | ✅ Done |
-| F11 | Image viewer and responsive images (requested after F8) | Choosing an image attachment opens a full-screen viewer (next/previous for a note's images, keyboard, swipe, close); attachment images scale to any screen width without overflowing or distorting; works for end-to-end files | ⏳ Not started |
+| F11 | Image viewer and responsive images (requested after F8) | Choosing an image attachment opens a full-screen viewer (next/previous for a note's images, keyboard, swipe, close); attachment images scale to any screen width without overflowing or distorting; works for end-to-end files | ✅ Done |
+| F12 | Tags page (requested after F8) | Tags get their own page from the side menu: every tag with its count, a filter box, nested tags under their parents; the side menu no longer lists tags | ⏳ Not started |
+| F13 | Formatting toolbar (requested after F8) | The editor has a toolbar (bold, italic, heading, bulleted list, checklist, quote, code, link) that inserts Markdown at the cursor or around the selection, with keyboard shortcuts; works in every editor (notes, edits, quick notes, daily notes) | ⏳ Not started |
+| F14 | Link previews (requested after F8) | An option (off by default) shows a preview card (title, description, site) for links in notes, fetched by the server with protection against requests to internal addresses; its privacy cost (the server learns the links, including for end-to-end accounts) is explained where it is turned on | ⏳ Not started |
+| F15 | User guide in the app (requested after F8) | A Help page in the side menu explains every feature for people using the app (not running it), with a table of contents and links to the matching settings; it ships with the app, so it works offline and needs no server changes | ⏳ Not started |
 
 ### Notes from the phases
 
@@ -173,6 +177,15 @@ rebuilt from the branch, so each phase can be tried as it lands (from F5 on).
   - Device on a light and on a dark device, and Light and Dark overriding each;
   - an accent recolouring buttons and the browser's theme colour;
   - the choice kept after a reload and on the sign-in page;
+  - the 18-step suite.
+- **F11** (requested after F8): the viewer is built on the accessible dialog the app already uses, so focus, Esc
+  and screen readers work as for other dialogs, and it shows the same image sources as the note, including
+  end-to-end images decrypted through the media service worker. Verified in Chromium on the production build:
+  - a tall image keeps its shape at 70% of the screen height, a small one is not enlarged, and several become square
+    thumbnails;
+  - the viewer fits each image, with paging by arrow keys, buttons and a swipe (wrapping around), and Esc;
+  - at 375 px, no horizontal scrolling and the images fitted;
+  - an end-to-end image opens decrypted;
   - the 18-step suite.
 
 ## Out of scope for 1.2.0
