@@ -82,52 +82,56 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-4">
-      <Link href="/" onClick={onNavigate} className="flex items-center gap-3 px-1">
-        <Logo />
-        <span className="text-lg font-semibold tracking-tight">Maple Notes</span>
-      </Link>
+    <div className="flex h-full flex-col">
+      <div className="flex flex-col gap-4 p-4 pb-3">
+        <Link href="/" onClick={onNavigate} className="flex items-center gap-3 px-1">
+          <Logo />
+          <span className="text-lg font-semibold tracking-tight">Maple Notes</span>
+        </Link>
 
-      <SearchBox onNavigate={onNavigate} />
+        <SearchBox onNavigate={onNavigate} />
+      </div>
 
-      <nav aria-label="Main" className="flex flex-col gap-1">
-        <NavLink href="/" icon={Home} active={path === "/" && !activeTag && !params.get("q") && !params.get("day")} onNavigate={onNavigate}>
-          Home
-        </NavLink>
-        {preferences.todoLists && (
-          <NavLink href="/todo" icon={ListTodo} active={path === "/todo"} onNavigate={onNavigate}>
-            Todo
+      {/* The menu and the calendar scroll when the window is too short for them; the account row below always shows. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-1">
+        <nav aria-label="Main" className="flex flex-col gap-1">
+          <NavLink href="/" icon={Home} active={path === "/" && !activeTag && !params.get("q") && !params.get("day")} onNavigate={onNavigate}>
+            Home
           </NavLink>
-        )}
-        {preferences.quickNotes && (
-          <NavLink href="/quick" icon={Zap} active={path === "/quick"} onNavigate={onNavigate}>
-            Quick notes
+          {preferences.todoLists && (
+            <NavLink href="/todo" icon={ListTodo} active={path === "/todo"} onNavigate={onNavigate}>
+              Todo
+            </NavLink>
+          )}
+          {preferences.quickNotes && (
+            <NavLink href="/quick" icon={Zap} active={path === "/quick"} onNavigate={onNavigate}>
+              Quick notes
+            </NavLink>
+          )}
+          {preferences.habitTracker && (
+            <NavLink href="/habits" icon={CalendarCheck} active={path === "/habits"} onNavigate={onNavigate}>
+              Habits
+            </NavLink>
+          )}
+          <NavLink href="/tags" icon={Hash} active={path === "/tags" || (path === "/" && !!activeTag)} onNavigate={onNavigate}>
+            Tags
+            {tags.data && tags.data.length > 0 && <span className="ml-auto text-xs font-normal text-stone-400">{tags.data.length}</span>}
           </NavLink>
-        )}
-        {preferences.habitTracker && (
-          <NavLink href="/habits" icon={CalendarCheck} active={path === "/habits"} onNavigate={onNavigate}>
-            Habits
+          <NavLink href="/archive" icon={Archive} active={path === "/archive"} onNavigate={onNavigate}>
+            Archive
           </NavLink>
-        )}
-        <NavLink href="/tags" icon={Hash} active={path === "/tags" || (path === "/" && !!activeTag)} onNavigate={onNavigate}>
-          Tags
-          {tags.data && tags.data.length > 0 && <span className="ml-auto text-xs font-normal text-stone-400">{tags.data.length}</span>}
-        </NavLink>
-        <NavLink href="/archive" icon={Archive} active={path === "/archive"} onNavigate={onNavigate}>
-          Archive
-        </NavLink>
-        <NavLink href="/settings" icon={Settings} active={path === "/settings"} onNavigate={onNavigate}>
-          Settings
-        </NavLink>
-        <NavLink href="/help" icon={CircleHelp} active={path === "/help"} onNavigate={onNavigate}>
-          Help
-        </NavLink>
-      </nav>
+          <NavLink href="/settings" icon={Settings} active={path === "/settings"} onNavigate={onNavigate}>
+            Settings
+          </NavLink>
+          <NavLink href="/help" icon={CircleHelp} active={path === "/help"} onNavigate={onNavigate}>
+            Help
+          </NavLink>
+        </nav>
 
-      {preferences.calendar && <Calendar onNavigate={onNavigate} />}
+        {preferences.calendar && <Calendar onNavigate={onNavigate} />}
+      </div>
 
-
-      <div className="mt-auto flex items-center gap-3 border-t border-stone-200 pt-4 dark:border-stone-800">
+      <div className="mx-4 mb-4 mt-3 flex items-center gap-3 border-t border-stone-200 pt-4 dark:border-stone-800">
         <div
           aria-hidden="true"
           className="flex size-9 shrink-0 items-center justify-center rounded-full bg-maple-100 text-sm font-semibold uppercase text-maple-700 dark:bg-maple-600/20 dark:text-maple-400"
