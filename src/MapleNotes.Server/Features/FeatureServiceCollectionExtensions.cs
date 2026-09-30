@@ -41,7 +41,7 @@ internal static class FeatureServiceCollectionExtensions
         services.AddHttpClient(LinkPreviewService.ClientName, client =>
             {
                 client.Timeout = TimeSpan.FromSeconds(10);
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("MapleNotes/1.2 (link preview)");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd($"MapleNotes/{typeof(LinkPreviewService).Assembly.GetName().Version?.ToString(2)} (link preview)");
             })
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
