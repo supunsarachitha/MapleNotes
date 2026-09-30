@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
+import { HabitChart } from "../components/HabitChart";
 import { ArchivedHabitRow, DAY_GRID, HABIT_ROW, HabitRow } from "../components/HabitRow";
 import { useToast } from "../components/Toaster";
 import { Button, EmptyState, IconButton, Spinner, cn } from "../components/ui";
@@ -141,17 +142,20 @@ function Habits() {
         ) : active.data.length === 0 ? (
           <EmptyState title="No habits yet">Add one above, then tick off each day you do it.</EmptyState>
         ) : (
-          <section
-            aria-label="Days done"
-            className="rounded-2xl border border-stone-200 bg-white px-3 py-2 shadow-sm sm:px-4 dark:border-stone-800 dark:bg-stone-900"
-          >
-            <WeekHeader days={days} today={today} weeksBack={weeksBack} onChange={setWeeksBack} />
-            <ul aria-label="Your habits" className="divide-y divide-stone-100 dark:divide-stone-800">
-              {active.data.map((note) => (
-                <HabitRow key={note.id} note={note} days={days} today={today} />
-              ))}
-            </ul>
-          </section>
+          <>
+            <section
+              aria-label="Days done"
+              className="rounded-2xl border border-stone-200 bg-white px-3 py-2 shadow-sm sm:px-4 dark:border-stone-800 dark:bg-stone-900"
+            >
+              <WeekHeader days={days} today={today} weeksBack={weeksBack} onChange={setWeeksBack} />
+              <ul aria-label="Your habits" className="divide-y divide-stone-100 dark:divide-stone-800">
+                {active.data.map((note) => (
+                  <HabitRow key={note.id} note={note} days={days} today={today} />
+                ))}
+              </ul>
+            </section>
+            <HabitChart notes={active.data} today={today} />
+          </>
         )}
       </div>
       <ArchivedHabits notes={archived.data ?? []} />

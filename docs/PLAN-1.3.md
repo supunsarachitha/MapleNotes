@@ -12,7 +12,7 @@ note text.
 
 Beaverhabits (BSD-3-Clause) inspired only the idea: a list of habits with recent days to tick off. Nothing is copied
 from it or from any other project: no code, text, styles, icons or images. No dependency is added either. The chart is
-our own SVG, and the menu icon comes from lucide-react, which the app already uses (ISC licence).
+our own HTML and CSS, and the menu icon comes from lucide-react, which the app already uses (ISC licence).
 `scripts/check-licenses.py` must still pass.
 
 ## Decisions
@@ -98,7 +98,8 @@ This week 71% · 12-week average 64%
 - A period before any habit existed shows no bar.
 - A streak is a run of consecutive days done, ending today, or ending yesterday while today is not ticked yet.
 - Weeks start on the locale's first day, as in the side-menu calendar.
-- The chart is SVG in the accent colour, and works in the light and dark themes.
+- The chart is drawn with plain HTML elements in the accent colour, and works in the light and dark themes. The
+  plan first said SVG, but SVG text shrinks with the chart on a phone, while HTML labels stay readable.
 - Screen readers get a text summary and a hidden table of the values.
 
 ### Security
@@ -125,7 +126,7 @@ volume `maple-preview-data`) rebuilt from the branch.
 | H1 | Server: the habit kind | Listing, creating and importing accept `habit`, and kind changes to or from it are refused. Tag and calendar counts leave habits out by default. Exports put habits in `habits/`. The `habitTracker` preference exists and is off by default. Server tests cover each of these | ✅ Done |
 | H2 | Web foundations | The Features switch. The Habits tab and route, hidden when the switch is off, with a "turned off" page like the Todo tab's. Tested functions for the habit text format (read, write, tick) and the statistics (streaks, weekly and monthly rates, week start, dates that stay right across daylight-saving changes). The browser export and restore handle habits, checked by the shared export vectors | ✅ Done |
 | H3 | The Habits page | Adding, ticking (last 7 days, with week arrows), renaming, archiving, restoring and deleting habits all work. Ticks save through the save queue, now shared with todo lists. The page works on a 360 px phone and for end-to-end accounts. Component tests cover it | ✅ Done |
-| H4 | Progress chart | Weekly and monthly bars for all habits or one; streaks and totals; the screen-reader summary; light and dark themes; tests | ⏳ |
+| H4 | Progress chart | Weekly and monthly bars for all habits or one; streaks and totals; the screen-reader summary; light and dark themes; tests | ✅ Done |
 | H5 | Documentation and release | A Help page section. The README (feature list and a screenshot), CHANGELOG (1.3.0), threat model and spec are updated, and the version is 1.3.0. Browser checks pass for an ordinary and an end-to-end account: ticks survive reloads, an export restores with every habit and day, and the phone layout works. A clean-clone run of every test passes | ⏳ |
 
 ## Effort
@@ -227,3 +228,23 @@ The main risks, and how they are handled:
   - on an end-to-end account, a habit from before end-to-end is converted with its ticks, and new ticks are stored
     only as ciphertext.
 - **Tests:** 207 web tests pass.
+
+### H4: progress chart
+
+- **`HabitChart`** sits under the list:
+  - a menu for all habits or one;
+  - a Weeks / Months toggle made of two toggle buttons;
+  - "This week: 56% · Last 12 weeks: 72%";
+  - for one habit, "Current streak · Best · Done".
+- **Bars:** they are plain elements, darker for the current period, and a thin grey line for 0%. A period before
+  any habit existed has no bar. On phones every other week is labelled, always including this one.
+- **Screen readers:** the drawing is hidden from them, and they get a table with one row per period (share and days
+  done).
+- **A chosen habit that gets archived:** the chart goes back to all habits.
+- **Tests:**
+  - Unit tests check hand-worked numbers: a week that starts on Sunday or Monday, months, and streaks. They pass in
+    the same six time zones.
+  - The browser check (scratchpad `h4-chart.mjs`) imports three habits with up to 10 weeks of history and compares
+    the chart's weekly, monthly and single-habit numbers and streaks with a separate calculation. All match, with no
+    horizontal scrolling at 360 px and no page errors.
+  - 212 web tests pass.
