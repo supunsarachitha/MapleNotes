@@ -1,0 +1,52 @@
+name: Website
+
+# Publishes site/ to GitHub Pages (https://supunsarachitha.github.io/MapleNotes/) whenever it changes on main.
+# One-time setup: Settings > Pages > Build and deployment > Source: GitHub Actions.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - site/**
+      - docs/screenshots/**
+      - src/maple-web/public/favicon.svg
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy the website
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # The icon and screenshots come from the app and the README, so the site always shows the current ones.
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/screenshots
+          cp -R site/. _site/
+          cp src/maple-web/public/favicon.svg _site/
+          cp docs/screenshots/*.png _site/screenshots/
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

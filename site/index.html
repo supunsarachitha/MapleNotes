@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>Maple Notes · Self-hosted notes, encrypted at rest or end to end</title>
+  <meta name="description" content="A self-hosted place for quick notes, todo lists, daily notes and habits, encrypted at rest or end to end. One Docker container.">
+  <meta name="theme-color" content="#f5f5f4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0c0a09" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Maple Notes">
+  <meta property="og:title" content="Maple Notes: self-hosted notes, encrypted at rest or end to end">
+  <meta property="og:description" content="Quick notes, todo lists, daily notes and a habit tracker on your own server, in one Docker container.">
+  <meta property="og:url" content="https://supunsarachitha.github.io/MapleNotes/">
+  <meta property="og:image" content="https://supunsarachitha.github.io/MapleNotes/screenshots/home-feed.png">
+  <meta property="og:image:alt" content="The Maple Notes home page with a timeline of notes.">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="./">
+        <img src="favicon.svg" alt="" width="28" height="28">
+        <span>Maple Notes</span>
+      </a>
+      <nav aria-label="Sections">
+        <a class="optional" href="#features">Features</a>
+        <a class="optional" href="#privacy">Privacy</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/supunsarachitha/MapleNotes">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap">
+        <p class="eyebrow">Self-hosted · Encrypted · One container</p>
+        <h1 id="hero-title">Quick notes on your own server, private by design.</h1>
+        <p class="lead">
+          Maple Notes is a calm place for the things you jot down every day: a timeline of notes, todo lists, daily
+          notes and a habit tracker. It runs in one Docker container, always keeps its database encrypted, and can
+          encrypt your notes in your browser so that not even the server can read them.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="#install">Install it</a>
+          <a class="button" href="https://github.com/supunsarachitha/MapleNotes">Source on GitHub</a>
+        </div>
+        <ul class="facts">
+          <li>Free for noncommercial use</li>
+          <li>Images for amd64 and arm64</li>
+          <li>Your server, your data</li>
+        </ul>
+
+        <div class="showcase">
+          <picture>
+            <source media="(max-width: 40rem)" srcset="screenshots/mobile-view.png" width="780" height="1688">
+            <source media="(prefers-color-scheme: dark)" srcset="screenshots/home-feed-dark.png" width="1280" height="900">
+            <img class="screen" src="screenshots/home-feed.png" width="1280" height="900"
+              alt="The Maple Notes home page: a box for writing a note above a timeline of notes with tags and a photo.">
+          </picture>
+          <img class="phone" src="screenshots/mobile-view.png" width="780" height="1688" alt="">
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section" aria-labelledby="features-title">
+      <div class="wrap">
+        <h2 id="features-title">Everything a notebook needs, and nothing it doesn't</h2>
+        <p class="section-lead">
+          Each account turns the extras on or off in Settings, on every device at once. Turning something off hides it
+          and deletes nothing.
+        </p>
+        <div class="groups">
+          <article class="card">
+            <h3>Write</h3>
+            <ul class="features">
+              <li><strong>Timeline.</strong> Newest notes first, pinned notes on top, and a box for the next one always
+                ready.</li>
+              <li><strong>Markdown and tags.</strong> Task lists, tables and code, a formatting toolbar, and nested tags
+                such as <code>#work/meetings</code>.</li>
+              <li><strong>Attachments.</strong> Photos, video, audio and any other file, by picker, paste or drag and
+                drop. Photos open full screen, and videos play in the note.</li>
+              <li><strong>Search.</strong> Finds any word in your notes, encrypted ones included.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Organise</h3>
+            <ul class="features">
+              <li><strong>Todo lists.</strong> Checklists in their own tab, to tick, rename, pin and archive.</li>
+              <li><strong>Quick notes.</strong> A scratchpad kept out of your timeline, until a note is worth
+                keeping.</li>
+              <li><strong>Daily notes.</strong> Today's note waits at the top of Home, titled with the date.</li>
+              <li><strong>Habit tracker.</strong> Tick off the days you keep each habit, and follow the weeks or months
+                in a chart, with streaks.</li>
+              <li><strong>Calendar and tags.</strong> The days you wrote on, and every tag with its count.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Keep</h3>
+            <ul class="features">
+              <li><strong>Export and restore.</strong> Everything as a ZIP of Markdown, plain text or JSON, with your
+                files, ready to restore on any Maple Notes server.</li>
+              <li><strong>Accounts.</strong> Room for the whole household. Administrators manage accounts but never
+                see anyone's notes.</li>
+              <li><strong>Your look.</strong> Light, dark or your device's setting, and seven accent colours.</li>
+              <li><strong>Help built in.</strong> A user guide in the app explains every feature.</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section screens" aria-labelledby="screens-title">
+      <div class="wrap">
+        <h2 id="screens-title">At home on a desk or in your pocket</h2>
+        <div class="gallery">
+          <figure class="wide">
+            <img src="screenshots/habits.png" width="1280" height="900" loading="lazy"
+              alt="The Habits page: four habits, each with a row of seven day circles, above a bar chart of the share of days done per week.">
+            <figcaption>The habit tracker: tick the days, then watch the weeks add up.</figcaption>
+          </figure>
+          <figure class="tall">
+            <img src="screenshots/todo.png" width="780" height="1688" loading="lazy"
+              alt="Todo lists on a phone: two checklists with some items ticked off.">
+            <figcaption>Todo lists on a phone.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy" class="section" aria-labelledby="privacy-title">
+      <div class="wrap">
+        <h2 id="privacy-title">Private by design, honest about the limits</h2>
+        <p class="section-lead">
+          The database is always encrypted. On top of that, each account chooses how its notes and files are
+          protected, and can change its mind later: existing notes are converted safely.
+        </p>
+        <div class="modes">
+          <article class="card mode">
+            <h3>Encrypted at rest <span class="badge">Default</span></h3>
+            <p>Notes and files are encrypted with the account's own key, which the server holds. A stolen disk, a
+              copied volume or a leaked backup shows only ciphertext.</p>
+          </article>
+          <article class="card mode strongest">
+            <h3>End to end <span class="badge">Strongest</span></h3>
+            <p>Your browser encrypts notes, tags, file names and files with a key only you hold. The server stores
+              ciphertext it cannot read, and a recovery key lets you reset a forgotten password.</p>
+          </article>
+          <article class="card mode">
+            <h3>Off</h3>
+            <p>Only the database encryption applies: notes are still encrypted on disk, as part of the
+              database.</p>
+          </article>
+        </div>
+        <ul class="checks">
+          <li>Your password never leaves the browser. It is turned into a key with Argon2id, and the server keeps only
+            a hash of that key.</li>
+          <li>A strict Content-Security-Policy, antiforgery tokens, and sessions checked on every request.</li>
+          <li>One small container: a chiseled image running as a non-root user, with a read-only filesystem and no
+            Linux capabilities in the provided setups.</li>
+        </ul>
+        <p class="note">
+          End-to-end encryption protects what the server stores, but the app itself comes from the server, so someone
+          who takes over the server could change it. The
+          <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/docs/threat-model.md">threat model</a>
+          explains what each mode protects against and what the server can still see.
+        </p>
+      </div>
+    </section>
+
+    <section id="install" class="section" aria-labelledby="install-title">
+      <div class="wrap">
+        <h2 id="install-title">Install it in a few minutes</h2>
+        <p class="section-lead">
+          You need Docker. Ready-made images for amd64 and arm64 are published at
+          <code>ghcr.io/supunsarachitha/maplenotes</code>.
+        </p>
+        <div class="install">
+          <article class="card">
+            <h3>Docker Compose</h3>
+            <pre><code>git clone https://github.com/supunsarachitha/MapleNotes
+cd MapleNotes
+cp .env.example .env
+openssl rand -base64 32  # MAPLE_MASTER_KEY in .env
+docker compose up -d --build</code></pre>
+            <p>Then open <code>http://localhost:8080</code> and create the first account. It becomes the
+              administrator.</p>
+          </article>
+          <article class="card">
+            <h3>docker run</h3>
+            <pre><code>docker run --rm \
+  ghcr.io/supunsarachitha/maplenotes:latest generate-key
+
+docker run -d --name maple-notes -p 8080:8080 \
+  -e MAPLE_MASTER_KEY='&lt;your key&gt;' \
+  -v maple-data:/app/data \
+  --read-only --tmpfs /tmp --cap-drop ALL \
+  --security-opt no-new-privileges:true \
+  --restart unless-stopped \
+  ghcr.io/supunsarachitha/maplenotes:latest</code></pre>
+          </article>
+          <article class="card span">
+            <h3>Portainer</h3>
+            <p>
+              Paste <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/deploy/portainer-stack.yml">the
+              stack</a> into <strong>Stacks → Add stack</strong> and deploy it as it is. It creates the master key on
+              first start, in its own volume. There are also stacks for
+              <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/deploy/portainer-stack-https.yml">HTTPS
+              by IP address</a>, without a domain name, and for
+              <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/deploy/portainer-stack-npm.yml">Nginx
+              Proxy Manager</a>.
+            </p>
+          </article>
+        </div>
+        <div class="callouts">
+          <p class="callout">
+            <strong>Keep the master key safe.</strong> It encrypts everything. Store it in a password manager, apart
+            from your backups: without it, nobody can recover the data.
+          </p>
+          <p class="callout">
+            <strong>Other devices need HTTPS.</strong> Browsers allow the encryption Maple Notes does in the page only
+            on HTTPS or <code>localhost</code>, so put it behind a reverse proxy. The
+            <a href="https://github.com/supunsarachitha/MapleNotes#reverse-proxy-and-https">README</a> has complete
+            setups.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="demo" class="section" aria-labelledby="demo-title">
+      <div class="wrap">
+        <div class="card demo">
+          <div>
+            <h2 id="demo-title">Try it with sample data</h2>
+            <p>
+              Download a demo backup, create an account, and restore it in <strong>Settings → Backup &amp;
+              restore</strong>: notes, todo lists, daily notes, habits, nested tags, photos, a video and a voice memo.
+            </p>
+          </div>
+          <div class="actions">
+            <a class="button" href="https://github.com/supunsarachitha/MapleNotes/raw/main/demo-backup-samples/maple-notes-demo-markdown.zip">Markdown backup</a>
+            <a class="button" href="https://github.com/supunsarachitha/MapleNotes/raw/main/demo-backup-samples/maple-notes-demo-json.zip">JSON backup</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="license" class="section" aria-labelledby="license-title">
+      <div class="wrap prose">
+        <h2 id="license-title">Source-available</h2>
+        <p>
+          Maple Notes is released under the
+          <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/LICENSE">PolyForm Noncommercial License
+          1.0.0</a>. You may use, change and share it for any noncommercial purpose; commercial use needs a separate
+          license from the copyright holder. Third-party components keep their own licenses, listed in the
+          <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/THIRD-PARTY-NOTICES.md">notices</a>.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <p class="brand small">
+        <img src="favicon.svg" alt="" width="20" height="20">
+        <span>Maple Notes</span>
+      </p>
+      <nav aria-label="Documentation">
+        <a href="https://github.com/supunsarachitha/MapleNotes#readme">README</a>
+        <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/docs/architecture.md">Architecture</a>
+        <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/docs/e2ee-spec.md">Encryption spec</a>
+        <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/docs/threat-model.md">Threat model</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

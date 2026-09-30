@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-30
+
+The first 1.3 release with container images: the build of the `1.3.0` tag stopped at a documentation test, so no
+`1.3.0` image was published.
+
+### Fixed
+
+- The README's Nginx Proxy Manager section, lost while merging 1.3.0, is back, so the documentation tests pass again.
+
+### Changed
+
+- The demo backups include habits: three with about ten weeks of history and streaks, and an archived one.
+- The README explains how to try Maple Notes with the demo backups, and how to upgrade a Portainer or `docker run`
+  install.
+- CI uses the Node.js 24 versions of its actions and runs on Ubuntu 24.04.
+- The finished development plans are no longer in `docs/`, and this changelog now matches the published tags.
+
+### Removed
+
+- Unused code in the server, the tests and the web app.
+
 ## [1.3.0] - 2026-09-29
 
 A habit tracker, deployment behind Nginx Proxy Manager, and demo backups to try every feature with.
@@ -243,7 +264,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.1...HEAD
+[1.3.1]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/supunsarachitha/MapleNotes/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.1.0...1.2.0
