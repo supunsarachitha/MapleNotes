@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -170,16 +169,6 @@ public sealed class ExportVectorTests
     /// <summary>The export time is the only part that differs between two exports of the same data.</summary>
     private static string WithoutExportTime(string manifest) =>
         Regex.Replace(manifest, "\"exportedAt\": \"[^\"]+\"", "\"exportedAt\": \"EXPORTED_AT\"");
-
-    private static async Task SetAsync<T>(MapleAppFactory app, Func<MapleDbContext, IQueryable<T>> select, Action<T> change)
-        where T : class
-    {
-        using var scope = app.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<MapleDbContext>();
-        var entity = await select(db).SingleAsync(Ct);
-        change(entity);
-        await db.SaveChangesAsync(Ct);
-    }
 
     private static string RepositoryRoot()
     {

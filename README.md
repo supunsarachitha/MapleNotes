@@ -505,6 +505,14 @@ its agent ("failed to list workers … frame too large").
 **Bind mounts:** if you mount a host directory instead of a named volume, make it writable by the container's user:
 `sudo chown -R 1654:1654 ./data`.
 
+### Try it with sample data
+
+[`demo-backup-samples/`](demo-backup-samples/) holds a sample account as a Markdown and a JSON export: notes, todo
+lists, quick notes, daily notes, habits, nested tags, archived notes, photos, a video, a voice memo, a PDF and a CSV
+file. Create an account, then restore either file in **Settings → Backup & restore**. Settings are not part of a
+backup, so to see everything, turn on note titles (under **Writing**) and daily notes, the habit tracker and link
+previews (under **Features**) in Settings.
+
 ## Configuration
 
 All settings are environment variables.
@@ -593,10 +601,16 @@ Maple Notes also takes an automatic encrypted backup before every database upgra
 
 ## Upgrading
 
+With Docker Compose, in the cloned folder:
+
 ```sh
 git pull
 docker compose up -d --build
 ```
+
+With a Portainer stack, open the stack and choose **Update the stack**: the stacks pull the newest image on every
+deploy. With `docker run`, pull `ghcr.io/supunsarachitha/maplenotes:latest`, remove the container and start it again
+with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
@@ -610,9 +624,10 @@ tag and calendar counts leave habits out.
 <details>
 <summary>Older versions</summary>
 
-**From 1.1 to 1.2.** Nothing to do. Existing notes stay in the timeline, and every account starts with todo lists and quick notes turned
-on, and titles and daily notes off. Exports now record each note's kind and daily date (manifest version 2), and
-file todo lists and quick notes in their own folders. The API only gained fields and endpoints.
+**From 1.1 to 1.2.** Nothing to do. Existing notes stay in the timeline, and every account starts with todo lists
+and quick notes turned on, and titles and daily notes off. Exports now record each note's kind and daily date
+(manifest version 2), and file todo lists and quick notes in their own folders. The API only gained fields and
+endpoints.
 
 **From 1.0 to 1.1:**
 
@@ -622,8 +637,8 @@ file todo lists and quick notes in their own folders. The API only gained fields
 - **Encryption settings** now offer three modes. Accounts keep their current protection: encryption at rest stays on,
   or stays off.
 - **API clients** that signed in with a username and password must follow the new sign-in protocol
-  ([docs/e2ee-spec.md](docs/e2ee-spec.md#1-password-derived-keys-every-account)), and the encryption endpoint takes a mode instead of on/off.
-  See the [changelog](CHANGELOG.md).
+  ([docs/e2ee-spec.md](docs/e2ee-spec.md#1-password-derived-keys-every-account)), and the encryption endpoint takes a
+  mode instead of on/off. See the [changelog](CHANGELOG.md).
 
 </details>
 

@@ -1,9 +1,7 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using MapleNotes.Server.Domain;
-using MapleNotes.Server.Features.Attachments;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Features.EndToEnd;
