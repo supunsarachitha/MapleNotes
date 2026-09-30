@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-30
+
+The first stable release. It adds a storage limit per account, deleting all of one's notes and files at once,
+shrinking photos before they upload, and compacting the database.
+
 ### Added
 
 - **Storage limit** (Settings → Administration, off by default): administrators set how much each account can store,
@@ -296,7 +301,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.1...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/1.4.0...HEAD
+[1.4.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.1...1.4.0
 [1.3.1]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/supunsarachitha/MapleNotes/compare/1.2.0...1.2.1

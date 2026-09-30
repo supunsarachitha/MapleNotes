@@ -644,15 +644,23 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
-### From 1.2 to 1.3
+### From 1.3 to 1.4
 
-Nothing to do. The habit tracker is off for every account until it is turned on in Settings → Features. Habits are
-notes of a new kind, so exports file them under `habits/`; restoring such an export into Maple Notes 1.2 brings
-habits back as ordinary notes. The API gained the kind `habit` and the preference `habitTracker`. Without a `kind`,
-tag and calendar counts leave habits out.
+Nothing to do. There is no storage limit until an administrator sets one, and photo shrinking is off until an account
+turns it on. For API clients:
+- `GET`/`PUT /api/v1/admin/settings` gained `storageQuotaMb`. A `PUT` replaces all the settings, so leaving it out
+  removes the limit.
+- `GET /api/v1/account/storage` gained `quotaBytes`, and preferences gained `shrinkPhotos`.
+- New endpoints: `DELETE /api/v1/account/content` and `POST /api/v1/admin/storage/compact`.
+- Uploads and note writes answer HTTP 507 when they do not fit in an account's storage limit.
 
 <details>
 <summary>Older versions</summary>
+
+**From 1.2 to 1.3.** Nothing to do. The habit tracker is off for every account until it is turned on in Settings →
+Features. Habits are notes of a new kind, so exports file them under `habits/`; restoring such an export into Maple
+Notes 1.2 brings habits back as ordinary notes. The API gained the kind `habit` and the preference `habitTracker`.
+Without a `kind`, tag and calendar counts leave habits out.
 
 **From 1.1 to 1.2.** Nothing to do. Existing notes stay in the timeline, and every account starts with todo lists
 and quick notes turned on, and titles and daily notes off. Exports now record each note's kind and daily date

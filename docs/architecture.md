@@ -396,13 +396,14 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 
 ## Testing
 
-- **Server:** about 410 xUnit tests.
+- **Server:** about 425 xUnit tests.
   - Crypto primitives, including tampering, truncation, reordering, wrong keys and every chunk boundary.
   - The storage layer and startup, including the upgrade of a 1.0 database.
   - API behaviour through `WebApplicationFactory`: authentication (key-derived sign-in, legacy upgrade, unknown
     users), isolation between users, notes, attachments, encryption migration with crash simulation, and export across
-    every format and layout; preferences, kinds (including habits), daily notes (including two devices at once) and
-    restoring.
+    every format and layout; preferences, kinds (including habits), daily notes (including two devices at once),
+    restoring, storage limits (including two uploads at once), deleting all of an account's content, and compacting
+    the database (which must stay encrypted).
   - End-to-end encryption, with a C# implementation of the browser's side: key setup, unlock, recovery, notes, tags
     and files as ciphertext, conversion in both directions (interrupted, concurrent edits, key cleanup), and a scan of
     the raw database for the plain text.
@@ -410,13 +411,13 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 - **Shared vectors:** `test-vectors.json` (every end-to-end derivation and format) and `export-vectors.json` (the
   server's export archives) are written by the C# tests and checked by the web tests, so both implementations agree
   byte for byte.
-- **Web:** about 210 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
+- **Web:** about 225 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
   conversion, the service worker's range decryption, the browser export against the server's archives, restoring
   those archives, Markdown safety, the composer with titles, todo lists, quick and daily notes, habits and their
-  chart, preferences, and the settings and recovery screens.
+  chart, shrinking photos, preferences, storage limits, and the settings and recovery screens.
 - **Releases:** additionally tested in a real browser (Playwright, Chromium) against the built container at desktop
   and 375 px widths, including end-to-end setup, unlock, recovery, video seeking, mode changes, export, the 1.2
-  and 1.3 features, and export → restore round trips.
+  to 1.4 features, and export → restore round trips.
 
 ## Operations
 
