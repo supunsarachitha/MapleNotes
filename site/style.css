@@ -407,6 +407,15 @@ h1 {
   font-size: 1.15rem;
 }
 
+.card[id] {
+  scroll-margin-top: 96px;
+}
+
+/* Reached from a link such as #end-to-end: a ring shows which card was meant. */
+.card:target {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-text) 30%, transparent), var(--shadow);
+}
+
 .groups {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
@@ -515,12 +524,6 @@ figcaption {
 
 .mode.strongest {
   border-color: var(--accent-text);
-  scroll-margin-top: 96px;
-}
-
-/* Reached from a link to #end-to-end: a ring shows which card was meant. */
-.mode:target {
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-text) 30%, transparent), var(--shadow);
 }
 
 .badge {
@@ -592,6 +595,11 @@ figcaption {
 
 .install .span p {
   margin-top: 0;
+}
+
+.install .card p + pre,
+.install .card pre + p {
+  margin-top: 14px;
 }
 
 @media (max-width: 52rem) {

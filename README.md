@@ -81,6 +81,30 @@ You need Docker. Maple Notes listens on port 8080 inside the container. Open it 
 itself; from any other device it needs HTTPS, because browsers only allow its in-page encryption on HTTPS or
 `localhost` (see [Reverse proxy](#reverse-proxy-and-https)).
 
+### The master key
+
+Before its first start, Maple Notes needs one secret: the master key. It encrypts the database, the account keys the
+server holds and the keys that sign sessions. It is 32 random bytes written as base64 (44 characters, ending in `=`),
+and Maple Notes refuses to start with anything else. Either command prints a new one:
+
+```sh
+# Anywhere Docker runs, Windows included
+docker run --rm ghcr.io/supunsarachitha/maplenotes:latest generate-key
+
+# Linux or macOS
+openssl rand -base64 32
+```
+
+Give it to Maple Notes as `MAPLE_MASTER_KEY`: in `.env` with Docker Compose, or with `-e` for `docker run`. To keep it
+out of the environment, put it in a file and set `MAPLE_MASTER_KEY_FILE` to that file's path instead (a Docker
+secret, for example). The [Portainer stacks](#portainer) do that for you: they create the key on first start, in a
+volume of its own.
+
+> [!IMPORTANT]
+> **Create the key once and never change it:** a different key cannot open the data that already exists.
+> **Keep a copy somewhere safe, such as a password manager, apart from your backups.** Without the key, your data
+> cannot be recovered, by you or by anyone else.
+
 ### Docker Compose (recommended)
 
 ```sh
@@ -88,7 +112,7 @@ git clone https://github.com/supunsarachitha/MapleNotes.git
 cd MapleNotes
 cp .env.example .env
 
-# Create the master key and put it in .env as MAPLE_MASTER_KEY=...
+# Create the master key (see above) and put it in .env after MAPLE_MASTER_KEY=
 openssl rand -base64 32
 
 docker compose up -d --build
@@ -158,6 +182,8 @@ volumes:
 
 # Root secret for all encryption (database, note content, attachments). REQUIRED.
 # Generate with: openssl rand -base64 32
+#   or, without OpenSSL (e.g. on Windows): docker run --rm ghcr.io/supunsarachitha/maplenotes:latest generate-key
+# Set it once: a different key cannot open the data that already exists.
 # LOSING THIS KEY MEANS LOSING ALL DATA. Back it up separately from the data volume.
 MAPLE_MASTER_KEY=
 
@@ -187,16 +213,12 @@ MAPLE_LINK_PREVIEWS=true
 The image is built from this repository (`build: .`), so keep both files in the cloned folder. To update, see
 [Upgrading](#upgrading).
 
-> [!IMPORTANT]
-> **Save your master key somewhere safe, such as a password manager, separately from your backups.**
-> It encrypts everything. Without it your data cannot be recovered, by you or by anyone else.
-
 ### docker run
 
 With the image this repository publishes (no clone needed):
 
 ```sh
-# Create a master key and save it safely.
+# Create the master key (see above) and save it safely.
 docker run --rm ghcr.io/supunsarachitha/maplenotes:latest generate-key
 
 docker run -d --name maple-notes \
@@ -521,7 +543,7 @@ All settings are environment variables.
 
 | Variable | Default | Description |
 |---|---|---|
-| `MAPLE_MASTER_KEY` | — | **Required.** Base64 256-bit root key (`openssl rand -base64 32`). Never stored in the data volume. |
+| `MAPLE_MASTER_KEY` | — | **Required.** The root key: 32 random bytes in base64 (see [The master key](#the-master-key)). Never stored in the data volume. |
 | `MAPLE_MASTER_KEY_FILE` | — | Path to a file containing the key (Docker secrets). Use instead of `MAPLE_MASTER_KEY`. |
 | `MAPLE_DATA_DIR` | `/app/data` | Database, attachments, key ring and backups. Mount a volume here. |
 | `MAPLE_ALLOW_REGISTRATION` | `false` | Let visitors create accounts. The first account can always be created. Administrators can also change this in Settings. |

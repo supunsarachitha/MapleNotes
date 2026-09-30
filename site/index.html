@@ -187,8 +187,8 @@
       <div class="wrap">
         <h2 id="install-title">Install it in a few minutes</h2>
         <p class="section-lead">
-          You need Docker. Ready-made images for amd64 and arm64 are published at
-          <code>ghcr.io/supunsarachitha/maplenotes</code>.
+          You need Docker and a <a href="#master-key">master key</a>. Ready-made images for amd64 and arm64 are
+          published at <code>ghcr.io/supunsarachitha/maplenotes</code>.
         </p>
         <div class="install">
           <article class="card">
@@ -196,14 +196,16 @@
             <pre><code>git clone https://github.com/supunsarachitha/MapleNotes
 cd MapleNotes
 cp .env.example .env
-openssl rand -base64 32  # MAPLE_MASTER_KEY in .env
+# The master key: put it after MAPLE_MASTER_KEY= in .env
+openssl rand -base64 32
 docker compose up -d --build</code></pre>
             <p>Then open <code>http://localhost:8080</code> and create the first account. It becomes the
               administrator.</p>
           </article>
           <article class="card">
             <h3>docker run</h3>
-            <pre><code>docker run --rm \
+            <pre><code># The master key: keep what this prints
+docker run --rm \
   ghcr.io/supunsarachitha/maplenotes:latest generate-key
 
 docker run -d --name maple-notes -p 8080:8080 \
@@ -226,11 +228,31 @@ docker run -d --name maple-notes -p 8080:8080 \
               Proxy Manager</a>.
             </p>
           </article>
+          <article class="card span" id="master-key">
+            <h3>The master key</h3>
+            <p>
+              Before its first start, Maple Notes needs one secret: the master key. It encrypts the database, the
+              account keys the server holds and the keys that sign sessions. It is 32 random bytes written as base64,
+              44 characters long, and either command prints a new one:
+            </p>
+            <pre><code># Anywhere Docker runs, Windows included
+docker run --rm ghcr.io/supunsarachitha/maplenotes:latest generate-key
+
+# Linux or macOS
+openssl rand -base64 32</code></pre>
+            <p>
+              Give it to Maple Notes as <code>MAPLE_MASTER_KEY</code>, or put it in a file and set
+              <code>MAPLE_MASTER_KEY_FILE</code> to that file's path. The Portainer stacks create the key for you on
+              first start; to read it, run
+              <code>docker run --rm -v maple-notes-key:/key:ro alpine cat /key/master.key</code>.
+            </p>
+          </article>
         </div>
         <div class="callouts">
           <p class="callout">
-            <strong>Keep the master key safe.</strong> It encrypts everything. Store it in a password manager, apart
-            from your backups: without it, nobody can recover the data.
+            <strong>Create the master key once and never change it:</strong> a different key cannot open the data
+            that already exists. <strong>Keep a copy apart from your backups</strong>, in a password manager: without
+            it, nobody can recover the data.
           </p>
           <p class="callout">
             <strong>Other devices need HTTPS.</strong> Browsers allow the encryption Maple Notes does in the page only
