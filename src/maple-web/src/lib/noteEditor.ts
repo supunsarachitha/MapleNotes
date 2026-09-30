@@ -14,7 +14,7 @@ export function useNoteEditor<T>(
   note: Note,
   parse: (content: string) => T,
   serialize: (value: T) => string,
-  onError: () => void,
+  onError: (error: unknown) => void,
 ): [T, (next: T) => void] {
   const [value, setValue] = useState<T>(() => parse(note.content));
   const saving = useRef<Promise<void>>(Promise.resolve());
@@ -42,7 +42,7 @@ export function useNoteEditor<T>(
         (saved) => {
           lastSaved.current = { at: Date.parse(saved.updatedAtUtc), content: saved.content };
         },
-        () => onError(),
+        (error: unknown) => onError(error),
       )
       .finally(() => {
         pending.current--;

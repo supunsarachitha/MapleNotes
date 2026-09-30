@@ -41,6 +41,7 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
     /// <response code="400">The request contains no file.</response>
     /// <response code="413">The file exceeds <c>MAPLE_MAX_UPLOAD_MB</c>.</response>
     /// <response code="415">The request is not <c>multipart/form-data</c>.</response>
+    /// <response code="507">The account's storage limit leaves no room for this.</response>
     [HttpPost]
     [DisableFormValueModelBinding]
     [Consumes("multipart/form-data")]
@@ -48,6 +49,7 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status413PayloadTooLarge)]
     [ProducesResponseType(StatusCodes.Status415UnsupportedMediaType)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status507InsufficientStorage)]
     public async Task<ActionResult<AttachmentResponse>> Upload(CancellationToken cancellationToken)
     {
         if (HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } bodyLimit)

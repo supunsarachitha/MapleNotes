@@ -2,6 +2,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Archive, ArchiveRestore, Check, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { dateOf, parseHabit, serializeHabit, toggleDay, type Habit } from "../lib/habits";
+import { saveErrorMessage } from "../lib/apiError";
 import { useNoteEditor } from "../lib/noteEditor";
 import { useDeleteNote, usePatchNote } from "../lib/queries";
 import type { Note } from "../lib/types";
@@ -28,8 +29,8 @@ export const dayCount = (count: number) => `${count} ${count === 1 ? "day" : "da
  */
 export function HabitRow({ note, days, today }: { note: Note; days: string[]; today: string }) {
   const toast = useToast();
-  const [habit, commit] = useNoteEditor<Habit>(note, parseHabit, serializeHabit, () =>
-    toast.error("A change to this habit could not be saved. Please try again."),
+  const [habit, commit] = useNoteEditor<Habit>(note, parseHabit, serializeHabit, (error) =>
+    toast.error(saveErrorMessage(error, "A change to this habit could not be saved. Please try again.")),
   );
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");

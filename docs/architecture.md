@@ -351,6 +351,15 @@ sizes, with counts, in two database queries. `GET /api/v1/admin/storage`, for ad
 itself: the database and its write-ahead log, the attachment and backup directories, and the free space the container
 sees on the volume. It deliberately reports totals only; no endpoint gives one account's usage to anyone else.
 
+Administrators can set a storage limit for every account (`StorageQuotaMb` in `InstanceSettings`, absent for none).
+It counts exactly what `GET /api/v1/account/storage` counts, and `Features/Storage/StorageQuota.cs` enforces it on
+everything that adds data: an upload streams under `min(MAPLE_MAX_UPLOAD_MB, room left)`, and creating, restoring or
+lengthening a note claims its extra bytes, less any files the same edit removes. A change that does not fit gets HTTP
+507. Each account's checks and the saves they guard run one at a time (a lock per account), so two uploads at once
+cannot both take the last of the room. Conversions between encryption modes never check the limit: they make files a
+little larger, and an account must always be able to change its protection. Lowering the limit deletes nothing; the
+account just cannot grow until it is back under it.
+
 ## Background services
 
 | Service | When | What |

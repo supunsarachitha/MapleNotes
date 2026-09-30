@@ -116,7 +116,8 @@ A lost or stolen phone or laptop, or a shared computer.
 Every query filters by the signed-in owner; another user's items answer 404, so their existence is not revealed.
 Administrators manage accounts but have no API to read anyone's notes. They see how many notes an account has, but
 not how much it stores: storage usage is shown only to the account itself, and administrators get the server's totals
-only. An administrator who also runs the server is one of the adversaries above.
+only. They can set a storage limit for every account, but not see who reaches it. An administrator who also runs the
+server is one of the adversaries above.
 
 ### Password guessing through the app
 

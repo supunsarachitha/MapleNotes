@@ -9,7 +9,9 @@ namespace MapleNotes.Server.Features.Storage;
 /// <param name="NoteCount">Number of notes, of every kind, archived ones included.</param>
 /// <param name="FilesBytes">Size of all its files (end-to-end files count their slightly larger ciphertext).</param>
 /// <param name="FileCount">Number of files, including uploads not yet attached to a note.</param>
-public sealed record StorageUsageResponse(long NotesBytes, int NoteCount, long FilesBytes, int FileCount)
+/// <param name="QuotaBytes">The most the account may store, notes and files together, as set by an administrator; null
+/// when there is no limit.</param>
+public sealed record StorageUsageResponse(long NotesBytes, int NoteCount, long FilesBytes, int FileCount, long? QuotaBytes = null)
 {
     /// <summary>Notes and files together.</summary>
     public long TotalBytes => NotesBytes + FilesBytes;

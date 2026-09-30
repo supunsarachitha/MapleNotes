@@ -166,7 +166,11 @@ explains this instead of signing you in. Ask whoever runs your server for its HT
     title: "How much you store",
     body: `**Account** in [Settings](/settings) shows how much space your notes and files take, with how many of each.
 Archived notes and files count too; deleting them frees the space. Only you see your own usage: administrators see
-the server's totals, never yours.`,
+the server's totals, never yours.
+
+Your administrator may limit how much each account stores. Settings then shows how much of it you use, and warns you
+when it is almost full. Once it is full, new files, notes and longer edits are not saved until you delete something
+(or the administrator allows more); nothing you already have is lost, and you can still delete, archive and export.`,
   },
   {
     id: "shortcuts",
@@ -184,7 +188,8 @@ the server's totals, never yours.`,
     id: "admins",
     title: "For administrators",
     body: `The first account on a server is its administrator. Under **Administration** in [Settings](/settings) you can let
-visitors create accounts, disable or remove accounts, and make others administrators. Administrators manage
-accounts, but they can never read anyone's notes through the app.`,
+visitors create accounts, limit how much each account can store, disable or remove accounts, and make others
+administrators. Administrators manage accounts, but they can never read anyone's notes through the app, nor see how
+much an account stores.`,
   },
 ];

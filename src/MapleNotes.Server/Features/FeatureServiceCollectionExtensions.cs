@@ -25,6 +25,8 @@ internal static class FeatureServiceCollectionExtensions
         services.AddScoped<UserAdministrationService>();
         services.AddScoped<PreferencesService>();
         services.AddScoped<StorageService>();
+        services.AddScoped<StorageQuota>();
+        services.AddSingleton<StorageQuotaLocks>();
 
         services.AddScoped<NoteService>();
         services.AddScoped<AttachmentService>();

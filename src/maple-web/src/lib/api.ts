@@ -16,6 +16,7 @@ import type {
   NotePageWire,
   NoteState,
   NoteWire,
+  InstanceSettings,
   InstanceStorage,
   Preferences,
   Prelogin,
@@ -345,9 +346,9 @@ export const api = {
   },
 
   admin: {
-    settings: () => request<{ allowRegistration: boolean }>("GET", "/api/v1/admin/settings"),
-    updateSettings: (allowRegistration: boolean) =>
-      request<{ allowRegistration: boolean }>("PUT", "/api/v1/admin/settings", { allowRegistration }),
+    settings: () => request<InstanceSettings>("GET", "/api/v1/admin/settings"),
+    /** Replaces all the settings, so send every field. */
+    updateSettings: (settings: InstanceSettings) => request<InstanceSettings>("PUT", "/api/v1/admin/settings", settings),
     users: () => request<AdminUser[]>("GET", "/api/v1/admin/users"),
     updateUser: (id: string, changes: { isDisabled?: boolean; role?: UserRole }) =>
       request<void>("PATCH", `/api/v1/admin/users/${id}`, changes),

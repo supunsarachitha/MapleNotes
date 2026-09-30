@@ -1,6 +1,7 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Archive, ArchiveRestore, ListChecks, MoreHorizontal, Pencil, Pin, PinOff, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { saveErrorMessage } from "../lib/apiError";
 import { useNoteEditor } from "../lib/noteEditor";
 import { useDeleteNote, usePatchNote } from "../lib/queries";
 import { parseTodo, serializeTodo, type TodoList } from "../lib/todo";
@@ -20,8 +21,8 @@ const inputClass =
  */
 export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: boolean }) {
   const toast = useToast();
-  const [list, commit] = useNoteEditor<TodoList>(note, parseTodo, serializeTodo, () =>
-    toast.error("A change to this list could not be saved. Please try again."),
+  const [list, commit] = useNoteEditor<TodoList>(note, parseTodo, serializeTodo, (error) =>
+    toast.error(saveErrorMessage(error, "A change to this list could not be saved. Please try again.")),
   );
   const [editing, setEditing] = useState<number | null>(null);
   const [renaming, setRenaming] = useState(false);

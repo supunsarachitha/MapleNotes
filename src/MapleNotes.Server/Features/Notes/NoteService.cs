@@ -4,6 +4,7 @@ using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Attachments;
 using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Features.EndToEnd;
+using MapleNotes.Server.Features.Storage;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Infrastructure.Storage;
@@ -19,10 +20,11 @@ namespace MapleNotes.Server.Features.Notes;
 /// <param name="db">Database context.</param>
 /// <param name="keys">Per-request data keys.</param>
 /// <param name="store">Attachment file store.</param>
+/// <param name="quota">The storage limit per account.</param>
 /// <param name="time">Clock.</param>
 /// <param name="logger">Logger.</param>
 public sealed class NoteService(
-    MapleDbContext db, UserContentKeys keys, AttachmentStore store, TimeProvider time, ILogger<NoteService> logger)
+    MapleDbContext db, UserContentKeys keys, AttachmentStore store, StorageQuota quota, TimeProvider time, ILogger<NoteService> logger)
 {
     /// <summary>Maximum note length in characters.</summary>
     public const int MaxContentLength = 100_000;
@@ -157,7 +159,8 @@ public sealed class NoteService(
     /// <exception cref="ApiValidationException">The text is too long, empty without attachments, malformed when
     /// encrypted, or an attachment ID is not an unattached upload of this user.</exception>
     /// <exception cref="ApiProblemException">The request does not match the account's mode (plain text for an
-    /// end-to-end account or the reverse), or the chosen ID is taken.</exception>
+    /// end-to-end account or the reverse), the chosen ID is taken, or the note does not fit in the account's storage
+    /// limit (HTTP 507).</exception>
     public async Task<NoteResponse> CreateAsync(Guid userId, CreateNoteRequest request, CancellationToken cancellationToken)
     {
         ValidateKinds([request.Kind]);
@@ -224,6 +227,7 @@ public sealed class NoteService(
         db.Notes.Add(note);
         try
         {
+            await using var lease = await quota.ClaimAsync(userId, note.Content.Length, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException) when (note.DailyDate is not null)
@@ -270,8 +274,9 @@ public sealed class NoteService(
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>Whether it was restored, and the note.</returns>
     /// <exception cref="ApiValidationException">The content, dates, kind, ID or attachments are not acceptable.</exception>
-    /// <exception cref="ApiProblemException">The request does not match the account's mode, or (end-to-end) the ID is
-    /// used by another account and the note must be encrypted for a new one (409).</exception>
+    /// <exception cref="ApiProblemException">The request does not match the account's mode, (end-to-end) the ID is
+    /// used by another account and the note must be encrypted for a new one (409), or the note does not fit in the
+    /// account's storage limit (507).</exception>
     public async Task<ImportNoteResponse> ImportAsync(Guid userId, ImportNoteRequest request, CancellationToken cancellationToken)
     {
         ValidateKinds([request.Kind]);
@@ -333,7 +338,11 @@ public sealed class NoteService(
         }
 
         db.Notes.Add(note);
-        await db.SaveChangesAsync(cancellationToken);
+        await using (await quota.ClaimAsync(userId, note.Content.Length, cancellationToken))
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         return new ImportNoteResponse(true, await ToResponseAsync(note, cancellationToken));
     }
 
@@ -347,6 +356,8 @@ public sealed class NoteService(
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The updated note, or null when it does not exist or belongs to someone else.</returns>
     /// <exception cref="ApiValidationException">The new content is invalid.</exception>
+    /// <exception cref="ApiProblemException">The change adds more than the account's storage limit leaves room for
+    /// (HTTP 507).</exception>
     public async Task<NoteResponse?> UpdateAsync(Guid userId, Guid noteId, UpdateNoteRequest request, CancellationToken cancellationToken)
     {
         var note = await WithDetails(db.Notes).SingleOrDefaultAsync(n => n.Id == noteId && n.UserId == userId, cancellationToken);
@@ -355,6 +366,7 @@ public sealed class NoteService(
             return null;
         }
 
+        var bytesBefore = note.Content.Length;
         var wantedIds = request.AttachmentIds ?? note.Attachments.Select(a => a.Id).ToList();
         string? content = null;
         if (request.Encrypted is { } encrypted)
@@ -369,6 +381,7 @@ public sealed class NoteService(
         }
 
         var removedFiles = new List<string>();
+        var freedBytes = 0L;
         if (request.AttachmentIds is not null)
         {
             foreach (var removed in note.Attachments.Where(a => !wantedIds.Contains(a.Id)).ToList())
@@ -376,6 +389,7 @@ public sealed class NoteService(
                 note.Attachments.Remove(removed);
                 db.Attachments.Remove(removed);
                 removedFiles.Add(removed.StorageKey);
+                freedBytes += removed.SizeBytes;
             }
 
             await AttachAsync(note, wantedIds.Where(id => note.Attachments.All(a => a.Id != id)).ToList(), cancellationToken);
@@ -391,7 +405,10 @@ public sealed class NoteService(
         }
 
         note.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
-        await db.SaveChangesAsync(cancellationToken);
+        await using (await quota.ClaimAsync(userId, note.Content.Length - bytesBefore - freedBytes, cancellationToken))
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
         foreach (var storageKey in removedFiles)
         {

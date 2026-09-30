@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
 import type { AuthStatus, Note, Preferences } from "../lib/types";
@@ -77,6 +77,16 @@ describe("TodoCard", () => {
 
     await user.click(screen.getByRole("button", { name: "Remove oats" }));
     await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] maple syrup\n- [ ] wild blueberries", []));
+  });
+
+  it("says why a change could not be saved when the storage is full", async () => {
+    vi.spyOn(api, "updateNote").mockRejectedValue(new ApiError(507, { title: "There is not enough room in your storage.", detail: "Delete notes or files to make room, or ask an administrator for more space." }));
+    const user = userEvent.setup();
+    renderWith(<TodoCard note={list} />);
+
+    await user.type(screen.getByRole("textbox", { name: "Add an item to Groceries" }), "blueberries{Enter}");
+
+    expect(await screen.findByText("There is not enough room in your storage. Delete notes or files to make room, or ask an administrator for more space.")).toBeInTheDocument();
   });
 
   it("clears completed items and renames the list from its menu", async () => {

@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import type { Note } from "../lib/types";
 import { RestorePanel } from "./RestorePanel";
 
@@ -33,5 +33,32 @@ describe("RestorePanel", () => {
     expect(await screen.findByText("Restored 1 note and 0 files. 1 note was already here.")).toBeInTheDocument();
     expect(restore).toHaveBeenCalledTimes(1);
     expect(restore.mock.calls[0]![0]).toMatchObject({ id: null, content: "# Ideas\n\nNew", kind: "Note" });
+  });
+
+  it("stops when the storage is full, and says how to finish", async () => {
+    vi.spyOn(api, "existingNotes").mockResolvedValue([]);
+    vi.spyOn(api, "importNote")
+      .mockResolvedValueOnce({ imported: true, note: {} as Note })
+      .mockRejectedValue(
+        new ApiError(507, { title: "There is not enough room in your storage.", detail: "Delete notes or files to make room, or ask an administrator for more space." }),
+      );
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RestorePanel endToEnd={false} />
+      </QueryClientProvider>,
+    );
+
+    await user.upload(screen.getByLabelText("Files to restore"), [
+      new File(["First"], "first.md"),
+      new File(["Second"], "second.md"),
+      new File(["Third"], "third.md"),
+    ]);
+    await user.click(await screen.findByRole("button", { name: "Restore 3 notes" }));
+
+    expect(await screen.findByText("Restored 1 note and 0 files.")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Stopped before the last 2 notes. There is not enough room in your storage. Delete notes or files to make room, or ask an administrator for more space. Then restore the same file again: notes already restored are skipped.",
+    );
   });
 });

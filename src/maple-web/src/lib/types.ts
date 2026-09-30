@@ -185,6 +185,15 @@ export interface StorageUsage {
   filesBytes: number;
   fileCount: number;
   totalBytes: number;
+  /** The most the account may store, notes and files together, as set by an administrator; null for no limit. */
+  quotaBytes: number | null;
+}
+
+/** Instance settings that administrators change. */
+export interface InstanceSettings {
+  allowRegistration: boolean;
+  /** The most each account may store, notes and files together, in megabytes; null for no limit. */
+  storageQuotaMb: number | null;
 }
 
 /** What the instance stores on its data volume, for administrators (totals only). */

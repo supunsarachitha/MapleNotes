@@ -70,10 +70,12 @@ public sealed class NotesController(NoteService notes) : ControllerBase
     /// <response code="201">The note was created.</response>
     /// <response code="400">The text is invalid or an attachment cannot be used.</response>
     /// <response code="409">The day already has a daily note, or the request does not match the account's encryption mode.</response>
+    /// <response code="507">The account's storage limit leaves no room for this.</response>
     [HttpPost]
     [ProducesResponseType<NoteResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status507InsufficientStorage)]
     public async Task<ActionResult<NoteResponse>> Create(CreateNoteRequest request, CancellationToken cancellationToken)
     {
         var note = await notes.CreateAsync(User.GetUserId(), request, cancellationToken);
@@ -101,11 +103,13 @@ public sealed class NotesController(NoteService notes) : ControllerBase
     /// <response code="200">The account already had this note; nothing changed.</response>
     /// <response code="400">The note is not valid.</response>
     /// <response code="409">The request does not match the account's encryption mode, or an end-to-end note's ID is not available.</response>
+    /// <response code="507">The account's storage limit leaves no room for this.</response>
     [HttpPost("import")]
     [ProducesResponseType<ImportNoteResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ImportNoteResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status507InsufficientStorage)]
     public async Task<ActionResult<ImportNoteResponse>> Import(ImportNoteRequest request, CancellationToken cancellationToken)
     {
         var result = await notes.ImportAsync(User.GetUserId(), request, cancellationToken);
@@ -120,10 +124,12 @@ public sealed class NotesController(NoteService notes) : ControllerBase
     /// <response code="200">The note was updated.</response>
     /// <response code="400">The text is invalid or an attachment cannot be used.</response>
     /// <response code="404">No such note for this account.</response>
+    /// <response code="507">The account's storage limit leaves no room for this.</response>
     [HttpPut("{id:guid}")]
     [ProducesResponseType<NoteResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status507InsufficientStorage)]
     public async Task<ActionResult<NoteResponse>> Update(Guid id, UpdateNoteRequest request, CancellationToken cancellationToken) =>
         await notes.UpdateAsync(User.GetUserId(), id, request, cancellationToken) is { } note ? note : NotFound();
 

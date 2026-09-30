@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "../components/Toaster";
 import { api } from "../lib/api";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
-import type { AuthStatus, EncryptionStatus, User } from "../lib/types";
+import type { AuthStatus, EncryptionStatus, InstanceSettings, User } from "../lib/types";
 import { SettingsPage } from "./SettingsPage";
 
 const user: User = {
@@ -20,9 +20,11 @@ const user: User = {
   preferences: DEFAULT_PREFERENCES,
 };
 
-function renderSettings(status: EncryptionStatus, account: User = user) {
+function renderSettings(status: EncryptionStatus, account: User = user, quotaBytes: number | null = null) {
   vi.spyOn(api, "encryption").mockResolvedValue(status);
-  vi.spyOn(api, "storage").mockResolvedValue({ notesBytes: 3 * 1024, noteCount: 12, filesBytes: 5 * 1024 * 1024, fileCount: 4, totalBytes: 5 * 1024 * 1024 + 3 * 1024 });
+  vi.spyOn(api, "storage").mockResolvedValue({
+    notesBytes: 3 * 1024, noteCount: 12, filesBytes: 5 * 1024 * 1024, fileCount: 4, totalBytes: 5 * 1024 * 1024 + 3 * 1024, quotaBytes,
+  });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData<AuthStatus>(queryKeys.status, { setupRequired: false, registrationOpen: false, user: account });
   render(
@@ -35,6 +37,12 @@ function renderSettings(status: EncryptionStatus, account: User = user) {
 }
 
 afterEach(() => vi.restoreAllMocks());
+
+function mockAdmin(settings: InstanceSettings) {
+  vi.spyOn(api.admin, "settings").mockResolvedValue(settings);
+  vi.spyOn(api.admin, "users").mockResolvedValue([]);
+  vi.spyOn(api.admin, "storage").mockResolvedValue({ databaseBytes: 1, filesBytes: 1, backupsBytes: 0, freeBytes: null, totalBytes: 2 });
+}
 
 describe("Settings", () => {
   it("keeps encryption, sessions and account deletion in a collapsed Advanced section", async () => {
@@ -122,8 +130,69 @@ describe("Settings", () => {
     expect(instance).not.toHaveBeenCalled(); // server totals are for administrators
   });
 
+  it("shows usage against the storage limit, and warns when it is almost or completely full", async () => {
+    const used = 5 * 1024 * 1024 + 3 * 1024;
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, user, 50 * 1024 * 1024);
+    expect(await screen.findByText("of 50 MB")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Notes 3.0 KB, files 5.0 MB of 50 MB" })).toBeInTheDocument();
+    expect(screen.queryByText(/storage is (almost )?full/)).not.toBeInTheDocument();
+    cleanup();
+    vi.restoreAllMocks();
+
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, user, Math.ceil(used / 0.95));
+    expect(await screen.findByText("Your storage is almost full.")).toBeInTheDocument();
+    cleanup();
+    vi.restoreAllMocks();
+
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, user, 5 * 1024 * 1024);
+    expect(await screen.findByText(/^Your storage is full\./)).toBeInTheDocument();
+  });
+
+  it("lets administrators set a storage limit for every account", async () => {
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null });
+    const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, { ...user, role: "Admin" });
+    const limit = await screen.findByRole("switch", { name: "Storage limit" });
+    expect(limit).toHaveAttribute("aria-checked", "false");
+
+    await userEvent.click(limit);
+    const amount = screen.getByLabelText("Per account");
+    expect(amount).toHaveValue(5);
+    expect(screen.getByLabelText("Unit")).toHaveValue("GB");
+    await userEvent.clear(amount);
+    await userEvent.type(amount, "0");
+    await userEvent.click(screen.getByRole("button", { name: "Save limit" }));
+    expect(screen.getByText("Enter an amount from 1 MB to 16 TB.")).toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+
+    await userEvent.clear(amount);
+    await userEvent.type(amount, "1.5");
+    await userEvent.click(screen.getByRole("button", { name: "Save limit" }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: 1536 }));
+    expect(await screen.findByText("Each account can now store up to 1.5 GB.")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Storage limit" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("keeps the storage limit when registration changes, and removes it with its switch", async () => {
+    mockAdmin({ allowRegistration: true, storageQuotaMb: 2048 });
+    const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, { ...user, role: "Admin" });
+    const limit = await screen.findByRole("switch", { name: "Storage limit" });
+    expect(limit).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("Per account")).toHaveValue(2);
+
+    await userEvent.click(screen.getByRole("switch", { name: "Open registration" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: 2048 }));
+
+    await userEvent.click(screen.getByRole("switch", { name: "Storage limit" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: null }));
+    expect(await screen.findByText("Storage limit removed.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Per account")).not.toBeInTheDocument();
+  });
+
   it("shows administrators the server's totals", async () => {
-    vi.spyOn(api.admin, "settings").mockResolvedValue({ allowRegistration: false });
+    vi.spyOn(api.admin, "settings").mockResolvedValue({ allowRegistration: false, storageQuotaMb: null });
     vi.spyOn(api.admin, "users").mockResolvedValue([]);
     vi.spyOn(api.admin, "storage").mockResolvedValue({
       databaseBytes: 2 * 1024 * 1024, filesBytes: 40 * 1024 * 1024, backupsBytes: 6 * 1024 * 1024, freeBytes: 20 * 1024 ** 3, totalBytes: 48 * 1024 * 1024,

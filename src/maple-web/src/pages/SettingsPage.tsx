@@ -14,28 +14,44 @@ import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
 import { e2ee } from "../lib/e2ee";
 import { formatAbsolute, formatBytes } from "../lib/format";
 import { queryKeys, useSignedOut } from "../lib/queries";
-import type { AdminUser, User } from "../lib/types";
+import type { AdminUser, InstanceSettings, User } from "../lib/types";
 
-/** A bar split between notes and files, with the numbers beside it. */
+/**
+ * A bar split between notes and files, with the numbers beside it. With a storage limit, the bar is the limit and shows
+ * how much of it is used.
+ */
 function StorageRow() {
   const usage = useQuery({ queryKey: queryKeys.storage, queryFn: api.storage });
   if (!usage.data) return <dd className="text-stone-400">…</dd>;
-  const { notesBytes, noteCount, filesBytes, fileCount, totalBytes } = usage.data;
-  const notesShare = totalBytes > 0 ? (notesBytes / totalBytes) * 100 : 0;
+  const { notesBytes, noteCount, filesBytes, fileCount, totalBytes, quotaBytes } = usage.data;
+  const scale = quotaBytes ?? totalBytes;
+  const notesShare = scale > 0 ? Math.min((notesBytes / scale) * 100, 100) : 0;
+  const filesShare = scale > 0 ? Math.min((filesBytes / scale) * 100, 100 - notesShare) : 0;
+  const full = quotaBytes !== null && totalBytes >= quotaBytes;
+  const almostFull = quotaBytes !== null && !full && totalBytes >= quotaBytes * 0.9;
+  const ofLimit = quotaBytes !== null ? ` of ${formatBytes(quotaBytes)}` : "";
   return (
     <dd>
       <span className="font-medium">{formatBytes(totalBytes)}</span>
+      {ofLimit && <span className="text-stone-500 dark:text-stone-400">{ofLimit}</span>}
       <div
         className="my-1.5 flex h-2 max-w-72 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800"
         role="img"
-        aria-label={`Notes ${formatBytes(notesBytes)}, files ${formatBytes(filesBytes)}`}
+        aria-label={`Notes ${formatBytes(notesBytes)}, files ${formatBytes(filesBytes)}${ofLimit}`}
       >
         <div className="bg-maple-700" style={{ width: `${notesShare}%` }} />
-        <div className="bg-maple-400" style={{ width: `${totalBytes > 0 ? 100 - notesShare : 0}%` }} />
+        <div className="bg-maple-400" style={{ width: `${filesShare}%` }} />
       </div>
       <span className="text-xs text-stone-500 dark:text-stone-400">
         Notes {formatBytes(notesBytes)} ({noteCount.toLocaleString()}) · Files {formatBytes(filesBytes)} ({fileCount.toLocaleString()})
       </span>
+      {full ? (
+        <p className="mt-1 text-xs font-medium text-red-700 dark:text-red-400">
+          Your storage is full. Delete notes or files to make room, or ask an administrator for more space.
+        </p>
+      ) : almostFull ? (
+        <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">Your storage is almost full.</p>
+      ) : null}
     </dd>
   );
 }
@@ -218,6 +234,113 @@ function InstanceStorageSummary() {
   );
 }
 
+const MAX_STORAGE_LIMIT_MB = 16 * 1024 * 1024;
+const LIMIT_UNITS = { MB: 1, GB: 1024 } as const;
+type LimitUnit = keyof typeof LIMIT_UNITS;
+
+/** A limit in megabytes as the admin would type it: whole gigabytes in GB, anything else in MB. */
+function limitAmount(megabytes: number): { amount: string; unit: LimitUnit } {
+  return megabytes % 1024 === 0 ? { amount: String(megabytes / 1024), unit: "GB" } : { amount: String(megabytes), unit: "MB" };
+}
+
+/**
+ * The storage limit per account: off by default. Turning the switch on shows the amount to save; turning it off
+ * removes the limit at once.
+ */
+function StorageLimitSetting({
+  settings,
+  saving,
+  onSave,
+}: {
+  settings: InstanceSettings;
+  saving: boolean;
+  onSave: (settings: InstanceSettings) => void;
+}) {
+  const id = useId();
+  const saved = settings.storageQuotaMb;
+  const initial = limitAmount(saved ?? 5 * 1024);
+  const [limited, setLimited] = useState(saved !== null);
+  const [amount, setAmount] = useState(initial.amount);
+  const [unit, setUnit] = useState<LimitUnit>(initial.unit);
+  const [error, setError] = useState<string>();
+
+  function toggle(on: boolean) {
+    setLimited(on);
+    setError(undefined);
+    if (!on && saved !== null) onSave({ ...settings, storageQuotaMb: null });
+  }
+
+  function save(event: FormEvent) {
+    event.preventDefault();
+    const megabytes = Math.round(Number(amount) * LIMIT_UNITS[unit]);
+    if (!amount.trim() || !Number.isFinite(megabytes) || megabytes < 1 || megabytes > MAX_STORAGE_LIMIT_MB) {
+      setError("Enter an amount from 1 MB to 16 TB.");
+      return;
+    }
+    setError(undefined);
+    onSave({ ...settings, storageQuotaMb: megabytes });
+  }
+
+  return (
+    <div className="mt-5 border-t border-stone-100 pt-5 dark:border-stone-800">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium">Storage limit</p>
+          <p id={`${id}-hint`} className="text-sm text-stone-600 dark:text-stone-300">
+            The most each account can store, notes and files together. You never see how much an account uses.
+          </p>
+        </div>
+        <Switch label="Storage limit" checked={limited} disabled={saving} describedBy={`${id}-hint`} onCheckedChange={toggle} />
+      </div>
+      {limited && (
+        <form className="mt-3" onSubmit={save} noValidate>
+          <div className="flex flex-wrap items-end gap-2">
+            <TextField
+              label="Per account"
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="any"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? `${id}-error` : undefined}
+              className="w-32"
+            />
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={`${id}-unit`} className="text-sm font-medium text-stone-700 dark:text-stone-200">
+                Unit
+              </label>
+              <select
+                id={`${id}-unit`}
+                value={unit}
+                onChange={(event) => setUnit(event.target.value as LimitUnit)}
+                className="h-11 rounded-xl border border-stone-300 bg-white px-3 text-sm dark:border-stone-700 dark:bg-stone-950"
+              >
+                <option value="MB">MB</option>
+                <option value="GB">GB</option>
+              </select>
+            </div>
+            <Button type="submit" busy={saving} className="mb-0.5">
+              Save limit
+            </Button>
+          </div>
+          {error && (
+            <div id={`${id}-error`} className="mt-2">
+              <ErrorMessage>{error}</ErrorMessage>
+            </div>
+          )}
+          <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+            {saved !== null
+              ? `Each account can store up to ${formatBytes(saved * 1024 * 1024)}. Accounts over the limit keep their notes and files but cannot add more.`
+              : "Not saved yet: accounts can store as much as the server has room for."}
+          </p>
+        </form>
+      )}
+    </div>
+  );
+}
+
 function AdminSection({ currentUserId }: { currentUserId: string }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -235,12 +358,21 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
   });
 
   const updateSettings = useMutation({
-    mutationFn: api.admin.updateSettings,
+    mutationFn: (next: InstanceSettings) => api.admin.updateSettings(next),
     onSuccess: (saved) => {
+      const before = settings.data;
       queryClient.setQueryData(queryKeys.adminSettings, saved);
       void queryClient.invalidateQueries({ queryKey: queryKeys.status });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.storage });
+      if (before && before.storageQuotaMb !== saved.storageQuotaMb) {
+        toast.info(
+          saved.storageQuotaMb === null
+            ? "Storage limit removed."
+            : `Each account can now store up to ${formatBytes(saved.storageQuotaMb * 1024 * 1024)}.`,
+        );
+      }
     },
-    onError: () => toast.error("Could not save the setting."),
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Could not save the setting."),
   });
 
   const updateUser = useMutation({
@@ -262,9 +394,17 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
           label="Open registration"
           checked={settings.data?.allowRegistration ?? false}
           disabled={!settings.data || updateSettings.isPending}
-          onCheckedChange={(checked) => updateSettings.mutate(checked)}
+          onCheckedChange={(checked) => settings.data && updateSettings.mutate({ ...settings.data, allowRegistration: checked })}
         />
       </div>
+      {settings.data && (
+        <StorageLimitSetting
+          key={String(settings.data.storageQuotaMb)}
+          settings={settings.data}
+          saving={updateSettings.isPending}
+          onSave={(next) => updateSettings.mutate(next)}
+        />
+      )}
 
       <h3 className="mb-2 mt-6 text-sm font-semibold">Accounts</h3>
       {users.data ? (
