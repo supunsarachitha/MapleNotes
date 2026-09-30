@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Archive, CircleHelp, Hash, Home, ListTodo, LogOut, Menu, Search, Settings, X, Zap } from "lucide-react";
+import { Archive, CalendarCheck, CircleHelp, Hash, Home, ListTodo, LogOut, Menu, Search, Settings, X, Zap } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { useEnabledKinds } from "../lib/kinds";
@@ -102,6 +102,11 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
         {preferences.quickNotes && (
           <NavLink href="/quick" icon={Zap} active={path === "/quick"} onNavigate={onNavigate}>
             Quick notes
+          </NavLink>
+        )}
+        {preferences.habitTracker && (
+          <NavLink href="/habits" icon={CalendarCheck} active={path === "/habits"} onNavigate={onNavigate}>
+            Habits
           </NavLink>
         )}
         <NavLink href="/tags" icon={Hash} active={path === "/tags" || (path === "/" && !!activeTag)} onNavigate={onNavigate}>

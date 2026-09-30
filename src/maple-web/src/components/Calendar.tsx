@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { api } from "../lib/api";
 import { useToday } from "../lib/daily";
-import { localDateKey, parseDateKey } from "../lib/dates";
+import { firstDayOfWeek, localDateKey, parseDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
 import { queryKeys } from "../lib/queries";
 import { Link, useLocation } from "../lib/router";
@@ -12,20 +12,6 @@ import { IconButton, cn } from "./ui";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthTitle = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" });
 const dayTitle = new Intl.DateTimeFormat("en", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-
-/** The first day of the week in the user's locale (0 = Sunday), where the browser knows it. */
-function firstDayOfWeek(): number {
-  try {
-    const locale = new Intl.Locale(navigator.language) as Intl.Locale & {
-      getWeekInfo?: () => { firstDay: number };
-      weekInfo?: { firstDay: number };
-    };
-    const firstDay = (locale.getWeekInfo?.() ?? locale.weekInfo)?.firstDay;
-    return firstDay ? firstDay % 7 : 0;
-  } catch {
-    return 0;
-  }
-}
 
 /**
  * A month calendar for the side menu. Days with active notes (of the kinds that are turned on) get a dot; choosing a day

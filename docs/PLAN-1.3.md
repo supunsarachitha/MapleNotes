@@ -123,7 +123,7 @@ volume `maple-preview-data`) rebuilt from the branch.
 | # | Phase | Done when | Status |
 |---|---|---|---|
 | H1 | Server: the habit kind | Listing, creating and importing accept `habit`, and kind changes to or from it are refused. Tag and calendar counts leave habits out by default. Exports put habits in `habits/`. The `habitTracker` preference exists and is off by default. Server tests cover each of these | ✅ Done |
-| H2 | Web foundations | The Features switch. The Habits tab and route, hidden when the switch is off, with a "turned off" page like the Todo tab's. Tested functions for the habit text format (read, write, tick) and the statistics (streaks, weekly and monthly rates, week start, dates that stay right across daylight-saving changes). The browser export and restore handle habits, checked by the shared export vectors | ⏳ |
+| H2 | Web foundations | The Features switch. The Habits tab and route, hidden when the switch is off, with a "turned off" page like the Todo tab's. Tested functions for the habit text format (read, write, tick) and the statistics (streaks, weekly and monthly rates, week start, dates that stay right across daylight-saving changes). The browser export and restore handle habits, checked by the shared export vectors | ✅ Done |
 | H3 | The Habits page | Adding, ticking (last 7 days, with week arrows), renaming, archiving, restoring and deleting habits all work. Ticks save through the save queue, now shared with todo lists. The page works on a 360 px phone and for end-to-end accounts. Component tests cover it | ⏳ |
 | H4 | Progress chart | Weekly and monthly bars for all habits or one; streaks and totals; the screen-reader summary; light and dark themes; tests | ⏳ |
 | H5 | Documentation and release | A Help page section. The README (feature list and a screenshot), CHANGELOG (1.3.0), threat model and spec are updated, and the version is 1.3.0. Browser checks pass for an ordinary and an end-to-end account: ticks survive reloads, an export restores with every habit and day, and the phone layout works. A clean-clone run of every test passes | ⏳ |
@@ -181,3 +181,25 @@ The main risks, and how they are handled:
   - the new preference.
 
   All 409 server tests pass.
+
+### H2: web foundations
+
+- **The switch:** Settings → Features has "Habit tracker", off by default, between Calendar and Link previews.
+- **Navigation:** the Habits link (a calendar-check icon from lucide-react) appears only when the switch is on.
+  `/habits` shows the Todo tab's "turned off" message when it is off.
+- **`lib/habits.ts`:**
+  - reads and writes a habit's text, keeping any other text;
+  - ticks days;
+  - works out streaks and a habit's start day;
+  - lists recent weeks and months;
+  - scores a period.
+- **Dates:** all date arithmetic uses day numbers in UTC. Its tests, and the calendar, export and restore tests, pass
+  with `TZ` set to Europe/Paris, America/Santiago, Asia/Kolkata, Pacific/Kiritimati (UTC+14), Pacific/Pago_Pago
+  (UTC−11) and America/St_Johns (UTC−3:30).
+- **Week start:** `firstDayOfWeek` moved from the calendar to `lib/dates.ts`, so the chart starts weeks on the same day
+  as the calendar.
+- **Exports and restore:**
+  - The browser export lists notes of `ALL_KINDS`, which now includes `Habit`, so end-to-end exports include habits.
+  - Restore reads `kind: habit`.
+  - The shared export vectors gained a habit, and both exporters produce it identically.
+- **Tests:** 409 server tests and 202 web tests pass.

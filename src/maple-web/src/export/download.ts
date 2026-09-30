@@ -1,5 +1,6 @@
 import { AttachmentDecryptor, HEADER_SIZE } from "../crypto/attachments";
 import { api } from "../lib/api";
+import { ALL_KINDS } from "../lib/kinds";
 import { unlockedSession } from "../lib/noteCrypto";
 import type { Attachment, Note, NoteState } from "../lib/types";
 import { buildExport, exportFileName, type ExportOptions, type ExportSource } from "./exporter";
@@ -49,7 +50,7 @@ export function apiExportSource(account: string, onNotes?: (count: number) => vo
       for (const state of (includeArchived ? ["active", "archived"] : ["active"]) as NoteState[]) {
         let cursor: string | undefined;
         do {
-          const page = await api.listNotes({ state, cursor, limit: 100, kinds: ["Note", "Todo", "Quick"] }); // everything
+          const page = await api.listNotes({ state, cursor, limit: 100, kinds: ALL_KINDS }); // everything
           all.push(...page.items);
           onNotes?.(all.length);
           cursor = page.nextCursor ?? undefined;

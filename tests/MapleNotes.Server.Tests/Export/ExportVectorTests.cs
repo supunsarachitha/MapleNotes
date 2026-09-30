@@ -24,7 +24,7 @@ namespace MapleNotes.Server.Tests.Export;
 public sealed class ExportVectorTests
 {
     private const string TimeZone = "Europe/Paris";
-    private const string AllKinds = "kind=note&kind=todo&kind=quick";
+    private const string AllKinds = "kind=note&kind=todo&kind=quick&kind=habit";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
@@ -117,6 +117,8 @@ public sealed class ExportVectorTests
             await Note("# Groceries\n\n- [x] oats\n- [ ] maple syrup #groceries", "2025-07-14T08:00:00Z", kind: NoteKind.Todo);
             await Note("Call the plumber", "2025-07-14T09:00:00Z", archived: true, kind: NoteKind.Quick);
             await Note("# Tuesday, 15 July 2025\n\nA quiet day", "2025-07-14T22:30:00Z", daily: "2025-07-15");
+            // Added in 1.3: a habit, ticked on three days, the last after it was created.
+            await Note("# Stretch 🧘\n\n- 2025-07-12\n- 2025-07-13\n- 2025-07-15", "2025-07-13T06:45:00Z", "2025-07-15T06:50:00Z", kind: NoteKind.Habit);
         }
 
         var exports = new JsonArray();

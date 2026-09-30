@@ -66,7 +66,7 @@ const TYPES: Record<string, string> = {
 
 const extensionOf = (name: string) => name.slice(name.lastIndexOf(".") + 1).toLowerCase();
 const guessType = (name: string) => TYPES[extensionOf(name)] ?? "application/octet-stream";
-const KINDS: Record<string, NoteKind> = { note: "Note", todo: "Todo", quick: "Quick" };
+const KINDS: Record<string, NoteKind> = { note: "Note", todo: "Todo", quick: "Quick", habit: "Habit" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const isNoteFile = (name: string) => ["md", "markdown", "txt", "json"].includes(extensionOf(name));

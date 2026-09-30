@@ -90,6 +90,18 @@ describe("Settings", () => {
     expect(todo).toHaveAttribute("aria-checked", "false");
   });
 
+  it("offers the habit tracker, off by default", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
+    const habits = screen.getByRole("switch", { name: "Habit tracker" });
+
+    expect(habits).toHaveAttribute("aria-checked", "false");
+    await userEvent.click(habits);
+
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, habitTracker: true }));
+    expect(habits).toHaveAttribute("aria-checked", "true");
+  });
+
   it("changes the theme and accent colour", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
     renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
