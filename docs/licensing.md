@@ -17,8 +17,8 @@ high-stakes distribution.
    license text, and is copied into the container image at `/app/licenses/`. Regenerate it whenever dependencies
    change: `python3 scripts/check-licenses.py --notices THIRD-PARTY-NOTICES.md`. "Shipped" is taken from a Release
    publish's `deps.json` (exactly what goes into the image) and from the non-dev packages in `package-lock.json`.
-4. **No code, text, logos or screenshots are copied from other projects**, including memos. Maple Notes
-   is inspired by memos' feature set only.
+4. **No code, text, logos or screenshots are copied from other projects.** Other projects are only ever
+   inspiration: Maple Notes is written from scratch.
 5. **Third-party names are used only to describe compatibility**, never to imply endorsement.
 
 ## License categories
