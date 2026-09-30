@@ -6,7 +6,7 @@ import { validateKdf, type KdfParams } from "./params";
 // the browser so the page stays responsive; where Workers are unavailable (tests) it runs inline.
 
 export { DEFAULT_KDF, validateKdf, type KdfParams } from "./params";
-export { hkdfAesKey, hkdfBytes, hkdfHmacKey, importAesKey } from "./hkdf";
+export { hkdfBytes, importAesKey } from "./hkdf";
 
 let worker: Worker | null = null;
 let nextRequest = 1;

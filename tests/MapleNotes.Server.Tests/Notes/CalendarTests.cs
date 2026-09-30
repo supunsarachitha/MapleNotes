@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Notes;
 using MapleNotes.Server.Tests.TestSupport;

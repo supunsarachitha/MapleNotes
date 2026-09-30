@@ -31,16 +31,6 @@ function formatter(timeZone: string): Intl.DateTimeFormat {
   return format;
 }
 
-/** Whether the browser knows this IANA time zone. */
-export function isTimeZone(timeZone: string): boolean {
-  try {
-    formatter(timeZone);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** Parses an API timestamp; JavaScript dates keep milliseconds, the rest of the 7 fractional digits is dropped. */
 export function parseUtc(iso: string): Date {
   return new Date(iso.replace(/(\.\d{3})\d+/, "$1"));
