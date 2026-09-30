@@ -49,6 +49,7 @@ flowchart LR
 | `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Habits (with the progress chart), Archive, Settings, Help, and the sign-in, unlock and recovery screens. |
 | `tests/MapleNotes.Server.Tests/` | Unit and integration tests (xUnit v3, `WebApplicationFactory`). |
 | `scripts/` | License check and third-party notice generator. |
+| `site/` | The project website, published to GitHub Pages by `.github/workflows/pages.yml` with the app's icon and the README screenshots. |
 
 ### Request pipeline
 

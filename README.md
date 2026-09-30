@@ -15,6 +15,8 @@
   <img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-8f1d21" alt="License: PolyForm Noncommercial 1.0.0">
 </p>
 
+<p align="center"><a href="https://supunsarachitha.github.io/MapleNotes/"><b>Website</b></a></p>
+
 ![Home Feed](docs/screenshots/home-feed.png)
 
 ## Features
