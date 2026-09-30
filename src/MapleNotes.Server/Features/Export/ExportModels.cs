@@ -74,7 +74,7 @@ public sealed record ExportedAttachment(
 /// <param name="Pinned">Whether the note is pinned.</param>
 /// <param name="Archived">Whether the note is archived.</param>
 /// <param name="Attachments">Attached files included in the export.</param>
-/// <param name="Kind">A timeline note, a todo list or a quick note.</param>
+/// <param name="Kind">A timeline note, a todo list, a quick note or a habit.</param>
 /// <param name="DailyDate">For a daily note, its day.</param>
 public sealed record ExportedNote(
     Guid Id,
@@ -88,6 +88,6 @@ public sealed record ExportedNote(
     NoteKind Kind = NoteKind.Note,
     DateOnly? DailyDate = null)
 {
-    /// <summary>The kind as written in exports: <c>note</c>, <c>todo</c> or <c>quick</c>.</summary>
+    /// <summary>The kind as written in exports: <c>note</c>, <c>todo</c>, <c>quick</c> or <c>habit</c>.</summary>
     public string KindName => Kind.ToString().ToLowerInvariant();
 }

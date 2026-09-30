@@ -122,7 +122,7 @@ volume `maple-preview-data`) rebuilt from the branch.
 
 | # | Phase | Done when | Status |
 |---|---|---|---|
-| H1 | Server: the habit kind | Listing, creating and importing accept `habit`, and kind changes to or from it are refused. Tag and calendar counts leave habits out by default. Exports put habits in `habits/`. The `habitTracker` preference exists and is off by default. Server tests cover each of these | ⏳ |
+| H1 | Server: the habit kind | Listing, creating and importing accept `habit`, and kind changes to or from it are refused. Tag and calendar counts leave habits out by default. Exports put habits in `habits/`. The `habitTracker` preference exists and is off by default. Server tests cover each of these | ✅ Done |
 | H2 | Web foundations | The Features switch. The Habits tab and route, hidden when the switch is off, with a "turned off" page like the Todo tab's. Tested functions for the habit text format (read, write, tick) and the statistics (streaks, weekly and monthly rates, week start, dates that stay right across daylight-saving changes). The browser export and restore handle habits, checked by the shared export vectors | ⏳ |
 | H3 | The Habits page | Adding, ticking (last 7 days, with week arrows), renaming, archiving, restoring and deleting habits all work. Ticks save through the save queue, now shared with todo lists. The page works on a 360 px phone and for end-to-end accounts. Component tests cover it | ⏳ |
 | H4 | Progress chart | Weekly and monthly bars for all habits or one; streaks and totals; the screen-reader summary; light and dark themes; tests | ⏳ |
@@ -163,4 +163,21 @@ The main risks, and how they are handled:
 
 ## Notes from the phases
 
-Filled in as the phases finish.
+### H1: server
+
+- `NoteKind.Habit` is stored as the text `Habit`, like the other kinds, so no migration was needed.
+- `PATCH` refuses to move a note to or from `Habit` (400, field `kind`). Changes within the other kinds work as
+  before, and so do archiving and pinning a habit.
+- Without `kind`, tag and calendar counts leave habits out. The web app always names the kinds it wants, so nothing
+  changes for it.
+- Exports put habits in `habits/`, with `kind: habit` in every format and in the manifest.
+- Tests added:
+  - habits are listed only when asked for;
+  - habits never change kind;
+  - an end-to-end habit keeps its kind;
+  - a restored habit keeps its kind and days;
+  - calendar counts;
+  - export folders;
+  - the new preference.
+
+  All 409 server tests pass.

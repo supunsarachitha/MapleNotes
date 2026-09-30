@@ -76,7 +76,7 @@ public sealed record CalendarQuery
     /// <summary>IANA time zone whose calendar days are counted, e.g. <c>Europe/Paris</c>. Default: UTC.</summary>
     public string? TimeZone { get; init; }
 
-    /// <summary>Count only notes of these kinds (repeat the parameter); default: every kind.</summary>
+    /// <summary>Count only notes of these kinds (repeat the parameter); default: every kind except habits.</summary>
     [FromQuery(Name = "kind")]
     public NoteKind[]? Kinds { get; init; }
 }
@@ -98,7 +98,7 @@ public sealed record CalendarDayResponse(DateOnly Date, int Count);
 /// <param name="Tags">Tags found in the text; empty for an end-to-end encrypted note (the browser reads them from the text).</param>
 /// <param name="Attachments">Attached files, oldest first.</param>
 /// <param name="EncryptedContent">The envelope of an end-to-end encrypted note (base64), for the browser to decrypt.</param>
-/// <param name="Kind">Where the note belongs: the timeline, the Todo tab or the Quick notes tab.</param>
+/// <param name="Kind">Where the note belongs: the timeline, the Todo tab, the Quick notes tab or the Habits page.</param>
 /// <param name="DailyDate">For a daily note, the day it belongs to.</param>
 public sealed record NoteResponse(
     Guid Id,
@@ -138,7 +138,7 @@ public sealed record EncryptedNote(byte[] Content, IReadOnlyList<EncryptedTag>? 
 /// <param name="IsPinned">Pin the note above the feed.</param>
 /// <param name="Id">For an end-to-end note: the ID the browser chose and bound into the ciphertext (UUID version 7).</param>
 /// <param name="Encrypted">For an end-to-end note: the encrypted text and tags.</param>
-/// <param name="Kind">A timeline note (the default), a todo list or a quick note.</param>
+/// <param name="Kind">A timeline note (the default), a todo list, a quick note or a habit.</param>
 /// <param name="DailyDate">Makes a timeline note the daily note of this day; each day has at most one.</param>
 public sealed record CreateNoteRequest(
     string? Content = null,
@@ -160,7 +160,7 @@ public sealed record CreateNoteRequest(
 /// <param name="AttachmentIds">IDs of uploaded files to attach.</param>
 /// <param name="IsPinned">Whether it was pinned.</param>
 /// <param name="IsArchived">Whether it was archived.</param>
-/// <param name="Kind">Timeline note, todo list or quick note.</param>
+/// <param name="Kind">Timeline note, todo list, quick note or habit.</param>
 /// <param name="DailyDate">Its day, for a daily note. Dropped if the account already has a daily note for that day.</param>
 public sealed record ImportNoteRequest(
     DateTime CreatedAtUtc,
@@ -199,7 +199,7 @@ public sealed record UpdateNoteRequest(string? Content = null, IReadOnlyList<Gui
 /// <param name="IsPinned">Pin or unpin.</param>
 /// <param name="IsArchived">Archive (soft-delete) or restore.</param>
 /// <param name="Kind">Move the note, for example a quick note to the timeline. A daily note moved out of the timeline
-/// stops being the day's daily note.</param>
+/// stops being the day's daily note. Habits cannot move to another kind, and other notes cannot become habits.</param>
 public sealed record PatchNoteRequest(bool? IsPinned = null, bool? IsArchived = null, NoteKind? Kind = null);
 
 /// <summary>A tag and how many active notes (of the requested kinds) use it.</summary>

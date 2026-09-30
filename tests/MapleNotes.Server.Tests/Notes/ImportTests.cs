@@ -52,6 +52,16 @@ public sealed class ImportTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_restored_habit_keeps_its_kind_and_days()
+    {
+        var response = await _client.PostJsonAsync("/api/v1/notes/import", new ImportNoteRequest(
+            Created, Updated, Content: "# Walk\n\n- 2024-12-30\n- 2024-12-31", Kind: NoteKind.Habit));
+
+        var note = (await response.Content.ReadFromJsonAsync<ImportNoteResponse>(ApiClient.Json, Ct))!.Note;
+        Assert.Equal((HttpStatusCode.Created, NoteKind.Habit, "# Walk\n\n- 2024-12-30\n- 2024-12-31"), (response.StatusCode, note.Kind, note.Content));
+    }
+
+    [Fact]
     public async Task Restoring_twice_skips_notes_the_account_has()
     {
         var id = Guid.CreateVersion7();

@@ -3,12 +3,13 @@ using System.Net.Http.Json;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Notes;
 using MapleNotes.Server.Tests.TestSupport;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MapleNotes.Server.Tests.Notes;
 
 /// <summary>
-/// Kinds of notes: todo lists and quick notes stay out of the timeline, lists and tag counts filter by kind, a note can
-/// move between kinds, and end-to-end notes keep their kind.
+/// Kinds of notes: todo lists, quick notes and habits stay out of the timeline, lists and tag counts filter by kind, a
+/// note can move between kinds (but never to or from habits), and end-to-end notes keep their kind.
 /// </summary>
 public sealed class NoteKindsTests : IAsyncLifetime
 {
@@ -82,6 +83,38 @@ public sealed class NoteKindsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Habits_are_listed_only_when_asked_for_and_leave_tag_counts_alone()
+    {
+        var note = await CreateAsync(new CreateNoteRequest("Twenty pages tonight #reading"));
+        var habit = await CreateAsync(new CreateNoteRequest("# Read #reading\n\n- 2026-09-28\n- 2026-09-29", Kind: NoteKind.Habit));
+
+        Assert.Equal(NoteKind.Habit, habit.Kind);
+        Assert.Equal([note.Id], await IdsAsync("/api/v1/notes"));
+        Assert.Equal([note.Id], await IdsAsync("/api/v1/notes?state=active&q=read&kind=note&kind=todo&kind=quick"));
+        Assert.Equal([habit.Id], await IdsAsync("/api/v1/notes?state=active&kind=habit"));
+        Assert.Equal([("reading", 1)], await TagCountsAsync("/api/v1/tags")); // habits count only when asked for
+        Assert.Equal([("reading", 2)], await TagCountsAsync("/api/v1/tags?kind=note&kind=habit"));
+    }
+
+    [Fact]
+    public async Task Habits_never_change_kind_and_notes_never_become_habits()
+    {
+        var note = await CreateAsync(new CreateNoteRequest("A timeline note"));
+        var habit = await CreateAsync(new CreateNoteRequest("# Walk\n\n- 2026-09-29", Kind: NoteKind.Habit));
+
+        var toHabit = await _client.PatchJsonAsync($"/api/v1/notes/{note.Id}", new PatchNoteRequest(Kind: NoteKind.Habit));
+        var fromHabit = await _client.PatchJsonAsync($"/api/v1/notes/{habit.Id}", new PatchNoteRequest(Kind: NoteKind.Quick));
+        var archived = await PatchAsync(habit.Id, new PatchNoteRequest(IsArchived: true, Kind: NoteKind.Habit));
+
+        Assert.Equal((HttpStatusCode.BadRequest, HttpStatusCode.BadRequest), (toHabit.StatusCode, fromHabit.StatusCode));
+        Assert.Contains("kind", (await toHabit.Content.ReadFromJsonAsync<ValidationProblemDetails>(Ct))!.Errors.Keys);
+        Assert.Equal(NoteKind.Note, (await _client.GetJsonAsync<NoteResponse>($"/api/v1/notes/{note.Id}"))!.Kind);
+        Assert.Equal((NoteKind.Habit, true), (archived.Kind, archived.IsArchived)); // archiving still works
+        var daily = await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("# Run", Kind: NoteKind.Habit, DailyDate: new DateOnly(2026, 9, 29)));
+        Assert.Equal(HttpStatusCode.BadRequest, daily.StatusCode);
+    }
+
+    [Fact]
     public async Task Unknown_kinds_are_rejected()
     {
         var note = await CreateAsync(new CreateNoteRequest("x"));
@@ -108,6 +141,14 @@ public sealed class NoteKindsTests : IAsyncLifetime
         Assert.Null(listed.Content);
         Assert.Equal("# Secret list\n\n- [ ] item", account.Decrypt(listed));
         Assert.Empty(await IdsAsync("/api/v1/notes"));
+
+        var habitId = Guid.CreateVersion7();
+        var habit = await CreateAsync(new CreateNoteRequest(Id: habitId, Encrypted: account.EncryptNote(habitId, "# Meditate\n\n- 2026-09-29"), Kind: NoteKind.Habit));
+
+        Assert.Equal(NoteKind.Habit, habit.Kind);
+        var listedHabit = Assert.Single((await _client.GetJsonAsync<NotePageResponse>("/api/v1/notes?state=active&kind=habit"))!.Items);
+        Assert.Null(listedHabit.Content);
+        Assert.Equal("# Meditate\n\n- 2026-09-29", account.Decrypt(listedHabit));
     }
 
     private async Task<NoteResponse> CreateAsync(CreateNoteRequest request)
