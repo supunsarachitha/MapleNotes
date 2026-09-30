@@ -45,7 +45,7 @@ export function Calendar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <section aria-label="Calendar" className="px-1">
-      <div className="mb-1 flex items-center gap-1">
+      <div className="mb-1 flex items-center gap-1 short:mb-0">
         <h2 className="flex-1 px-2 text-sm font-semibold" aria-live="polite">
           {monthTitle.format(month)}
         </h2>
@@ -58,12 +58,12 @@ export function Calendar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       <div className="grid grid-cols-7 text-center text-[11px] font-medium text-stone-400" aria-hidden="true">
         {weekdays.map((name) => (
-          <span key={name} className="py-1">
+          <span key={name} className="py-1 short:py-0.5">
             {name.slice(0, 2)}
           </span>
         ))}
       </div>
-      <ol className="grid grid-cols-7 gap-y-0.5">
+      <ol className="grid grid-cols-7 gap-y-0.5 short:gap-y-0">
         {Array.from({ length: blanks }, (_, i) => (
           <li key={`blank-${i}`} aria-hidden="true" />
         ))}
@@ -80,7 +80,7 @@ export function Calendar({ onNavigate }: { onNavigate?: () => void }) {
                 aria-current={isSelected ? "page" : undefined}
                 aria-label={`${dayTitle.format(date)}${count ? `, ${count} ${count === 1 ? "note" : "notes"}` : ""}${key === todayKey ? " (today)" : ""}`}
                 className={cn(
-                  "relative flex size-8 items-center justify-center rounded-full text-xs tabular-nums transition-colors",
+                  "relative flex size-8 items-center justify-center rounded-full text-xs tabular-nums transition-colors short:size-7",
                   isSelected
                     ? "bg-maple-600 font-semibold text-white"
                     : key === todayKey

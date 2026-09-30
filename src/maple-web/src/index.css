@@ -15,6 +15,9 @@
   }
 }
 
+/* Windows shorter than 900 px: the side menu and its calendar tighten so they fit without scrolling. */
+@custom-variant short (@media (max-height: 56.25rem));
+
 /*
  * Maple Notes design tokens. Components use these through Tailwind's theme (e.g. bg-maple-600).
  * Brand colour: deep maple red #8f1d21 (maple-600), the same colour as the app icon and browser theme-color.
