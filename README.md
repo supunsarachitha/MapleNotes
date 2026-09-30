@@ -75,8 +75,9 @@ Dark mode: [screenshot](docs/screenshots/home-feed-dark.png).
 
 ## Quick start
 
-You need Docker. Maple Notes listens on port 8080 inside the container; put it behind an HTTPS reverse proxy for
-use over the internet (see [Reverse proxy](#reverse-proxy-and-https)).
+You need Docker. Maple Notes listens on port 8080 inside the container. Open it at `http://localhost` on the server
+itself; from any other device it needs HTTPS, because browsers only allow its in-page encryption on HTTPS or
+`localhost` (see [Reverse proxy](#reverse-proxy-and-https)).
 
 ### Docker Compose (recommended)
 
@@ -147,7 +148,8 @@ volumes:
 #     file: ./secrets/master.key
 ```
 
-And `.env.example`, which you copy to `.env` next to it:
+<details>
+<summary><code>.env.example</code>, which you copy to <code>.env</code> next to it</summary>
 
 ```sh
 # Copy to .env and fill in. Never commit .env.
@@ -178,6 +180,8 @@ MAPLE_TRUSTED_PROXIES=
 MAPLE_LINK_PREVIEWS=true
 ```
 
+</details>
+
 The image is built from this repository (`build: .`), so keep both files in the cloned folder. To update, see
 [Upgrading](#upgrading).
 
@@ -187,11 +191,11 @@ The image is built from this repository (`build: .`), so keep both files in the 
 
 ### docker run
 
-```sh
-docker build -t maple-notes .
+With the image this repository publishes (no clone needed):
 
+```sh
 # Create a master key and save it safely.
-docker run --rm maple-notes generate-key
+docker run --rm ghcr.io/supunsarachitha/maplenotes:latest generate-key
 
 docker run -d --name maple-notes \
   -p 8080:8080 \
@@ -199,7 +203,7 @@ docker run -d --name maple-notes \
   -v maple-data:/app/data \
   --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   --restart unless-stopped \
-  maple-notes
+  ghcr.io/supunsarachitha/maplenotes:latest
 ```
 
 To use a Docker secret instead of an environment variable, set `MAPLE_MASTER_KEY_FILE` to the secret's path
@@ -212,6 +216,9 @@ image that this repository's CI publishes to GitHub's container registry (`ghcr.
 amd64 and arm64), so nothing is built on your server. It creates the master key on first start, in its own volume
 (`maple-notes-key`), separate from the notes (`maple-notes-data`). It is also in the repository as
 [`deploy/portainer-stack.yml`](deploy/portainer-stack.yml).
+
+<details>
+<summary>The stack (<code>deploy/portainer-stack.yml</code>)</summary>
 
 ```yaml
 # Maple Notes: a stack to paste into Portainer (Stacks > Add stack > Web editor) and deploy as is.
@@ -276,6 +283,8 @@ volumes:
     name: maple-notes-key
 ```
 
+</details>
+
 > [!IMPORTANT]
 > **Right after the first start, copy the master key somewhere safe** (the command is at the top of the stack) and
 > keep it apart from backups of `maple-notes-data`. The key volume sits on the same server as the data, like a `.env`
@@ -292,6 +301,9 @@ Notes, serving it at `https://<server-ip>:8443` with a certificate from Caddy's 
 address you open it by. The browser warns once that it does not know that authority; accept it (or install the
 authority's root certificate on your devices), and everything works. It is also in the repository as
 [`deploy/portainer-stack-https.yml`](deploy/portainer-stack-https.yml).
+
+<details>
+<summary>The HTTPS stack (<code>deploy/portainer-stack-https.yml</code>)</summary>
 
 ```yaml
 # Maple Notes over HTTPS without a domain name: a stack to paste into Portainer (Stacks > Add stack > Web editor)
@@ -385,9 +397,10 @@ volumes:
     name: maple-notes-https
 ```
 
-Why not build in Portainer: a stack with `build:` makes Portainer's Compose use BuildKit, which fails when Portainer
-reaches Docker through its agent or a socket proxy ("failed to list workers … frame too large"). Pulling a published
-image avoids that.
+</details>
+
+The stacks pull the published image rather than building: building in Portainer fails when it reaches Docker through
+its agent ("failed to list workers … frame too large").
 
 **Bind mounts:** if you mount a host directory instead of a named volume, make it writable by the container's user:
 `sudo chown -R 1654:1654 ./data`.
@@ -452,7 +465,7 @@ end-to-end encryption cannot reset a forgotten password; keep it in a password m
 ## Backups
 
 Every user can download their own notes from **Settings → Backup & restore** and restore them there, into the same
-account or a new one on any Maple Notes 1.2 server. For the whole instance, back up the data volume.
+account or a new one on any Maple Notes server, 1.2 or later. For the whole instance, back up the data volume.
 
 Everything lives in the data volume. A consistent backup while Maple Notes keeps running:
 
@@ -494,13 +507,14 @@ notes of a new kind, so exports file them under `habits/`; restoring such an exp
 habits back as ordinary notes. The API gained the kind `habit` and the preference `habitTracker`. Without a `kind`,
 tag and calendar counts leave habits out.
 
-### From 1.1 to 1.2
+<details>
+<summary>Older versions</summary>
 
-Nothing to do. Existing notes stay in the timeline, and every account starts with todo lists and quick notes turned
+**From 1.1 to 1.2.** Nothing to do. Existing notes stay in the timeline, and every account starts with todo lists and quick notes turned
 on, and titles and daily notes off. Exports now record each note's kind and daily date (manifest version 2), and
 file todo lists and quick notes in their own folders. The API only gained fields and endpoints.
 
-### From 1.0 to 1.1
+**From 1.0 to 1.1:**
 
 - **Sign-in changed.** Browsers no longer send passwords; they send a key derived from the password. The next time
   each account signs in (or confirms its password in Settings), the browser sends the password one last time so the
@@ -510,6 +524,8 @@ file todo lists and quick notes in their own folders. The API only gained fields
 - **API clients** that signed in with a username and password must follow the new sign-in protocol
   ([docs/e2ee-spec.md](docs/e2ee-spec.md#1-password-derived-keys-every-account)), and the encryption endpoint takes a mode instead of on/off.
   See the [changelog](CHANGELOG.md).
+
+</details>
 
 ## Reverse proxy and HTTPS
 
