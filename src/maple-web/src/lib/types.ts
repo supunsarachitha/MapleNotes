@@ -55,6 +55,8 @@ export interface Preferences {
   dailyNotes: boolean;
   /** Show a month calendar in the side menu. */
   calendar: boolean;
+  /** Show the Habits tab. */
+  habitTracker: boolean;
   /** Show previews of links in notes (the server fetches the pages). */
   linkPreviews: boolean;
   theme: Theme;
@@ -119,8 +121,8 @@ export interface AttachmentWire extends Omit<Attachment, "fileName" | "contentTy
   encryptedMetadata?: string | null;
 }
 
-/** Where a note belongs: the Home timeline, the Todo tab or the Quick notes tab. */
-export type NoteKind = "Note" | "Todo" | "Quick";
+/** Where a note belongs: the Home timeline, the Todo tab, the Quick notes tab or the Habits page. */
+export type NoteKind = "Note" | "Todo" | "Quick" | "Habit";
 
 /** A note as components use it: plain text, decrypted if it was end-to-end encrypted. */
 export interface Note {

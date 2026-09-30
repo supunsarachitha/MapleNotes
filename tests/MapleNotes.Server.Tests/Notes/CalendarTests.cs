@@ -23,6 +23,7 @@ public sealed class CalendarTests : IAsyncLifetime
         await ImportAsync("2025-03-30T10:00:00Z", "archived", archived: true);
         await ImportAsync("2025-03-15T08:00:00Z", "jotted", NoteKind.Quick);
         await ImportAsync("2025-04-01T08:00:00Z", "next month");
+        await ImportAsync("2025-03-30T11:00:00Z", "# Walk\n\n- 2025-03-30", NoteKind.Habit); // counted only when asked for
     }
 
     public async ValueTask DisposeAsync()
@@ -45,6 +46,7 @@ public sealed class CalendarTests : IAsyncLifetime
     public async Task Only_the_requested_kinds_are_counted()
     {
         Assert.Equal([("2025-03-30", 1), ("2025-03-31", 1)], await DaysAsync("from=2025-03-01&to=2025-03-31&timeZone=Europe/Paris&kind=note"));
+        Assert.Equal([("2025-03-30", 1)], await DaysAsync("from=2025-03-01&to=2025-03-31&kind=habit"));
     }
 
     [Fact]

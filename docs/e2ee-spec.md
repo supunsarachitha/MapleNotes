@@ -85,10 +85,11 @@ headers, tokens and the ID, and answers ciphertext from an account in another mo
 search (`q`) never matches an end-to-end note: the browser searches instead, scanning pages of notes and returning the
 matches with the cursor to continue from, and never sends the search text.
 
-**Metadata that stays plain (since 1.2).** A note's `kind` (`Note`, `Todo`, `Quick`) and a daily note's `dailyDate`
-are stored and sent in plain form, like the pinned and archived flags, and so are the account's preferences. Link
-previews, if the account turns them on, send each previewed link to the server in plain form (off by default). Titles
-and todo items are part of the note text, so they are encrypted with it.
+**Metadata that stays plain (since 1.2).** A note's `kind` (`Note`, `Todo`, `Quick`, and since 1.3 `Habit`) and a
+daily note's `dailyDate` are stored and sent in plain form, like the pinned and archived flags, and so are the
+account's preferences. Link previews, if the account turns them on, send each previewed link to the server in plain
+form (off by default). Titles, todo items, and a habit's name and days are part of the note text, so they are
+encrypted with it. Ticking a day rewrites the habit's note, so its update time shows roughly when it was last ticked.
 
 **Restoring an export.** `POST /api/v1/notes/import` takes the same `{ id, encrypted }` fields, with the note's
 original ID. That ID must be a UUID version 7 but, unlike a new note's, may be old (not more than 24 hours in the

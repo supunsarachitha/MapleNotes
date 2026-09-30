@@ -6,7 +6,7 @@
 
 <p align="center">
   A self-hosted place for quick notes, encrypted at rest or end to end.<br>
-  Timeline feed · todo lists · daily notes · Markdown and #tags · attachments · export and restore · one Docker container.
+  Timeline feed · todo lists · daily notes · habit tracker · Markdown and #tags · attachments · export and restore · one Docker container.
 </p>
 
 <p align="center">
@@ -27,11 +27,13 @@
 - **Quick notes.** A scratchpad tab for short notes that stay out of your timeline; move one to Home when it is worth
   keeping.
 - **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.
+- **Habit tracker.** Optionally, a Habits tab: tick off the days you keep each habit, and follow your progress in a
+  chart of weeks or months, with streaks.
 - **Link previews.** Optionally, the title and description of links in your notes. Off by default: the server fetches
   the pages, so it sees the links.
 - **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.
-- **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes and the calendar on or off in
-  Settings, on every device at once. Turning a feature off hides it and deletes nothing.
+- **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes, the calendar and the
+  habit tracker on or off in Settings, on every device at once. Turning a feature off hides it and deletes nothing.
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists, tables, code), with a formatting toolbar and shortcuts
   in the editor, and clickable `#tags`, including
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
@@ -65,12 +67,17 @@
 |---|---|---|
 | ![Mobile View](docs/screenshots/mobile-view.png) | ![Todo lists](docs/screenshots/todo.png) | ![Settings](docs/screenshots/settings.png) |
 
+| Habit tracker |
+|---|
+| ![Habit tracker: the last seven days to tick for each habit, and the share of days done per week](docs/screenshots/habits.png) |
+
 Dark mode: [screenshot](docs/screenshots/home-feed-dark.png).
 
 ## Quick start
 
-You need Docker. Maple Notes listens on port 8080 inside the container; put it behind an HTTPS reverse proxy for
-use over the internet (see [Reverse proxy](#reverse-proxy-and-https)).
+You need Docker. Maple Notes listens on port 8080 inside the container. Open it at `http://localhost` on the server
+itself; from any other device it needs HTTPS, because browsers only allow its in-page encryption on HTTPS or
+`localhost` (see [Reverse proxy](#reverse-proxy-and-https)).
 
 ### Docker Compose (recommended)
 
@@ -141,7 +148,8 @@ volumes:
 #     file: ./secrets/master.key
 ```
 
-And `.env.example`, which you copy to `.env` next to it:
+<details>
+<summary><code>.env.example</code>, which you copy to <code>.env</code> next to it</summary>
 
 ```sh
 # Copy to .env and fill in. Never commit .env.
@@ -172,6 +180,8 @@ MAPLE_TRUSTED_PROXIES=
 MAPLE_LINK_PREVIEWS=true
 ```
 
+</details>
+
 The image is built from this repository (`build: .`), so keep both files in the cloned folder. To update, see
 [Upgrading](#upgrading).
 
@@ -181,11 +191,11 @@ The image is built from this repository (`build: .`), so keep both files in the 
 
 ### docker run
 
-```sh
-docker build -t maple-notes .
+With the image this repository publishes (no clone needed):
 
+```sh
 # Create a master key and save it safely.
-docker run --rm maple-notes generate-key
+docker run --rm ghcr.io/supunsarachitha/maplenotes:latest generate-key
 
 docker run -d --name maple-notes \
   -p 8080:8080 \
@@ -193,7 +203,7 @@ docker run -d --name maple-notes \
   -v maple-data:/app/data \
   --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
   --restart unless-stopped \
-  maple-notes
+  ghcr.io/supunsarachitha/maplenotes:latest
 ```
 
 To use a Docker secret instead of an environment variable, set `MAPLE_MASTER_KEY_FILE` to the secret's path
@@ -206,6 +216,9 @@ image that this repository's CI publishes to GitHub's container registry (`ghcr.
 amd64 and arm64), so nothing is built on your server. It creates the master key on first start, in its own volume
 (`maple-notes-key`), separate from the notes (`maple-notes-data`). It is also in the repository as
 [`deploy/portainer-stack.yml`](deploy/portainer-stack.yml).
+
+<details>
+<summary>The stack (<code>deploy/portainer-stack.yml</code>)</summary>
 
 ```yaml
 # Maple Notes: a stack to paste into Portainer (Stacks > Add stack > Web editor) and deploy as is.
@@ -270,6 +283,8 @@ volumes:
     name: maple-notes-key
 ```
 
+</details>
+
 > [!IMPORTANT]
 > **Right after the first start, copy the master key somewhere safe** (the command is at the top of the stack) and
 > keep it apart from backups of `maple-notes-data`. The key volume sits on the same server as the data, like a `.env`
@@ -286,6 +301,9 @@ Notes, serving it at `https://<server-ip>:8443` with a certificate from Caddy's 
 address you open it by. The browser warns once that it does not know that authority; accept it (or install the
 authority's root certificate on your devices), and everything works. It is also in the repository as
 [`deploy/portainer-stack-https.yml`](deploy/portainer-stack-https.yml).
+
+<details>
+<summary>The HTTPS stack (<code>deploy/portainer-stack-https.yml</code>)</summary>
 
 ```yaml
 # Maple Notes over HTTPS without a domain name: a stack to paste into Portainer (Stacks > Add stack > Web editor)
@@ -379,102 +397,10 @@ volumes:
     name: maple-notes-https
 ```
 
-**Behind Nginx Proxy Manager, with a domain name.** Deploy this stack in Portainer, then add a Proxy Host in NPM
-as described at the top of the stack. It is also in the repository as
-[`deploy/portainer-stack-npm.yml`](deploy/portainer-stack-npm.yml).
+</details>
 
-```yaml
-# Maple Notes behind Nginx Proxy Manager (NPM) with a domain name: a stack to paste into Portainer
-# (Stacks > Add stack > Web editor) and deploy as is.
-#
-# Then, in Nginx Proxy Manager, add a Proxy Host:
-#   Details:  Domain Names: your domain (e.g. notes.example.com) | Scheme: http
-#             Forward Hostname / IP: this server's IP address | Forward Port: 8088
-#             Cache Assets: off | Block Common Exploits: off | Websockets Support: off
-#   SSL:      Request a new SSL certificate (Let's Encrypt) | Force SSL: on | HTTP/2 Support: on
-#   Advanced: paste the "Custom Nginx Configuration" from deploy/nginx-proxy-manager.conf (uploads above nginx's 1 MB
-#             default, streamed uploads, exports and videos)
-# Open https://<your domain> and create the first account; it becomes the administrator.
-#
-# BACK UP THE MASTER KEY right after the first start (it encrypts everything; without it the data is lost):
-#   docker run --rm -v maple-notes-key:/key:ro alpine cat /key/master.key
-# Keep that copy somewhere else (a password manager), not with backups of maple-notes-data.
-
-services:
-  maple-notes-key:
-    image: alpine:3
-    restart: "no"
-    command:
-      - sh
-      - -c
-      - test -s /key/master.key || (umask 022 && head -c 32 /dev/urandom | base64 > /key/master.key.new && mv /key/master.key.new /key/master.key)
-    volumes:
-      - maple-notes-key:/key
-
-  maple-notes:
-    image: ghcr.io/supunsarachitha/maplenotes:latest
-    pull_policy: always # fetch the newest image on every deploy (Portainer: "Update the stack" with re-pull)
-    container_name: maple-notes
-    restart: unless-stopped
-    depends_on:
-      maple-notes-key:
-        condition: service_completed_successfully
-    ports:
-      - "8088:8080"
-    environment:
-      MAPLE_MASTER_KEY_FILE: /run/maple-key/master.key
-      MAPLE_ALLOW_REGISTRATION: "false"
-      MAPLE_MAX_UPLOAD_MB: "25"
-      MAPLE_DEFAULT_ENCRYPTION: "true"
-      MAPLE_LINK_PREVIEWS: "true"
-      # Trust Nginx Proxy Manager's forwarded headers, so Maple Notes sees HTTPS (secure cookies) and real client
-      # addresses (rate limiting). Docker networks are usually in 172.16.0.0/12; if NPM's is not, put its address here.
-      MAPLE_TRUSTED_PROXIES: "172.16.0.0/12"
-    volumes:
-      - maple-notes-data:/app/data
-      - maple-notes-key:/run/maple-key:ro
-    read_only: true
-    tmpfs:
-      - /tmp
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-
-volumes:
-  maple-notes-data:
-    name: maple-notes-data
-  maple-notes-key:
-    name: maple-notes-key
-```
-
-In NPM, on the Proxy Host's **Advanced** tab, paste this as the Custom Nginx Configuration
-([`deploy/nginx-proxy-manager.conf`](deploy/nginx-proxy-manager.conf)). Without it nginx refuses attachments over
-1 MB:
-
-```nginx
-# Maple Notes: "Custom Nginx Configuration" for its Proxy Host in Nginx Proxy Manager (Advanced tab).
-# NPM already forwards the Host, X-Forwarded-For and X-Forwarded-Proto headers that Maple Notes needs.
-
-# Attachments up to MAPLE_MAX_UPLOAD_MB (25 MB by default) plus a little overhead; nginx allows only 1 MB by default.
-# Raise this together with MAPLE_MAX_UPLOAD_MB.
-client_max_body_size 30m;
-
-# Stream uploads to Maple Notes and exports and videos to the browser, instead of buffering them in nginx.
-proxy_request_buffering off;
-proxy_buffering off;
-
-# Large exports can take a while.
-proxy_read_timeout 300s;
-proxy_send_timeout 300s;
-```
-
-The same lines work in a plain nginx `server` block, next to `proxy_pass` and the usual `Host`, `X-Forwarded-For`
-and `X-Forwarded-Proto` headers.
-
-Why not build in Portainer: a stack with `build:` makes Portainer's Compose use BuildKit, which fails when Portainer
-reaches Docker through its agent or a socket proxy ("failed to list workers … frame too large"). Pulling a published
-image avoids that.
+The stacks pull the published image rather than building: building in Portainer fails when it reaches Docker through
+its agent ("failed to list workers … frame too large").
 
 **Bind mounts:** if you mount a host directory instead of a named volume, make it writable by the container's user:
 `sudo chown -R 1654:1654 ./data`.
@@ -513,10 +439,11 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 
 **What this protects:**
 - Anyone who gets a copy of your disk, volume or backups without the master key sees only ciphertext.
-- With end-to-end encryption, even the server cannot read your notes, titles, todo items, tags, file names or files.
-  Someone with the master key, the database or full control of the server's data sees only ciphertext, sizes,
-  timestamps, which kind each note is (timeline, todo list or quick note), which days have a daily note, and your
-  feature settings (and, if you turn on link previews, the links in your notes).
+- With end-to-end encryption, even the server cannot read your notes, titles, todo items, habits, tags, file names or
+  files. Someone with the master key, the database or full control of the server's data sees only ciphertext, sizes,
+  timestamps, which kind each note is (timeline, todo list, quick note or habit; a habit's last change shows roughly
+  when you last ticked it, but not its name or days), which days have a daily note, and your feature settings (and,
+  if you turn on link previews, the links in your notes).
 
 **What it does not protect:**
 - Without end-to-end encryption, the server holds the keys while it runs, so someone who controls the running server,
@@ -538,7 +465,7 @@ end-to-end encryption cannot reset a forgotten password; keep it in a password m
 ## Backups
 
 Every user can download their own notes from **Settings → Backup & restore** and restore them there, into the same
-account or a new one on any Maple Notes 1.2 server. For the whole instance, back up the data volume.
+account or a new one on any Maple Notes server, 1.2 or later. For the whole instance, back up the data volume.
 
 Everything lives in the data volume. A consistent backup while Maple Notes keeps running:
 
@@ -573,13 +500,21 @@ docker compose up -d --build
 
 Database migrations run automatically at startup, after an automatic backup.
 
-### From 1.1 to 1.2
+### From 1.2 to 1.3
 
-Nothing to do. Existing notes stay in the timeline, and every account starts with todo lists and quick notes turned
+Nothing to do. The habit tracker is off for every account until it is turned on in Settings → Features. Habits are
+notes of a new kind, so exports file them under `habits/`; restoring such an export into Maple Notes 1.2 brings
+habits back as ordinary notes. The API gained the kind `habit` and the preference `habitTracker`. Without a `kind`,
+tag and calendar counts leave habits out.
+
+<details>
+<summary>Older versions</summary>
+
+**From 1.1 to 1.2.** Nothing to do. Existing notes stay in the timeline, and every account starts with todo lists and quick notes turned
 on, and titles and daily notes off. Exports now record each note's kind and daily date (manifest version 2), and
 file todo lists and quick notes in their own folders. The API only gained fields and endpoints.
 
-### From 1.0 to 1.1
+**From 1.0 to 1.1:**
 
 - **Sign-in changed.** Browsers no longer send passwords; they send a key derived from the password. The next time
   each account signs in (or confirms its password in Settings), the browser sends the password one last time so the
@@ -589,6 +524,8 @@ file todo lists and quick notes in their own folders. The API only gained fields
 - **API clients** that signed in with a username and password must follow the new sign-in protocol
   ([docs/e2ee-spec.md](docs/e2ee-spec.md#1-password-derived-keys-every-account)), and the encryption endpoint takes a mode instead of on/off.
   See the [changelog](CHANGELOG.md).
+
+</details>
 
 ## Reverse proxy and HTTPS
 

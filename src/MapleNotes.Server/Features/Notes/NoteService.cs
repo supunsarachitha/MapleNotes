@@ -408,7 +408,7 @@ public sealed class NoteService(
     /// <param name="request">The changes.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The updated note, or null when it does not exist or belongs to someone else.</returns>
-    /// <exception cref="ApiValidationException">The kind is not valid.</exception>
+    /// <exception cref="ApiValidationException">The kind is not valid, or the move is to or from habits.</exception>
     public async Task<NoteResponse?> PatchAsync(Guid userId, Guid noteId, PatchNoteRequest request, CancellationToken cancellationToken)
     {
         if (request.Kind is { } kind)
@@ -420,6 +420,12 @@ public sealed class NoteService(
         if (note is null)
         {
             return null;
+        }
+
+        // A habit's text has a fixed shape (its days, one per line), so it never moves to or from the other kinds.
+        if (request.Kind is { } moveTo && moveTo != note.Kind && (moveTo == NoteKind.Habit || note.Kind == NoteKind.Habit))
+        {
+            throw new ApiValidationException("kind", "Habits cannot become other kinds of notes, and notes cannot become habits.");
         }
 
         if (request.IsPinned is { } pinned)
@@ -471,17 +477,16 @@ public sealed class NoteService(
 
     /// <summary>Lists the user's tags with the number of active notes using each.</summary>
     /// <param name="userId">The owner.</param>
-    /// <param name="kinds">Count only notes of these kinds; null or empty for every kind.</param>
+    /// <param name="kinds">Count only notes of these kinds; null or empty for every kind except habits.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>Named tags in alphabetical order, then end-to-end tags (tokens and encrypted names).</returns>
     /// <exception cref="ApiValidationException">A kind is not valid.</exception>
     public async Task<IReadOnlyList<TagResponse>> ListTagsAsync(Guid userId, NoteKind[]? kinds, CancellationToken cancellationToken)
     {
         var counted = db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null);
-        if (ValidateKinds(kinds) is { } wanted)
-        {
-            counted = counted.Where(n => wanted.Contains(n.Kind));
-        }
+        counted = ValidateKinds(kinds) is { } wanted
+            ? counted.Where(n => wanted.Contains(n.Kind))
+            : counted.Where(n => n.Kind != NoteKind.Habit);
 
         var rows = await db.Tags
             .Where(t => t.UserId == userId)
@@ -655,10 +660,9 @@ public sealed class NoteService(
         var start = Export.NoteExporter.StartOfDayUtc(query.From, zone!);
         var end = Export.NoteExporter.StartOfDayUtc(query.To.AddDays(1), zone!);
         var notes = db.Notes.AsNoTracking().Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.CreatedAtUtc >= start && n.CreatedAtUtc < end);
-        if (ValidateKinds(query.Kinds) is { } kinds)
-        {
-            notes = notes.Where(n => kinds.Contains(n.Kind));
-        }
+        notes = ValidateKinds(query.Kinds) is { } kinds
+            ? notes.Where(n => kinds.Contains(n.Kind))
+            : notes.Where(n => n.Kind != NoteKind.Habit);
 
         var times = await notes.Select(n => n.CreatedAtUtc).ToListAsync(cancellationToken);
         return times
@@ -684,7 +688,7 @@ public sealed class NoteService(
 
         if (!kinds.All(Enum.IsDefined))
         {
-            throw new ApiValidationException("kind", "The kind must be Note, Todo or Quick.");
+            throw new ApiValidationException("kind", "The kind must be Note, Todo, Quick or Habit.");
         }
 
         return kinds.Distinct().ToArray();

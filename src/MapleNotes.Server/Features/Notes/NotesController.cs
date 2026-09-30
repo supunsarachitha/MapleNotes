@@ -161,7 +161,7 @@ public sealed class NotesController(NoteService notes) : ControllerBase
 public sealed class TagsController(NoteService notes) : ControllerBase
 {
     /// <summary>Lists tags used by active notes, with note counts.</summary>
-    /// <param name="kinds">Count only notes of these kinds (repeat the parameter); default: every kind.</param>
+    /// <param name="kinds">Count only notes of these kinds (repeat the parameter); default: every kind except habits.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>Tags in alphabetical order.</returns>
     /// <response code="200">The tags.</response>

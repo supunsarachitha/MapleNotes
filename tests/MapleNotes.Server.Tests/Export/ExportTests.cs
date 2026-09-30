@@ -169,10 +169,11 @@ public sealed partial class ExportTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Todo_lists_quick_notes_and_daily_notes_are_marked_and_filed()
+    public async Task Todo_lists_quick_notes_habits_and_daily_notes_are_marked_and_filed()
     {
         await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("# Packing\n\n- [ ] tent", Kind: Domain.NoteKind.Todo));
         await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("Call the plumber", Kind: Domain.NoteKind.Quick));
+        await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("# Read\n\n- 2026-09-28\n- 2026-09-29", Kind: Domain.NoteKind.Habit));
         await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("# Today\n\nSunny", DailyDate: new DateOnly(2026, 9, 29)));
 
         using var markdown = await ExportAsync("format=md&layout=flat");
@@ -184,6 +185,10 @@ public sealed partial class ExportTests : IAsyncLifetime
         Assert.Contains("\nkind: todo\n", await ReadTextAsync(todo), StringComparison.Ordinal);
         var quick = Assert.Single(text.Entries, e => e.FullName.StartsWith("quick-notes/", StringComparison.Ordinal));
         Assert.Contains("Kind: quick\n", await ReadTextAsync(quick), StringComparison.Ordinal);
+        var habit = Assert.Single(markdown.Entries, e => e.FullName.StartsWith("habits/", StringComparison.Ordinal));
+        Assert.Matches(@"^habits/\d{4}-\d{2}-\d{2}_\d{4}_read\.md$", habit.FullName);
+        Assert.Contains("\nkind: habit\n", await ReadTextAsync(habit), StringComparison.Ordinal);
+        Assert.EndsWith("# Read\n\n- 2026-09-28\n- 2026-09-29\n", await ReadTextAsync(habit), StringComparison.Ordinal);
         var daily = JsonDocument.Parse(await ReadTextAsync(Assert.Single(json.Entries, e => e.FullName.EndsWith("_today.json", StringComparison.Ordinal)))).RootElement;
         Assert.Equal(("note", "2026-09-29"), (daily.GetProperty("kind").GetString(), daily.GetProperty("dailyDate").GetString()));
         var manifest = JsonDocument.Parse(await ReadTextAsync(markdown.GetEntry("manifest.json")!)).RootElement;
@@ -191,6 +196,7 @@ public sealed partial class ExportTests : IAsyncLifetime
         var kinds = manifest.GetProperty("notes").EnumerateArray().Select(n => n.GetProperty("kind").GetString()).ToList();
         Assert.Contains("todo", kinds);
         Assert.Contains("quick", kinds);
+        Assert.Contains("habit", kinds);
     }
 
     [Fact]

@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { api } from "../lib/api";
 import { useToday } from "../lib/daily";
-import { localDateKey, parseDateKey } from "../lib/dates";
+import { firstDayOfWeek, localDateKey, parseDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
 import { queryKeys } from "../lib/queries";
 import { Link, useLocation } from "../lib/router";
@@ -12,20 +12,6 @@ import { IconButton, cn } from "./ui";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthTitle = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" });
 const dayTitle = new Intl.DateTimeFormat("en", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-
-/** The first day of the week in the user's locale (0 = Sunday), where the browser knows it. */
-function firstDayOfWeek(): number {
-  try {
-    const locale = new Intl.Locale(navigator.language) as Intl.Locale & {
-      getWeekInfo?: () => { firstDay: number };
-      weekInfo?: { firstDay: number };
-    };
-    const firstDay = (locale.getWeekInfo?.() ?? locale.weekInfo)?.firstDay;
-    return firstDay ? firstDay % 7 : 0;
-  } catch {
-    return 0;
-  }
-}
 
 /**
  * A month calendar for the side menu. Days with active notes (of the kinds that are turned on) get a dot; choosing a day
@@ -59,7 +45,7 @@ export function Calendar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <section aria-label="Calendar" className="px-1">
-      <div className="mb-1 flex items-center gap-1">
+      <div className="mb-1 flex items-center gap-1 short:mb-0">
         <h2 className="flex-1 px-2 text-sm font-semibold" aria-live="polite">
           {monthTitle.format(month)}
         </h2>
@@ -72,12 +58,12 @@ export function Calendar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       <div className="grid grid-cols-7 text-center text-[11px] font-medium text-stone-400" aria-hidden="true">
         {weekdays.map((name) => (
-          <span key={name} className="py-1">
+          <span key={name} className="py-1 short:py-0.5">
             {name.slice(0, 2)}
           </span>
         ))}
       </div>
-      <ol className="grid grid-cols-7 gap-y-0.5">
+      <ol className="grid grid-cols-7 gap-y-0.5 short:gap-y-0">
         {Array.from({ length: blanks }, (_, i) => (
           <li key={`blank-${i}`} aria-hidden="true" />
         ))}
@@ -94,7 +80,7 @@ export function Calendar({ onNavigate }: { onNavigate?: () => void }) {
                 aria-current={isSelected ? "page" : undefined}
                 aria-label={`${dayTitle.format(date)}${count ? `, ${count} ${count === 1 ? "note" : "notes"}` : ""}${key === todayKey ? " (today)" : ""}`}
                 className={cn(
-                  "relative flex size-8 items-center justify-center rounded-full text-xs tabular-nums transition-colors",
+                  "relative flex size-8 items-center justify-center rounded-full text-xs tabular-nums transition-colors short:size-7",
                   isSelected
                     ? "bg-maple-600 font-semibold text-white"
                     : key === todayKey

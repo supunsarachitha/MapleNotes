@@ -76,6 +76,20 @@ devices at once, the second one adds to it rather than starting another.`,
 to other months. You can turn the calendar off in [Settings](/settings).`,
   },
   {
+    id: "habits",
+    title: "Habits",
+    body: `Turn on the **Habit tracker** in [Settings](/settings) to get **Habits** in the menu. Add a habit, such as "Read 20
+minutes", then tap a day's circle on each day you do it; tap it again to undo. The last seven days are shown, with
+today outlined, and the arrows go back a week at a time, so you can fill in a day you missed.
+
+Under your habits, **Progress** shows how many of the possible days you did each week or month, for all your habits
+or just one, with your current and best streak. A habit counts from the day you added it.
+
+A habit's **⋯** menu renames, archives or deletes it. Archived habits keep their history under **Archived habits**
+until you restore them. Habits stay out of your timeline, searches and tags, but your exports and backups include
+them.`,
+  },
+  {
     id: "pictures",
     title: "Pictures, video and files",
     body: `Choose a picture to open it full screen. Move between a note's pictures with the arrows, the arrow keys or a swipe,
@@ -100,7 +114,7 @@ computer, and pick an accent colour. Your choice follows you to every device you
     id: "features",
     title: "Choosing your features",
     body: `Everything beyond plain notes can be switched on or off under **Features** in [Settings](/settings): todo lists,
-quick notes, daily notes, the calendar and link previews. Turning something off only hides it; nothing is deleted,
+quick notes, daily notes, the calendar, the habit tracker and link previews. Turning something off only hides it; nothing is deleted,
 and it all comes back when you turn it on again.`,
   },
   {

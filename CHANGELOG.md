@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-29
+
+A habit tracker, container images on GitHub, and help when the app is opened without HTTPS.
+
+### Added
+
+- **Habit tracker** (Settings → Features, off by default): a Habits tab for ticking off daily habits.
+  - Each habit shows the last seven days, with today outlined and arrows to earlier weeks.
+  - Habits can be renamed, archived (keeping their history), restored and deleted.
+  - A progress chart under the list shows the share of days done per week (last 12) or month (last 12), for all
+    habits or one, with the current and best streak.
+  - A habit is a note of a new kind, `Habit`: its name as a `# title`, then one `- yyyy-MM-dd` line per day done. So
+    habits are encrypted in every mode (in the browser for end-to-end accounts), converted between modes, exported and
+    restored like any note.
+  - Built from scratch: no code, text or images come from other habit trackers, and no dependency was added.
+- **A secure-connection notice.** Opened over plain HTTP at an address other than `localhost`, where browsers
+  withhold the cryptography Maple Notes needs, the app explains that it needs HTTPS instead of failing at sign-in.
+- **Container images** at `ghcr.io/supunsarachitha/maplenotes` (amd64 and arm64), published from `main` and from
+  release tags.
+- **Portainer stacks** in `deploy/`: one that deploys without changes, and one with HTTPS by IP address (Caddy with
+  its own certificate authority). The README shows the full `docker-compose.yml`, `.env` and a complete HTTPS setup.
+
+### Changed
+
+- The API accepts the kind `habit` when listing, creating and importing notes.
+  - `PATCH` answers 400 to a change of kind to or from `habit`.
+  - Without a `kind`, `GET /api/v1/tags` and `GET /api/v1/notes/calendar` leave habits out.
+- Preferences gain `habitTracker` (off by default).
+- Exports file habits under `habits/` in every format, and restore reads them back. The browser's export (for
+  end-to-end accounts) includes habits too, and the shared export vectors cover them.
+- For end-to-end accounts, the server can see which notes are habits and when each changes, so roughly when a habit
+  is ticked, but not its name or days. The threat model and the spec say so.
+
 ## [1.2.0] - 2026-09-29
 
 Titles, todo lists, quick notes, daily notes, and restoring from exports. Every feature works in all three encryption
@@ -187,7 +220,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/supunsarachitha/MapleNotes/releases/tag/v1.0.0

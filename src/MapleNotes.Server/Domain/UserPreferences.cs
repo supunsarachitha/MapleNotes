@@ -50,6 +50,12 @@ public sealed record UserPreferences
     public bool Calendar { get; init; } = true;
 
     /// <summary>
+    /// Show the Habits tab, for ticking off daily habits and seeing progress in a chart. Turning it off hides the tab
+    /// but keeps the habits; off by default.
+    /// </summary>
+    public bool HabitTracker { get; init; }
+
+    /// <summary>
     /// Show previews of links in notes. The server then fetches the linked pages, so it learns those links, also for
     /// end-to-end accounts; off by default.
     /// </summary>

@@ -83,8 +83,8 @@ describe("the account's notes for the browser export", () => {
     await apiExportSource("maple").notes(true);
 
     expect(list.mock.calls.map(([params]) => [params.state, params.kinds])).toEqual([
-      ["active", ["Note", "Todo", "Quick"]],
-      ["archived", ["Note", "Todo", "Quick"]],
+      ["active", ["Note", "Todo", "Quick", "Habit"]],
+      ["archived", ["Note", "Todo", "Quick", "Habit"]],
     ]);
     list.mockRestore();
   });

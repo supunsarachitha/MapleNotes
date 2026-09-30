@@ -14,4 +14,10 @@ public enum NoteKind
 
     /// <summary>A quick note, kept out of the timeline in the Quick notes tab.</summary>
     Quick = 2,
+
+    /// <summary>
+    /// A habit: a title and one <c>- yyyy-MM-dd</c> line per day it was done, shown only on the Habits page. A habit
+    /// never becomes another kind of note, nor another note a habit.
+    /// </summary>
+    Habit = 3,
 }

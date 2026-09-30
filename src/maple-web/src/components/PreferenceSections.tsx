@@ -151,6 +151,12 @@ export function FeaturesSection() {
           checked={preferences.calendar}
           onChange={(calendar) => save({ calendar })}
         />
+        <PreferenceSwitch
+          label="Habit tracker"
+          description="A Habits tab: tick off your daily habits and see your progress in a chart."
+          checked={preferences.habitTracker}
+          onChange={(habitTracker) => save({ habitTracker })}
+        />
         {status?.linkPreviewsAvailable && (
           <PreferenceSwitch
             label="Link previews"

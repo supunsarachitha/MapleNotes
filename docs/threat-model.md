@@ -147,7 +147,7 @@ the password to the server one last time.
 | Number of notes and files, and when each was created and updated (also encoded in their IDs) | Tag names |
 | Approximate length of each note and exact size of each file (ciphertext is not padded) | File names, types and contents |
 | Which notes are pinned or archived, and which files belong to which note | Search queries |
-| Which notes are todo lists or quick notes, and which days have a daily note | Titles and todo items (they are part of the note's text) |
+| Which notes are todo lists, quick notes or habits (a habit's update time shows roughly when it was last ticked), and which days have a daily note | Titles, todo items, and habits' names and days (they are part of the note's text) |
 | The account's preferences: which features are on, the date format, theme and accent colour | |
 | The browser's time zone, when the calendar asks for a month | |
 | With link previews turned on (off by default): each link in the notes the browser shows, and the linked pages themselves | |

@@ -56,3 +56,17 @@ export function dayRange(key: string): { createdFrom?: string; createdBefore?: s
 export function localDateKey(date: Date): string {
   return `${String(date.getFullYear()).padStart(4, "0")}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+
+/** The first day of the week in the user's locale (0 = Sunday), where the browser knows it. */
+export function firstDayOfWeek(): number {
+  try {
+    const locale = new Intl.Locale(navigator.language) as Intl.Locale & {
+      getWeekInfo?: () => { firstDay: number };
+      weekInfo?: { firstDay: number };
+    };
+    const firstDay = (locale.getWeekInfo?.() ?? locale.weekInfo)?.firstDay;
+    return firstDay ? firstDay % 7 : 0;
+  } catch {
+    return 0;
+  }
+}
