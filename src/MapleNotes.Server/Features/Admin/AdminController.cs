@@ -1,5 +1,6 @@
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Auth;
+using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,19 +23,26 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
     [HttpGet("settings")]
     [ProducesResponseType<InstanceSettingsResponse>(StatusCodes.Status200OK)]
     public async Task<InstanceSettingsResponse> GetSettings(CancellationToken cancellationToken) =>
-        new(await instanceSettings.IsRegistrationOpenAsync(cancellationToken));
+        new(await instanceSettings.IsRegistrationOpenAsync(cancellationToken), await instanceSettings.GetStorageQuotaMbAsync(cancellationToken));
 
     /// <summary>Changes the instance settings.</summary>
-    /// <param name="request">New values.</param>
+    /// <param name="request">New values; they replace all the settings.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The saved settings.</returns>
     /// <response code="200">The saved settings.</response>
+    /// <response code="400">The storage limit is out of range.</response>
     [HttpPut("settings")]
     [ProducesResponseType<InstanceSettingsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<InstanceSettingsResponse> UpdateSettings(UpdateInstanceSettingsRequest request, CancellationToken cancellationToken)
     {
-        await instanceSettings.SetRegistrationOpenAsync(request.AllowRegistration, cancellationToken);
-        return new InstanceSettingsResponse(request.AllowRegistration);
+        if (request.StorageQuotaMb is < 1 or > InstanceSettingsService.MaxStorageQuotaMb)
+        {
+            throw new ApiValidationException("storageQuotaMb", "Choose a limit from 1 MB to 16 TB, or no limit.");
+        }
+
+        await instanceSettings.SaveAsync(request.AllowRegistration, request.StorageQuotaMb, cancellationToken);
+        return new InstanceSettingsResponse(request.AllowRegistration, request.StorageQuotaMb);
     }
 
     /// <summary>Lists all accounts.</summary>

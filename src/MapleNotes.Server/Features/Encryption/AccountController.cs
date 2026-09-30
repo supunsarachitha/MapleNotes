@@ -11,7 +11,11 @@ namespace MapleNotes.Server.Features.Encryption;
 /// <param name="Proof">Proof of the account password, to confirm.</param>
 public sealed record DeleteAccountRequest(CredentialProof Proof);
 
-/// <summary>The signed-in user's account: encryption mode and account deletion.</summary>
+/// <summary>Request to delete all of the signed-in account's notes and files.</summary>
+/// <param name="Proof">Proof of the account password, to confirm.</param>
+public sealed record DeleteContentRequest(CredentialProof Proof);
+
+/// <summary>The signed-in user's account: encryption mode, deleting its content, and deleting the account.</summary>
 /// <param name="accounts">Account operations.</param>
 /// <param name="encryption">Encryption-at-rest setting.</param>
 [ApiController]
@@ -47,6 +51,23 @@ public sealed class AccountController(AccountService accounts, EncryptionSetting
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public Task<EncryptionStatusResponse> SetEncryption(UpdateEncryptionRequest request, CancellationToken cancellationToken) =>
         encryption.SetModeAsync(User.GetUserId(), request, cancellationToken);
+
+    /// <summary>Permanently deletes all of the account's notes, tags and files, and keeps the account.</summary>
+    /// <remarks>
+    /// The account keeps its username, password, encryption keys, settings and sessions, and carries on empty. Export
+    /// first to keep a copy: this cannot be undone.
+    /// </remarks>
+    /// <param name="request">Proof of the account password.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>How many notes and files were deleted.</returns>
+    /// <response code="200">The content was deleted.</response>
+    /// <response code="400">The password is wrong.</response>
+    [HttpDelete("content")]
+    [EnableRateLimiting(RateLimitPolicies.Authentication)]
+    [ProducesResponseType<DeletedContentResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public Task<DeletedContentResponse> DeleteContent(DeleteContentRequest request, CancellationToken cancellationToken) =>
+        accounts.DeleteOwnContentAsync(User.GetUserId(), request.Proof, cancellationToken);
 
     /// <summary>Permanently deletes the account with all of its notes and files, then signs out.</summary>
     /// <param name="request">Proof of the account password.</param>

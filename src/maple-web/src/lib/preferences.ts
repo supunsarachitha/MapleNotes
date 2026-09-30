@@ -14,6 +14,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   dailyNotes: false,
   calendar: true,
   habitTracker: false,
+  shrinkPhotos: false,
   linkPreviews: false,
   theme: "System",
   accent: "Maple",

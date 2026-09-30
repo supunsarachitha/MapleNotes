@@ -116,7 +116,8 @@ A lost or stolen phone or laptop, or a shared computer.
 Every query filters by the signed-in owner; another user's items answer 404, so their existence is not revealed.
 Administrators manage accounts but have no API to read anyone's notes. They see how many notes an account has, but
 not how much it stores: storage usage is shown only to the account itself, and administrators get the server's totals
-only. An administrator who also runs the server is one of the adversaries above.
+only. They can set a storage limit for every account, but not see who reaches it. An administrator who also runs the
+server is one of the adversaries above.
 
 ### Password guessing through the app
 
@@ -175,6 +176,9 @@ server cannot learn a tag's name, but it can see that two notes share one. Token
   files are deleted normally and may remain recoverable from the storage medium.
 - **Weak passwords can be guessed offline** by whoever holds the database and the master key (see above).
 - **Exports are plain text.** They are decrypted by design.
+- **Deleting is not wiping everywhere.** Deleted notes, including everything "Delete all notes and files" removes, are
+  overwritten in the database (`secure_delete`), and compacting the database shrinks it. But backups taken before
+  keep them until they are rotated out, and deleted attachment files may remain recoverable from the storage medium.
 - **Link previews reveal links.** To preview a link, the server fetches it, so it learns the address, and so does the
   site being visited (from the server's address). They are off by default and explained where they are turned on;
   operators can disable them with `MAPLE_LINK_PREVIEWS=false`.

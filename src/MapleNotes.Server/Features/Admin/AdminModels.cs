@@ -4,11 +4,16 @@ namespace MapleNotes.Server.Features.Admin;
 
 /// <summary>Instance settings editable by administrators.</summary>
 /// <param name="AllowRegistration">Whether visitors can create accounts.</param>
-public sealed record InstanceSettingsResponse(bool AllowRegistration);
+/// <param name="StorageQuotaMb">The most each account may store, notes and files together, in megabytes; null when
+/// there is no limit.</param>
+public sealed record InstanceSettingsResponse(bool AllowRegistration, int? StorageQuotaMb);
 
-/// <summary>Request to change instance settings.</summary>
+/// <summary>Request to change instance settings. It replaces them all: a field left out takes its default.</summary>
 /// <param name="AllowRegistration">Whether visitors can create accounts.</param>
-public sealed record UpdateInstanceSettingsRequest(bool AllowRegistration);
+/// <param name="StorageQuotaMb">The most each account may store, notes and files together, in megabytes (1 to
+/// 16,777,216, which is 16 TB), or null for no limit. An account already over a new limit keeps its notes and files
+/// but cannot add more until it is back under it.</param>
+public sealed record UpdateInstanceSettingsRequest(bool AllowRegistration, int? StorageQuotaMb = null);
 
 /// <summary>An account as seen by an administrator.</summary>
 /// <param name="Id">Account ID.</param>

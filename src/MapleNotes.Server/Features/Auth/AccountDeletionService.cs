@@ -4,8 +4,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MapleNotes.Server.Features.Auth;
 
+/// <summary>What deleting an account's content removed.</summary>
+/// <param name="Notes">Notes of every kind, archived ones included.</param>
+/// <param name="Files">Files, including uploads not yet attached to a note.</param>
+public sealed record DeletedContentResponse(int Notes, int Files);
+
 /// <summary>
-/// Permanently deletes an account with all of its notes, tags and files.
+/// Permanently deletes an account with all of its notes, tags and files, or only its content.
 /// </summary>
 /// <remarks>
 /// Deleting the user row also deletes the only stored copy of the account's wrapped data key ("crypto-shredding"):
@@ -32,5 +37,33 @@ public sealed class AccountDeletionService(MapleDbContext db, AttachmentStore st
         {
             store.Delete(storageKey);
         }
+    }
+
+    /// <summary>
+    /// Deletes all of an account's notes, tags and files, and keeps the account itself: its sign-in details,
+    /// encryption keys, settings and sessions.
+    /// </summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>How many notes and files were deleted.</returns>
+    public async Task<DeletedContentResponse> DeleteContentAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        List<string> files;
+        int notes;
+        await using (var transaction = await db.Database.BeginTransactionAsync(cancellationToken))
+        {
+            files = await db.Attachments.Where(a => a.UserId == userId).Select(a => a.StorageKey).ToListAsync(cancellationToken);
+            await db.Attachments.Where(a => a.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+            notes = await db.Notes.Where(n => n.UserId == userId).ExecuteDeleteAsync(cancellationToken); // with their tag links
+            await db.Tags.Where(t => t.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        foreach (var storageKey in files)
+        {
+            store.Delete(storageKey);
+        }
+
+        return new DeletedContentResponse(notes, files.Count);
     }
 }

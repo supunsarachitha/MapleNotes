@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Storage limit** (Settings → Administration, off by default): administrators set how much each account can store,
+  notes and files together, from 1 MB to 16 TB. It applies to every account, administrators included.
+  - Uploads, new notes, edits that make a note longer and restores are refused once they would pass the limit, with
+    HTTP 507 and a message saying to make room. Deleting, archiving, and changing encryption modes always work, even
+    over the limit. Lowering the limit below what an account stores deletes nothing.
+  - Settings → Account shows usage against the limit, and warns when it is almost or completely full.
+  - A restore stops at the first note that does not fit; running it again after making room skips what is already
+    back.
+  - Administrators still see the server's totals only, never how much an account stores.
+- **Delete all notes and files** (Settings → Advanced): an account deletes every note, todo list, quick note, daily
+  note, habit, tag and file at once, after confirming its password, and keeps its username, password, encryption
+  keys, settings and sessions.
+- **Shrink photos before uploading** (Settings → Features, off by default): the browser resizes photos to at most
+  2560 pixels on their longest side and re-saves them as JPEG before they upload, keeping the original only when
+  that would not save at least a tenth or would lose transparency. It works with end-to-end encryption, since it
+  happens before the file is encrypted, and it leaves out the location and camera details photos carry.
+- **Compact database** (Settings → Administration): rebuilds the database without the space deleted notes left
+  behind (SQLite `VACUUM`, still encrypted) and gives it back to the disk, showing the size before and after.
+
+### Changed
+
+- API: `GET`/`PUT /api/v1/admin/settings` have `storageQuotaMb` (null for no limit). `PUT` replaces the settings, so
+  leaving it out removes the limit. `GET /api/v1/account/storage` has `quotaBytes`.
+- API: `DELETE /api/v1/account/content` (with a password proof) deletes the account's content;
+  `POST /api/v1/admin/storage/compact` compacts the database; preferences gain `shrinkPhotos`.
+
+### Removed
+
+- The acknowledgement of memos, from the README and the licensing policy.
+
 ## [1.3.1] - 2026-09-30
 
 The first 1.3 release with container images: the build of the `1.3.0` tag stopped at a documentation test, so no

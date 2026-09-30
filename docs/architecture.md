@@ -275,6 +275,12 @@ Uploads are parsed with `MultipartReader` and streamed straight to storage, encr
 MVC's form binding is disabled for that action so the body is never buffered. A counting stream enforces
 `MAPLE_MAX_UPLOAD_MB` while reading. File names are sanitized.
 
+With **Shrink photos before uploading** on, the web app shrinks still images before they upload
+(`src/maple-web/src/lib/shrinkPhoto.ts`): it decodes them upright with `createImageBitmap`, draws them at most 2560
+pixels on the longest side, and re-encodes them as JPEG at 85% quality. It keeps the original when the browser cannot
+decode it, when it has transparent pixels, or when the result is not at least a tenth smaller. The server sees only
+an ordinary upload, and for end-to-end accounts the shrunk file is what gets encrypted.
+
 Downloads display only passive media inline: common image, audio and video types, and plain text. Everything else,
 including SVG and HTML, is sent as a download with a generic content type. Each download also carries `nosniff` and
 `Content-Security-Policy: default-src 'none'; sandbox`, so an uploaded file can never run script in the app's origin.
@@ -350,6 +356,21 @@ executed, and the text is shown as plain text.
 sizes, with counts, in two database queries. `GET /api/v1/admin/storage`, for administrators, measures the data volume
 itself: the database and its write-ahead log, the attachment and backup directories, and the free space the container
 sees on the volume. It deliberately reports totals only; no endpoint gives one account's usage to anyone else.
+
+Administrators can set a storage limit for every account (`StorageQuotaMb` in `InstanceSettings`, absent for none).
+It counts exactly what `GET /api/v1/account/storage` counts, and `Features/Storage/StorageQuota.cs` enforces it on
+everything that adds data: an upload streams under `min(MAPLE_MAX_UPLOAD_MB, room left)`, and creating, restoring or
+lengthening a note claims its extra bytes, less any files the same edit removes. A change that does not fit gets HTTP
+507. Each account's checks and the saves they guard run one at a time (a lock per account), so two uploads at once
+cannot both take the last of the room. Conversions between encryption modes never check the limit: they make files a
+little larger, and an account must always be able to change its protection. Lowering the limit deletes nothing; the
+account just cannot grow until it is back under it.
+
+`DELETE /api/v1/account/content`, with proof of the password, deletes all of an account's notes, tags and files in one
+transaction, then the files on disk, and keeps the user row: sign-in details, encryption keys and preferences stay, and
+sessions carry on. `POST /api/v1/admin/storage/compact` runs SQLite's `VACUUM`, which rebuilds the database without
+the pages deleted content freed (they are already overwritten, since `secure_delete` is on) and keeps its encryption,
+then truncates the write-ahead log, so the space goes back to the volume. One compaction runs at a time.
 
 ## Background services
 

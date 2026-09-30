@@ -3,8 +3,10 @@ import type {
   Attachment,
   AttachmentWire,
   AuthStatus,
+  CompactResult,
   ConversionBatch,
   CredentialProof,
+  DeletedContent,
   EncryptedNoteWire,
   EncryptionMode,
   EncryptionStatus,
@@ -16,6 +18,7 @@ import type {
   NotePageWire,
   NoteState,
   NoteWire,
+  InstanceSettings,
   InstanceStorage,
   Preferences,
   Prelogin,
@@ -339,21 +342,26 @@ export const api = {
     },
   },
 
+  /** Deletes every note, tag and file of the account; the account, its keys and settings stay. */
+  deleteAllContent: (proof: CredentialProof) => request<DeletedContent>("DELETE", "/api/v1/account/content", { proof }),
+
   async deleteAccount(proof: CredentialProof): Promise<void> {
     await request<void>("DELETE", "/api/v1/account", { proof });
     await refreshAntiforgeryToken();
   },
 
   admin: {
-    settings: () => request<{ allowRegistration: boolean }>("GET", "/api/v1/admin/settings"),
-    updateSettings: (allowRegistration: boolean) =>
-      request<{ allowRegistration: boolean }>("PUT", "/api/v1/admin/settings", { allowRegistration }),
+    settings: () => request<InstanceSettings>("GET", "/api/v1/admin/settings"),
+    /** Replaces all the settings, so send every field. */
+    updateSettings: (settings: InstanceSettings) => request<InstanceSettings>("PUT", "/api/v1/admin/settings", settings),
     users: () => request<AdminUser[]>("GET", "/api/v1/admin/users"),
     updateUser: (id: string, changes: { isDisabled?: boolean; role?: UserRole }) =>
       request<void>("PATCH", `/api/v1/admin/users/${id}`, changes),
     deleteUser: (id: string) => request<void>("DELETE", `/api/v1/admin/users/${id}`),
     /** The instance's totals on its data volume; never another account's usage. */
     storage: () => request<InstanceStorage>("GET", "/api/v1/admin/storage"),
+    /** Rebuilds the database without the space deleted content left behind. */
+    compactDatabase: () => request<CompactResult>("POST", "/api/v1/admin/storage/compact"),
   },
 };
 

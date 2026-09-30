@@ -1,6 +1,7 @@
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Features.EndToEnd;
+using MapleNotes.Server.Features.Storage;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Persistence;
@@ -17,9 +18,10 @@ namespace MapleNotes.Server.Features.Attachments;
 /// <param name="store">File store.</param>
 /// <param name="keys">Per-request data keys.</param>
 /// <param name="options">Instance settings (upload size limit).</param>
+/// <param name="quota">The storage limit per account.</param>
 /// <param name="time">Clock.</param>
 public sealed class AttachmentService(
-    MapleDbContext db, AttachmentStore store, UserContentKeys keys, MapleOptions options, TimeProvider time)
+    MapleDbContext db, AttachmentStore store, UserContentKeys keys, MapleOptions options, StorageQuota quota, TimeProvider time)
 {
     /// <summary>
     /// Streams an upload into the store (encrypting it on the way if required) and records it. The attachment is not
@@ -33,8 +35,8 @@ public sealed class AttachmentService(
     /// <param name="cancellationToken">Cancels the upload; nothing is kept.</param>
     /// <returns>The stored attachment.</returns>
     /// <exception cref="UploadTooLargeException">The file is larger than <c>MAPLE_MAX_UPLOAD_MB</c>.</exception>
-    /// <exception cref="Infrastructure.Web.ApiProblemException">The upload does not match the account's mode, or the
-    /// chosen ID is taken.</exception>
+    /// <exception cref="Infrastructure.Web.ApiProblemException">The upload does not match the account's mode, the
+    /// chosen ID is taken, or the file does not fit in the account's storage limit (HTTP 507).</exception>
     /// <exception cref="Infrastructure.Web.ApiValidationException">An end-to-end upload is malformed.</exception>
     public async Task<Attachment> UploadAsync(
         Guid userId, string? fileName, string? contentType, Stream content, EncryptedUpload? encrypted, CancellationToken cancellationToken)
@@ -48,12 +50,20 @@ public sealed class AttachmentService(
         var scheme = ContentSchemes.ForPlainText(mode);
         var id = Guid.CreateVersion7();
         var storageKey = AttachmentStore.CreateStorageKey(id);
-        var limited = new LengthLimitedStream(content, options.MaxUploadBytes);
+        var room = await quota.GetRoomAsync(userId, cancellationToken);
+        var limited = new LengthLimitedStream(content, Math.Min(options.MaxUploadBytes, room ?? long.MaxValue));
         var key = scheme == ContentScheme.Server ? await keys.GetKeyAsync(userId, cancellationToken) : null;
 
-        await store.WriteAsync(storageKey, (file, ct) => key is null
-            ? limited.CopyToAsync(file, ct)
-            : AttachmentCipher.EncryptAsync(limited, file, key, userId, id, ct), cancellationToken: cancellationToken);
+        try
+        {
+            await store.WriteAsync(storageKey, (file, ct) => key is null
+                ? limited.CopyToAsync(file, ct)
+                : AttachmentCipher.EncryptAsync(limited, file, key, userId, id, ct), cancellationToken: cancellationToken);
+        }
+        catch (UploadTooLargeException) when (room < options.MaxUploadBytes)
+        {
+            throw StorageQuota.Full();
+        }
 
         var safeName = UploadPolicy.SanitizeFileName(fileName);
         var attachment = new Attachment
@@ -71,6 +81,7 @@ public sealed class AttachmentService(
         db.Attachments.Add(attachment);
         try
         {
+            await using var lease = await quota.ClaimAsync(userId, attachment.SizeBytes, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
         }
         catch
@@ -115,8 +126,17 @@ public sealed class AttachmentService(
         }
 
         var storageKey = AttachmentStore.CreateStorageKey(id);
-        var size = await WriteCiphertextAsync(
-            storageKey, content, EndToEndContent.MaxAttachmentCiphertextBytes(options.MaxUploadBytes), cancellationToken);
+        var maxBytes = EndToEndContent.MaxAttachmentCiphertextBytes(options.MaxUploadBytes);
+        var room = await quota.GetRoomAsync(userId, cancellationToken);
+        long size;
+        try
+        {
+            size = await WriteCiphertextAsync(storageKey, content, Math.Min(maxBytes, room ?? long.MaxValue), cancellationToken);
+        }
+        catch (UploadTooLargeException) when (room < maxBytes)
+        {
+            throw StorageQuota.Full();
+        }
 
         var attachment = new Attachment
         {
@@ -134,6 +154,7 @@ public sealed class AttachmentService(
         db.Attachments.Add(attachment);
         try
         {
+            await using var lease = await quota.ClaimAsync(userId, attachment.SizeBytes, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
         }
         catch

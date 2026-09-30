@@ -6,6 +6,7 @@ import { applyFormat, FormatToolbar, shortcutFormat } from "./FormatToolbar";
 import { formatDate } from "../lib/dates";
 import { formatBytes } from "../lib/format";
 import { usePreferences } from "../lib/preferences";
+import { shrinkPhoto } from "../lib/shrinkPhoto";
 import { useInvalidateNotes } from "../lib/queries";
 import { saveDailyNote } from "../lib/daily";
 import { joinTitle, splitTitle } from "../lib/titles";
@@ -138,7 +139,13 @@ export function Composer({
         },
       ]);
 
-      uploadAttachment(file, (progress) => update(key, { progress }), abort.signal)
+      const send = async () => {
+        const upload = preferences.shrinkPhotos ? await shrinkPhoto(file) : file;
+        if (upload !== file) update(key, { name: upload.name, size: upload.size });
+        abort.signal.throwIfAborted(); // removed while it was being shrunk
+        return uploadAttachment(upload, (progress) => update(key, { progress }), abort.signal);
+      };
+      send()
         .then((attachment) => update(key, { attachment, progress: 1 }))
         .catch((error: unknown) => {
           if (error instanceof DOMException && error.name === "AbortError") return;

@@ -1,10 +1,13 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Text;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Attachments;
 using MapleNotes.Server.Features.Notes;
 using MapleNotes.Server.Features.Storage;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Tests.TestSupport;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MapleNotes.Server.Tests.Storage;
 
@@ -51,6 +54,39 @@ public sealed class StorageTests : IAsyncLifetime
         Assert.Equal((2, 2, 75_000L), (usage!.NoteCount, usage.FileCount, usage.FilesBytes));
         Assert.InRange(usage.NotesBytes, 1, 1_000); // encrypted at rest: the stored ciphertext
         Assert.Equal(usage.NotesBytes + usage.FilesBytes, usage.TotalBytes);
+    }
+
+    [Fact]
+    public async Task Compacting_gives_deleted_space_back_keeps_everything_else_and_stays_encrypted()
+    {
+        var kept = await EndToEndAccount.ReadAsync<NoteResponse>(await _member.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("Keep me #kept")));
+        // All written first, then all deleted: deleting each right away would let the next one reuse its space.
+        var doomed = new List<Guid>();
+        for (var i = 0; i < 60; i++)
+        {
+            doomed.Add((await EndToEndAccount.ReadAsync<NoteResponse>(await _member.PostJsonAsync("/api/v1/notes", new CreateNoteRequest(new string('x', 20_000))))).Id);
+        }
+
+        foreach (var id in doomed)
+        {
+            (await _member.DeleteAsync($"/api/v1/notes/{id}")).EnsureSuccessStatusCode();
+        }
+
+        var denied = await _member.PostAsync("/api/v1/admin/storage/compact");
+        var response = await _admin.PostAsync("/api/v1/admin/storage/compact");
+
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var sizes = (await response.Content.ReadFromJsonAsync<CompactDatabaseResponse>(ApiClient.Json, TestContext.Current.CancellationToken))!;
+        Assert.True(sizes.BytesAfter < sizes.BytesBefore / 2, $"{sizes.BytesBefore} bytes before, {sizes.BytesAfter} after");
+        Assert.Equal("Keep me #kept", (await _member.GetJsonAsync<NoteResponse>($"/api/v1/notes/{kept.Id}"))!.Content);
+        Assert.Equal(HttpStatusCode.Created, (await _member.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("After compacting"))).StatusCode);
+
+        var database = _app.Services.GetRequiredService<MapleOptions>().DatabasePath;
+        await using var file = new FileStream(database, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var header = new byte[16];
+        await file.ReadExactlyAsync(header, TestContext.Current.CancellationToken);
+        Assert.NotEqual("SQLite format 3\0", Encoding.ASCII.GetString(header)); // still encrypted, header and all
     }
 
     [Fact]

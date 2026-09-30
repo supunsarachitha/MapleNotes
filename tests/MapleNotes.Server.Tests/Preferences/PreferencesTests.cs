@@ -39,6 +39,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.Equal((false, false, "yyyy-MM-dd", true, true, false),
             (preferences!.NoteTitles, preferences.DateInTitles, preferences.DateFormat, preferences.TodoLists, preferences.QuickNotes, preferences.DailyNotes));
         Assert.False(preferences.HabitTracker); // habits are opt-in
+        Assert.False(preferences.ShrinkPhotos); // so is shrinking photos, which replaces the original
         Assert.Equal(preferences, (await _alice.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.Preferences);
     }
 
@@ -48,7 +49,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         var wanted = new UserPreferences
         {
             NoteTitles = true, DateInTitles = true, DateFormat = "dddd, d MMMM yyyy", TodoLists = false, QuickNotes = false, DailyNotes = true,
-            HabitTracker = true,
+            HabitTracker = true, ShrinkPhotos = true,
         };
 
         var response = await _alice.PutJsonAsync("/api/v1/account/preferences", wanted);

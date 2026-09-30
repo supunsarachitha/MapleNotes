@@ -94,7 +94,11 @@ them.`,
     title: "Pictures, video and files",
     body: `Choose a picture to open it full screen. Move between a note's pictures with the arrows, the arrow keys or a swipe,
 download it with the download button, and close with Esc or ✕. Videos and audio play in the note, and other files
-download when you choose them.`,
+download when you choose them.
+
+To save space, turn on **Shrink photos before uploading** in [Settings](/settings): large photos are resized to 2560
+pixels on their longest side and saved as JPEG before they upload, often a tenth of the size, and their location and
+camera details are left out. The full-size original is not kept, and photos you uploaded earlier stay as they are.`,
   },
   {
     id: "links",
@@ -152,7 +156,11 @@ Exports are not encrypted, so store them with care.
 
 **Restore** brings notes back from such a file, even on another Maple Notes server. Notes keep their dates, pins,
 archive state and files, and notes you already have are skipped, so restoring twice does no harm. You can also add
-single Markdown, text or JSON files as notes.`,
+single Markdown, text or JSON files as notes.
+
+To start over, **Advanced → Delete all notes and files** deletes everything you wrote and uploaded at once, after
+you confirm your password. Your account, password, settings and encryption stay. This cannot be undone, so export
+first if you might want your notes back.`,
   },
   {
     id: "https",
@@ -166,7 +174,11 @@ explains this instead of signing you in. Ask whoever runs your server for its HT
     title: "How much you store",
     body: `**Account** in [Settings](/settings) shows how much space your notes and files take, with how many of each.
 Archived notes and files count too; deleting them frees the space. Only you see your own usage: administrators see
-the server's totals, never yours.`,
+the server's totals, never yours.
+
+Your administrator may limit how much each account stores. Settings then shows how much of it you use, and warns you
+when it is almost full. Once it is full, new files, notes and longer edits are not saved until you delete something
+(or the administrator allows more); nothing you already have is lost, and you can still delete, archive and export.`,
   },
   {
     id: "shortcuts",
@@ -184,7 +196,8 @@ the server's totals, never yours.`,
     id: "admins",
     title: "For administrators",
     body: `The first account on a server is its administrator. Under **Administration** in [Settings](/settings) you can let
-visitors create accounts, disable or remove accounts, and make others administrators. Administrators manage
-accounts, but they can never read anyone's notes through the app.`,
+visitors create accounts, limit how much each account can store, disable or remove accounts, and make others
+administrators. **Compact database** gives the space that deleted notes leave in the database back to the disk. Administrators manage accounts, but they can never read anyone's notes through the app, nor see how
+much an account stores.`,
   },
 ];

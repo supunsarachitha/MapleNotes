@@ -5,6 +5,7 @@ using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Crypto;
 using MapleNotes.Server.Infrastructure.Persistence;
+using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.EntityFrameworkCore;
 
 namespace MapleNotes.Server.Features.Auth;
@@ -349,6 +350,27 @@ public sealed class AccountService(
 
         await deletion.DeleteAsync(userId, cancellationToken);
         return AccountResult.Success(user);
+    }
+
+    /// <summary>
+    /// Deletes all of the account's notes, tags and files after checking its password. The account itself stays, with
+    /// its sign-in details, encryption keys, settings and sessions.
+    /// </summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="proof">Proof of the account password.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>How many notes and files were deleted.</returns>
+    /// <exception cref="ApiValidationException">The password is not correct.</exception>
+    public async Task<DeletedContentResponse> DeleteOwnContentAsync(Guid userId, CredentialProof? proof, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
+        if (!credentials.Verify(user, proof?.AuthKey, proof?.Password))
+        {
+            throw new ApiValidationException("password", "The password is not correct.");
+        }
+
+        await db.SaveChangesAsync(cancellationToken); // keeps a legacy credential upgrade: the password was right
+        return await deletion.DeleteContentAsync(userId, cancellationToken);
     }
 
     /// <summary>Loads an account.</summary>

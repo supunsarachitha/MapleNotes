@@ -41,7 +41,8 @@
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
   upload progress. Images keep their shape on any screen and open in a full-screen viewer; audio and video play
-  inline, and video seeking works on iOS.
+  inline, and video seeking works on iOS. Optionally, photos are shrunk in the browser before they upload (at most
+  2560 pixels, as JPEG), often to a tenth of the size.
 - **Search.** Finds text in your notes, including encrypted ones. With end-to-end encryption, search runs in your
   browser.
 - **Encryption, chosen per account.**
@@ -54,12 +55,17 @@
 - **Export and restore.** Download everything, decrypted, as a ZIP of Markdown, plain text or JSON files, in flat or
   year/month/day folders, with attachments linked by relative path. Restore such an export into any account, even on
   another server: notes keep their dates, pins, archive state, kind and files, and notes you already have are skipped.
-  Single Markdown, text and JSON files can be added too. With end-to-end encryption, your browser does both.
+  Single Markdown, text and JSON files can be added too. With end-to-end encryption, your browser does both. To
+  start over, an account can delete all of its notes and files at once and keep its sign-in and settings.
 - **Storage at a glance.** Settings shows how much your notes and files take; administrators see the server's totals
-  and free disk space, never another person's usage.
+  and free disk space, never another person's usage, and can compact the database to give the space deleted notes
+  leave behind back to the disk.
+- **Storage limit.** Optionally, administrators set how much each account can store, notes and files together. Each
+  account sees its own usage against it; anything that would pass it is refused, and nothing already stored is lost.
 - **Help built in.** A user guide in the app explains every feature, and works offline.
 - **Accounts.** Multiple users with secure authentication. The first account becomes the administrator, who can open
-  registration, disable or remove accounts, and appoint other administrators. Administrators never see anyone's notes.
+  registration, limit each account's storage, disable or remove accounts, and appoint other administrators.
+  Administrators never see anyone's notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Appearance.** Light or dark (or follow your device), and seven accent colours, chosen in Settings and applied on
   every device.
@@ -766,11 +772,6 @@ In Development, the interactive API reference is at <http://localhost:5051/scala
 | Container | Multi-stage, multi-architecture build; chiseled Ubuntu runtime image |
 
 Architecture, file formats and design decisions: [docs/architecture.md](docs/architecture.md).
-
-## Acknowledgements
-
-Maple Notes is inspired by [memos](https://github.com/usememos/memos). It is an independent implementation and shares
-no code with it.
 
 ## License
 

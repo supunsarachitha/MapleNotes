@@ -57,6 +57,8 @@ export interface Preferences {
   calendar: boolean;
   /** Show the Habits tab. */
   habitTracker: boolean;
+  /** Shrink photos in the browser before they upload. */
+  shrinkPhotos: boolean;
   /** Show previews of links in notes (the server fetches the pages). */
   linkPreviews: boolean;
   theme: Theme;
@@ -185,6 +187,27 @@ export interface StorageUsage {
   filesBytes: number;
   fileCount: number;
   totalBytes: number;
+  /** The most the account may store, notes and files together, as set by an administrator; null for no limit. */
+  quotaBytes: number | null;
+}
+
+/** The database's size before and after compacting it (with its write-ahead log). */
+export interface CompactResult {
+  bytesBefore: number;
+  bytesAfter: number;
+}
+
+/** What deleting all of an account's notes and files removed. */
+export interface DeletedContent {
+  notes: number;
+  files: number;
+}
+
+/** Instance settings that administrators change. */
+export interface InstanceSettings {
+  allowRegistration: boolean;
+  /** The most each account may store, notes and files together, in megabytes; null for no limit. */
+  storageQuotaMb: number | null;
 }
 
 /** What the instance stores on its data volume, for administrators (totals only). */

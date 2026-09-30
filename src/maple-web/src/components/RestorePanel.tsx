@@ -149,6 +149,15 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
                   ? ` ${plural(step.progress.skipped, "note was", "notes were")} already here.`
                   : "")}
           </p>
+          {step.name === "done" && step.progress.stopped && (
+            <p
+              role="alert"
+              className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200"
+            >
+              Stopped before the last {plural(step.progress.total - step.progress.done, "note")}. {step.progress.stopped}{" "}
+              Then restore the same file again: notes already restored are skipped.
+            </p>
+          )}
           {step.progress.failed.length > 0 && (
             <ProblemList
               title={

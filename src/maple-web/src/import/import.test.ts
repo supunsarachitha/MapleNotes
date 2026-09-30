@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fromBase64, fromUtf8 } from "../crypto/encoding";
 import vectors from "../export/export-vectors.json";
 import { safeFileName } from "../export/naming";
+import { ApiError } from "../lib/apiError";
 import type { Attachment, Note } from "../lib/types";
 import { runImport } from "./importer";
 import { readImport, type ImportItem } from "./parse";
@@ -103,6 +104,30 @@ describe("running a restore", () => {
     dailyDate: null,
     attachments: Array.from({ length: attachments }, (_, i) => ({ name: `f${i}.png`, type: "image/png", size: 1, read: async () => new Uint8Array([i]) })),
     missing: [],
+  });
+
+  it("stops at the first note that does not fit in the storage limit", async () => {
+    const full = new ApiError(507, { title: "There is not enough room in your storage.", detail: "Delete notes or files to make room, or ask an administrator for more space." });
+    const api = {
+      existingNotes: vi.fn(async () => []),
+      importNote: vi.fn(async (note: { id: string | null }, _attachmentIds: string[]) => {
+        if (note.id === "0192f3a2-0000-7000-8000-000000000002") throw full;
+        return { imported: true, note: {} as Note };
+      }),
+      deleteAttachment: vi.fn(async () => undefined),
+    };
+    let next = 0;
+    const upload = vi.fn(async () => ({ id: `upload-${++next}` }) as Attachment);
+
+    const result = await runImport(
+      [item("0192f3a2-0000-7000-8000-000000000001"), item("0192f3a2-0000-7000-8000-000000000002", 1), item("0192f3a2-0000-7000-8000-000000000003")],
+      () => undefined,
+      { api, upload },
+    );
+
+    expect(api.importNote).toHaveBeenCalledTimes(2); // the third note is not tried: it would not fit either
+    expect(api.deleteAttachment).toHaveBeenCalledWith("upload-1"); // the file uploaded for the note that did not fit
+    expect(result).toMatchObject({ total: 3, done: 1, imported: 1, failed: [], stopped: "There is not enough room in your storage. Delete notes or files to make room, or ask an administrator for more space." });
   });
 
   it("skips notes the account has, uploads files first, and reports failures", async () => {
