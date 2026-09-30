@@ -11,6 +11,10 @@ namespace MapleNotes.Server.Features.Encryption;
 /// <param name="Proof">Proof of the account password, to confirm.</param>
 public sealed record DeleteAccountRequest(CredentialProof Proof);
 
+/// <summary>Request to change the signed-in account's display name.</summary>
+/// <param name="DisplayName">The new name, at most 64 characters on one line; empty for the username.</param>
+public sealed record ChangeDisplayNameRequest(string? DisplayName);
+
 /// <summary>Request to delete all of the signed-in account's notes and files.</summary>
 /// <param name="Proof">Proof of the account password, to confirm.</param>
 public sealed record DeleteContentRequest(CredentialProof Proof);
@@ -51,6 +55,18 @@ public sealed class AccountController(AccountService accounts, EncryptionSetting
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public Task<EncryptionStatusResponse> SetEncryption(UpdateEncryptionRequest request, CancellationToken cancellationToken) =>
         encryption.SetModeAsync(User.GetUserId(), request, cancellationToken);
+
+    /// <summary>Changes the name the app shows for the signed-in account.</summary>
+    /// <param name="request">The new name; empty goes back to the username.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The account as it is now.</returns>
+    /// <response code="200">The name was changed.</response>
+    /// <response code="400">The name is too long or not on one line.</response>
+    [HttpPut("display-name")]
+    [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public Task<UserResponse> ChangeDisplayName(ChangeDisplayNameRequest request, CancellationToken cancellationToken) =>
+        accounts.ChangeDisplayNameAsync(User.GetUserId(), request.DisplayName, cancellationToken);
 
     /// <summary>Permanently deletes all of the account's notes, tags and files, and keeps the account.</summary>
     /// <remarks>

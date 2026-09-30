@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { api } from "./api";
+import { weekStartDay } from "./dates";
 import { queryKeys, useAuthStatus } from "./queries";
 import type { AuthStatus, Preferences } from "./types";
 
@@ -14,11 +15,20 @@ export const DEFAULT_PREFERENCES: Preferences = {
   dailyNotes: false,
   calendar: true,
   habitTracker: false,
+  archive: true,
+  tags: true,
   shrinkPhotos: false,
   linkPreviews: false,
   theme: "System",
   accent: "Maple",
+  menuTextSize: "Medium",
+  weekStart: "Auto",
 };
+
+/** The first day of the week in calendars and weekly charts (0 = Sunday), as the user chose it. */
+export function useWeekStart(): number {
+  return weekStartDay(usePreferences().weekStart);
+}
 
 /** The signed-in user's preferences (from the sign-in status, so every device sees the same). */
 export function usePreferences(): Preferences {

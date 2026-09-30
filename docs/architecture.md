@@ -350,6 +350,16 @@ server-side request forgery (`Features/LinkPreviews/NetworkGuard.cs`):
 The HTML is read with a few regular expressions (Open Graph tags, then `<title>` and the description), never
 executed, and the text is shown as plain text.
 
+## Branding
+
+Administrators can rename the app and replace its icon; both are instance settings and come with the sign-in status
+(`branding`), so the sign-in page shows them. The name is plain text, at most 40 characters on one line, and the web
+app only ever renders it as text. The icon is fitted into 256 × 256 pixels in the browser, and the server accepts it
+only as a PNG, JPEG or WebP image of at most 256 KB, recognised by its first bytes (so never SVG or anything that
+could run). It lives in the database, is served at `GET /api/v1/branding/icon` with the attachments' sandboxing
+Content-Security-Policy, and is linked with a version taken from its hash, so browsers can cache it for good. The
+server's version comes with the status only for signed-in users.
+
 ## Storage usage
 
 `GET /api/v1/account/storage` sums the signed-in account's stored note bytes (ciphertext for encrypted notes) and file

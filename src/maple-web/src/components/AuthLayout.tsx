@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Logo } from "./Logo";
+import { BrandMark } from "./BrandMark";
 
 /** The centered card used by the sign-in, unlock and recovery screens. */
 export function AuthLayout({
@@ -17,7 +17,7 @@ export function AuthLayout({
     <main className="flex min-h-dvh items-center justify-center bg-stone-100 px-4 py-10 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <Logo className="size-14" />
+          <BrandMark className="size-14" />
           <h1 className="text-2xl font-semibold tracking-tight">{heading}</h1>
           <p className="text-sm text-stone-600 dark:text-stone-300">{intro}</p>
         </div>

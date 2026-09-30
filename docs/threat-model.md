@@ -93,6 +93,8 @@ Defences:
 - The Content-Security-Policy allows scripts only from the app's origin: no inline script and no `eval`.
 - Attachments are served with `nosniff` and a sandboxing policy, and anything that is not passive media is sent as a
   download. Neither the server nor the media service worker ever renders an uploaded file as part of the app.
+- A custom app icon must be a PNG, JPEG or WebP image, checked by its content, and is served with the same sandboxing
+  policy; the app name is only ever shown as text.
 - The unlocked key is a non-extractable `CryptoKey`. This keeps it out of reach of code that only sees memory, but
   not of script running in the page.
 

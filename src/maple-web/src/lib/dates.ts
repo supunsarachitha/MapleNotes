@@ -1,4 +1,4 @@
-import type { DateFormat } from "./types";
+import type { DateFormat, WeekStart } from "./types";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = [
@@ -69,4 +69,11 @@ export function firstDayOfWeek(): number {
   } catch {
     return 0;
   }
+}
+
+const WEEKDAY_NUMBERS: Record<Exclude<WeekStart, "Auto">, number> = { Sunday: 0, Monday: 1, Saturday: 6 };
+
+/** The first day of the week the user chose (0 = Sunday), or for Auto the browser's language default. */
+export function weekStartDay(choice: WeekStart): number {
+  return choice === "Auto" ? firstDayOfWeek() : WEEKDAY_NUMBERS[choice];
 }

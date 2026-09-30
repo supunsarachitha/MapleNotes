@@ -4,6 +4,7 @@ import { AuthLayout, linkClass } from "../components/AuthLayout";
 import { Button, ErrorMessage, TextField } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
+import { useBranding } from "../lib/branding";
 import { queryKeys } from "../lib/queries";
 import { Link, navigate } from "../lib/router";
 
@@ -11,12 +12,12 @@ export type AuthMode = "setup" | "login" | "register";
 
 const titles: Record<AuthMode, { heading: string; intro: string; action: string }> = {
   setup: {
-    heading: "Welcome to Maple Notes",
+    heading: "Welcome to {app}",
     intro: "Create the first account. It becomes the administrator of this instance.",
     action: "Create account",
   },
   login: { heading: "Sign in", intro: "Your notes, on your own server.", action: "Sign in" },
-  register: { heading: "Create an account", intro: "Join this Maple Notes instance.", action: "Create account" },
+  register: { heading: "Create an account", intro: "Join {app}.", action: "Create account" },
 };
 
 /** First-run setup, sign-in and registration. */
@@ -28,6 +29,7 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
   const [rememberMe, setRememberMe] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const { appName } = useBranding();
   const text = titles[mode];
 
   async function submit(event: FormEvent) {
@@ -55,8 +57,8 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
 
   return (
     <AuthLayout
-      heading={text.heading}
-      intro={text.intro}
+      heading={text.heading.replace("{app}", appName)}
+      intro={text.intro.replace("{app}", appName)}
       footer={
         mode === "login" ? (
           <div className="flex flex-col gap-2">

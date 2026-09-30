@@ -75,7 +75,8 @@ type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export async function request<T>(method: Method, path: string, body?: unknown, retry = true): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const raw = body instanceof Blob; // sent as it is, with its own type (an image, for example)
+  if (body !== undefined) headers["Content-Type"] = raw ? body.type : "application/json";
   if (method !== "GET") Object.assign(headers, await antiforgeryHeaders());
 
   let response: Response;
@@ -83,7 +84,7 @@ export async function request<T>(method: Method, path: string, body?: unknown, r
     response = await fetch(path, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : raw ? body : JSON.stringify(body),
       credentials: "same-origin",
     });
   } catch {
@@ -342,6 +343,9 @@ export const api = {
     },
   },
 
+  /** Changes the name the app shows for this account; an empty name goes back to the username. */
+  updateDisplayName: (displayName: string) => request<User>("PUT", "/api/v1/account/display-name", { displayName }),
+
   /** Deletes every note, tag and file of the account; the account, its keys and settings stay. */
   deleteAllContent: (proof: CredentialProof) => request<DeletedContent>("DELETE", "/api/v1/account/content", { proof }),
 
@@ -360,6 +364,10 @@ export const api = {
     deleteUser: (id: string) => request<void>("DELETE", `/api/v1/admin/users/${id}`),
     /** The instance's totals on its data volume; never another account's usage. */
     storage: () => request<InstanceStorage>("GET", "/api/v1/admin/storage"),
+    /** Replaces the app's icon with a PNG, JPEG or WebP image (at most 256 KB). */
+    setIcon: (image: Blob) => request<void>("PUT", "/api/v1/admin/branding/icon", image),
+    /** Goes back to the maple leaf. */
+    removeIcon: () => request<void>("DELETE", "/api/v1/admin/branding/icon"),
     /** Rebuilds the database without the space deleted content left behind. */
     compactDatabase: () => request<CompactResult>("POST", "/api/v1/admin/storage/compact"),
   },

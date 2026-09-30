@@ -2,9 +2,11 @@ import { Hash, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyState, cn } from "../components/ui";
 import { useEnabledKinds } from "../lib/kinds";
+import { usePreferences } from "../lib/preferences";
 import { useTags } from "../lib/queries";
 import { Link } from "../lib/router";
 import type { Tag } from "../lib/types";
+import { FeatureOff } from "./TodoPage";
 
 export type TagOrder = "name" | "count";
 
@@ -84,6 +86,18 @@ function TagBranch({ node, depth }: { node: TagNode; depth: number }) {
 
 /** Every tag with how many notes use it: nested tags under their parents, a filter, and two orders. */
 export function TagsPage() {
+  if (!usePreferences().tags) {
+    return (
+      <>
+        <h1 className="mb-4 text-xl font-semibold">Tags</h1>
+        <FeatureOff title="The Tags page is turned off">Tags in your notes still work.</FeatureOff>
+      </>
+    );
+  }
+  return <Tags />;
+}
+
+function Tags() {
   const tags = useTags(useEnabledKinds());
   const [filter, setFilter] = useState("");
   const [order, setOrder] = useState<TagOrder>("name");

@@ -115,14 +115,15 @@ do. Your server's administrator may also have switched them off for everyone.`,
     id: "appearance",
     title: "Appearance",
     body: `Under **Appearance** in [Settings](/settings), choose **Light**, **Dark**, or **Device** to follow your phone or
-computer, and pick an accent colour. Your choice follows you to every device you sign in on.`,
+computer, and pick an accent colour. You can also make the side menu's text smaller or larger, and choose the day
+your weeks start on in the calendars. Your choices follow you to every device you sign in on.`,
   },
   {
     id: "features",
     title: "Choosing your features",
     body: `Everything beyond plain notes can be switched on or off under **Features** in [Settings](/settings): todo lists,
-quick notes, daily notes, the calendar, the habit tracker and link previews. Turning something off only hides it;
-nothing is deleted, and it all comes back when you turn it on again.`,
+quick notes, daily notes, the calendar, the habit tracker, the archive, the Tags page and link previews. Turning
+something off only hides it; nothing is deleted, and it all comes back when you turn it on again.`,
   },
   {
     id: "encryption",
@@ -139,6 +140,12 @@ how much more protection your own notes get:
 When you turn on end-to-end encryption you get a **recovery key**. Save it somewhere safe, such as a password
 manager or on paper. It is the only way back in if you forget your password; without the password or the recovery
 key, nobody can recover your notes. On a new device, you unlock your notes by entering your password.`,
+  },
+  {
+    id: "account",
+    title: "Your name",
+    body: `**Account** in [Settings](/settings) shows your username and the name the app shows for you. Choose **Change**
+to pick another display name; leave it empty to use your username.`,
   },
   {
     id: "password",
@@ -200,7 +207,8 @@ when it is almost full. Once it is full, new files, notes and longer edits are n
     title: "For administrators",
     body: `The first account on a server is its administrator. Under **Administration** in [Settings](/settings) you can let
 visitors create accounts, limit how much each account can store, disable or remove accounts, and make others
-administrators. **Compact database** gives the space that deleted notes leave in the database back to the disk. Administrators manage accounts, but they can never read anyone's notes through the app, nor see how
+administrators. **Compact database** gives the space that deleted notes leave in the database back to the disk, and
+**Name and icon** gives the app your own name and picture, on the sign-in page too. Administrators manage accounts, but they can never read anyone's notes through the app, nor see how
 much an account stores.`,
   },
 ];

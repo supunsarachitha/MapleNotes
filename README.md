@@ -34,8 +34,9 @@
 - **Link previews.** Optionally, the title and description of links in your notes. Off by default: the server fetches
   the pages, so it sees the links.
 - **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.
-- **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes, the calendar and the
-  habit tracker on or off in Settings, on every device at once. Turning a feature off hides it and deletes nothing.
+- **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes, the calendar, the
+  habit tracker, the archive and the Tags page on or off in Settings, on every device at once. Turning a feature off
+  hides it and deletes nothing.
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists, tables, code), with a formatting toolbar and shortcuts
   in the editor, and clickable `#tags`, including
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
@@ -63,12 +64,13 @@
 - **Storage limit.** Optionally, administrators set how much each account can store, notes and files together. Each
   account sees its own usage against it; anything that would pass it is refused, and nothing already stored is lost.
 - **Help built in.** A user guide in the app explains every feature, and works offline.
-- **Accounts.** Multiple users with secure authentication. The first account becomes the administrator, who can open
-  registration, limit each account's storage, disable or remove accounts, and appoint other administrators.
-  Administrators never see anyone's notes.
+- **Accounts.** Multiple users with secure authentication, each with a display name of their choice. The first
+  account becomes the administrator, who can give the app its own name and icon, open registration, limit each
+  account's storage, disable or remove accounts, and appoint other administrators. Administrators never see anyone's
+  notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
-- **Appearance.** Light or dark (or follow your device), and seven accent colours, chosen in Settings and applied on
-  every device.
+- **Appearance.** Light or dark (or follow your device), seven accent colours, the menu's text size and the first day of
+  the week, chosen in Settings and applied on every device.
 - **Small and hardened.** One container: non-root, read-only root filesystem, built-in health check.
 
 | Mobile | Todo lists | Settings |
@@ -644,18 +646,27 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
-### From 1.3 to 1.4
+### From 1.5 to 1.6
 
-Nothing to do. There is no storage limit until an administrator sets one, and photo shrinking is off until an account
-turns it on. For API clients:
-- `GET`/`PUT /api/v1/admin/settings` gained `storageQuotaMb`. A `PUT` replaces all the settings, so leaving it out
-  removes the limit.
-- `GET /api/v1/account/storage` gained `quotaBytes`, and preferences gained `shrinkPhotos`.
-- New endpoints: `DELETE /api/v1/account/content` and `POST /api/v1/admin/storage/compact`.
-- Uploads and note writes answer HTTP 507 when they do not fit in an account's storage limit.
+Nothing to do: the app keeps its name and icon until an administrator changes them, and every new setting starts as
+before. For API clients:
+- The sign-in status gained `branding`, and `version` for signed-in users.
+- `GET`/`PUT /api/v1/admin/settings` gained `appName`. A `PUT` replaces all the settings, so leaving it out goes back
+  to "Maple Notes".
+- Preferences gained `archive`, `tags`, `menuTextSize` and `weekStart`.
+- New endpoints: `GET /api/v1/branding/icon`, `PUT`/`DELETE /api/v1/admin/branding/icon` and
+  `PUT /api/v1/account/display-name`.
 
 <details>
 <summary>Older versions</summary>
+
+**From 1.4 to 1.5.** Nothing to do.
+
+**From 1.3 to 1.4.** Nothing to do. There is no storage limit until an administrator sets one, and photo shrinking is
+off until an account turns it on. For API clients: `GET`/`PUT /api/v1/admin/settings` gained `storageQuotaMb` (a `PUT`
+without it removes the limit); `GET /api/v1/account/storage` gained `quotaBytes`; preferences gained `shrinkPhotos`;
+`DELETE /api/v1/account/content` and `POST /api/v1/admin/storage/compact` are new; and uploads and note writes answer
+HTTP 507 when they do not fit in an account's storage limit.
 
 **From 1.2 to 1.3.** Nothing to do. The habit tracker is off for every account until it is turned on in Settings →
 Features. Habits are notes of a new kind, so exports file them under `habits/`; restoring such an export into Maple

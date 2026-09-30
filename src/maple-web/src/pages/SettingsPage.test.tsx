@@ -130,6 +130,51 @@ describe("Settings", () => {
     expect(habits).toHaveAttribute("aria-checked", "true");
   });
 
+  it("changes the display name, and an empty one goes back to the username", async () => {
+    const change = vi.spyOn(api, "updateDisplayName").mockImplementation(async (displayName) => ({ ...user, displayName: displayName.trim() || user.username }));
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
+
+    await userEvent.click(screen.getByRole("button", { name: "Change display name" }));
+    const field = screen.getByRole("textbox", { name: "Display name" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "Alex Maple");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Display name changed.")).toBeInTheDocument();
+    expect(change).toHaveBeenCalledWith("Alex Maple");
+    expect(screen.getByText("Alex Maple")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Display name" })).not.toBeInTheDocument();
+  });
+
+  it("changes the menu text size, the first day of the week, and the Archive and Tags pages", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
+
+    await userEvent.click(screen.getByRole("radio", { name: "Large" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ menuTextSize: "Large" })));
+    await userEvent.selectOptions(screen.getByLabelText("Week starts on"), "Monday");
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ weekStart: "Monday" })));
+    await userEvent.click(screen.getByRole("switch", { name: "Archive" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Tags page" }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuTextSize: "Large", weekStart: "Monday", archive: false, tags: false }),
+    );
+  });
+
+  it("lets administrators rename the app", async () => {
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null });
+    const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, { ...user, role: "Admin" });
+
+    await userEvent.type(await screen.findByLabelText("App name"), "Family Notes");
+    await userEvent.click(screen.getByRole("button", { name: "Save name" }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: null, appName: "Family Notes" }));
+    expect(await screen.findByText("The app is now called Family Notes.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose icon…" })).toBeInTheDocument();
+  });
+
   it("changes the theme and accent colour", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
     renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
@@ -169,7 +214,7 @@ describe("Settings", () => {
   });
 
   it("lets administrators set a storage limit for every account", async () => {
-    mockAdmin({ allowRegistration: false, storageQuotaMb: null });
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null });
     const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
     renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, { ...user, role: "Admin" });
     const limit = await screen.findByRole("switch", { name: "Storage limit" });
@@ -189,13 +234,13 @@ describe("Settings", () => {
     await userEvent.type(amount, "1.5");
     await userEvent.click(screen.getByRole("button", { name: "Save limit" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: 1536 }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: 1536, appName: null }));
     expect(await screen.findByText("Each account can now store up to 1.5 GB.")).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Storage limit" })).toHaveAttribute("aria-checked", "true");
   });
 
   it("keeps the storage limit when registration changes, and removes it with its switch", async () => {
-    mockAdmin({ allowRegistration: true, storageQuotaMb: 2048 });
+    mockAdmin({ allowRegistration: true, storageQuotaMb: 2048, appName: null });
     const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
     renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, { ...user, role: "Admin" });
     const limit = await screen.findByRole("switch", { name: "Storage limit" });
@@ -203,16 +248,16 @@ describe("Settings", () => {
     expect(screen.getByLabelText("Per account")).toHaveValue(2);
 
     await userEvent.click(screen.getByRole("switch", { name: "Open registration" }));
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: 2048 }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: 2048, appName: null }));
 
     await userEvent.click(screen.getByRole("switch", { name: "Storage limit" }));
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: null }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: null, appName: null }));
     expect(await screen.findByText("Storage limit removed.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Per account")).not.toBeInTheDocument();
   });
 
   it("lets administrators compact the database", async () => {
-    mockAdmin({ allowRegistration: false, storageQuotaMb: null });
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null });
     const compact = vi.spyOn(api.admin, "compactDatabase").mockResolvedValue({ bytesBefore: 12 * 1024 * 1024, bytesAfter: 3 * 1024 * 1024 });
     renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, { ...user, role: "Admin" });
 
@@ -223,7 +268,7 @@ describe("Settings", () => {
   });
 
   it("shows administrators the server's totals", async () => {
-    vi.spyOn(api.admin, "settings").mockResolvedValue({ allowRegistration: false, storageQuotaMb: null });
+    vi.spyOn(api.admin, "settings").mockResolvedValue({ allowRegistration: false, storageQuotaMb: null, appName: null });
     vi.spyOn(api.admin, "users").mockResolvedValue([]);
     vi.spyOn(api.admin, "storage").mockResolvedValue({
       databaseBytes: 2 * 1024 * 1024, filesBytes: 40 * 1024 * 1024, backupsBytes: 6 * 1024 * 1024, freeBytes: 20 * 1024 ** 3, totalBytes: 48 * 1024 * 1024,

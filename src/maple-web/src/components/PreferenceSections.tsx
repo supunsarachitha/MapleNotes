@@ -4,7 +4,7 @@ import { ACCENT_COLORS } from "../lib/appearance";
 import { formatDate } from "../lib/dates";
 import { usePreferences, useUpdatePreferences } from "../lib/preferences";
 import { useAuthStatus } from "../lib/queries";
-import { ACCENTS, DATE_FORMATS, THEMES, type DateFormat, type Preferences } from "../lib/types";
+import { ACCENTS, DATE_FORMATS, MENU_TEXT_SIZES, THEMES, WEEK_STARTS, type DateFormat, type Preferences, type WeekStart } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useToast } from "./Toaster";
 import { Section, Switch, cn } from "./ui";
@@ -49,6 +49,7 @@ const THEME_ICONS = { System: Monitor, Light: Sun, Dark: Moon } as const;
 
 /** Light or dark, and the accent colour; saved for the account, so every device looks the same. */
 export function AppearanceSection() {
+  const id = useId();
   const preferences = usePreferences();
   const save = useSavePreferences();
 
@@ -112,6 +113,54 @@ export function AppearanceSection() {
           ))}
         </div>
       </fieldset>
+
+      <fieldset className="mt-5">
+        <legend className="mb-2 text-sm font-medium">Menu text size</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {MENU_TEXT_SIZES.map((size) => (
+            <label
+              key={size}
+              className={cn(
+                "flex cursor-pointer items-center justify-center rounded-xl border px-3 py-2.5 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-maple-500",
+                size === "Small" ? "text-[13px]" : size === "Large" ? "text-[17px]" : "text-[15px]",
+                preferences.menuTextSize === size
+                  ? "border-maple-600 bg-maple-50 font-medium text-maple-700 dark:border-maple-500 dark:bg-maple-600/15 dark:text-maple-400"
+                  : "border-stone-200 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800",
+              )}
+            >
+              <input
+                type="radio"
+                name="menuTextSize"
+                value={size}
+                checked={preferences.menuTextSize === size}
+                onChange={() => save({ menuTextSize: size })}
+                className="sr-only"
+              />
+              {size}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">The size of the items in the side menu.</p>
+      </fieldset>
+
+      <div className="mt-5">
+        <label htmlFor={`${id}-week`} className="mb-2 block text-sm font-medium">
+          Week starts on
+        </label>
+        <select
+          id={`${id}-week`}
+          value={preferences.weekStart}
+          onChange={(event) => save({ weekStart: event.target.value as WeekStart })}
+          className="h-11 w-full max-w-xs rounded-xl border border-stone-300 bg-white px-3 text-sm dark:border-stone-700 dark:bg-stone-950"
+        >
+          {WEEK_STARTS.map((day) => (
+            <option key={day} value={day}>
+              {day === "Auto" ? "Automatic (from your language settings)" : day}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">For the calendars and the weekly habit chart.</p>
+      </div>
     </Section>
   );
 }
@@ -156,6 +205,18 @@ export function FeaturesSection() {
           description="A Habits tab: tick off your daily habits and see your progress in a chart."
           checked={preferences.habitTracker}
           onChange={(habitTracker) => save({ habitTracker })}
+        />
+        <PreferenceSwitch
+          label="Archive"
+          description="An Archive page for notes you put away, and the Archive action on notes and lists. Turning it off hides them; archived notes are kept."
+          checked={preferences.archive}
+          onChange={(archive) => save({ archive })}
+        />
+        <PreferenceSwitch
+          label="Tags page"
+          description="A Tags page listing every tag with how many notes use it. Tags in your notes work either way."
+          checked={preferences.tags}
+          onChange={(tags) => save({ tags })}
         />
         <PreferenceSwitch
           label="Shrink photos before uploading"

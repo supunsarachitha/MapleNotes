@@ -56,7 +56,12 @@ public sealed class AuthController(
 
         var setupRequired = await accounts.IsSetupRequiredAsync(cancellationToken);
         var registrationOpen = setupRequired || await instanceSettings.IsRegistrationOpenAsync(cancellationToken);
-        return new AuthStatusResponse(setupRequired, registrationOpen, current, options.LinkPreviews);
+        var iconVersion = await instanceSettings.GetIconVersionAsync(cancellationToken);
+        var branding = new BrandingResponse(
+            await instanceSettings.GetAppNameAsync(cancellationToken) ?? InstanceSettingsService.DefaultAppName,
+            iconVersion is null ? null : $"/api/v1/branding/icon?v={iconVersion}");
+        var version = current is null ? null : typeof(AuthController).Assembly.GetName().Version?.ToString(3);
+        return new AuthStatusResponse(setupRequired, registrationOpen, current, options.LinkPreviews, branding, version);
     }
 
     /// <summary>Issues an antiforgery token for the current visitor and sets its companion cookie.</summary>

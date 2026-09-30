@@ -3,8 +3,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { api } from "../lib/api";
 import { useToday } from "../lib/daily";
-import { firstDayOfWeek, localDateKey, parseDateKey } from "../lib/dates";
+import { localDateKey, parseDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
+import { useWeekStart } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
 import { Link, useLocation } from "../lib/router";
 import { IconButton, cn } from "./ui";
@@ -38,7 +39,7 @@ export function Calendar({ onNavigate }: { onNavigate?: () => void }) {
   });
   const counts = new Map(days.data?.map((day) => [day.date, day.count]));
 
-  const weekStart = firstDayOfWeek();
+  const weekStart = useWeekStart();
   const blanks = (month.getDay() - weekStart + 7) % 7;
   const weekdays = WEEKDAYS.map((_, i) => WEEKDAYS[(i + weekStart) % 7]!);
   const todayKey = localDateKey(today);

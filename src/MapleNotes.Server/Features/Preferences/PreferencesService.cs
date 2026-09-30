@@ -40,6 +40,16 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
             throw new ApiValidationException("accent", $"Choose one of: {string.Join(", ", UserPreferences.Accents)}.");
         }
 
+        if (!UserPreferences.MenuTextSizes.Contains(preferences.MenuTextSize, StringComparer.Ordinal))
+        {
+            throw new ApiValidationException("menuTextSize", $"Choose one of: {string.Join(", ", UserPreferences.MenuTextSizes)}.");
+        }
+
+        if (!UserPreferences.WeekStarts.Contains(preferences.WeekStart, StringComparer.Ordinal))
+        {
+            throw new ApiValidationException("weekStart", $"Choose one of: {string.Join(", ", UserPreferences.WeekStarts)}.");
+        }
+
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
         user.Preferences = preferences;
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
