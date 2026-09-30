@@ -767,11 +767,6 @@ In Development, the interactive API reference is at <http://localhost:5051/scala
 
 Architecture, file formats and design decisions: [docs/architecture.md](docs/architecture.md).
 
-## Acknowledgements
-
-Maple Notes is inspired by [memos](https://github.com/usememos/memos). It is an independent implementation and shares
-no code with it.
-
 ## License
 
 Maple Notes is **source-available** under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may use,

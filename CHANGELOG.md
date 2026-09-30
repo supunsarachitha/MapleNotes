@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- The README's acknowledgement of memos.
+
 ## [1.3.1] - 2026-09-30
 
 The first 1.3 release with container images: the build of the `1.3.0` tag stopped at a documentation test, so no
