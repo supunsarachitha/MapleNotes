@@ -124,7 +124,7 @@ volume `maple-preview-data`) rebuilt from the branch.
 |---|---|---|---|
 | H1 | Server: the habit kind | Listing, creating and importing accept `habit`, and kind changes to or from it are refused. Tag and calendar counts leave habits out by default. Exports put habits in `habits/`. The `habitTracker` preference exists and is off by default. Server tests cover each of these | ✅ Done |
 | H2 | Web foundations | The Features switch. The Habits tab and route, hidden when the switch is off, with a "turned off" page like the Todo tab's. Tested functions for the habit text format (read, write, tick) and the statistics (streaks, weekly and monthly rates, week start, dates that stay right across daylight-saving changes). The browser export and restore handle habits, checked by the shared export vectors | ✅ Done |
-| H3 | The Habits page | Adding, ticking (last 7 days, with week arrows), renaming, archiving, restoring and deleting habits all work. Ticks save through the save queue, now shared with todo lists. The page works on a 360 px phone and for end-to-end accounts. Component tests cover it | ⏳ |
+| H3 | The Habits page | Adding, ticking (last 7 days, with week arrows), renaming, archiving, restoring and deleting habits all work. Ticks save through the save queue, now shared with todo lists. The page works on a 360 px phone and for end-to-end accounts. Component tests cover it | ✅ Done |
 | H4 | Progress chart | Weekly and monthly bars for all habits or one; streaks and totals; the screen-reader summary; light and dark themes; tests | ⏳ |
 | H5 | Documentation and release | A Help page section. The README (feature list and a screenshot), CHANGELOG (1.3.0), threat model and spec are updated, and the version is 1.3.0. Browser checks pass for an ordinary and an end-to-end account: ticks survive reloads, an export restores with every habit and day, and the phone layout works. A clean-clone run of every test passes | ⏳ |
 
@@ -203,3 +203,27 @@ The main risks, and how they are handled:
   - Restore reads `kind: habit`.
   - The shared export vectors gained a habit, and both exporters produce it identically.
 - **Tests:** 409 server tests and 202 web tests pass.
+
+### H3: the Habits page
+
+- **Saving:** `lib/noteEditor.ts` is the save queue that `TodoCard` had. Both todo lists and habits use it: a change
+  shows at once, saves go one after another, and a stale refresh never replaces a newer tick. The todo-list tests,
+  and the F3 browser script from 1.2, still pass.
+- **The page:**
+  - adding a habit;
+  - the last 7 days, with arrows to go a week back and forward, never past today;
+  - a row menu with Rename, Archive and Delete…;
+  - a collapsed "Archived habits (n)" section, where a habit can be restored or deleted.
+- **Day buttons:** each is a toggle button (`aria-pressed`) named after the habit and the date, for example "Read
+  20 minutes, today, Tuesday, September 29". The pressed state says whether the day is done.
+- **Layout:** on phones the name and menu share a line and the 7 days go under them, each at least 40 px.
+- **Browser check** (scratchpad `h3-habits.mjs`, production build), all 17 checks pass with no page errors:
+  - ticks survive reloads;
+  - a habit is stored as `# name` plus one `- yyyy-MM-dd` line per day;
+  - habits stay out of Home, search and the calendar;
+  - an earlier week can be ticked;
+  - renaming keeps the days, and archiving and restoring keep the history;
+  - no horizontal scrolling at 360 px;
+  - on an end-to-end account, a habit from before end-to-end is converted with its ticks, and new ticks are stored
+    only as ciphertext.
+- **Tests:** 207 web tests pass.

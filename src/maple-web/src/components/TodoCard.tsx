@@ -1,8 +1,8 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Archive, ArchiveRestore, ListChecks, MoreHorizontal, Pencil, Pin, PinOff, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { api } from "../lib/api";
-import { useDeleteNote, useInvalidateNotes, usePatchNote } from "../lib/queries";
+import { useNoteEditor } from "../lib/noteEditor";
+import { useDeleteNote, usePatchNote } from "../lib/queries";
 import { parseTodo, serializeTodo, type TodoList } from "../lib/todo";
 import type { Note } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -15,59 +15,28 @@ const inputClass =
 
 /**
  * A todo list in the Todo tab: tick, add, edit and remove items, rename, pin, archive or delete the list. Every change
- * shows at once and is saved in the background, one save after another, as the list's Markdown (see lib/todo.ts).
+ * shows at once and is saved in the background, one save after another, as the list's Markdown (see lib/todo.ts and
+ * lib/noteEditor.ts).
  */
 export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: boolean }) {
-  const [list, setList] = useState<TodoList>(() => parseTodo(note.content));
+  const toast = useToast();
+  const [list, commit] = useNoteEditor<TodoList>(note, parseTodo, serializeTodo, () =>
+    toast.error("A change to this list could not be saved. Please try again."),
+  );
   const [editing, setEditing] = useState<number | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
   const [newItem, setNewItem] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const saving = useRef<Promise<void>>(Promise.resolve());
-  const pending = useRef(0);
-  // The version of our own last save. A refresh that left the server before it can arrive after it; its older list
-  // must not replace ours.
-  const lastSaved = useRef({ at: Date.parse(note.updatedAtUtc), content: note.content });
   const addInput = useRef<HTMLInputElement>(null);
   // Renaming starts once the menu has closed: while it is open, it keeps focus inside itself.
   const renameAfterClose = useRef(false);
-  const invalidate = useInvalidateNotes();
   const patch = usePatchNote();
   const remove = useDeleteNote();
-  const toast = useToast();
-
-  // Take the server's version when it changes (another device, or a failed save), unless one of our own saves is still
-  // on its way or the version is older than our last save.
-  useEffect(() => {
-    if (pending.current > 0) return;
-    const at = Date.parse(note.updatedAtUtc);
-    if (at < lastSaved.current.at || (at === lastSaved.current.at && note.content !== lastSaved.current.content)) return;
-    setList(parseTodo(note.content));
-  }, [note.content, note.updatedAtUtc]);
 
   useEffect(() => {
     if (autoFocus) addInput.current?.focus();
   }, [autoFocus]);
-
-  function commit(next: TodoList) {
-    setList(next);
-    pending.current++;
-    const content = serializeTodo(next);
-    const attachmentIds = note.attachments.map((a) => a.id);
-    saving.current = saving.current
-      .then(() => api.updateNote(note.id, content, attachmentIds))
-      .then(
-        (saved) => {
-          lastSaved.current = { at: Date.parse(saved.updatedAtUtc), content: saved.content };
-        },
-        () => toast.error("A change to this list could not be saved. Please try again."),
-      )
-      .finally(() => {
-        pending.current--;
-        if (pending.current === 0) void invalidate();
-      });
-  }
 
   const done = list.items.filter((item) => item.done).length;
 

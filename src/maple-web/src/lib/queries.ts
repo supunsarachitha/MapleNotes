@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { api } from "./api";
 import { e2ee } from "./e2ee";
 import { dayRange } from "./dates";
-import type { AuthStatus, NoteKind, NoteState } from "./types";
+import type { AuthStatus, Note, NoteKind, NoteState } from "./types";
 
 export const queryKeys = {
   status: ["auth", "status"] as const,
@@ -16,6 +16,7 @@ export const queryKeys = {
   adminUsers: ["admin", "users"] as const,
   encryption: ["account", "encryption"] as const,
   storage: ["notes", "storage"] as const, // under "notes", so it refreshes when notes change
+  habits: (state: "active" | "archived") => ["notes", "habits", state] as const,
   instanceStorage: ["admin", "storage"] as const,
 };
 
@@ -63,6 +64,23 @@ export function useInvalidateNotes() {
       client.invalidateQueries({ queryKey: queryKeys.notes }),
       client.invalidateQueries({ queryKey: queryKeys.tags }),
     ]);
+}
+
+/** Every habit, active or archived, oldest first: the Habits page shows them all at once. */
+export function useHabits(state: "active" | "archived") {
+  return useQuery({
+    queryKey: queryKeys.habits(state),
+    queryFn: async () => {
+      const habits: Note[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await api.listNotes({ state, kinds: ["Habit"], cursor, limit: 100 });
+        habits.push(...page.items);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return habits.sort((a, b) => Date.parse(a.createdAtUtc) - Date.parse(b.createdAtUtc) || (a.id < b.id ? -1 : 1));
+    },
+  });
 }
 
 export function usePatchNote() {

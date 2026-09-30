@@ -60,6 +60,11 @@ export function dayKey(day: number): string {
   return `${String(date.getUTCFullYear()).padStart(4, "0")}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
+/** A date as midnight UTC: format it with `timeZone: "UTC"` to show its day. */
+export function dateOf(key: string): Date {
+  return new Date(dayNumber(key)! * MS_PER_DAY);
+}
+
 /** Moves a date by a number of days. */
 export function addDays(key: string, days: number): string {
   return dayKey(dayNumber(key)! + days);
