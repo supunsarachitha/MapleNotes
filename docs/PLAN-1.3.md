@@ -127,7 +127,7 @@ volume `maple-preview-data`) rebuilt from the branch.
 | H2 | Web foundations | The Features switch. The Habits tab and route, hidden when the switch is off, with a "turned off" page like the Todo tab's. Tested functions for the habit text format (read, write, tick) and the statistics (streaks, weekly and monthly rates, week start, dates that stay right across daylight-saving changes). The browser export and restore handle habits, checked by the shared export vectors | ✅ Done |
 | H3 | The Habits page | Adding, ticking (last 7 days, with week arrows), renaming, archiving, restoring and deleting habits all work. Ticks save through the save queue, now shared with todo lists. The page works on a 360 px phone and for end-to-end accounts. Component tests cover it | ✅ Done |
 | H4 | Progress chart | Weekly and monthly bars for all habits or one; streaks and totals; the screen-reader summary; light and dark themes; tests | ✅ Done |
-| H5 | Documentation and release | A Help page section. The README (feature list and a screenshot), CHANGELOG (1.3.0), threat model and spec are updated, and the version is 1.3.0. Browser checks pass for an ordinary and an end-to-end account: ticks survive reloads, an export restores with every habit and day, and the phone layout works. A clean-clone run of every test passes | ⏳ |
+| H5 | Documentation and release | A Help page section. The README (feature list and a screenshot), CHANGELOG (1.3.0), threat model and spec are updated, and the version is 1.3.0. Browser checks pass for an ordinary and an end-to-end account: ticks survive reloads, an export restores with every habit and day, and the phone layout works. A clean-clone run of every test passes | ✅ Done |
 
 ## Effort
 
@@ -248,3 +248,31 @@ The main risks, and how they are handled:
     the chart's weekly, monthly and single-habit numbers and streaks with a separate calculation. All match, with no
     horizontal scrolling at 360 px and no page errors.
   - 212 web tests pass.
+
+### H5: documentation and release
+
+- **Documentation:**
+  - The Help page has a Habits section.
+  - The README has the feature, a screenshot, what an end-to-end account reveals about habits, and "From 1.2 to 1.3".
+  - `architecture.md`, `e2ee-spec.md` and `threat-model.md` describe the `Habit` kind.
+- **Changelog:** the 1.3.0 entry also covers the deployment work merged into `main` since 1.2.0 (GHCR images,
+  Portainer stacks, the secure-connection notice). The Nginx Proxy Manager stack, still only on `more-changes`, is
+  not in it.
+- **Version** 1.3.0. The licence check passes, and `THIRD-PARTY-NOTICES.md` is unchanged, since no dependency was
+  added.
+- **Round trip** (`h5-roundtrip.mjs`, 12 checks): habits, one archived, exported from Settings and restored into a
+  fresh ordinary account and a fresh end-to-end account. Both show every habit and day, and export an identical
+  archive, the end-to-end one built by the browser.
+- **Found after H5:** with the Habits item, the side menu no longer fitted a window about 700 px tall, so Sign out slid
+  off-screen. The user reported it. Fixed in two steps:
+  - The logo, search and account row stay in place, and the menu and calendar scroll between them.
+  - Below 900 px tall, a `short` variant makes the menu items and calendar a little smaller, so at 700 px everything
+    fits without scrolling.
+
+  `sidebar-heights.mjs` checks heights from 1000 px down to 480 px, and the phone drawer.
+- **Release check** on a clean clone of `48e7fc9`, all passing:
+  - 409 server tests and 212 web tests;
+  - the build and the licence check;
+  - 27 browser runs: every 1.2 script, storage, the secure-connection notice, the sidebar, and H3–H5.
+
+  The final commit, `9851c9d`, only resizes the side menu and calendar; the sidebar and calendar scripts pass on it.
