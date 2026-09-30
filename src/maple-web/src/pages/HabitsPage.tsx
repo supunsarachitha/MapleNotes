@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
+import { HabitCalendar } from "../components/HabitCalendar";
 import { HabitChart } from "../components/HabitChart";
 import { ArchivedHabitRow, DAY_GRID, HABIT_ROW, HabitRow } from "../components/HabitRow";
 import { useToast } from "../components/Toaster";
@@ -155,6 +156,7 @@ function Habits() {
               </ul>
             </section>
             <HabitChart notes={active.data} today={today} />
+            <HabitCalendar notes={active.data} today={today} />
           </>
         )}
       </div>
@@ -163,7 +165,7 @@ function Habits() {
   );
 }
 
-/** The Habits tab: daily habits to tick off, and a chart of the progress. */
+/** The Habits tab: daily habits to tick off, a chart of the progress, and a month calendar. */
 export function HabitsPage() {
   const { habitTracker } = usePreferences();
 

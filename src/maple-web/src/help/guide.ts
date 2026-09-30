@@ -85,6 +85,9 @@ today outlined, and the arrows go back a week at a time, so you can fill in a da
 Under your habits, **Progress** shows how many of the possible days you did each week or month, for all your habits
 or just one, with your current and best streak. A habit counts from the day you added it.
 
+**Calendar** shows a whole month: for one habit, the days you did it; for all of them, the days you did all or some.
+Use the arrows to look at earlier months. To tick a day, use the list above.
+
 A habit's **⋯** menu renames, archives or deletes it. Archived habits keep their history under **Archived habits**
 until you restore them. Habits stay out of your timeline, searches and tags, but your exports and backups include
 them.`,
