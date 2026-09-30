@@ -204,12 +204,54 @@ pre code {
   background: radial-gradient(56rem 28rem at 90% -8rem, var(--accent-soft), transparent 70%);
 }
 
-.eyebrow {
-  margin: 0 0 14px;
-  color: var(--accent-text);
+/* The link above the headline that points to end-to-end encryption. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 5px 14px 5px 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
   font-size: 14px;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+}
+
+.pill:hover {
+  border-color: var(--accent-text);
+  color: var(--text);
+}
+
+.pill-label {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
   font-weight: 600;
-  letter-spacing: 0.02em;
+}
+
+.pill-arrow {
+  color: var(--accent-text);
+  transition: transform 0.15s;
+}
+
+.pill:hover .pill-arrow {
+  transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill-arrow {
+    transition: none;
+  }
+}
+
+@media (max-width: 26rem) {
+  .pill-text {
+    display: none;
+  }
 }
 
 h1 {
@@ -463,8 +505,22 @@ figcaption {
   color: var(--muted);
 }
 
+.mode p + p {
+  margin-top: 12px;
+}
+
+.mode-more {
+  font-size: 14px;
+}
+
 .mode.strongest {
   border-color: var(--accent-text);
+  scroll-margin-top: 96px;
+}
+
+/* Reached from a link to #end-to-end: a ring shows which card was meant. */
+.mode:target {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-text) 30%, transparent), var(--shadow);
 }
 
 .badge {

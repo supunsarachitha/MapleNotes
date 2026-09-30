@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
-  <title>Maple Notes · Self-hosted notes, encrypted at rest or end to end</title>
-  <meta name="description" content="A self-hosted place for quick notes, todo lists, daily notes and habits, encrypted at rest or end to end. One Docker container.">
+  <title>Maple Notes · Self-hosted notes with optional end-to-end encryption</title>
+  <meta name="description" content="A self-hosted place for quick notes, todo lists, daily notes and habits, with optional end-to-end encryption: only you hold the key. One Docker container.">
   <meta name="theme-color" content="#f5f5f4" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0c0a09" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Maple Notes">
-  <meta property="og:title" content="Maple Notes: self-hosted notes, encrypted at rest or end to end">
-  <meta property="og:description" content="Quick notes, todo lists, daily notes and a habit tracker on your own server, in one Docker container.">
+  <meta property="og:title" content="Maple Notes: self-hosted notes with optional end-to-end encryption">
+  <meta property="og:description" content="Quick notes, todo lists, daily notes and a habit tracker on your own server, with optional end-to-end encryption, in one Docker container.">
   <meta property="og:url" content="https://supunsarachitha.github.io/MapleNotes/">
   <meta property="og:image" content="https://supunsarachitha.github.io/MapleNotes/screenshots/home-feed.png">
   <meta property="og:image:alt" content="The Maple Notes home page with a timeline of notes.">
@@ -40,12 +40,17 @@
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
       <div class="wrap">
-        <p class="eyebrow">Self-hosted · Encrypted · One container</p>
+        <a class="pill" href="#end-to-end">
+          <span class="pill-label">End-to-end encryption</span>
+          <span class="pill-text">Only you hold the key</span>
+          <span class="pill-arrow" aria-hidden="true">→</span>
+        </a>
         <h1 id="hero-title">Quick notes on your own server, private by design.</h1>
         <p class="lead">
           Maple Notes is a calm place for the things you jot down every day: a timeline of notes, todo lists, daily
-          notes and a habit tracker. It runs in one Docker container, always keeps its database encrypted, and can
-          encrypt your notes in your browser so that not even the server can read them.
+          notes and a habit tracker. It runs in one Docker container and always keeps its database encrypted. Turn on
+          <strong>end-to-end encryption</strong> and your browser encrypts your notes with a key only you hold, so not
+          even the server can read them.
         </p>
         <div class="actions">
           <a class="button primary" href="#install">Install it</a>
@@ -104,6 +109,8 @@
           <article class="card">
             <h3>Keep</h3>
             <ul class="features">
+              <li><strong>End-to-end encryption.</strong> Optional for each account: your notes, tags and files are
+                encrypted in your browser, with a key only you hold. <a href="#end-to-end">How it protects you</a></li>
               <li><strong>Export and restore.</strong> Everything as a ZIP of Markdown, plain text or JSON, with your
                 files, ready to restore on any Maple Notes server.</li>
               <li><strong>Accounts.</strong> Room for the whole household. Administrators manage accounts but never
@@ -147,10 +154,12 @@
             <p>Notes and files are encrypted with the account's own key, which the server holds. A stolen disk, a
               copied volume or a leaked backup shows only ciphertext.</p>
           </article>
-          <article class="card mode strongest">
-            <h3>End to end <span class="badge">Strongest</span></h3>
+          <article class="card mode strongest" id="end-to-end">
+            <h3>End-to-end encryption <span class="badge">Strongest</span></h3>
             <p>Your browser encrypts notes, tags, file names and files with a key only you hold. The server stores
               ciphertext it cannot read, and a recovery key lets you reset a forgotten password.</p>
+            <p class="mode-more">Turn it on in <strong>Settings → Advanced → Encryption</strong>.
+              <a href="https://github.com/supunsarachitha/MapleNotes/blob/main/docs/e2ee-spec.md">How it works</a></p>
           </article>
           <article class="card mode">
             <h3>Off</h3>
