@@ -6,7 +6,7 @@
 
 <p align="center">
   A self-hosted place for quick notes, encrypted at rest or end to end.<br>
-  Timeline feed · todo lists · daily notes · Markdown and #tags · attachments · export and restore · one Docker container.
+  Timeline feed · todo lists · daily notes · habit tracker · Markdown and #tags · attachments · export and restore · one Docker container.
 </p>
 
 <p align="center">
@@ -27,11 +27,13 @@
 - **Quick notes.** A scratchpad tab for short notes that stay out of your timeline; move one to Home when it is worth
   keeping.
 - **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.
+- **Habit tracker.** Optionally, a Habits tab: tick off the days you keep each habit, and follow your progress in a
+  chart of weeks or months, with streaks.
 - **Link previews.** Optionally, the title and description of links in your notes. Off by default: the server fetches
   the pages, so it sees the links.
 - **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.
-- **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes and the calendar on or off in
-  Settings, on every device at once. Turning a feature off hides it and deletes nothing.
+- **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes, the calendar and the
+  habit tracker on or off in Settings, on every device at once. Turning a feature off hides it and deletes nothing.
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists, tables, code), with a formatting toolbar and shortcuts
   in the editor, and clickable `#tags`, including
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
@@ -64,6 +66,10 @@
 | Mobile | Todo lists | Settings |
 |---|---|---|
 | ![Mobile View](docs/screenshots/mobile-view.png) | ![Todo lists](docs/screenshots/todo.png) | ![Settings](docs/screenshots/settings.png) |
+
+| Habit tracker |
+|---|
+| ![Habit tracker: the last seven days to tick for each habit, and the share of days done per week](docs/screenshots/habits.png) |
 
 Dark mode: [screenshot](docs/screenshots/home-feed-dark.png).
 
@@ -420,10 +426,11 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 
 **What this protects:**
 - Anyone who gets a copy of your disk, volume or backups without the master key sees only ciphertext.
-- With end-to-end encryption, even the server cannot read your notes, titles, todo items, tags, file names or files.
-  Someone with the master key, the database or full control of the server's data sees only ciphertext, sizes,
-  timestamps, which kind each note is (timeline, todo list or quick note), which days have a daily note, and your
-  feature settings (and, if you turn on link previews, the links in your notes).
+- With end-to-end encryption, even the server cannot read your notes, titles, todo items, habits, tags, file names or
+  files. Someone with the master key, the database or full control of the server's data sees only ciphertext, sizes,
+  timestamps, which kind each note is (timeline, todo list, quick note or habit; a habit's last change shows roughly
+  when you last ticked it, but not its name or days), which days have a daily note, and your feature settings (and,
+  if you turn on link previews, the links in your notes).
 
 **What it does not protect:**
 - Without end-to-end encryption, the server holds the keys while it runs, so someone who controls the running server,
@@ -479,6 +486,13 @@ docker compose up -d --build
 ```
 
 Database migrations run automatically at startup, after an automatic backup.
+
+### From 1.2 to 1.3
+
+Nothing to do. The habit tracker is off for every account until it is turned on in Settings → Features. Habits are
+notes of a new kind, so exports file them under `habits/`; restoring such an export into Maple Notes 1.2 brings
+habits back as ordinary notes. The API gained the kind `habit` and the preference `habitTracker`. Without a `kind`,
+tag and calendar counts leave habits out.
 
 ### From 1.1 to 1.2
 

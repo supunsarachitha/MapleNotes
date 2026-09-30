@@ -42,11 +42,11 @@ flowchart LR
 | `src/MapleNotes.Server/Infrastructure/` | Cross-cutting code: `Configuration`, `Crypto`, `Persistence` (EF Core, migrations, backups), `Storage` (attachment files), `Hosting`, `Web` (auth, antiforgery, security headers, rate limits). |
 | `src/maple-web/` | React + TypeScript + Vite + Tailwind CSS single-page app. |
 | `src/maple-web/src/crypto/` | Browser cryptography: Argon2id in a Web Worker, HKDF, envelopes, the attachment format, recovery keys, key storage, and the shared test vectors. |
-| `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`). |
+| `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`), habits (`habits.ts`: a habit's text, streaks and chart periods), and the save queue that todo lists and habits share (`noteEditor.ts`). |
 | `src/maple-web/src/sw/` | The service worker (`/sw.js`, built separately by `vite.sw.config.ts`): decrypts end-to-end media and streams browser exports. |
 | `src/maple-web/src/export/` | The browser export, a port of the server's, with the shared export vectors. |
 | `src/maple-web/src/import/` | Restoring: a ZIP reader, the parser for every export format and for single files, and the runner that restores notes through the API. |
-| `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Archive, Settings, and the sign-in, unlock and recovery screens. |
+| `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Habits (with the progress chart), Archive, Settings, Help, and the sign-in, unlock and recovery screens. |
 | `tests/MapleNotes.Server.Tests/` | Unit and integration tests (xUnit v3, `WebApplicationFactory`). |
 | `scripts/` | License check and third-party notice generator. |
 
@@ -64,7 +64,7 @@ carry a valid antiforgery token. Both are enforced globally, so a new endpoint i
 | Entity | Notes |
 |---|---|
 | `User` | Username (unique, case-insensitive), PBKDF2 hash of the key derived from the password with its Argon2id salt and parameters, role, encryption mode (`Off`, `AtRest`, `EndToEnd`), server-held wrapped data key (absent once an end-to-end account needs none), end-to-end key material (the browser's data key wrapped by the password and by the recovery key, and a hash of the recovery authentication key), security stamp, lockout state, and `Preferences` (titles, date format, which features are on, theme and accent colour; one JSON column, plain in every mode). |
-| `Note` | Owner, content bytes, `Scheme` (`None`, `Server`, `EndToEnd`), `Kind` (`Note` for the timeline, `Todo`, `Quick`), `DailyDate` (a daily note's day; unique per owner), pinned, `ArchivedAtUtc` (archive = soft delete), timestamps, `Revision` (concurrency token). A title is not a column: it is the text's first line written as a `# heading`, and a todo list is a Markdown task list, so both are encrypted, searched and exported like any text. |
+| `Note` | Owner, content bytes, `Scheme` (`None`, `Server`, `EndToEnd`), `Kind` (`Note` for the timeline, `Todo`, `Quick`, `Habit`), `DailyDate` (a daily note's day; unique per owner), pinned, `ArchivedAtUtc` (archive = soft delete), timestamps, `Revision` (concurrency token). A title is not a column: it is the text's first line written as a `# heading`, a todo list is a Markdown task list, and a habit is a `# name` followed by one `- yyyy-MM-dd` line per day done, so all of them are encrypted and exported like any text. A habit never changes kind. |
 | `Attachment` | Owner, optional note, sanitized file name, content type, size, storage key, `Scheme`, `Revision`. End-to-end files store a placeholder name and type, and their real ones encrypted in `EncryptedMetadata`. |
 | `Tag` / `NoteTags` | Per-user tags parsed from `#tags` in note text. Tags of end-to-end notes have no name: a blind token (HMAC) and the name encrypted by the browser. |
 | `InstanceSetting` | Runtime settings changed by administrators (open registration). |
@@ -75,9 +75,10 @@ by the signed-in owner; requests for another user's items return 404, never 403,
 ### Feed pagination
 
 The feed uses keyset (cursor) pagination on `(CreatedAtUtc, Id)` descending, backed by an index on
-`(UserId, CreatedAtUtc, Id)`, and one on `(UserId, Kind, CreatedAtUtc, Id)` for the timeline and the Todo and Quick
-notes tabs, which each list one kind. Searches, tag views, tag counts and the archive cover every kind the user has
-turned on. The side-menu calendar counts active notes per day with `GET /api/v1/notes/calendar`, which converts
+`(UserId, CreatedAtUtc, Id)`, and one on `(UserId, Kind, CreatedAtUtc, Id)` for the timeline and the Todo, Quick
+notes and Habits tabs, which each list one kind. Searches, tag views, tag counts and the archive cover every kind the
+user has turned on, except habits: only the Habits page lists them, loading them all, oldest first, and it draws the
+progress chart in the browser from their text. The side-menu calendar counts active notes per day with `GET /api/v1/notes/calendar`, which converts
 creation times to the browser's time zone on the server (a month at a time, at most 62 days); a day's notes are the
 feed filtered by `createdFrom`/`createdBefore`, the instants that day starts and ends on the device. A cursor is the position of the last item shown, so notes posted while the user scrolls
 never shift later pages. Pinned notes are a separate list shown above the feed.
@@ -285,8 +286,8 @@ the worker, the page decrypts whole files into `blob:` URLs ([e2ee-spec.md §5](
 `GET /api/v1/export` streams a ZIP archive. Notes are read in batches of 200 in chronological order and decrypted in
 memory, and attachments are decrypted chunk by chunk. File names derive from the note's local creation time and first
 line (`2026-09-28_1430_buy-maple-syrup.md`). They are safe on Windows, macOS and Linux, and made unique
-case-insensitively. Folders follow the chosen layout; todo lists and quick notes go under `todo/` and
-`quick-notes/`. Attachments go to `attachments/` and are linked from notes by relative path. Every format records
+case-insensitively. Folders follow the chosen layout; todo lists, quick notes and habits go under `todo/`,
+`quick-notes/` and `habits/`. Attachments go to `attachments/` and are linked from notes by relative path. Every format records
 each note's ID (the manifest does for plain text), kind and daily date. `manifest.json` (version 2) describes the
 export, lists every note, and lists any damaged files.
 
@@ -371,12 +372,13 @@ sees on the volume. It deliberately reports totals only; no endpoint gives one a
 
 ## Testing
 
-- **Server:** about 355 xUnit tests.
+- **Server:** about 410 xUnit tests.
   - Crypto primitives, including tampering, truncation, reordering, wrong keys and every chunk boundary.
   - The storage layer and startup, including the upgrade of a 1.0 database.
   - API behaviour through `WebApplicationFactory`: authentication (key-derived sign-in, legacy upgrade, unknown
     users), isolation between users, notes, attachments, encryption migration with crash simulation, and export across
-    every format and layout; preferences, kinds, daily notes (including two devices at once) and restoring.
+    every format and layout; preferences, kinds (including habits), daily notes (including two devices at once) and
+    restoring.
   - End-to-end encryption, with a C# implementation of the browser's side: key setup, unlock, recovery, notes, tags
     and files as ciphertext, conversion in both directions (interrupted, concurrent edits, key cleanup), and a scan of
     the raw database for the plain text.
@@ -384,13 +386,13 @@ sees on the volume. It deliberately reports totals only; no endpoint gives one a
 - **Shared vectors:** `test-vectors.json` (every end-to-end derivation and format) and `export-vectors.json` (the
   server's export archives) are written by the C# tests and checked by the web tests, so both implementations agree
   byte for byte.
-- **Web:** about 155 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
+- **Web:** about 210 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
   conversion, the service worker's range decryption, the browser export against the server's archives, restoring
-  those archives, Markdown safety, the composer with titles, todo lists, quick and daily notes, preferences, and the
+  those archives, Markdown safety, the composer with titles, todo lists, quick and daily notes, habits and their chart, preferences, and the
   settings and recovery screens.
 - **Releases:** additionally tested in a real browser (Playwright, Chromium) against the built container at desktop
   and 375 px widths, including end-to-end setup, unlock, recovery, video seeking, mode changes, export, the 1.2
-  features, and export → restore round trips.
+  and 1.3 features, and export → restore round trips.
 
 ## Operations
 
