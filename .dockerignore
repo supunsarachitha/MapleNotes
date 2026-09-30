@@ -12,6 +12,8 @@ src/MapleNotes.Server/wwwroot/
 tests/
 docs/
 scripts/
+deploy/
+demo-backup-samples/
 data/
 secrets/
 .env
