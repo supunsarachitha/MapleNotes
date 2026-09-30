@@ -1,20 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
+import { BrandMark } from "../components/BrandMark";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
 import { ExportSection } from "../components/ExportSection";
 import { AppearanceSection, FeaturesSection, WritingSection } from "../components/PreferenceSections";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
+import { VersionNote } from "../components/VersionNote";
 import { useToast } from "../components/Toaster";
 import { Button, cn, ErrorMessage, Section, Switch, TextField } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
+import { DEFAULT_APP_NAME, useBranding } from "../lib/branding";
 import { e2ee } from "../lib/e2ee";
 import { formatAbsolute, formatBytes } from "../lib/format";
-import { queryKeys, useSignedOut } from "../lib/queries";
-import type { AdminUser, InstanceSettings, User } from "../lib/types";
+import { squareIcon } from "../lib/icon";
+import { queryKeys, useAuthStatus, useSignedOut } from "../lib/queries";
+import type { AdminUser, AuthStatus, InstanceSettings, User } from "../lib/types";
 
 /**
  * A bar split between notes and files, with the numbers beside it. With a storage limit, the bar is the limit and shows
@@ -56,6 +60,80 @@ function StorageRow() {
   );
 }
 
+/** The display name, with a small form to change it; empty goes back to the username. */
+function DisplayNameRow({ user }: { user: User }) {
+  const displayName = useAuthStatus().data?.user?.displayName ?? user.displayName;
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(displayName);
+  const [error, setError] = useState<string>();
+  const [saving, setSaving] = useState(false);
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const saved = await api.updateDisplayName(draft);
+      queryClient.setQueryData<AuthStatus>(queryKeys.status, (status) => status && { ...status, user: saved });
+      setEditing(false);
+      setError(undefined);
+      toast.info("Display name changed.");
+    } catch (caught) {
+      setError(caught instanceof ApiError ? (caught.fieldError("displayName") ?? caught.message) : "Could not change the name.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <dd className="flex flex-wrap items-center gap-x-3">
+        <span>{displayName}</span>
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(displayName);
+            setEditing(true);
+          }}
+          aria-label="Change display name"
+          className="text-sm font-medium text-maple-700 hover:underline dark:text-maple-400"
+        >
+          Change
+        </button>
+      </dd>
+    );
+  }
+
+  return (
+    <dd>
+      <form onSubmit={(event) => void save(event)} className="flex flex-wrap items-center gap-2">
+        <input
+          aria-label="Display name"
+          value={draft}
+          maxLength={64}
+          autoFocus
+          onChange={(event) => setDraft(event.target.value)}
+          className="h-9 min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-2 text-sm dark:border-stone-700 dark:bg-stone-950"
+        />
+        <Button type="submit" busy={saving} className="h-9 px-3">
+          Save
+        </Button>
+        <Button variant="secondary" className="h-9 px-3" onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+      </form>
+      {error ? (
+        <p role="alert" className="mt-1 text-xs text-red-700 dark:text-red-400">
+          {error}
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">Leave it empty to use your username.</p>
+      )}
+    </dd>
+  );
+}
+
 function AccountSection({ user }: { user: User }) {
   return (
     <Section title="Account">
@@ -63,7 +141,7 @@ function AccountSection({ user }: { user: User }) {
         <dt className="text-stone-500 dark:text-stone-400">Username</dt>
         <dd>@{user.username}</dd>
         <dt className="text-stone-500 dark:text-stone-400">Display name</dt>
-        <dd>{user.displayName}</dd>
+        <DisplayNameRow user={user} />
         <dt className="text-stone-500 dark:text-stone-400">Role</dt>
         <dd>{user.role === "Admin" ? "Administrator" : "Member"}</dd>
         <dt className="text-stone-500 dark:text-stone-400">Member since</dt>
@@ -405,6 +483,81 @@ function StorageLimitSetting({
   );
 }
 
+/** The app's name and icon, which everyone sees, on the sign-in page too. */
+function BrandingSetting({ settings, saving, onSave }: { settings: InstanceSettings; saving: boolean; onSave: (settings: InstanceSettings) => void }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const { iconUrl } = useBranding();
+  const [name, setName] = useState(settings.appName ?? "");
+  const [changingIcon, setChangingIcon] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function changeIcon(action: () => Promise<void>, done: string) {
+    setChangingIcon(true);
+    try {
+      await action();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.status });
+      toast.info(done);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not change the icon.");
+    } finally {
+      setChangingIcon(false);
+    }
+  }
+
+  return (
+    <div className="mt-5 border-t border-stone-100 pt-5 dark:border-stone-800">
+      <p className="text-sm font-medium">Name and icon</p>
+      <p className="text-sm text-stone-600 dark:text-stone-300">What everyone sees in the menu, the browser tab and the sign-in page.</p>
+      <form
+        className="mt-3 flex flex-wrap items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave({ ...settings, appName: name.trim() || null });
+        }}
+      >
+        <TextField
+          label="App name"
+          placeholder={DEFAULT_APP_NAME}
+          value={name}
+          maxLength={40}
+          onChange={(event) => setName(event.target.value)}
+          className="min-w-0 flex-1"
+        />
+        <Button type="submit" busy={saving} className="mb-0.5">
+          Save name
+        </Button>
+      </form>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <BrandMark className="size-12" />
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          aria-label="Icon image"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void changeIcon(async () => api.admin.setIcon(await squareIcon(file)), "Icon changed.");
+          }}
+        />
+        <Button variant="secondary" busy={changingIcon} onClick={() => fileInput.current?.click()}>
+          Choose icon…
+        </Button>
+        {iconUrl && (
+          <Button variant="secondary" disabled={changingIcon} onClick={() => void changeIcon(api.admin.removeIcon, "The maple leaf is back.")}>
+            Use the maple leaf
+          </Button>
+        )}
+      </div>
+      <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
+        A square PNG, JPEG or WebP image works best. It is fitted into 256 × 256 pixels.
+      </p>
+    </div>
+  );
+}
+
 function AdminSection({ currentUserId }: { currentUserId: string }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -428,6 +581,9 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
       queryClient.setQueryData(queryKeys.adminSettings, saved);
       void queryClient.invalidateQueries({ queryKey: queryKeys.status });
       void queryClient.invalidateQueries({ queryKey: queryKeys.storage });
+      if (before && before.appName !== saved.appName) {
+        toast.info(saved.appName ? `The app is now called ${saved.appName}.` : `The app is called ${DEFAULT_APP_NAME} again.`);
+      }
       if (before && before.storageQuotaMb !== saved.storageQuotaMb) {
         toast.info(
           saved.storageQuotaMb === null
@@ -464,6 +620,14 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
       {settings.data && (
         <StorageLimitSetting
           key={String(settings.data.storageQuotaMb)}
+          settings={settings.data}
+          saving={updateSettings.isPending}
+          onSave={(next) => updateSettings.mutate(next)}
+        />
+      )}
+      {settings.data && (
+        <BrandingSetting
+          key={settings.data.appName ?? ""}
           settings={settings.data}
           saving={updateSettings.isPending}
           onSave={(next) => updateSettings.mutate(next)}
@@ -591,6 +755,7 @@ export function SettingsPage({ user }: { user: User }) {
       <PasswordSection user={user} />
       <AdvancedSection user={user} />
       {user.role === "Admin" && <AdminSection currentUserId={user.id} />}
+      <VersionNote />
     </div>
   );
 }

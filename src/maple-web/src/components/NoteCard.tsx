@@ -52,7 +52,7 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
   const patch = usePatchNote();
   const remove = useDeleteNote();
   const toast = useToast();
-  const { noteTitles, quickNotes, linkPreviews } = usePreferences();
+  const { noteTitles, quickNotes, linkPreviews, archive } = usePreferences();
   const previewsAvailable = useAuthStatus().data?.linkPreviewsAvailable === true;
   const { title, body } = noteTitles ? splitTitle(note.content) : { title: "", body: note.content };
   const edited = new Date(note.updatedAtUtc).getTime() - new Date(note.createdAtUtc).getTime() > 60_000;
@@ -130,12 +130,14 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
                 >
                   Copy text
                 </MenuItem>
-                <MenuItem
-                  icon={note.isArchived ? ArchiveRestore : Archive}
-                  onSelect={() => change({ isArchived: !note.isArchived }, note.isArchived ? "Restored to your feed." : "Archived.")}
-                >
-                  {note.isArchived ? "Restore" : "Archive"}
-                </MenuItem>
+                {(archive || note.isArchived) && (
+                  <MenuItem
+                    icon={note.isArchived ? ArchiveRestore : Archive}
+                    onSelect={() => change({ isArchived: !note.isArchived }, note.isArchived ? "Restored to your feed." : "Archived.")}
+                  >
+                    {note.isArchived ? "Restore" : "Archive"}
+                  </MenuItem>
+                )}
                 <DropdownMenu.Separator className="my-1 h-px bg-stone-200 dark:bg-stone-700" />
                 <MenuItem icon={Trash2} danger onSelect={() => setConfirmDelete(true)}>
                   Delete…

@@ -352,6 +352,27 @@ public sealed class AccountService(
         return AccountResult.Success(user);
     }
 
+    /// <summary>Changes the name the app shows for the account; an empty name goes back to the username.</summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="displayName">The new name, at most <see cref="CredentialRules.MaxDisplayNameLength"/> characters.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The account as it is now.</returns>
+    /// <exception cref="ApiValidationException">The name is too long or not on one line.</exception>
+    public async Task<UserResponse> ChangeDisplayNameAsync(Guid userId, string? displayName, CancellationToken cancellationToken)
+    {
+        var name = displayName?.Trim() ?? "";
+        if (name.Length > CredentialRules.MaxDisplayNameLength || name.Any(char.IsControl))
+        {
+            throw new ApiValidationException("displayName", $"Use at most {CredentialRules.MaxDisplayNameLength} characters, on one line.");
+        }
+
+        var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
+        user.DisplayName = name.Length > 0 ? name : user.Username;
+        user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
+        await db.SaveChangesAsync(cancellationToken);
+        return UserResponse.From(user);
+    }
+
     /// <summary>
     /// Deletes all of the account's notes, tags and files after checking its password. The account itself stays, with
     /// its sign-in details, encryption keys, settings and sessions.

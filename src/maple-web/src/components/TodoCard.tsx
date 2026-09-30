@@ -3,6 +3,7 @@ import { Archive, ArchiveRestore, ListChecks, MoreHorizontal, Pencil, Pin, PinOf
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { saveErrorMessage } from "../lib/apiError";
 import { useNoteEditor } from "../lib/noteEditor";
+import { usePreferences } from "../lib/preferences";
 import { useDeleteNote, usePatchNote } from "../lib/queries";
 import { parseTodo, serializeTodo, type TodoList } from "../lib/todo";
 import type { Note } from "../lib/types";
@@ -21,6 +22,7 @@ const inputClass =
  */
 export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: boolean }) {
   const toast = useToast();
+  const { archive } = usePreferences();
   const [list, commit] = useNoteEditor<TodoList>(note, parseTodo, serializeTodo, (error) =>
     toast.error(saveErrorMessage(error, "A change to this list could not be saved. Please try again.")),
   );
@@ -155,12 +157,14 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
                   )}
                 </>
               )}
-              <MenuItem
-                icon={note.isArchived ? ArchiveRestore : Archive}
-                onSelect={() => change({ isArchived: !note.isArchived }, note.isArchived ? "Restored." : "Archived.")}
-              >
-                {note.isArchived ? "Restore" : "Archive"}
-              </MenuItem>
+              {(archive || note.isArchived) && (
+                <MenuItem
+                  icon={note.isArchived ? ArchiveRestore : Archive}
+                  onSelect={() => change({ isArchived: !note.isArchived }, note.isArchived ? "Restored." : "Archived.")}
+                >
+                  {note.isArchived ? "Restore" : "Archive"}
+                </MenuItem>
+              )}
               <DropdownMenu.Separator className="my-1 h-px bg-stone-200 dark:bg-stone-700" />
               <MenuItem icon={Trash2} danger onSelect={() => setConfirmDelete(true)}>
                 Delete…

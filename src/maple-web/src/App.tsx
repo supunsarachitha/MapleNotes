@@ -1,8 +1,9 @@
 import { useEffect, type ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
-import { Logo } from "./components/Logo";
+import { BrandMark } from "./components/BrandMark";
 import { Button, Spinner } from "./components/ui";
 import { useAppearance } from "./lib/appearance";
+import { applyBranding, useBranding } from "./lib/branding";
 import { useConversionRunner } from "./lib/conversion";
 import { e2ee, useEndToEndKeys } from "./lib/e2ee";
 import { registerMediaWorker } from "./lib/mediaWorker";
@@ -24,7 +25,7 @@ import { UnlockPage } from "./pages/UnlockPage";
 function FullScreen({ children }: { children: ReactNode }) {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-stone-100 p-4 text-center text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      <Logo className="size-12" />
+      <BrandMark className="size-12" />
       {children}
     </main>
   );
@@ -33,17 +34,18 @@ function FullScreen({ children }: { children: ReactNode }) {
 /** Shown instead of the app on a plain-HTTP page, where the browser offers no Web Crypto (see lib/secureContext.ts). */
 function InsecureConnection() {
   const port = window.location.port ? `:${window.location.port}` : "";
+  const { appName } = useBranding();
   return (
     <div className="flex max-w-md flex-col gap-3 text-left">
-      <h1 className="text-center text-xl font-semibold">Maple Notes needs a secure connection</h1>
+      <h1 className="text-center text-xl font-semibold">{appName} needs a secure connection</h1>
       <p className="text-sm text-stone-600 dark:text-stone-300">
-        This page was opened over plain HTTP at <strong>{window.location.host}</strong>. Maple Notes encrypts your password
+        This page was opened over plain HTTP at <strong>{window.location.host}</strong>. {appName} encrypts your password
         and notes in your browser, and browsers only allow that on HTTPS pages, or on the server itself as{" "}
         <code>localhost</code>. So signing in cannot work at this address.
       </p>
       <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600 dark:text-stone-300">
         <li>
-          Open Maple Notes through <strong>HTTPS</strong>, for example behind a reverse proxy such as Caddy, Nginx Proxy
+          Open {appName} through <strong>HTTPS</strong>, for example behind a reverse proxy such as Caddy, Nginx Proxy
           Manager or Traefik (the README shows a complete setup).
         </li>
         <li>
@@ -63,6 +65,9 @@ export function App() {
   const { path } = useLocation();
   const user = status.data?.user ?? null;
   useAppearance(user?.preferences.theme, user?.preferences.accent);
+  const branding = useBranding();
+  const { appName, iconUrl } = branding;
+  useEffect(() => applyBranding({ appName, iconUrl }), [appName, iconUrl]);
   const keys = useEndToEndKeys(user);
   const signedOut = status.data !== undefined && !status.data.user;
   const needsMediaWorker = user?.hasEndToEndKey === true;
@@ -101,7 +106,7 @@ export function App() {
   if (status.isError) {
     return (
       <FullScreen>
-        <p>Maple Notes cannot reach its server right now.</p>
+        <p>{branding.appName} cannot reach its server right now.</p>
         <Button variant="secondary" onClick={() => void status.refetch()}>
           Try again
         </Button>

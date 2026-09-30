@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-30
+
+Your own name and icon for the app, and more ways for each person to set it up for themselves.
+
+### Added
+
+- **App name and icon** (Settings → Administration → Name and icon): administrators rename the app and give it their
+  own icon. Both show in the menu, the browser tab, the Help page and the sign-in page. The icon is fitted into
+  256 × 256 pixels in the browser and must be a PNG, JPEG or WebP image of at most 256 KB, which the server checks by
+  its content; it is served sandboxed, like attachments. "Use the maple leaf" goes back to the original.
+- **Display name** (Settings → Account → Change): each person changes the name shown in the menu and to
+  administrators; an empty name goes back to the username.
+- **Menu text size** (Settings → Appearance): small, medium or large items in the side menu.
+- **Week starts on** (Settings → Appearance): automatic, Sunday, Monday or Saturday, for the calendars and the weekly
+  habit chart.
+- **Archive and Tags page** switches (Settings → Features, on by default). Turning Archive off hides the page and the
+  Archive action on notes and lists; archived notes are kept. Turning the Tags page off hides it; tags in notes still
+  work.
+- **Version number** at the foot of Settings and Help, for signed-in users only.
+
+### Changed
+
+- API: the sign-in status has `branding` (the app's name and icon address), and `version` for signed-in users.
+  `GET`/`PUT /api/v1/admin/settings` have `appName`. New endpoints: `GET /api/v1/branding/icon`,
+  `PUT`/`DELETE /api/v1/admin/branding/icon` and `PUT /api/v1/account/display-name`. Preferences gain `archive`,
+  `tags`, `menuTextSize` and `weekStart`.
+
+## [1.5.0] - 2026-09-30
+
+A month calendar for the habit tracker.
+
 ### Added
 
 - **Habit calendar:** a month calendar under the progress chart on the Habits page. For one habit it marks the days
@@ -307,7 +338,9 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.1...v1.4.0
 [1.3.1]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.2.1...1.3.0

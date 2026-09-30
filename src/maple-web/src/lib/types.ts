@@ -57,13 +57,26 @@ export interface Preferences {
   calendar: boolean;
   /** Show the Habits tab. */
   habitTracker: boolean;
+  /** Show the Archive page and the Archive action. */
+  archive: boolean;
+  /** Show the Tags page. */
+  tags: boolean;
   /** Shrink photos in the browser before they upload. */
   shrinkPhotos: boolean;
   /** Show previews of links in notes (the server fetches the pages). */
   linkPreviews: boolean;
   theme: Theme;
   accent: Accent;
+  /** The side menu's text size. */
+  menuTextSize: MenuTextSize;
+  /** The first day of the week in calendars; Auto follows the browser's language settings. */
+  weekStart: WeekStart;
 }
+
+export const MENU_TEXT_SIZES = ["Small", "Medium", "Large"] as const;
+export type MenuTextSize = (typeof MENU_TEXT_SIZES)[number];
+export const WEEK_STARTS = ["Auto", "Sunday", "Monday", "Saturday"] as const;
+export type WeekStart = (typeof WEEK_STARTS)[number];
 
 /** A preview of a web page linked from a note. */
 export interface LinkPreview {
@@ -100,6 +113,10 @@ export interface AuthStatus {
   user: User | null;
   /** Whether this server allows link previews at all. */
   linkPreviewsAvailable?: boolean;
+  /** The app's name and icon, as administrators set them. */
+  branding?: { appName: string; iconUrl: string | null };
+  /** The server's version; only sent to signed-in users. */
+  version?: string | null;
 }
 
 /** An attachment as components use it: an end-to-end file's name, type and size decrypted. */
@@ -208,6 +225,8 @@ export interface InstanceSettings {
   allowRegistration: boolean;
   /** The most each account may store, notes and files together, in megabytes; null for no limit. */
   storageQuotaMb: number | null;
+  /** The app's name, or null for Maple Notes. */
+  appName: string | null;
 }
 
 /** What the instance stores on its data volume, for administrators (totals only). */

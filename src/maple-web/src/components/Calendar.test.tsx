@@ -7,12 +7,12 @@ import { api } from "../lib/api";
 import { dayRange, parseDateKey } from "../lib/dates";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
-import type { AuthStatus } from "../lib/types";
+import type { AuthStatus, Preferences } from "../lib/types";
 import { HomePage } from "../pages/HomePage";
 import { Calendar } from "./Calendar";
 import { ToastProvider } from "./Toaster";
 
-function renderWith(children: ReactNode) {
+function renderWith(children: ReactNode, preferences: Partial<Preferences> = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   client.setQueryData<AuthStatus>(queryKeys.status, {
     setupRequired: false,
@@ -25,7 +25,7 @@ function renderWith(children: ReactNode) {
       encryptionMode: "AtRest",
       hasEndToEndKey: false,
       createdAtUtc: "2026-09-28T12:00:00Z",
-      preferences: { ...DEFAULT_PREFERENCES, dateFormat: "dddd, d MMMM yyyy" },
+      preferences: { ...DEFAULT_PREFERENCES, dateFormat: "dddd, d MMMM yyyy", ...preferences },
     },
   });
   return render(
@@ -53,6 +53,20 @@ describe("Calendar", () => {
     expect(screen.getByRole("link", { name: "Thursday, September 3, 2026, 1 note" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Friday, September 4, 2026" })).toBeInTheDocument();
     expect(calendar).toHaveBeenCalledWith("2026-09-01", "2026-09-30", expect.any(String), ["Note", "Todo", "Quick"]);
+  });
+
+  it("starts the week on the day the user chose", () => {
+    vi.spyOn(api, "calendar").mockResolvedValue([]);
+    const { container, unmount } = renderWith(<Calendar />, { weekStart: "Monday" });
+    const header = () => container.querySelector('[aria-hidden="true"].grid-cols-7')!.textContent;
+
+    expect(header()).toBe("MoTuWeThFrSaSu");
+    expect(container.querySelectorAll('ol li[aria-hidden="true"]')).toHaveLength(1); // September 1, 2026 is a Tuesday
+    unmount();
+
+    const saturday = renderWith(<Calendar />, { weekStart: "Saturday" });
+    expect(saturday.container.querySelector('[aria-hidden="true"].grid-cols-7')!.textContent).toBe("SaSuMoTuWeThFr");
+    expect(saturday.container.querySelectorAll('ol li[aria-hidden="true"]')).toHaveLength(3);
   });
 
   it("moves between months", async () => {

@@ -23,14 +23,17 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
     [HttpGet("settings")]
     [ProducesResponseType<InstanceSettingsResponse>(StatusCodes.Status200OK)]
     public async Task<InstanceSettingsResponse> GetSettings(CancellationToken cancellationToken) =>
-        new(await instanceSettings.IsRegistrationOpenAsync(cancellationToken), await instanceSettings.GetStorageQuotaMbAsync(cancellationToken));
+        new(
+            await instanceSettings.IsRegistrationOpenAsync(cancellationToken),
+            await instanceSettings.GetStorageQuotaMbAsync(cancellationToken),
+            await instanceSettings.GetAppNameAsync(cancellationToken));
 
     /// <summary>Changes the instance settings.</summary>
     /// <param name="request">New values; they replace all the settings.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The saved settings.</returns>
     /// <response code="200">The saved settings.</response>
-    /// <response code="400">The storage limit is out of range.</response>
+    /// <response code="400">The storage limit is out of range, or the app name is too long or not on one line.</response>
     [HttpPut("settings")]
     [ProducesResponseType<InstanceSettingsResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -41,8 +44,13 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
             throw new ApiValidationException("storageQuotaMb", "Choose a limit from 1 MB to 16 TB, or no limit.");
         }
 
-        await instanceSettings.SaveAsync(request.AllowRegistration, request.StorageQuotaMb, cancellationToken);
-        return new InstanceSettingsResponse(request.AllowRegistration, request.StorageQuotaMb);
+        if (!InstanceSettingsService.TryNormalizeAppName(request.AppName, out var appName))
+        {
+            throw new ApiValidationException("appName", $"Use at most {InstanceSettingsService.MaxAppNameLength} characters, on one line.");
+        }
+
+        await instanceSettings.SaveAsync(request.AllowRegistration, request.StorageQuotaMb, appName, cancellationToken);
+        return new InstanceSettingsResponse(request.AllowRegistration, request.StorageQuotaMb, appName);
     }
 
     /// <summary>Lists all accounts.</summary>

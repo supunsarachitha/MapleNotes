@@ -1,8 +1,13 @@
 import { Markdown } from "../components/Markdown";
+import { VersionNote } from "../components/VersionNote";
 import { GUIDE } from "../help/guide";
+import { useBranding } from "../lib/branding";
 
 /** The user guide: a contents list, then every section. It ships with the app, so it also works offline. */
 export function HelpPage() {
+  const { appName } = useBranding();
+  const named = (text: string) => text.replaceAll("Maple Notes", appName); // the guide speaks of the app by its name
+
   function jump(id: string) {
     document.getElementById(`help-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     document.getElementById(`help-${id}`)?.focus({ preventScroll: true });
@@ -11,7 +16,7 @@ export function HelpPage() {
   return (
     <>
       <h1 className="mb-1 text-xl font-semibold">Help</h1>
-      <p className="mb-4 text-sm text-stone-600 dark:text-stone-300">How to get the most out of Maple Notes.</p>
+      <p className="mb-4 text-sm text-stone-600 dark:text-stone-300">How to get the most out of {appName}.</p>
 
       <nav aria-label="Contents" className="mb-6 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
         <h2 className="mb-2 text-sm font-semibold">Contents</h2>
@@ -26,7 +31,7 @@ export function HelpPage() {
                 }}
                 className="text-maple-700 underline decoration-maple-700/30 underline-offset-2 hover:decoration-maple-700 dark:text-maple-400"
               >
-                {section.title}
+                {named(section.title)}
               </a>
             </li>
           ))}
@@ -43,12 +48,13 @@ export function HelpPage() {
             className="scroll-mt-20 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm outline-none dark:border-stone-800 dark:bg-stone-900"
           >
             <h2 id={`help-${section.id}-title`} className="mb-2 text-base font-semibold">
-              {section.title}
+              {named(section.title)}
             </h2>
-            <Markdown content={section.body} />
+            <Markdown content={named(section.body)} />
           </section>
         ))}
       </div>
+      <VersionNote />
     </>
   );
 }

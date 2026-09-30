@@ -8,6 +8,7 @@ import { formatDate, parseDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
 import { Link, useLocation } from "../lib/router";
+import { FeatureOff } from "./TodoPage";
 
 function FilterHeader({ icon: Icon, label }: { icon: typeof Hash; label: string }) {
   return (
@@ -114,6 +115,14 @@ export function HomePage() {
 /** Archived notes (and todo lists and quick notes), with restore and delete available from each one's menu. */
 export function ArchivePage() {
   const kinds = useEnabledKinds();
+  if (!usePreferences().archive) {
+    return (
+      <>
+        <h1 className="mb-4 text-xl font-semibold">Archive</h1>
+        <FeatureOff title="The Archive is turned off">Your archived notes are kept.</FeatureOff>
+      </>
+    );
+  }
   return (
     <>
       <h1 className="mb-1 text-xl font-semibold">Archive</h1>

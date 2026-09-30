@@ -89,7 +89,17 @@ public sealed record UserResponse(
 /// <param name="RegistrationOpen">Whether visitors can create accounts.</param>
 /// <param name="User">The signed-in user, or null.</param>
 /// <param name="LinkPreviewsAvailable">Whether this server allows link previews (<c>MAPLE_LINK_PREVIEWS</c>).</param>
-public sealed record AuthStatusResponse(bool SetupRequired, bool RegistrationOpen, UserResponse? User, bool LinkPreviewsAvailable = false);
+/// <param name="Branding">The app's name and icon.</param>
+/// <param name="Version">The server's version (for example 1.6.0), for signed-in users only: visitors are not told
+/// which version a server runs.</param>
+public sealed record AuthStatusResponse(
+    bool SetupRequired, bool RegistrationOpen, UserResponse? User, bool LinkPreviewsAvailable = false, BrandingResponse? Branding = null,
+    string? Version = null);
+
+/// <summary>How the app presents itself, as administrators set it; shown before anyone signs in.</summary>
+/// <param name="AppName">The app's name.</param>
+/// <param name="IconUrl">Where its custom icon is, or null for the app's own icon.</param>
+public sealed record BrandingResponse(string AppName, string? IconUrl);
 
 /// <summary>An antiforgery token to send with every state-changing request.</summary>
 /// <param name="Token">Token value.</param>

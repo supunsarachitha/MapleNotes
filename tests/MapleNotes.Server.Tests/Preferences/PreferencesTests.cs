@@ -40,6 +40,7 @@ public sealed class PreferencesTests : IAsyncLifetime
             (preferences!.NoteTitles, preferences.DateInTitles, preferences.DateFormat, preferences.TodoLists, preferences.QuickNotes, preferences.DailyNotes));
         Assert.False(preferences.HabitTracker); // habits are opt-in
         Assert.False(preferences.ShrinkPhotos); // so is shrinking photos, which replaces the original
+        Assert.Equal((true, true, "Medium", "Auto"), (preferences.Archive, preferences.Tags, preferences.MenuTextSize, preferences.WeekStart));
         Assert.Equal(preferences, (await _alice.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.Preferences);
     }
 
@@ -49,7 +50,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         var wanted = new UserPreferences
         {
             NoteTitles = true, DateInTitles = true, DateFormat = "dddd, d MMMM yyyy", TodoLists = false, QuickNotes = false, DailyNotes = true,
-            HabitTracker = true, ShrinkPhotos = true,
+            HabitTracker = true, ShrinkPhotos = true, Archive = false, Tags = false, MenuTextSize = "Large", WeekStart = "Monday",
         };
 
         var response = await _alice.PutJsonAsync("/api/v1/account/preferences", wanted);
@@ -80,6 +81,16 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("dateFormat", (await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
         Assert.Equal(new UserPreferences(), await _alice.GetJsonAsync<UserPreferences>("/api/v1/account/preferences"));
+    }
+
+    [Fact]
+    public async Task Only_the_offered_menu_text_sizes_and_week_starts_are_accepted()
+    {
+        var size = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { MenuTextSize = "Huge" });
+        var week = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { WeekStart = "Wednesday" });
+
+        Assert.Contains("menuTextSize", (await size.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+        Assert.Contains("weekStart", (await week.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
     }
 
     [Fact]

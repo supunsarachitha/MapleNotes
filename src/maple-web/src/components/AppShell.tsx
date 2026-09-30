@@ -2,13 +2,14 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Archive, CalendarCheck, CircleHelp, Hash, Home, ListTodo, LogOut, Menu, Search, Settings, X, Zap } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
+import { useBranding } from "../lib/branding";
 import { useEnabledKinds } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
 import { useSignedOut, useTags } from "../lib/queries";
 import { Link, navigate, useLocation } from "../lib/router";
 import type { User } from "../lib/types";
 import { Calendar } from "./Calendar";
-import { Logo } from "./Logo";
+import { BrandMark } from "./BrandMark";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
 
@@ -25,13 +26,13 @@ function NavLink({ href, icon: Icon, children, active, onNavigate }: {
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors short:h-9 short:text-sm",
+        "flex h-(--menu-row) items-center gap-3 rounded-xl px-3 text-(length:--menu-text) font-medium transition-colors",
         active
           ? "bg-maple-50 text-maple-700 dark:bg-maple-600/15 dark:text-maple-400"
           : "text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800",
       )}
     >
-      <Icon className="size-5 short:size-[18px]" aria-hidden="true" />
+      <Icon className="size-(--menu-icon) shrink-0" aria-hidden="true" />
       {children}
     </Link>
   );
@@ -68,6 +69,7 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
   const preferences = usePreferences();
   const tags = useTags(useEnabledKinds());
   const signedOut = useSignedOut();
+  const { appName } = useBranding();
   const toast = useToast();
   const activeTag = params.get("tag");
 
@@ -82,11 +84,11 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-menu={preferences.menuTextSize.toLowerCase()}>
       <div className="flex flex-col gap-4 p-4 pb-3 short:gap-3 short:pb-2">
-        <Link href="/" onClick={onNavigate} className="flex items-center gap-3 px-1">
-          <Logo />
-          <span className="text-lg font-semibold tracking-tight">Maple Notes</span>
+        <Link href="/" onClick={onNavigate} className="flex min-w-0 items-center gap-3 px-1">
+          <BrandMark className="size-9 shrink-0" />
+          <span className="truncate text-lg font-semibold tracking-tight">{appName}</span>
         </Link>
 
         <SearchBox onNavigate={onNavigate} />
@@ -113,13 +115,17 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
               Habits
             </NavLink>
           )}
-          <NavLink href="/tags" icon={Hash} active={path === "/tags" || (path === "/" && !!activeTag)} onNavigate={onNavigate}>
-            Tags
-            {tags.data && tags.data.length > 0 && <span className="ml-auto text-xs font-normal text-stone-400">{tags.data.length}</span>}
-          </NavLink>
-          <NavLink href="/archive" icon={Archive} active={path === "/archive"} onNavigate={onNavigate}>
-            Archive
-          </NavLink>
+          {preferences.tags && (
+            <NavLink href="/tags" icon={Hash} active={path === "/tags" || (path === "/" && !!activeTag)} onNavigate={onNavigate}>
+              Tags
+              {tags.data && tags.data.length > 0 && <span className="ml-auto text-xs font-normal text-stone-400">{tags.data.length}</span>}
+            </NavLink>
+          )}
+          {preferences.archive && (
+            <NavLink href="/archive" icon={Archive} active={path === "/archive"} onNavigate={onNavigate}>
+              Archive
+            </NavLink>
+          )}
           <NavLink href="/settings" icon={Settings} active={path === "/settings"} onNavigate={onNavigate}>
             Settings
           </NavLink>
@@ -155,6 +161,7 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
  * sidebar next to a centred reading column.
  */
 export function AppShell({ user, children }: { user: User; children: ReactNode }) {
+  const { appName } = useBranding();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -167,9 +174,9 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
         <IconButton label="Open navigation" onClick={() => setDrawerOpen(true)}>
           <Menu className="size-6" />
         </IconButton>
-        <Link href="/" className="flex items-center gap-2">
-          <Logo className="size-7" />
-          <span className="font-semibold">Maple Notes</span>
+        <Link href="/" className="flex min-w-0 items-center gap-2">
+          <BrandMark className="size-7 shrink-0" />
+          <span className="truncate font-semibold">{appName}</span>
         </Link>
       </header>
 

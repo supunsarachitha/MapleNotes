@@ -9,7 +9,7 @@ import { api, ApiError } from "../lib/api";
 import { useToday } from "../lib/daily";
 import { localDateKey } from "../lib/dates";
 import { addDays, dateOf, daysEnding, serializeHabit } from "../lib/habits";
-import { usePreferences } from "../lib/preferences";
+import { usePreferences, useWeekStart } from "../lib/preferences";
 import { useHabits, useInvalidateNotes } from "../lib/queries";
 import type { Note } from "../lib/types";
 import { FeatureOff } from "./TodoPage";
@@ -128,6 +128,7 @@ function Habits() {
   const [weeksBack, setWeeksBack] = useState(0);
   const active = useHabits("active");
   const archived = useHabits("archived");
+  const weekStart = useWeekStart();
   const days = daysEnding(addDays(today, -7 * weeksBack), 7);
 
   return (
@@ -155,8 +156,8 @@ function Habits() {
                 ))}
               </ul>
             </section>
-            <HabitChart notes={active.data} today={today} />
-            <HabitCalendar notes={active.data} today={today} />
+            <HabitChart notes={active.data} today={today} weekStart={weekStart} />
+            <HabitCalendar notes={active.data} today={today} weekStart={weekStart} />
           </>
         )}
       </div>

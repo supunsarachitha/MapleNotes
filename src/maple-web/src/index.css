@@ -18,6 +18,27 @@
 /* Windows shorter than 900 px: the side menu and its calendar tighten so they fit without scrolling. */
 @custom-variant short (@media (max-height: 56.25rem));
 
+/* The side menu's items. Each account chooses the text size (Settings → Appearance), which scales them all. */
+[data-menu] {
+  --menu-scale: 1;
+  --menu-text: calc(15px * var(--menu-scale));
+  --menu-row: calc(2.75rem * var(--menu-scale));
+  --menu-icon: calc(1.25rem * var(--menu-scale));
+}
+[data-menu="small"] {
+  --menu-scale: 0.87;
+}
+[data-menu="large"] {
+  --menu-scale: 1.14;
+}
+@media (max-height: 56.25rem) {
+  [data-menu] {
+    --menu-text: calc(14px * var(--menu-scale));
+    --menu-row: calc(2.25rem * var(--menu-scale));
+    --menu-icon: calc(18px * var(--menu-scale));
+  }
+}
+
 /*
  * Maple Notes design tokens. Components use these through Tailwind's theme (e.g. bg-maple-600).
  * Brand colour: deep maple red #8f1d21 (maple-600), the same colour as the app icon and browser theme-color.

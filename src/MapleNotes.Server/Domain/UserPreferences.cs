@@ -25,6 +25,12 @@ public sealed record UserPreferences
     /// <summary>The accent colours a user can choose.</summary>
     public static IReadOnlyList<string> Accents { get; } = ["Maple", "Ocean", "Forest", "Teal", "Plum", "Amber", "Slate"];
 
+    /// <summary>The text sizes a user can choose for the side menu.</summary>
+    public static IReadOnlyList<string> MenuTextSizes { get; } = ["Small", "Medium", "Large"];
+
+    /// <summary>The first days of the week a user can choose; <c>Auto</c> follows the browser's language settings.</summary>
+    public static IReadOnlyList<string> WeekStarts { get; } = ["Auto", "Sunday", "Monday", "Saturday"];
+
     /// <summary>
     /// Show a title field when writing notes. A title is stored as the note's first line, written as a Markdown
     /// heading, so turning this off never changes a note.
@@ -56,6 +62,15 @@ public sealed record UserPreferences
     public bool HabitTracker { get; init; }
 
     /// <summary>
+    /// Show the Archive page, and the Archive action on notes and todo lists. Turning it off hides them but keeps the
+    /// archived notes; on by default.
+    /// </summary>
+    public bool Archive { get; init; } = true;
+
+    /// <summary>Show the Tags page. Turning it off hides the page; tags in notes still work. On by default.</summary>
+    public bool Tags { get; init; } = true;
+
+    /// <summary>
     /// Shrink photos in the browser before they upload: at most 2560 pixels on their longest side, re-saved as JPEG.
     /// The original is not kept; off by default.
     /// </summary>
@@ -72,4 +87,10 @@ public sealed record UserPreferences
 
     /// <summary>The interface's accent colour: one of <see cref="Accents"/>.</summary>
     public string Accent { get; init; } = "Maple";
+
+    /// <summary>The side menu's text size: one of <see cref="MenuTextSizes"/>.</summary>
+    public string MenuTextSize { get; init; } = "Medium";
+
+    /// <summary>The first day of the week in the calendars and the weekly habit chart: one of <see cref="WeekStarts"/>.</summary>
+    public string WeekStart { get; init; } = "Auto";
 }
