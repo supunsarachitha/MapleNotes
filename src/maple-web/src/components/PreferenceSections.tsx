@@ -157,6 +157,12 @@ export function FeaturesSection() {
           checked={preferences.habitTracker}
           onChange={(habitTracker) => save({ habitTracker })}
         />
+        <PreferenceSwitch
+          label="Shrink photos before uploading"
+          description="Large photos are resized to 2560 pixels on their longest side and saved as JPEG, often a tenth of the size. Their location and camera details are left out too. Photos already uploaded stay as they are."
+          checked={preferences.shrinkPhotos}
+          onChange={(shrinkPhotos) => save({ shrinkPhotos })}
+        />
         {status?.linkPreviewsAvailable && (
           <PreferenceSwitch
             label="Link previews"

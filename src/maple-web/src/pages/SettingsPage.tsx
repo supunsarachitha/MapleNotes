@@ -185,6 +185,48 @@ function SessionsSection() {
   );
 }
 
+const count = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+
+/** Starting again: every note and file goes, the account, its password, keys and settings stay. */
+function DeleteContentSection({ username }: { username: string }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Section
+      title="Delete all notes and files"
+      description="Start again with an empty account. Your username, password, settings and encryption stay as they are."
+    >
+      <Button variant="danger" onClick={() => setOpen(true)}>
+        Delete all notes and files…
+      </Button>
+      <PasswordDialog
+        open={open}
+        onOpenChange={setOpen}
+        danger
+        title="Delete all your notes and files?"
+        description={
+          <>
+            <p>
+              Every note, todo list, quick note, daily note, habit, tag and file in your account is deleted. This cannot
+              be undone.
+            </p>
+            <p>Export your notes first if you might want them back.</p>
+          </>
+        }
+        confirmLabel="Delete everything"
+        onConfirm={async (password) => {
+          const deleted = await api.deleteAllContent(await auth.proveIdentity(username, password));
+          setOpen(false);
+          await queryClient.invalidateQueries();
+          toast.info(`Deleted ${count(deleted.notes, "note")} and ${count(deleted.files, "file")}.`);
+        }}
+      />
+    </Section>
+  );
+}
+
 function DeleteAccountSection({ username }: { username: string }) {
   const signedOut = useSignedOut();
   const [open, setOpen] = useState(false);
@@ -217,7 +259,21 @@ function DeleteAccountSection({ username }: { username: string }) {
 
 /** What Maple Notes stores on this server and the space left: totals only, never an account's own usage. */
 function InstanceStorageSummary() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const storage = useQuery({ queryKey: queryKeys.instanceStorage, queryFn: api.admin.storage });
+  const compact = useMutation({
+    mutationFn: () => api.admin.compactDatabase(),
+    onSuccess: ({ bytesBefore, bytesAfter }) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.instanceStorage });
+      toast.info(
+        bytesAfter < bytesBefore
+          ? `Database compacted from ${formatBytes(bytesBefore)} to ${formatBytes(bytesAfter)}.`
+          : "The database was already compact.",
+      );
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Could not compact the database."),
+  });
   if (!storage.data) return null;
   const { totalBytes, databaseBytes, filesBytes, backupsBytes, freeBytes } = storage.data;
   return (
@@ -230,6 +286,14 @@ function InstanceStorageSummary() {
       <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
         Database {formatBytes(databaseBytes)} · Files {formatBytes(filesBytes)} · Backups {formatBytes(backupsBytes)}
       </p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Button variant="secondary" className="h-8 px-3 text-xs" busy={compact.isPending} onClick={() => compact.mutate()}>
+          Compact database
+        </Button>
+        <span className="text-xs text-stone-500 dark:text-stone-400">
+          Gives the space left by deleted notes back to the disk.
+        </span>
+      </div>
     </div>
   );
 }
@@ -503,6 +567,7 @@ function AdvancedSection({ user }: { user: User }) {
           <EncryptionSection user={user} />
           {user.hasEndToEndKey && <RecoverySection user={user} />}
           <SessionsSection />
+          <DeleteContentSection username={user.username} />
           <DeleteAccountSection username={user.username} />
         </div>
       )}

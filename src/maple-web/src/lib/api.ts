@@ -3,8 +3,10 @@ import type {
   Attachment,
   AttachmentWire,
   AuthStatus,
+  CompactResult,
   ConversionBatch,
   CredentialProof,
+  DeletedContent,
   EncryptedNoteWire,
   EncryptionMode,
   EncryptionStatus,
@@ -340,6 +342,9 @@ export const api = {
     },
   },
 
+  /** Deletes every note, tag and file of the account; the account, its keys and settings stay. */
+  deleteAllContent: (proof: CredentialProof) => request<DeletedContent>("DELETE", "/api/v1/account/content", { proof }),
+
   async deleteAccount(proof: CredentialProof): Promise<void> {
     await request<void>("DELETE", "/api/v1/account", { proof });
     await refreshAntiforgeryToken();
@@ -355,6 +360,8 @@ export const api = {
     deleteUser: (id: string) => request<void>("DELETE", `/api/v1/admin/users/${id}`),
     /** The instance's totals on its data volume; never another account's usage. */
     storage: () => request<InstanceStorage>("GET", "/api/v1/admin/storage"),
+    /** Rebuilds the database without the space deleted content left behind. */
+    compactDatabase: () => request<CompactResult>("POST", "/api/v1/admin/storage/compact"),
   },
 };
 

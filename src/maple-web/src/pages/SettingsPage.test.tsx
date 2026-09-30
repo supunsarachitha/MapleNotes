@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "../components/Toaster";
 import { api } from "../lib/api";
+import { auth } from "../lib/auth";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
 import type { AuthStatus, EncryptionStatus, InstanceSettings, User } from "../lib/types";
@@ -57,9 +58,28 @@ describe("Settings", () => {
 
     expect(advanced).toHaveAttribute("aria-expanded", "true");
     const content = document.getElementById(advanced.getAttribute("aria-controls")!)!;
-    for (const name of ["Encryption", "Sessions", "Delete account"]) {
+    for (const name of ["Encryption", "Sessions", "Delete all notes and files", "Delete account"]) {
       expect(within(content).getByRole("heading", { name })).toBeInTheDocument();
     }
+  });
+
+  it("deletes all notes and files after the password, and the account stays signed in", async () => {
+    const prove = vi.spyOn(auth, "proveIdentity").mockResolvedValue({ authKey: "derived-key" });
+    const remove = vi.spyOn(api, "deleteAllContent").mockResolvedValue({ notes: 35, files: 8 });
+    const deleteAccount = vi.spyOn(api, "deleteAccount");
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
+
+    await userEvent.click(screen.getByRole("button", { name: /^Advanced/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete all notes and files…" }));
+    expect(screen.getByRole("dialog", { name: "Delete all your notes and files?" })).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Your password"), "correct horse battery staple");
+    await userEvent.click(screen.getByRole("button", { name: "Delete everything" }));
+
+    expect(await screen.findByText("Deleted 35 notes and 8 files.")).toBeInTheDocument();
+    expect(prove).toHaveBeenCalledWith("maple", "correct horse battery staple");
+    expect(remove).toHaveBeenCalledWith({ authKey: "derived-key" });
+    expect(deleteAccount).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("opens the Advanced section by itself while a conversion is running", async () => {
@@ -189,6 +209,17 @@ describe("Settings", () => {
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: null }));
     expect(await screen.findByText("Storage limit removed.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Per account")).not.toBeInTheDocument();
+  });
+
+  it("lets administrators compact the database", async () => {
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null });
+    const compact = vi.spyOn(api.admin, "compactDatabase").mockResolvedValue({ bytesBefore: 12 * 1024 * 1024, bytesAfter: 3 * 1024 * 1024 });
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 }, { ...user, role: "Admin" });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Compact database" }));
+
+    expect(await screen.findByText("Database compacted from 12 MB to 3.0 MB.")).toBeInTheDocument();
+    expect(compact).toHaveBeenCalledTimes(1);
   });
 
   it("shows administrators the server's totals", async () => {

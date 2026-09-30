@@ -56,6 +56,12 @@ public sealed record UserPreferences
     public bool HabitTracker { get; init; }
 
     /// <summary>
+    /// Shrink photos in the browser before they upload: at most 2560 pixels on their longest side, re-saved as JPEG.
+    /// The original is not kept; off by default.
+    /// </summary>
+    public bool ShrinkPhotos { get; init; }
+
+    /// <summary>
     /// Show previews of links in notes. The server then fetches the linked pages, so it learns those links, also for
     /// end-to-end accounts; off by default.
     /// </summary>

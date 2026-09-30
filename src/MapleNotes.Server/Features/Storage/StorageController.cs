@@ -30,4 +30,19 @@ public sealed class StorageController(StorageService storage, StorageQuota quota
     [ProducesResponseType<InstanceStorageResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public InstanceStorageResponse GetInstanceStorage() => storage.GetInstanceStorage();
+
+    /// <summary>Compacts the database, giving the space deleted content left behind back to the volume.</summary>
+    /// <remarks>Deleted content is already overwritten; compacting only shrinks the database file. It can take a while on
+    /// a large database, and other requests wait for it.</remarks>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The database's size before and after.</returns>
+    /// <response code="200">The database was compacted.</response>
+    /// <response code="403">Not an administrator.</response>
+    /// <response code="409">A compaction is already running, or the database is busy.</response>
+    [HttpPost("api/v1/admin/storage/compact")]
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [ProducesResponseType<CompactDatabaseResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public Task<CompactDatabaseResponse> CompactDatabase(CancellationToken cancellationToken) => storage.CompactDatabaseAsync(cancellationToken);
 }
