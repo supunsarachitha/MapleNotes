@@ -30,7 +30,7 @@
   keeping.
 - **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.
 - **Habit tracker.** Optionally, a Habits tab: tick off the days you keep each habit, and follow your progress in a
-  chart of weeks or months, with streaks.
+  chart of weeks or months, with streaks, and in a month calendar.
 - **Link previews.** Optionally, the title and description of links in your notes. Off by default: the server fetches
   the pages, so it sees the links.
 - **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.

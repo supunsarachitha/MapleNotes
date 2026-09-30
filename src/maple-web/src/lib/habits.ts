@@ -148,14 +148,21 @@ export function recentPeriods(range: ChartRange, today: string, weekStart: numbe
       return { start: dayKey(first), end: dayKey(first + 6) };
     });
   }
-  const [year, month] = [Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1];
-  return Array.from({ length: count }, (_, i) => {
-    const back = count - 1 - i;
-    return {
-      start: dayKey(Date.UTC(year, month - back, 1) / MS_PER_DAY),
-      end: dayKey(Date.UTC(year, month - back + 1, 0) / MS_PER_DAY),
-    };
-  });
+  return Array.from({ length: count }, (_, i) => monthOf(today, -(count - 1 - i)));
+}
+
+/** The month `offset` months away from the one holding `day` (0 for that month), first and last day. */
+export function monthOf(day: string, offset = 0): Period {
+  const [year, month] = [Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1];
+  return {
+    start: dayKey(Date.UTC(year, month + offset, 1) / MS_PER_DAY),
+    end: dayKey(Date.UTC(year, month + offset + 1, 0) / MS_PER_DAY),
+  };
+}
+
+/** Every day of a period, oldest first. */
+export function daysOf(period: Period): string[] {
+  return daysEnding(period.end, dayNumber(period.end)! - dayNumber(period.start)! + 1);
 }
 
 /**

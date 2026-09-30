@@ -3,7 +3,9 @@ import {
   addDays,
   dayNumber,
   daysEnding,
+  daysOf,
   habitStart,
+  monthOf,
   parseHabit,
   recentPeriods,
   scorePeriod,
@@ -80,6 +82,16 @@ describe("streaks", () => {
     expect(streaks(days, "2026-09-30")).toEqual({ current: 0, best: 4, total: 7 });
     expect(streaks([...days, "2026-10-05"], "2026-09-28")).toEqual({ current: 3, best: 4, total: 7 });
     expect(streaks([], "2026-09-29")).toEqual({ current: 0, best: 0, total: 0 });
+  });
+});
+
+describe("months", () => {
+  it("finds a month and its days across years and leap years", () => {
+    expect(monthOf("2026-09-29")).toEqual({ start: "2026-09-01", end: "2026-09-30" });
+    expect(monthOf("2026-01-15", -1)).toEqual({ start: "2025-12-01", end: "2025-12-31" });
+    expect(monthOf("2027-12-31", 2)).toEqual({ start: "2028-02-01", end: "2028-02-29" });
+    expect(daysOf(monthOf("2026-02-10"))).toHaveLength(28);
+    expect(daysOf({ start: "2026-09-29", end: "2026-10-02" })).toEqual(["2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"]);
   });
 });
 

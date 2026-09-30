@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Habit calendar:** a month calendar under the progress chart on the Habits page. For one habit it marks the days
+  done; for all habits it marks the days all or some were done. Days before a habit started, and after today, do not
+  count. Arrows go back a month at a time, and the month's total is shown underneath.
+
 ## [1.4.0] - 2026-09-30
 
 The first stable release. It adds a storage limit per account, deleting all of one's notes and files at once,
@@ -301,8 +307,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/1.4.0...HEAD
-[1.4.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.1...1.4.0
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.1...v1.4.0
 [1.3.1]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/supunsarachitha/MapleNotes/compare/1.2.0...1.2.1
