@@ -1,10 +1,10 @@
 # Maple Notes architecture
 
 This document describes how Maple Notes is built and why. It is written for contributors and for operators who
-want to understand exactly what the encryption does and does not protect. The plans and history live in
-[PLAN.md](PLAN.md), [PLAN-E2EE.md](PLAN-E2EE.md), [PLAN-1.2.md](PLAN-1.2.md) and [../CHANGELOG.md](../CHANGELOG.md). The end-to-end encryption
-formats are specified in [e2ee-spec.md](e2ee-spec.md), and what they protect against in
-[threat-model.md](threat-model.md). Third-party licensing is in [licensing.md](licensing.md).
+want to understand exactly what the encryption does and does not protect. The history of changes is in
+[CHANGELOG.md](../CHANGELOG.md). The end-to-end encryption formats are specified in [e2ee-spec.md](e2ee-spec.md), and
+what they protect against in [threat-model.md](threat-model.md). Third-party licensing is in
+[licensing.md](licensing.md).
 
 ## Overview
 
@@ -53,9 +53,9 @@ flowchart LR
 ### Request pipeline
 
 `ForwardedHeaders` (trusted proxies only) → security headers → exception handler (RFC 9457 problem details) →
-HSTS (HTTPS only) → static files → routing → rate limiter → authentication → authorization → controllers. Every
-controller action requires a signed-in user unless marked `[AllowAnonymous]`, and every state-changing request must
-carry a valid antiforgery token. Both are enforced globally, so a new endpoint is secure by default.
+HSTS (HTTPS only) → static files → routing → rate limiter → authentication → authorization → controllers.
+Every controller action requires a signed-in user unless marked `[AllowAnonymous]`, and every state-changing request
+must carry a valid antiforgery token. Both are enforced globally, so a new endpoint is secure by default.
 
 ## Data
 
@@ -76,12 +76,14 @@ by the signed-in owner; requests for another user's items return 404, never 403,
 
 The feed uses keyset (cursor) pagination on `(CreatedAtUtc, Id)` descending, backed by an index on
 `(UserId, CreatedAtUtc, Id)`, and one on `(UserId, Kind, CreatedAtUtc, Id)` for the timeline and the Todo, Quick
-notes and Habits tabs, which each list one kind. Searches, tag views, tag counts and the archive cover every kind the
-user has turned on, except habits: only the Habits page lists them, loading them all, oldest first, and it draws the
-progress chart in the browser from their text. The side-menu calendar counts active notes per day with `GET /api/v1/notes/calendar`, which converts
-creation times to the browser's time zone on the server (a month at a time, at most 62 days); a day's notes are the
-feed filtered by `createdFrom`/`createdBefore`, the instants that day starts and ends on the device. A cursor is the position of the last item shown, so notes posted while the user scrolls
-never shift later pages. Pinned notes are a separate list shown above the feed.
+notes and Habits tabs, which each list one kind. A cursor is the position of the last item shown, so notes posted
+while the user scrolls never shift later pages. Pinned notes are a separate list shown above the feed.
+
+Searches, tag views, tag counts and the archive cover every kind the user has turned on, except habits: only the
+Habits page lists them, loading them all, oldest first, and it draws the progress chart in the browser from their
+text. The side-menu calendar counts active notes per day with `GET /api/v1/notes/calendar`, which converts creation
+times to the browser's time zone on the server (a month at a time, at most 62 days); a day's notes are the feed
+filtered by `createdFrom`/`createdBefore`, the instants that day starts and ends on the device.
 
 Search runs over decrypted text, so it cannot use the database. It scans the user's notes in batches of 200 and
 decrypts them in memory, scanning at most 5,000 notes per request. If it reaches that limit it returns what it has
@@ -287,9 +289,9 @@ the worker, the page decrypts whole files into `blob:` URLs ([e2ee-spec.md §5](
 memory, and attachments are decrypted chunk by chunk. File names derive from the note's local creation time and first
 line (`2026-09-28_1430_buy-maple-syrup.md`). They are safe on Windows, macOS and Linux, and made unique
 case-insensitively. Folders follow the chosen layout; todo lists, quick notes and habits go under `todo/`,
-`quick-notes/` and `habits/`. Attachments go to `attachments/` and are linked from notes by relative path. Every format records
-each note's ID (the manifest does for plain text), kind and daily date. `manifest.json` (version 2) describes the
-export, lists every note, and lists any damaged files.
+`quick-notes/` and `habits/`. Attachments go to `attachments/` and are linked from notes by relative path. Every
+format records each note's ID (the manifest does for plain text), kind and daily date. `manifest.json` (version 2)
+describes the export, lists every note, and lists any damaged files.
 
 .NET's `ZipArchive` still performs some synchronous writes internally, which ASP.NET Core forbids on the response. The
 archive is therefore produced on a background task into a bounded in-memory pipe (about 1 MB) that the request copies
@@ -388,8 +390,8 @@ sees on the volume. It deliberately reports totals only; no endpoint gives one a
   byte for byte.
 - **Web:** about 210 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
   conversion, the service worker's range decryption, the browser export against the server's archives, restoring
-  those archives, Markdown safety, the composer with titles, todo lists, quick and daily notes, habits and their chart, preferences, and the
-  settings and recovery screens.
+  those archives, Markdown safety, the composer with titles, todo lists, quick and daily notes, habits and their
+  chart, preferences, and the settings and recovery screens.
 - **Releases:** additionally tested in a real browser (Playwright, Chromium) against the built container at desktop
   and 375 px widths, including end-to-end setup, unlock, recovery, video seeking, mode changes, export, the 1.2
   and 1.3 features, and export → restore round trips.

@@ -265,5 +265,5 @@ all saved copies. Re-issuing the cookie for the same session (a password change 
 IDs and a two-chunk attachment. It also records every output: the derived keys, the envelopes, the tag token, the
 displayed recovery key, and the SHA-256 of the encrypted attachment. The vectors use the minimum Argon2 parameters so
 the tests stay fast. The C# test (`tests/MapleNotes.Server.Tests/E2ee/E2eeVectorTests.cs`) regenerates the file when
-`MAPLE_WRITE_VECTORS=1` is set and otherwise verifies it; the TypeScript test (`src/maple-web/src/crypto/vectors.test.ts`)
-verifies it with the browser code.
+`MAPLE_WRITE_VECTORS=1` is set and otherwise verifies it; the TypeScript test
+(`src/maple-web/src/crypto/vectors.test.ts`) verifies it with the browser code.

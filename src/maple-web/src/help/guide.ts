@@ -114,8 +114,8 @@ computer, and pick an accent colour. Your choice follows you to every device you
     id: "features",
     title: "Choosing your features",
     body: `Everything beyond plain notes can be switched on or off under **Features** in [Settings](/settings): todo lists,
-quick notes, daily notes, the calendar, the habit tracker and link previews. Turning something off only hides it; nothing is deleted,
-and it all comes back when you turn it on again.`,
+quick notes, daily notes, the calendar, the habit tracker and link previews. Turning something off only hides it;
+nothing is deleted, and it all comes back when you turn it on again.`,
   },
   {
     id: "encryption",

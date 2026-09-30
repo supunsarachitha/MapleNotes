@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.0] - 2026-09-29
 
-A habit tracker, container images on GitHub, and help when the app is opened without HTTPS.
+A habit tracker, deployment behind Nginx Proxy Manager, and demo backups to try every feature with.
 
 ### Added
 
@@ -22,12 +22,13 @@ A habit tracker, container images on GitHub, and help when the app is opened wit
     habits are encrypted in every mode (in the browser for end-to-end accounts), converted between modes, exported and
     restored like any note.
   - Built from scratch: no code, text or images come from other habit trackers, and no dependency was added.
-- **A secure-connection notice.** Opened over plain HTTP at an address other than `localhost`, where browsers
-  withhold the cryptography Maple Notes needs, the app explains that it needs HTTPS instead of failing at sign-in.
-- **Container images** at `ghcr.io/supunsarachitha/maplenotes` (amd64 and arm64), published from `main` and from
-  release tags.
-- **Portainer stacks** in `deploy/`: one that deploys without changes, and one with HTTPS by IP address (Caddy with
-  its own certificate authority). The README shows the full `docker-compose.yml`, `.env` and a complete HTTPS setup.
+- **Nginx Proxy Manager:** a Portainer stack (`deploy/portainer-stack-npm.yml`) that trusts NPM's forwarded headers,
+  with the Proxy Host settings in its comments, and the Proxy Host's custom configuration
+  (`deploy/nginx-proxy-manager.conf`): attachments up to 30 MB instead of nginx's 1 MB, streamed uploads and
+  downloads, and longer timeouts for exports.
+- **Demo backups** in `demo-backup-samples/`: the same sample account as a Markdown and a JSON export, with notes,
+  todo lists, quick notes, daily notes, habits, nested tags, an archive, and photos, a video, a voice memo, a PDF and
+  a CSV file. Restore one in Settings → Backup & restore to try every feature. All of it is original.
 
 ### Changed
 
@@ -39,6 +40,22 @@ A habit tracker, container images on GitHub, and help when the app is opened wit
   end-to-end accounts) includes habits too, and the shared export vectors cover them.
 - For end-to-end accounts, the server can see which notes are habits and when each changes, so roughly when a habit
   is ticked, but not its name or days. The threat model and the spec say so.
+- The side menu fits short windows: below 900 px its items and the calendar are a little smaller, and when the
+  window is shorter still, the menu scrolls while the search box and Sign out stay in view.
+
+## [1.2.1] - 2026-09-29
+
+Help when Maple Notes is opened without HTTPS.
+
+### Added
+
+- **A secure-connection notice.** Opened over plain HTTP at an address other than `localhost`, where browsers
+  withhold the cryptography Maple Notes needs, the app explains that it needs HTTPS instead of failing at sign-in
+  with a misleading error about memory.
+- **HTTPS by IP address:** a Portainer stack (`deploy/portainer-stack-https.yml`) that serves Maple Notes through
+  Caddy at `https://<server-ip>:8443`, with a certificate from Caddy's own authority, for networks without a domain
+  name.
+- The README and the in-app help explain why other devices need HTTPS.
 
 ## [1.2.0] - 2026-09-29
 
@@ -84,8 +101,14 @@ modes, and each account chooses which ones it uses.
   attachments) and single `.md`, `.txt` and `.json` files. Notes keep their ID, dates, pinned and archived state, kind
   and daily date. Notes you already have are skipped. For end-to-end accounts the browser encrypts everything first.
 - API: notes have a `kind` (`Note`, `Todo`, `Quick`) and a `dailyDate`. `GET /api/v1/notes` and `GET /api/v1/tags`
-  take repeatable `kind` parameters. `GET /api/v1/notes` also takes `createdFrom` and `createdBefore`. New endpoints: `GET /api/v1/notes/calendar`, `GET /api/v1/notes/daily/{date}`, `POST /api/v1/notes/import` and
+  take repeatable `kind` parameters. `GET /api/v1/notes` also takes `createdFrom` and `createdBefore`. New endpoints:
+  `GET /api/v1/notes/calendar`, `GET /api/v1/notes/daily/{date}`, `POST /api/v1/notes/import` and
   `POST /api/v1/notes/import/existing`.
+- **Container images** at `ghcr.io/supunsarachitha/maplenotes` (amd64 and arm64), published from `main` and from
+  release tags.
+- **A Portainer stack** (`deploy/portainer-stack.yml`) that deploys without changes: it pulls the published image and
+  creates the master key on first start, in its own volume. The README shows it, the full `docker-compose.yml` and
+  `.env`, and a complete HTTPS setup with Caddy.
 
 ### Changed
 
@@ -220,8 +243,9 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.3.0...HEAD
-[1.3.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/supunsarachitha/MapleNotes/releases/tag/v1.0.0
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.2.1...1.3.0
+[1.2.1]: https://github.com/supunsarachitha/MapleNotes/compare/1.2.0...1.2.1
+[1.2.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.1.0...1.2.0
+[1.1.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.0...1.1.0
+[1.0.0]: https://github.com/supunsarachitha/MapleNotes/releases/tag/1.0
