@@ -219,6 +219,12 @@ export function FeaturesSection() {
           onChange={(tags) => save({ tags })}
         />
         <PreferenceSwitch
+          label="Double-tap to edit"
+          description="Double-tap a note, or double-click it, to start editing it. Its ⋯ menu still has Edit too."
+          checked={preferences.doubleTapToEdit}
+          onChange={(doubleTapToEdit) => save({ doubleTapToEdit })}
+        />
+        <PreferenceSwitch
           label="Shrink photos before uploading"
           description="Large photos are resized to 2560 pixels on their longest side and saved as JPEG, often a tenth of the size. Their location and camera details are left out too. Photos already uploaded stay as they are."
           checked={preferences.shrinkPhotos}
@@ -297,6 +303,13 @@ export function WritingSection() {
           checked={preferences.dateInTitles}
           disabled={!preferences.noteTitles}
           onChange={(dateInTitles) => save({ dateInTitles })}
+        />
+        <PreferenceSwitch
+          label="Titles on quick notes"
+          description={preferences.noteTitles ? "Quick notes get a title field too." : "Turn on note titles to use this."}
+          checked={preferences.quickNoteTitles}
+          disabled={!preferences.noteTitles}
+          onChange={(quickNoteTitles) => save({ quickNoteTitles })}
         />
         <div className="flex flex-col gap-1.5 py-3 last:pb-0">
           <label htmlFor={formatId} className="text-sm font-medium">

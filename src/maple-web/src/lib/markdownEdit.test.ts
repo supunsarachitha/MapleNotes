@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyEdit, formatEdit, type Format } from "./markdownEdit";
+import { applyEdit, formatEdit, toggleTask, type Format } from "./markdownEdit";
 
 // Formats `text` where [ and ] mark the selection; returns the result with the new selection marked the same way.
 function run(format: Format, marked: string): string {
@@ -37,5 +37,22 @@ describe("formatting", () => {
     expect(run("bullets", "[- two\n- three]")).toBe("[two\nthree]");
     expect(run("checklist", "- mi[]lk")).toBe("- [ ] mi[]lk"); // a bullet becomes a checklist item
     expect(run("quote", "[x\n> y]")).toBe("[> x\n> y]");
+  });
+});
+
+describe("task lists", () => {
+  const text = "Plan\n\n- [ ] one\n- [x] two\n  * [X] nested\n\n> 3. [ ] quoted";
+
+  it("ticks and unticks the item that starts at an offset", () => {
+    expect(toggleTask(text, text.indexOf("- [ ] one"))).toBe(text.replace("- [ ] one", "- [x] one"));
+    expect(toggleTask(text, text.indexOf("- [x] two"))).toBe(text.replace("- [x] two", "- [ ] two"));
+    expect(toggleTask(text, text.indexOf("* [X]"))).toBe(text.replace("* [X]", "* [ ]"));
+    expect(toggleTask(text, text.indexOf("3. [ ]"))).toBe(text.replace("3. [ ]", "3. [x]"));
+  });
+
+  it("changes nothing where no item starts", () => {
+    expect(toggleTask(text, 0)).toBeNull();
+    expect(toggleTask(text, text.indexOf("[ ] one"))).toBeNull();
+    expect(toggleTask("- plain item", 0)).toBeNull();
   });
 });

@@ -93,15 +93,20 @@ describe("Settings", () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
     renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
     const dateInTitles = screen.getByRole("switch", { name: "Start titles with today's date" });
+    const quickNoteTitles = screen.getByRole("switch", { name: "Titles on quick notes" });
 
     expect(dateInTitles).toBeDisabled(); // needs titles
+    expect(quickNoteTitles).toBeDisabled();
     await userEvent.click(screen.getByRole("switch", { name: "Note titles" }));
     await waitFor(() => expect(dateInTitles).toBeEnabled());
     await userEvent.click(dateInTitles);
+    await userEvent.click(quickNoteTitles);
     await userEvent.selectOptions(screen.getByLabelText("Date format"), "MMM d, yyyy");
 
     await waitFor(() =>
-      expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, noteTitles: true, dateInTitles: true, dateFormat: "MMM d, yyyy" }),
+      expect(save).toHaveBeenLastCalledWith({
+        ...DEFAULT_PREFERENCES, noteTitles: true, dateInTitles: true, quickNoteTitles: true, dateFormat: "MMM d, yyyy",
+      }),
     );
     expect(screen.getByRole("switch", { name: "Note titles" })).toHaveAttribute("aria-checked", "true");
   });
@@ -128,6 +133,18 @@ describe("Settings", () => {
 
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, habitTracker: true }));
     expect(habits).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("offers double-tap to edit, off by default", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderSettings({ mode: "AtRest", inProgress: false, totalItems: 0, remainingItems: 0 });
+    const doubleTap = screen.getByRole("switch", { name: "Double-tap to edit" });
+
+    expect(doubleTap).toHaveAttribute("aria-checked", "false");
+    await userEvent.click(doubleTap);
+
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, doubleTapToEdit: true }));
+    expect(doubleTap).toHaveAttribute("aria-checked", "true");
   });
 
   it("changes the display name, and an empty one goes back to the username", async () => {

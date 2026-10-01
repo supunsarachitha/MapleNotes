@@ -66,6 +66,58 @@ describe("Quick notes", () => {
     await waitFor(() => expect(create).toHaveBeenCalledWith("Buy stamps", [], { kind: "Quick" }));
   });
 
+  it("gives quick notes a title when titles are on for them", async () => {
+    vi.spyOn(api, "listNotes").mockResolvedValue({ items: [], nextCursor: null });
+    const create = vi.spyOn(api, "createNote").mockResolvedValue(quick);
+    const user = userEvent.setup();
+    renderWith(<QuickNotesPage />, { noteTitles: true, quickNoteTitles: true });
+
+    await user.type(screen.getByRole("textbox", { name: "Title" }), "Errands");
+    await user.type(screen.getByPlaceholderText("Jot something down…"), "Buy stamps");
+    await user.click(screen.getByRole("button", { name: "Post" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith("# Errands\n\nBuy stamps", [], { kind: "Quick" }));
+  });
+
+  it("edits a quick note's title only when titles are on for quick notes", async () => {
+    const titled = { ...quick, content: "# Errands\n\nBuy stamps" };
+    const user = userEvent.setup();
+    const view = renderWith(<NoteCard note={titled} />, { noteTitles: true, quickNoteTitles: true });
+
+    await user.click(screen.getByRole("button", { name: "Note actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
+    expect(screen.getByRole("textbox", { name: "Edit title" })).toHaveValue("Errands");
+    expect(screen.getByRole("textbox", { name: "Edit note" })).toHaveValue("Buy stamps");
+    view.unmount();
+
+    renderWith(<NoteCard note={titled} />, { noteTitles: true });
+    await user.click(screen.getByRole("button", { name: "Note actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
+    expect(screen.queryByRole("textbox", { name: "Edit title" })).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Edit note" })).toHaveValue("# Errands\n\nBuy stamps");
+  });
+
+  it("ticks checkboxes in a quick note, showing the tick at once and saving the note", async () => {
+    const checklist = { ...quick, content: "# Errands\n\n- [ ] stamps\n- [x] milk" };
+    const update = vi.spyOn(api, "updateNote").mockImplementation(async (id, content) => ({ ...checklist, id, content }));
+    const user = userEvent.setup();
+    renderWith(<NoteCard note={checklist} showKind={false} />, { noteTitles: true }); // the title is shown apart
+
+    await user.click(screen.getByRole("checkbox", { name: "stamps" }));
+    expect(screen.getByRole("checkbox", { name: "stamps" })).toBeChecked();
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("q1", "# Errands\n\n- [x] stamps\n- [x] milk", []));
+
+    await user.click(screen.getByRole("checkbox", { name: "milk" }));
+    expect(screen.getByRole("checkbox", { name: "milk" })).not.toBeChecked();
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("q1", "# Errands\n\n- [x] stamps\n- [ ] milk", []));
+  });
+
+  it("keeps the checkboxes of archived notes as they are", () => {
+    renderWith(<NoteCard note={{ ...quick, content: "- [ ] stamps", isArchived: true }} />);
+
+    expect(screen.getByRole("checkbox", { name: "stamps" })).toBeDisabled();
+  });
+
   it("moves a quick note to Home and a note to quick notes", async () => {
     const patch = vi.spyOn(api, "patchNote").mockResolvedValue({ ...quick, kind: "Note" });
     const user = userEvent.setup();

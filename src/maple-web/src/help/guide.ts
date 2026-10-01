@@ -18,8 +18,10 @@ are at the top.
   links, or type [Markdown](https://commonmark.org/help/) yourself. Ctrl/⌘+B, I and K are shortcuts for bold, italic
   and links.
 - **Pictures and files.** Choose the paperclip, paste, or drag files onto the box. They upload while you write.
+- **Checklists.** Tick a checklist's boxes right in the note; the change is saved straight away.
 - **Changing a note.** Open a note's **⋯** menu to edit it, pin it to the top, copy its text, archive it or delete it.
-  Archived notes wait in the **Archive**, where you can restore them.`,
+  Archived notes wait in the **Archive**, where you can restore them. To edit a note faster, turn on **Double-tap to
+  edit** in [Settings](/settings), then double-tap the note (or double-click it).`,
   },
   {
     id: "titles",
@@ -28,7 +30,9 @@ are at the top.
 note's first line, as a heading, so it also shows up in searches and exports.
 
 With **Start titles with today's date**, new notes begin with the date. Choose how dates look under **Date format**.
-The date on its own is not enough to post, so an untouched box never becomes an empty note.`,
+The date on its own is not enough to post, so an untouched box never becomes an empty note.
+
+Quick notes have no title field unless you also turn on **Titles on quick notes**.`,
   },
   {
     id: "tags",
@@ -52,6 +56,10 @@ names of attached files. Archived notes are not included.`,
     body: `Open **Todo** in the menu and create a list, such as "Groceries". Add items in the box at the bottom of the list,
 tick them off as you go, and choose an item to change its text. The list's **⋯** menu can rename it, clear the
 ticked items, pin it, archive it or delete it.
+
+To change many items at once, choose **Edit as Markdown** in the list's **⋯** menu. Each item is a line: \`- [ ]\` for
+one to do and \`- [x]\` for one done. Reorder, add or delete lines, or paste a list; lines without a box become items
+to do. Choose **Save**, or press Ctrl+Enter (⌘+Enter on a Mac).
 
 Todo lists stay out of your Home timeline, but searches and tags find them.`,
   },

@@ -107,6 +107,50 @@ describe("TodoCard", () => {
     await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Weekend groceries\n\n- [ ] oats", []));
   });
 
+  it("edits all the items at once as Markdown", async () => {
+    const update = vi.spyOn(api, "updateNote").mockImplementation(async (id, content) => ({ ...list, id, content }));
+    const user = userEvent.setup();
+    renderWith(<TodoCard note={list} />);
+
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit as Markdown" }));
+    const box = await screen.findByRole("textbox", { name: "Items in Groceries as Markdown" });
+    expect(box).toHaveFocus();
+    expect(box).toHaveValue("- [ ] oats\n- [x] maple syrup");
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+
+    await user.clear(box);
+    await user.type(box, "- [[x] oats\n- [[ ] maple syrup\nflour\n\n* [[X] eggs"); // [[ types a [
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [ ] maple syrup\n- [ ] flour\n- [x] eggs", []),
+    );
+    expect(screen.queryByRole("textbox", { name: "Items in Groceries as Markdown" })).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "flour" })).not.toBeChecked();
+    expect(screen.getByLabelText("2 of 4 done")).toBeInTheDocument();
+  });
+
+  it("leaves the list as it was when editing as Markdown is cancelled or changes nothing", async () => {
+    const update = vi.spyOn(api, "updateNote");
+    const user = userEvent.setup();
+    renderWith(<TodoCard note={list} />);
+
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit as Markdown" }));
+    await user.type(await screen.findByRole("textbox", { name: "Items in Groceries as Markdown" }), "\n- [[ ] bread{Escape}");
+    expect(screen.getByRole("checkbox", { name: "oats" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit as Markdown" }));
+    const box = await screen.findByRole("textbox", { name: "Items in Groceries as Markdown" });
+    expect(box).toHaveValue("- [ ] oats\n- [x] maple syrup"); // the cancelled change is gone
+    await user.type(box, "\n\n{Control>}{Enter}{/Control}"); // only empty lines added
+
+    expect(screen.queryByRole("textbox", { name: "Items in Groceries as Markdown" })).not.toBeInTheDocument();
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it("sends quick changes one after another, in order", async () => {
     const answers: Array<() => void> = [];
     const update = vi.spyOn(api, "updateNote").mockImplementation(

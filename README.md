@@ -23,9 +23,12 @@
 
 - **Timeline feed.** Newest notes first, a quick-post box at the top, pinned notes above the feed, and infinite
   scroll that stays stable while new notes arrive.
-- **Full note lifecycle.** Create, edit inline, pin, archive (and restore), and delete (with confirmation).
-- **Titles and dates.** Optionally give notes a title, which can start with today's date in the format you choose.
-- **Todo lists.** A Todo tab for checklists: add items, tick them off, rename, pin and archive lists.
+- **Full note lifecycle.** Create, edit inline (optionally with a double-tap), pin, archive (and restore), and delete
+  (with confirmation).
+- **Titles and dates.** Optionally give notes, and quick notes too, a title, which can start with today's date in the
+  format you choose.
+- **Todo lists.** A Todo tab for checklists: add items, tick them off, edit them all at once as Markdown, rename, pin
+  and archive lists.
 - **Quick notes.** A scratchpad tab for short notes that stay out of your timeline; move one to Home when it is worth
   keeping.
 - **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.
@@ -37,7 +40,7 @@
 - **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes, the calendar, the
   habit tracker, the archive and the Tags page on or off in Settings, on every device at once. Turning a feature off
   hides it and deletes nothing.
-- **Markdown and tags.** GitHub-flavoured Markdown (task lists, tables, code), with a formatting toolbar and shortcuts
+- **Markdown and tags.** GitHub-flavoured Markdown (task lists you tick in place, tables, code), with a formatting toolbar and shortcuts
   in the editor, and clickable `#tags`, including
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
@@ -646,19 +649,19 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
-### From 1.5 to 1.6
+### From 1.6 to 1.7
 
-Nothing to do: the app keeps its name and icon until an administrator changes them, and every new setting starts as
-before. For API clients:
-- The sign-in status gained `branding`, and `version` for signed-in users.
-- `GET`/`PUT /api/v1/admin/settings` gained `appName`. A `PUT` replaces all the settings, so leaving it out goes back
-  to "Maple Notes".
-- Preferences gained `archive`, `tags`, `menuTextSize` and `weekStart`.
-- New endpoints: `GET /api/v1/branding/icon`, `PUT`/`DELETE /api/v1/admin/branding/icon` and
-  `PUT /api/v1/account/display-name`.
+Nothing to do: titles on quick notes and double-tap to edit stay off until an account turns them on. For API clients,
+preferences gained `quickNoteTitles` and `doubleTapToEdit`.
 
 <details>
 <summary>Older versions</summary>
+
+**From 1.5 to 1.6.** Nothing to do: the app keeps its name and icon until an administrator changes them, and every
+new setting starts as before. For API clients: the sign-in status gained `branding`, and `version` for signed-in
+users; `GET`/`PUT /api/v1/admin/settings` gained `appName` (a `PUT` without it goes back to "Maple Notes");
+preferences gained `archive`, `tags`, `menuTextSize` and `weekStart`; and `GET /api/v1/branding/icon`,
+`PUT`/`DELETE /api/v1/admin/branding/icon` and `PUT /api/v1/account/display-name` are new.
 
 **From 1.4 to 1.5.** Nothing to do.
 
