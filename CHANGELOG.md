@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-01
+
+### Fixed
+
+- Opening **Labels…** from a note's ⋯ menu no longer puts the cursor in the find-or-create field, so a phone's
+  keyboard stays down until you tap the field.
+
 ## [1.8.0] - 2026-10-01
 
 A trash, coloured labels, tag suggestions, a side menu in your own order, Settings in sections, and long timelines
@@ -410,7 +417,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.5.0...v1.6.0
