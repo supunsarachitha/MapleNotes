@@ -42,6 +42,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.False(preferences.ShrinkPhotos); // so is shrinking photos, which replaces the original
         Assert.Equal((true, true, "Medium", "Auto"), (preferences.Archive, preferences.Tags, preferences.MenuTextSize, preferences.WeekStart));
         Assert.Equal((false, false), (preferences.QuickNoteTitles, preferences.DoubleTapToEdit)); // both opt-in
+        Assert.Equal((false, false, true, ""), (preferences.TagSuggestions, preferences.Labels, preferences.Trash, preferences.MenuOrder));
         Assert.Equal(preferences, (await _alice.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.Preferences);
     }
 
@@ -52,7 +53,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         {
             NoteTitles = true, DateInTitles = true, DateFormat = "dddd, d MMMM yyyy", TodoLists = false, QuickNotes = false, DailyNotes = true,
             HabitTracker = true, ShrinkPhotos = true, Archive = false, Tags = false, MenuTextSize = "Large", WeekStart = "Monday",
-            QuickNoteTitles = true, DoubleTapToEdit = true,
+            QuickNoteTitles = true, DoubleTapToEdit = true, TagSuggestions = true, Labels = true, Trash = false, MenuOrder = "help,home,todo",
         };
 
         var response = await _alice.PutJsonAsync("/api/v1/account/preferences", wanted);
@@ -93,6 +94,30 @@ public sealed class PreferencesTests : IAsyncLifetime
 
         Assert.Contains("menuTextSize", (await size.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
         Assert.Contains("weekStart", (await week.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+    }
+
+    [Theory]
+    [InlineData("home,inbox")]
+    [InlineData("home,todo,home")]
+    [InlineData("home, todo")]
+    [InlineData(",")]
+    public async Task The_menu_order_names_each_known_item_at_most_once(string order)
+    {
+        var response = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { MenuOrder = order });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("menuOrder", (await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task A_full_menu_order_is_saved_as_it_is()
+    {
+        var order = string.Join(",", UserPreferences.MenuItems.Reverse());
+
+        var response = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { MenuOrder = order });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(order, (await _alice.GetJsonAsync<UserPreferences>("/api/v1/account/preferences"))!.MenuOrder);
     }
 
     [Fact]

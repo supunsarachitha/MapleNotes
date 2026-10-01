@@ -49,6 +49,72 @@ const savedNote: Note = {
 };
 
 describe("Composer", () => {
+  it("starts editing with the caret after the text", () => {
+    const content = "First line\nsecond line, where I carry on";
+    renderComposer({ note: { ...savedNote, content }, autoFocus: true, onDone: () => undefined });
+
+    const box = screen.getByLabelText<HTMLTextAreaElement>("Edit note");
+    expect(box).toHaveFocus();
+    expect([box.selectionStart, box.selectionEnd]).toEqual([content.length, content.length]);
+  });
+
+  it("suggests existing tags while a #tag is typed, with the setting on", async () => {
+    vi.spyOn(api, "listTags").mockResolvedValue([
+      { name: "groceries", noteCount: 3 },
+      { name: "garden", noteCount: 5 },
+      { name: "work", noteCount: 9 },
+    ]);
+    const create = vi.spyOn(api, "createNote").mockResolvedValue(savedNote);
+    const user = userEvent.setup();
+    renderComposer({}, { tagSuggestions: true });
+    const box = screen.getByLabelText<HTMLTextAreaElement>("New note");
+    await waitFor(() => expect(api.listTags).toHaveBeenCalled());
+
+    await user.type(box, "Buy #g");
+    const list = await screen.findByRole("listbox", { name: "Tag suggestions" });
+    expect(within(list).getAllByRole("option").map((option) => option.textContent)).toEqual(["garden5", "groceries3"]);
+    expect(within(list).getByRole("option", { name: /garden/ })).toHaveAttribute("aria-selected", "true");
+    expect(box).toHaveAttribute("aria-activedescendant", within(list).getByRole("option", { name: /garden/ }).id);
+
+    await user.keyboard("{ArrowDown}{Enter}");
+
+    expect(box).toHaveValue("Buy #groceries ");
+    expect(box.selectionStart).toBe("Buy #groceries ".length);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(create).not.toHaveBeenCalled(); // Enter chose the tag; it did not post
+  });
+
+  it("closes the suggestions with Esc, and a tap on one puts it in", async () => {
+    vi.spyOn(api, "listTags").mockResolvedValue([{ name: "garden", noteCount: 5 }]);
+    const user = userEvent.setup();
+    const onDone = vi.fn();
+    renderComposer({ note: savedNote, onDone, autoFocus: true }, { tagSuggestions: true });
+    const box = screen.getByLabelText("Edit note");
+    await waitFor(() => expect(api.listTags).toHaveBeenCalled());
+
+    await user.type(box, " #ga");
+    expect(await screen.findByRole("listbox", { name: "Tag suggestions" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(onDone).not.toHaveBeenCalled(); // Esc closed the list, not the edit
+
+    await user.type(box, " #g");
+    await user.click(await screen.findByRole("option", { name: /garden/ }));
+    expect(box).toHaveValue("hello #ga #garden ");
+    expect(box).toHaveFocus();
+  });
+
+  it("suggests nothing while the setting is off", async () => {
+    const tags = vi.spyOn(api, "listTags").mockResolvedValue([{ name: "garden", noteCount: 5 }]);
+    const user = userEvent.setup();
+    renderComposer();
+
+    await user.type(screen.getByLabelText("New note"), "#g");
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(tags).not.toHaveBeenCalled();
+  });
+
   it("cannot post an empty note", () => {
     renderComposer();
 

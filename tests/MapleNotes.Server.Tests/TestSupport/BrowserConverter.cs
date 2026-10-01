@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.EndToEnd;
+using MapleNotes.Server.Features.Labels;
 
 namespace MapleNotes.Server.Tests.TestSupport;
 
@@ -20,7 +21,7 @@ internal sealed class BrowserConverter(ApiClient client, EndToEndAccount account
         while (maxItems is null || converted < maxItems)
         {
             var batch = (await client.GetJsonAsync<ConversionBatchResponse>($"/api/v1/account/conversion?limit={batchSize}"))!;
-            if (batch.Notes.Count + batch.Attachments.Count == 0)
+            if (batch.Notes.Count + batch.Attachments.Count + (batch.Labels?.Count ?? 0) == 0)
             {
                 return converted;
             }
@@ -63,6 +64,20 @@ internal sealed class BrowserConverter(ApiClient client, EndToEndAccount account
                 }
 
                 response.EnsureSuccessStatusCode();
+                converted++;
+            }
+
+            foreach (var label in batch.Labels ?? [])
+            {
+                if (converted == maxItems)
+                {
+                    return converted;
+                }
+
+                var request = entering
+                    ? new UpdateLabelRequest(EncryptedName: account.EncryptLabelName(label.Id, label.Name!))
+                    : new UpdateLabelRequest(Name: account.DecryptLabelName(label.Id, label.EncryptedName!));
+                (await client.PutJsonAsync($"/api/v1/labels/{label.Id}", request)).EnsureSuccessStatusCode();
                 converted++;
             }
         }

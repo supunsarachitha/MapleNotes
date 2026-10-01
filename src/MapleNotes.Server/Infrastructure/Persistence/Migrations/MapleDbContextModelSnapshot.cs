@@ -87,6 +87,37 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("InstanceSettings", (string)null);
                 });
 
+            modelBuilder.Entity("MapleNotes.Server.Domain.Label", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("EncryptedName")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAtUtc");
+
+                    b.ToTable("Labels", (string)null);
+                });
+
             modelBuilder.Entity("MapleNotes.Server.Domain.Note", b =>
                 {
                     b.Property<Guid>("Id")
@@ -121,6 +152,9 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.Property<int>("Scheme")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("TrashedAtUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("TEXT");
 
@@ -129,12 +163,16 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TrashedAtUtc");
+
                     b.HasIndex("UserId", "DailyDate")
                         .IsUnique();
 
                     b.HasIndex("UserId", "CreatedAtUtc", "Id");
 
                     b.HasIndex("UserId", "Kind", "CreatedAtUtc", "Id");
+
+                    b.HasIndex("UserId", "Kind", "IsPinned", "ArchivedAtUtc", "TrashedAtUtc", "CreatedAtUtc", "Id");
 
                     b.ToTable("Notes", (string)null);
                 });
@@ -267,6 +305,21 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("NoteLabels", b =>
+                {
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("LabelId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("NoteId", "LabelId");
+
+                    b.HasIndex("LabelId");
+
+                    b.ToTable("NoteLabels");
+                });
+
             modelBuilder.Entity("NoteTags", b =>
                 {
                     b.Property<Guid>("NoteId")
@@ -296,6 +349,15 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MapleNotes.Server.Domain.Label", b =>
+                {
+                    b.HasOne("MapleNotes.Server.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MapleNotes.Server.Domain.Note", b =>
                 {
                     b.HasOne("MapleNotes.Server.Domain.User", null)
@@ -310,6 +372,21 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.HasOne("MapleNotes.Server.Domain.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NoteLabels", b =>
+                {
+                    b.HasOne("MapleNotes.Server.Domain.Label", null)
+                        .WithMany()
+                        .HasForeignKey("LabelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MapleNotes.Server.Domain.Note", null)
+                        .WithMany()
+                        .HasForeignKey("NoteId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

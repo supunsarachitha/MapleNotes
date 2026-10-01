@@ -11,7 +11,7 @@ namespace MapleNotes.Server.Features.Encryption;
 /// <summary>A user's encryption mode and the progress of converting existing content to it.</summary>
 /// <param name="Mode">How new notes and attachments are protected.</param>
 /// <param name="InProgress">True while existing content is still being converted.</param>
-/// <param name="TotalItems">Number of notes and attachments.</param>
+/// <param name="TotalItems">Number of notes, attachments and labels.</param>
 /// <param name="RemainingItems">Items not yet converted to match <paramref name="Mode"/>.</param>
 public sealed record EncryptionStatusResponse(EncryptionMode Mode, bool InProgress, int TotalItems, int RemainingItems);
 
@@ -53,10 +53,13 @@ public sealed class EncryptionSettingsService(
         };
         var notes = await db.Notes.CountAsync(n => n.UserId == userId, cancellationToken);
         var attachments = await db.Attachments.CountAsync(a => a.UserId == userId, cancellationToken);
+        var labels = await db.Labels.CountAsync(l => l.UserId == userId, cancellationToken);
+        var endToEnd = target == ContentScheme.EndToEnd;
         var remaining =
             await db.Notes.CountAsync(n => n.UserId == userId && n.Scheme != target, cancellationToken)
-            + await db.Attachments.CountAsync(a => a.UserId == userId && a.Scheme != target, cancellationToken);
-        return new EncryptionStatusResponse(mode, remaining > 0, notes + attachments, remaining);
+            + await db.Attachments.CountAsync(a => a.UserId == userId && a.Scheme != target, cancellationToken)
+            + await db.Labels.CountAsync(l => l.UserId == userId && (endToEnd ? l.Name != null : l.EncryptedName != null), cancellationToken);
+        return new EncryptionStatusResponse(mode, remaining > 0, notes + attachments + labels, remaining);
     }
 
     /// <summary>

@@ -14,7 +14,8 @@ public sealed class NotesController(NoteService notes) : ControllerBase
     /// <summary>Lists notes, newest first, one page at a time.</summary>
     /// <remarks>
     /// Pages are cursor-based: pass the <c>nextCursor</c> of a page as <c>cursor</c> to get the next one. The default
-    /// <c>feed</c> state excludes pinned notes, which are listed separately with <c>state=pinned</c>.
+    /// <c>feed</c> state excludes pinned notes, which are listed separately with <c>state=pinned</c>. Notes in the trash
+    /// are listed only with <c>state=trash</c>, most recently deleted first.
     /// </remarks>
     /// <param name="query">Filters and paging.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -133,20 +134,25 @@ public sealed class NotesController(NoteService notes) : ControllerBase
     public async Task<ActionResult<NoteResponse>> Update(Guid id, UpdateNoteRequest request, CancellationToken cancellationToken) =>
         await notes.UpdateAsync(User.GetUserId(), id, request, cancellationToken) is { } note ? note : NotFound();
 
-    /// <summary>Pins, unpins, archives, restores or moves a note.</summary>
+    /// <summary>Pins, unpins, archives, restores, moves, labels or trashes a note.</summary>
     /// <param name="id">Note ID.</param>
     /// <param name="request">The changes.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The updated note.</returns>
     /// <response code="200">The note was updated.</response>
+    /// <response code="400">The kind or a label is not valid.</response>
     /// <response code="404">No such note for this account.</response>
     [HttpPatch("{id:guid}")]
     [ProducesResponseType<NoteResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<NoteResponse>> Patch(Guid id, PatchNoteRequest request, CancellationToken cancellationToken) =>
         await notes.PatchAsync(User.GetUserId(), id, request, cancellationToken) is { } note ? note : NotFound();
 
-    /// <summary>Permanently deletes a note and its attachments. To keep a note out of sight instead, archive it.</summary>
+    /// <summary>
+    /// Permanently deletes a note and its attachments, whether or not it is in the trash. To be able to restore it, move
+    /// it to the trash instead (<c>PATCH</c> with <c>isTrashed</c>), or archive it.
+    /// </summary>
     /// <param name="id">Note ID.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>No content.</returns>
@@ -157,6 +163,16 @@ public sealed class NotesController(NoteService notes) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
         await notes.DeleteAsync(User.GetUserId(), id, cancellationToken) ? NoContent() : NotFound();
+
+    /// <summary>Empties the trash: permanently deletes every note in it, with their attachments.</summary>
+    /// <remarks>Notes are also deleted for good by themselves once they have been in the trash for 30 days.</remarks>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>How many notes and files were deleted.</returns>
+    /// <response code="200">The trash is empty.</response>
+    [HttpDelete("trash")]
+    [ProducesResponseType<EmptyTrashResponse>(StatusCodes.Status200OK)]
+    public Task<EmptyTrashResponse> EmptyTrash(CancellationToken cancellationToken) =>
+        notes.EmptyTrashAsync(User.GetUserId(), cancellationToken);
 }
 
 /// <summary>The signed-in user's tags.</summary>

@@ -7,10 +7,14 @@ import type {
   ConversionBatch,
   CredentialProof,
   DeletedContent,
+  EmptyTrashResult,
   EncryptedNoteWire,
   EncryptionMode,
   EncryptionStatus,
   KdfParamsWire,
+  Label,
+  LabelColor,
+  LabelWire,
   LinkPreview,
   Note,
   NoteKind,
@@ -32,8 +36,11 @@ import type {
 import { ApiError } from "./apiError";
 import {
   decodeAttachment,
+  decodeLabels,
   decodeNote,
   decodeTags,
+  encodeLabelName,
+  encodeNewLabel,
   encodeUpload,
   encodeImport,
   encodeNewNote,
@@ -151,7 +158,7 @@ async function listNotes(params: NoteListParams): Promise<NotePage> {
   for (let scanned = 0; ; ) {
     const page = await request<NotePageWire>(
       "GET",
-      `/api/v1/notes${query({ state: params.state, kind: kinds, createdFrom: params.createdFrom, createdBefore: params.createdBefore, cursor, limit: SEARCH_BATCH, ...filter })}`,
+      `/api/v1/notes${query({ state: params.state, kind: kinds, label: params.label, createdFrom: params.createdFrom, createdBefore: params.createdBefore, cursor, limit: SEARCH_BATCH, ...filter })}`,
     );
     const notes = await Promise.all(page.items.map(decodeNote));
     matches.push(...notes.filter((note) => matchesSearch(note, params.q!)));
@@ -173,7 +180,20 @@ export interface NoteListParams {
   cursor?: string;
   limit?: number;
   tag?: string;
+  /** Only notes with this label (its ID). */
+  label?: string;
   q?: string;
+}
+
+/** What PATCH /api/v1/notes/{id} can change; omitted fields stay as they are. */
+export interface NoteChanges {
+  isPinned?: boolean;
+  isArchived?: boolean;
+  kind?: NoteKind;
+  /** Move to the trash, or restore from it. */
+  isTrashed?: boolean;
+  /** The complete set of labels the note should have. */
+  labelIds?: string[];
 }
 
 // Sign-in endpoints take keys derived from the password, never the password itself; lib/auth.ts derives them.
@@ -284,11 +304,32 @@ export const api = {
     return decodeNote(await request<NoteWire>("PUT", `/api/v1/notes/${id}`, { ...fields, attachmentIds }));
   },
 
-  async patchNote(id: string, changes: { isPinned?: boolean; isArchived?: boolean; kind?: NoteKind }): Promise<Note> {
+  async patchNote(id: string, changes: NoteChanges): Promise<Note> {
     return decodeNote(await request<NoteWire>("PATCH", `/api/v1/notes/${id}`, changes));
   },
 
+  /** Deletes a note for good, whether or not it is in the trash. */
   deleteNote: (id: string) => request<void>("DELETE", `/api/v1/notes/${id}`),
+
+  /** Deletes every note in the trash for good. */
+  emptyTrash: () => request<EmptyTrashResult>("DELETE", "/api/v1/notes/trash"),
+
+  /** Coloured labels, with end-to-end names decrypted (and encrypted when saved, see noteCrypto.ts). */
+  labels: {
+    async list(kinds?: NoteKind[]): Promise<Label[]> {
+      return decodeLabels(await request<LabelWire[]>("GET", `/api/v1/labels${query({ kind: kinds })}`));
+    },
+    async create(name: string, color: LabelColor): Promise<Label> {
+      const wire = await request<LabelWire>("POST", "/api/v1/labels", { ...(await encodeNewLabel(name)), color });
+      return (await decodeLabels([wire]))[0]!;
+    },
+    async update(id: string, changes: { name?: string; color?: LabelColor }): Promise<Label> {
+      const name = changes.name === undefined ? {} : await encodeLabelName(id, changes.name);
+      const wire = await request<LabelWire>("PUT", `/api/v1/labels/${id}`, { ...name, color: changes.color });
+      return (await decodeLabels([wire]))[0]!;
+    },
+    remove: (id: string) => request<void>("DELETE", `/api/v1/labels/${id}`),
+  },
 
   /** Tags with end-to-end tag names decrypted. */
   listTags,

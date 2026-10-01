@@ -9,7 +9,7 @@ server is in [architecture.md](architecture.md#cryptography).
 
 | Asset | Where it lives |
 |---|---|
-| Note text, tags, file names, types and contents | The database and the `attachments/` directory, plus the browser while it shows them. |
+| Note text, tags, label names, file names, types and contents | The database and the `attachments/` directory, plus the browser while it shows them. |
 | Passwords | Only in the browser. The server receives a key derived from the password, never the password itself (except once for accounts created by 1.0, see [Legacy accounts](#legacy-accounts)). |
 | Recovery keys | With the user, shown once. The server stores a hash of a key derived from it. |
 | Sessions | An HttpOnly cookie in the browser, checked against the database on every request. |
@@ -72,9 +72,10 @@ password or the unlocked key elsewhere.
   a way to verify the code a browser receives. Guard the server itself (see [Recommendations](#recommendations)).
 
 A malicious server can also withhold, delete or roll back data without breaking the encryption. Each note, tag name,
-file and wrapped key is authenticated and bound to its account and ID, so the server cannot swap one item for another
-or alter an item without the browser noticing. But it can hide items, restore an older version of a note, attach a
-file to a different note, or change pinned and archived flags, since those are not encrypted.
+label name, file and wrapped key is authenticated and bound to its account and ID, so the server cannot swap one item
+for another or alter an item without the browser noticing. But it can hide items, restore an older version of a note,
+attach a file to a different note, put labels on other notes, or change pinned, archived and trash flags, since those
+are not encrypted.
 
 ### The network
 
@@ -146,25 +147,28 @@ the password to the server one last time.
 | Visible to the server | Hidden from it |
 |---|---|
 | Usernames, sign-in times, IP addresses | Note text |
-| Number of notes and files, and when each was created and updated (also encoded in their IDs) | Tag names |
+| Number of notes and files, and when each was created and updated (also encoded in their IDs) | Tag names and label names |
 | Approximate length of each note and exact size of each file (ciphertext is not padded) | File names, types and contents |
-| Which notes are pinned or archived, and which files belong to which note | Search queries |
+| Which notes are pinned, archived or in the trash (and when they were deleted), and which files belong to which note | Search queries |
 | Which notes are todo lists, quick notes or habits (a habit's update time shows roughly when it was last ticked), and which days have a daily note | Titles, todo items, and habits' names and days (they are part of the note's text) |
 | The account's preferences: which features are on, the date format, theme and accent colour | |
 | The browser's time zone, when the calendar asks for a month | |
 | With link previews turned on (off by default): each link in the notes the browser shows, and the linked pages themselves | |
 | Which notes share a tag, and how many notes each tag has (tag tokens are deterministic per account) | The password, the data key, the recovery key |
+| How many labels there are, each one's colour, and which notes carry it | |
 | Which notes and files the browser loads, and which tag token a filter uses | |
 
 Tag tokens are the same for every note with the same tag, which is what lets the server filter and count by tag. The
-server cannot learn a tag's name, but it can see that two notes share one. Tokens differ between accounts.
+server cannot learn a tag's name, but it can see that two notes share one. Tokens differ between accounts. Labels work
+the same way with their own records: the server lists and counts a label's notes, and sees its colour, but its name is
+encrypted ([e2ee-spec.md](e2ee-spec.md) §4a).
 
 ## Limits and trade-offs
 
 - **The code comes from the server.** See [above](#a-server-that-is-compromised-and-changes-the-app). This is the
   largest gap and it is inherent to a browser app served by the same host.
-- **Metadata is visible.** Sizes, timestamps, structure, kinds, daily dates, preferences and tag equality are listed
-  above.
+- **Metadata is visible.** Sizes, timestamps, structure, kinds, daily dates, the trash, preferences, tag equality and
+  label colours and links are listed above.
 - **Restoring an export sends it through this browser.** Exports are decrypted by design, so the archive being
   restored is plain text on the device until it is encrypted and sent.
 - **Integrity covers items, not the collection.** Deleted, withheld or rolled-back notes cannot be detected.

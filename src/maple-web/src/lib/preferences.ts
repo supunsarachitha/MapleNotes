@@ -21,10 +21,14 @@ export const DEFAULT_PREFERENCES: Preferences = {
   shrinkPhotos: false,
   linkPreviews: false,
   doubleTapToEdit: false,
+  tagSuggestions: false,
+  labels: false,
+  trash: true,
   theme: "System",
   accent: "Maple",
   menuTextSize: "Medium",
   weekStart: "Auto",
+  menuOrder: "",
 };
 
 /** The first day of the week in calendars and weekly charts (0 = Sunday), as the user chose it. */

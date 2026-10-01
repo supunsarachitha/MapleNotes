@@ -1,23 +1,41 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CircleUserRound,
+  DatabaseBackup,
+  Palette,
+  PanelLeft,
+  PenLine,
+  Server,
+  ShieldCheck,
+  Tag,
+  ToggleRight,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
 import { BrandMark } from "../components/BrandMark";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
 import { ExportSection } from "../components/ExportSection";
-import { AppearanceSection, FeaturesSection, WritingSection } from "../components/PreferenceSections";
+import { LabelSettings } from "../components/LabelSettings";
+import { AppearanceSection, EditingSection, FeaturesSection, MenuSection, WritingSection } from "../components/PreferenceSections";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
 import { VersionNote } from "../components/VersionNote";
 import { useToast } from "../components/Toaster";
-import { Button, cn, ErrorMessage, Section, Switch, TextField } from "../components/ui";
+import { Button, cn, ErrorMessage, Section, Spinner, Switch, TextField } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
 import { DEFAULT_APP_NAME, useBranding } from "../lib/branding";
 import { e2ee } from "../lib/e2ee";
+import { focusAtEndRef } from "../lib/focus";
 import { formatAbsolute, formatBytes } from "../lib/format";
 import { squareIcon } from "../lib/icon";
+import { usePreferences } from "../lib/preferences";
 import { queryKeys, useAuthStatus, useSignedOut } from "../lib/queries";
+import { Link, useLocation } from "../lib/router";
 import type { AdminUser, AuthStatus, InstanceSettings, User } from "../lib/types";
 
 /**
@@ -109,10 +127,10 @@ function DisplayNameRow({ user }: { user: User }) {
     <dd>
       <form onSubmit={(event) => void save(event)} className="flex flex-wrap items-center gap-2">
         <input
+          ref={focusAtEndRef}
           aria-label="Display name"
           value={draft}
           maxLength={64}
-          autoFocus
           onChange={(event) => setDraft(event.target.value)}
           className="h-9 min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-2 text-sm dark:border-stone-700 dark:bg-stone-950"
         />
@@ -134,9 +152,9 @@ function DisplayNameRow({ user }: { user: User }) {
   );
 }
 
-function AccountSection({ user }: { user: User }) {
+function ProfileSection({ user }: { user: User }) {
   return (
-    <Section title="Account">
+    <Section title="Profile">
       <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
         <dt className="text-stone-500 dark:text-stone-400">Username</dt>
         <dd>@{user.username}</dd>
@@ -146,9 +164,40 @@ function AccountSection({ user }: { user: User }) {
         <dd>{user.role === "Admin" ? "Administrator" : "Member"}</dd>
         <dt className="text-stone-500 dark:text-stone-400">Member since</dt>
         <dd>{formatAbsolute(user.createdAtUtc)}</dd>
-        <dt className="text-stone-500 dark:text-stone-400">Storage</dt>
+      </dl>
+    </Section>
+  );
+}
+
+function StorageSection() {
+  return (
+    <Section title="Storage" description="Notes and files you keep, including archived ones and the trash.">
+      <dl className="text-sm">
+        <dt className="sr-only">Storage used</dt>
         <StorageRow />
       </dl>
+    </Section>
+  );
+}
+
+/** Where the trash is, since it is not in the side menu, and whether deleting uses it. */
+function TrashSection() {
+  const { trash } = usePreferences();
+  return (
+    <Section
+      title="Trash"
+      description={
+        trash
+          ? "Deleted notes, todo lists and habits wait in the trash for 30 days, then they are deleted for good."
+          : "The trash is turned off in Features: deleting is immediate and permanent."
+      }
+    >
+      <Link
+        href="/trash"
+        className="inline-flex h-10 items-center gap-2 rounded-full border border-stone-300 bg-white px-4 text-sm font-medium text-stone-800 hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-maple-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:hover:bg-stone-800"
+      >
+        <Trash2 className="size-4" aria-hidden="true" /> Open the trash
+      </Link>
     </Section>
   );
 }
@@ -692,70 +741,145 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
   );
 }
 
-/**
- * Settings that are rarely changed or hard to undo, collapsed until opened. It opens by itself while notes are being
- * converted after an encryption change, so the progress stays in view.
- */
-function AdvancedSection({ user }: { user: User }) {
-  const id = useId();
-  const [open, setOpen] = useState(false);
-  const encryption = useQuery({ queryKey: queryKeys.encryption, queryFn: api.encryption });
-  const expanded = open || encryption.data?.inProgress === true;
+interface SettingsSection {
+  id: string;
+  title: string;
+  /** What the section holds, under its title in the list on phones and on its page. */
+  summary: string;
+  icon: LucideIcon;
+  adminOnly?: boolean;
+}
 
-  return (
-    <section aria-labelledby={`${id}-heading`} className="flex flex-col gap-4">
-      <h2 id={`${id}-heading`}>
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-controls={`${id}-content`}
-          aria-label="Advanced"
-          aria-describedby={`${id}-description`}
-          onClick={() => setOpen(!expanded)}
-          className="flex w-full items-center gap-3 rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-maple-500 dark:border-stone-800 dark:bg-stone-900 dark:hover:bg-stone-800/60"
-        >
-          <span className="min-w-0 flex-1">
-            <span className="block text-base font-semibold">Advanced</span>
-            <span id={`${id}-description`} className="mt-1 block text-sm font-normal text-stone-600 dark:text-stone-300">
-              Encryption{user.hasEndToEndKey ? ", recovery key" : ""}, sessions and deleting your account.
-            </span>
-          </span>
-          <ChevronDown
-            className={cn("size-5 shrink-0 text-stone-500 transition-transform", expanded && "rotate-180")}
-            aria-hidden="true"
-          />
-        </button>
-      </h2>
-      {expanded && (
-        <div id={`${id}-content`} className="flex flex-col gap-4">
+/** The sections of Settings, in the order of the list; each has its own address, /settings/{id}. */
+export const SETTINGS_SECTIONS: SettingsSection[] = [
+  { id: "account", title: "Account", summary: "Your name, how much you store, and deleting your account.", icon: CircleUserRound },
+  { id: "appearance", title: "Appearance", summary: "Light or dark, the accent colour and the first day of the week.", icon: Palette },
+  { id: "menu", title: "Side menu", summary: "The order of the menu's items and their size.", icon: PanelLeft },
+  { id: "writing", title: "Writing", summary: "Titles, dates, tag suggestions and editing.", icon: PenLine },
+  { id: "features", title: "Features", summary: "The pages and tools you use.", icon: ToggleRight },
+  { id: "labels", title: "Labels", summary: "Coloured labels for your notes.", icon: Tag },
+  { id: "data", title: "Backup & data", summary: "Export, restore, the trash and starting over.", icon: DatabaseBackup },
+  { id: "security", title: "Privacy & security", summary: "Your password, encryption, recovery key and sessions.", icon: ShieldCheck },
+  { id: "admin", title: "Administration", summary: "Accounts, sign-ups, storage and this server's name.", icon: Server, adminOnly: true },
+];
+
+function SectionContent({ id, user }: { id: string; user: User }) {
+  switch (id) {
+    case "appearance":
+      return <AppearanceSection />;
+    case "menu":
+      return <MenuSection />;
+    case "writing":
+      return (
+        <>
+          <WritingSection />
+          <EditingSection />
+        </>
+      );
+    case "features":
+      return <FeaturesSection />;
+    case "labels":
+      return <LabelSettings />;
+    case "data":
+      return (
+        <>
+          <ExportSection user={user} />
+          <TrashSection />
+          <DeleteContentSection username={user.username} />
+        </>
+      );
+    case "security":
+      return (
+        <>
+          <PasswordSection user={user} />
           <EncryptionSection user={user} />
           {user.hasEndToEndKey && <RecoverySection user={user} />}
           <SessionsSection />
-          <DeleteContentSection username={user.username} />
+        </>
+      );
+    case "admin":
+      return <AdminSection currentUserId={user.id} />;
+    default:
+      return (
+        <>
+          <ProfileSection user={user} />
+          <StorageSection />
           <DeleteAccountSection username={user.username} />
-        </div>
-      )}
-    </section>
-  );
+        </>
+      );
+  }
 }
 
 /**
- * Account and everyday settings first, then backup and restore, then the collapsed Advanced section, and for
- * administrators the instance settings.
+ * Settings, in sections. Wide screens show the sections' list beside the open one (Account at first). Phones show
+ * the list, and each section on its own page with a way back. Each section has its own address, so the browser's
+ * Back button and links (from Help, for example) work.
  */
 export function SettingsPage({ user }: { user: User }) {
+  const { path } = useLocation();
+  const sections = SETTINGS_SECTIONS.filter((section) => !section.adminOnly || user.role === "Admin");
+  const requested = path.startsWith("/settings/") ? path.slice("/settings/".length) : null;
+  const current = sections.find((section) => section.id === requested) ?? null;
+  const shown = current ?? sections[0]!;
+  // A conversion after a change of encryption shows in the list, wherever one is.
+  const encryption = useQuery({ queryKey: queryKeys.encryption, queryFn: api.encryption });
+  const converting = encryption.data?.inProgress === true;
+
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Settings</h1>
-      <AccountSection user={user} />
-      <AppearanceSection />
-      <WritingSection />
-      <FeaturesSection />
-      <ExportSection user={user} />
-      <PasswordSection user={user} />
-      <AdvancedSection user={user} />
-      {user.role === "Admin" && <AdminSection currentUserId={user.id} />}
-      <VersionNote />
+    <div className="flex flex-col gap-6 md:grid md:grid-cols-[13.5rem_minmax(0,1fr)] md:items-start md:gap-8">
+      <div className={cn("flex flex-col gap-3 md:sticky md:top-8", current && "hidden md:flex")}>
+        {current ? (
+          <p className="px-1 text-xl font-semibold" aria-hidden="true">
+            Settings
+          </p>
+        ) : (
+          <h1 className="px-1 text-xl font-semibold">Settings</h1>
+        )}
+        <nav aria-label="Settings sections">
+          <ul className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm md:flex md:flex-col md:gap-0.5 md:overflow-visible md:rounded-none md:border-0 md:bg-transparent md:shadow-none dark:border-stone-800 dark:bg-stone-900 md:dark:bg-transparent">
+            {sections.map(({ id, title, summary, icon: Icon }) => {
+              const active = id === shown.id;
+              return (
+                <li key={id} className="border-b border-stone-100 last:border-b-0 md:border-0 dark:border-stone-800">
+                  <Link
+                    href={`/settings/${id}`}
+                    aria-current={current && active ? "page" : undefined}
+                    className={cn(
+                      "flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-stone-50 md:min-h-10 md:rounded-xl md:px-3 md:py-2 dark:hover:bg-stone-800",
+                      active &&
+                        "md:bg-white md:font-medium md:text-maple-700 md:shadow-sm md:hover:bg-white dark:md:bg-stone-900 dark:md:text-maple-400",
+                    )}
+                  >
+                    <Icon className="size-5 shrink-0 text-stone-500 dark:text-stone-400" aria-hidden="true" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[15px] md:text-sm">{title}</span>
+                      <span className="block text-xs text-stone-500 md:hidden dark:text-stone-400">{summary}</span>
+                    </span>
+                    {id === "security" && converting && <Spinner className="size-4 shrink-0 text-maple-600" />}
+                    {id === "security" && converting && <span className="sr-only">(converting your notes)</span>}
+                    <ChevronRight className="size-4 shrink-0 text-stone-400 md:hidden" aria-hidden="true" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+        <VersionNote />
+      </div>
+
+      <div className={cn("flex min-w-0 flex-col gap-4", !current && "hidden md:flex")}>
+        <div>
+          <Link
+            href="/settings"
+            className="-ml-2 mb-2 inline-flex h-9 items-center gap-1 rounded-full px-2 text-sm text-stone-600 hover:bg-stone-200 md:hidden dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" /> Settings
+          </Link>
+          {current ? <h1 className="text-xl font-semibold">{shown.title}</h1> : <h2 className="text-xl font-semibold">{shown.title}</h2>}
+          <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">{shown.summary}</p>
+        </div>
+        <SectionContent key={shown.id} id={shown.id} user={user} />
+      </div>
     </div>
   );
 }

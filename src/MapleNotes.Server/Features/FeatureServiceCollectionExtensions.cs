@@ -4,6 +4,7 @@ using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Features.Export;
+using MapleNotes.Server.Features.Labels;
 using MapleNotes.Server.Features.LinkPreviews;
 using MapleNotes.Server.Features.Notes;
 using MapleNotes.Server.Features.Preferences;
@@ -29,6 +30,8 @@ internal static class FeatureServiceCollectionExtensions
         services.AddSingleton<StorageQuotaLocks>();
 
         services.AddScoped<NoteService>();
+        services.AddHostedService<TrashCleanupService>();
+        services.AddScoped<LabelService>();
         services.AddScoped<AttachmentService>();
         services.AddScoped<AttachmentCleanup>();
         services.AddHostedService<AttachmentCleanupService>();

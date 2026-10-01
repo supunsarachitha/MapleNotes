@@ -69,12 +69,20 @@ export interface Preferences {
   linkPreviews: boolean;
   /** Double-tap (or double-click) a note to edit it. */
   doubleTapToEdit: boolean;
+  /** Suggest existing tags while a #tag is being typed. */
+  tagSuggestions: boolean;
+  /** Coloured labels on notes. */
+  labels: boolean;
+  /** Deleting moves notes to the trash, where they stay for 30 days. */
+  trash: boolean;
   theme: Theme;
   accent: Accent;
   /** The side menu's text size. */
   menuTextSize: MenuTextSize;
   /** The first day of the week in calendars; Auto follows the browser's language settings. */
   weekStart: WeekStart;
+  /** The side menu's items in the chosen order, separated by commas; empty for the default order (see lib/menu.ts). */
+  menuOrder: string;
 }
 
 export const MENU_TEXT_SIZES = ["Small", "Medium", "Large"] as const;
@@ -160,6 +168,10 @@ export interface Note {
   updatedAtUtc: string;
   tags: string[];
   attachments: Attachment[];
+  /** The IDs of the labels on the note. */
+  labelIds?: string[];
+  /** When the note was moved to the trash; null or absent when it is not in the trash. */
+  trashedAtUtc?: string | null;
 }
 
 export interface NotePage {
@@ -185,8 +197,8 @@ export interface EncryptedNoteWire {
   tags: Array<{ token: string; name: string }>;
 }
 
-/** feed: active unpinned notes; pinned; active: all active notes (search/tags); archived. */
-export type NoteState = "feed" | "pinned" | "active" | "archived";
+/** feed: active unpinned notes; pinned; active: all active notes (search/tags); archived; trash. */
+export type NoteState = "feed" | "pinned" | "active" | "archived" | "trash";
 
 export interface Tag {
   name: string;
@@ -199,6 +211,34 @@ export interface TagWire {
   noteCount: number;
   token?: string | null;
   encryptedName?: string | null;
+}
+
+/** The colours a label can have (lib/labels.ts has their shades). */
+export const LABEL_COLORS = ["Grey", "Red", "Orange", "Amber", "Green", "Teal", "Blue", "Indigo", "Purple", "Pink"] as const;
+export type LabelColor = (typeof LABEL_COLORS)[number];
+
+/** A coloured label as components use it: an end-to-end label's name decrypted. */
+export interface Label {
+  id: string;
+  name: string;
+  color: LabelColor;
+  /** Active notes (neither archived nor in the trash) with the label. */
+  noteCount: number;
+}
+
+/** A label as the API returns it: end-to-end labels carry `encryptedName` instead of a name. */
+export interface LabelWire {
+  id: string;
+  name: string | null;
+  encryptedName?: string | null;
+  color: LabelColor;
+  noteCount: number;
+}
+
+/** What emptying the trash deleted. */
+export interface EmptyTrashResult {
+  notes: number;
+  files: number;
 }
 
 /** How much the signed-in account stores. */
@@ -267,6 +307,8 @@ export interface ConversionBatch {
   remaining: number;
   notes: Array<{ id: string; content: string | null; encryptedContent: string | null; updatedAtUtc: string }>;
   attachments: Array<{ id: string; fileName: string | null; contentType: string | null; sizeBytes: number; encryptedMetadata: string | null }>;
+  /** Labels whose names to encrypt or decrypt; they are saved again with PUT /api/v1/labels/{id}. */
+  labels?: Array<{ id: string; name: string | null; encryptedName: string | null }>;
 }
 
 /** RFC 9457 problem details returned by the API for errors. */

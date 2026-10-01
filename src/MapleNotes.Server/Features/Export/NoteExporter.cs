@@ -217,7 +217,7 @@ public sealed class NoteExporter(
     private Task<List<Note>> LoadBatchAsync(
         Guid userId, ExportOptions options, (DateTime CreatedAtUtc, Guid Id)? after, CancellationToken cancellationToken)
     {
-        var query = db.Notes.AsNoTracking().Where(n => n.UserId == userId);
+        var query = db.Notes.AsNoTracking().Where(n => n.UserId == userId && n.TrashedAtUtc == null); // the trash is not exported
         if (!options.IncludeArchived)
         {
             query = query.Where(n => n.ArchivedAtUtc == null);

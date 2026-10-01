@@ -20,11 +20,11 @@ public sealed class ConversionController(ConversionService conversion) : Control
 
     private static readonly HashSet<string> Fields = new(StringComparer.OrdinalIgnoreCase) { "metadata" };
 
-    /// <summary>Returns the next notes and files to convert.</summary>
+    /// <summary>Returns the next notes, files and labels to convert.</summary>
     /// <remarks>
     /// In end-to-end mode the batch holds plain items to encrypt (notes with their text); otherwise end-to-end items
-    /// to decrypt. Files' content is downloaded from their usual URL. An empty batch means the browser has nothing
-    /// left to do.
+    /// to decrypt. Files' content is downloaded from their usual URL. Labels are converted by saving their name again
+    /// with <c>PUT /api/v1/labels/{id}</c>. An empty batch means the browser has nothing left to do.
     /// </remarks>
     /// <param name="limit">Batch size, 1–50; default 20.</param>
     /// <param name="cancellationToken">Cancels the request.</param>

@@ -8,6 +8,7 @@ export const noteContext = (userId: string, noteId: string) => `maple-notes/v2/e
 export const tagContext = (userId: string, token: string) => `maple-notes/v2/e2ee/tag/${uuidN(userId)}/${token}`;
 export const attachmentMetaContext = (userId: string, attachmentId: string) =>
   `maple-notes/v2/e2ee/attachment-meta/${uuidN(userId)}/${uuidN(attachmentId)}`;
+export const labelContext = (userId: string, labelId: string) => `maple-notes/v2/e2ee/label/${uuidN(userId)}/${uuidN(labelId)}`;
 
 export function encryptNote(keys: DataKeys, userId: string, noteId: string, text: string, nonce?: Uint8Array): Promise<Bytes> {
   return seal(keys.note, utf8(text), noteContext(userId, noteId), { keyVersion: keys.version, nonce });
@@ -62,6 +63,17 @@ export async function encryptTags(keys: DataKeys, userId: string, markdown: stri
       return { token, encryptedName: await encryptTagName(keys, userId, token, name) };
     }),
   );
+}
+
+// ---------------------------------------------------------------------------------------------------------- labels
+
+/** Encrypts a label's name, as written, for the label with this ID (docs/e2ee-spec.md §4a). */
+export function encryptLabelName(keys: DataKeys, userId: string, labelId: string, name: string, nonce?: Uint8Array): Promise<Bytes> {
+  return seal(keys.metadata, utf8(name), labelContext(userId, labelId), { keyVersion: keys.version, nonce });
+}
+
+export async function decryptLabelName(keys: DataKeys, userId: string, labelId: string, envelope: Uint8Array): Promise<string> {
+  return fromUtf8(await open(keys.metadata, envelope, labelContext(userId, labelId)));
 }
 
 // ---------------------------------------------------------------------------------------------------- attachments

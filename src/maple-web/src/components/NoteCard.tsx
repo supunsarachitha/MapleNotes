@@ -1,5 +1,5 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Archive, ArchiveRestore, Copy, Home, MoreHorizontal, Pencil, Pin, PinOff, Trash2, Zap, type LucideIcon } from "lucide-react";
+import { Archive, ArchiveRestore, Copy, Home, MoreHorizontal, Pencil, Pin, PinOff, Tag, Trash2, Zap, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { saveErrorMessage } from "../lib/apiError";
 import { useDoubleTap } from "../lib/doubleTap";
@@ -8,14 +8,15 @@ import { toggleTask } from "../lib/markdownEdit";
 import { useNoteEditor } from "../lib/noteEditor";
 import { usePreferences } from "../lib/preferences";
 import { useAuthStatus } from "../lib/queries";
-import { useDeleteNote, usePatchNote } from "../lib/queries";
+import { usePatchNote } from "../lib/queries";
 import { splitTitle } from "../lib/titles";
 import type { Note } from "../lib/types";
 import { AttachmentGallery } from "./AttachmentGallery";
 import { Composer } from "./Composer";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { LabelChips, LabelPicker } from "./Labels";
 import { LinkPreviews } from "./LinkPreviews";
 import { Markdown } from "./Markdown";
+import { useRemoveNote } from "./NoteRemoval";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
 
@@ -49,23 +50,30 @@ export function MenuItem({
 const same = (content: string) => content;
 
 /**
- * One note in a list: rendered Markdown, attachments, and an actions menu (pin, edit, move between Home and quick
- * notes, archive, delete). Lists that mix kinds label todo lists and quick notes. Ticking a checkbox in the note
- * shows at once and is saved in the background (lib/noteEditor.ts); with Double-tap to edit on, double-tapping or
- * double-clicking the note opens it for editing.
+ * One note in a list: rendered Markdown, attachments, labels, and an actions menu (pin, edit, labels, move between Home
+ * and quick notes, archive, delete). Lists that mix kinds label todo lists and quick notes. Ticking a checkbox in the
+ * note shows at once and is saved in the background (lib/noteEditor.ts); with Double-tap to edit on, double-tapping or
+ * double-clicking the note opens it for editing. Deleting moves it to the trash, unless the trash is turned off.
  */
 export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boolean }) {
   const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [choosingLabels, setChoosingLabels] = useState(false);
   const patch = usePatchNote();
-  const remove = useDeleteNote();
   const toast = useToast();
-  const { noteTitles, quickNoteTitles, quickNotes, linkPreviews, archive, doubleTapToEdit } = usePreferences();
+  const { noteTitles, quickNoteTitles, quickNotes, linkPreviews, archive, doubleTapToEdit, labels } = usePreferences();
   const previewsAvailable = useAuthStatus().data?.linkPreviewsAvailable === true;
   const [content, commit] = useNoteEditor(note, same, same, (error) =>
     toast.error(saveErrorMessage(error, "A change to this note could not be saved. Please try again.")),
   );
   const doubleTap = useDoubleTap(() => setEditing(true));
+  const removal = useRemoveNote(note, {
+    noun: "note",
+    confirmTitle: "Delete this note?",
+    confirmDescription:
+      note.attachments.length > 0
+        ? `The note and its ${note.attachments.length} attached file(s) will be deleted permanently. To keep it out of sight instead, archive it.`
+        : "The note will be deleted permanently. To keep it out of sight instead, archive it.",
+  });
   const { title, body } = noteTitles ? splitTitle(content) : { title: "", body: content };
   const edited = new Date(note.updatedAtUtc).getTime() - new Date(note.createdAtUtc).getTime() > 60_000;
 
@@ -93,7 +101,7 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
     <article
       {...(tapToEdit ? doubleTap : {})}
       className={cn(
-        "rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900",
+        "note-card rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900",
         tapToEdit && "touch-manipulation", // no double-tap zoom
       )}
     >
@@ -133,6 +141,11 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
                     <MenuItem icon={Pencil} onSelect={() => setEditing(true)}>
                       Edit
                     </MenuItem>
+                    {labels && (
+                      <MenuItem icon={Tag} onSelect={() => setChoosingLabels(true)}>
+                        Labels…
+                      </MenuItem>
+                    )}
                     {note.kind === "Quick" && (
                       <MenuItem icon={Home} onSelect={() => change({ kind: "Note" }, "Moved to Home.")}>
                         Move to Home
@@ -165,8 +178,8 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
                   </MenuItem>
                 )}
                 <DropdownMenu.Separator className="my-1 h-px bg-stone-200 dark:bg-stone-700" />
-                <MenuItem icon={Trash2} danger onSelect={() => setConfirmDelete(true)}>
-                  Delete…
+                <MenuItem icon={Trash2} danger onSelect={removal.start}>
+                  {removal.menuLabel}
                 </MenuItem>
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
@@ -178,28 +191,10 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
       {body.trim() && <Markdown content={body} onToggleTask={note.isArchived ? undefined : toggleItem} />}
       {linkPreviews && previewsAvailable && <LinkPreviews content={content} />}
       <AttachmentGallery attachments={note.attachments} />
+      <LabelChips ids={note.labelIds} />
 
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title="Delete this note?"
-        description={
-          note.attachments.length > 0
-            ? `The note and its ${note.attachments.length} attached file(s) will be deleted permanently. To keep it out of sight instead, archive it.`
-            : "The note will be deleted permanently. To keep it out of sight instead, archive it."
-        }
-        confirmLabel="Delete"
-        busy={remove.isPending}
-        onConfirm={() =>
-          remove.mutate(note.id, {
-            onSuccess: () => {
-              setConfirmDelete(false);
-              toast.info("Note deleted.");
-            },
-            onError: () => toast.error("Could not delete the note."),
-          })
-        }
-      />
+      {removal.dialog}
+      {labels && <LabelPicker note={note} open={choosingLabels} onOpenChange={setChoosingLabels} />}
     </article>
   );
 }

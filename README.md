@@ -22,9 +22,11 @@
 ## Features
 
 - **Timeline feed.** Newest notes first, a quick-post box at the top, pinned notes above the feed, and infinite
-  scroll that stays stable while new notes arrive.
-- **Full note lifecycle.** Create, edit inline (optionally with a double-tap), pin, archive (and restore), and delete
-  (with confirmation).
+  scroll that stays stable while new notes arrive. Pictures, players and link previews load as they come into view,
+  so a long timeline with thousands of notes and files opens as quickly as a short one.
+- **Full note lifecycle.** Create, edit inline (optionally with a double-tap, always with the cursor at the end), pin,
+  label, archive (and restore), and delete into a trash that keeps notes for 30 days, with Undo; or, with the trash
+  off, delete for good after confirming.
 - **Titles and dates.** Optionally give notes, and quick notes too, a title, which can start with today's date in the
   format you choose.
 - **Todo lists.** A Todo tab for checklists: add items, tick them off, edit them all at once as Markdown, rename, pin
@@ -38,11 +40,15 @@
   the pages, so it sees the links.
 - **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.
 - **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes, the calendar, the
-  habit tracker, the archive and the Tags page on or off in Settings, on every device at once. Turning a feature off
-  hides it and deletes nothing.
+  habit tracker, the archive, the Tags page, labels and the trash on or off in Settings, on every device at once.
+  Turning a feature off hides it and deletes nothing. Settings is organised in sections (Account, Appearance, Side
+  menu, Writing, Features, Labels, Backup & data, Privacy & security), each with its own address.
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists you tick in place, tables, code), with a formatting toolbar and shortcuts
   in the editor, and clickable `#tags`, including
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
+  Optionally, your existing tags are suggested while you type one.
+- **Labels.** Optionally, coloured labels you put on notes and todo lists by hand, in ten colours, listed in the side
+  menu with their notes. With end-to-end encryption their names are encrypted too.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
   upload progress. Images keep their shape on any screen and open in a full-screen viewer; audio and video play
   inline, and video seeking works on iOS. Optionally, photos are shrunk in the browser before they upload (at most
@@ -53,7 +59,7 @@
   - The database is always encrypted.
   - **Encrypted at rest** (the default): each account's notes and files are also encrypted with its own key, which
     the server holds.
-  - **End-to-end**: your browser encrypts notes, tags, file names and files with a key only you hold. The server
+  - **End-to-end**: your browser encrypts notes, tags, label names, file names and files with a key only you hold. The server
     stores ciphertext it cannot read, and a recovery key lets you reset a forgotten password.
   - Changing mode converts existing notes and files safely, resuming if it is interrupted.
 - **Export and restore.** Download everything, decrypted, as a ZIP of Markdown, plain text or JSON files, in flat or
@@ -72,8 +78,8 @@
   account's storage, disable or remove accounts, and appoint other administrators. Administrators never see anyone's
   notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
-- **Appearance.** Light or dark (or follow your device), seven accent colours, the menu's text size and the first day of
-  the week, chosen in Settings and applied on every device.
+- **Appearance.** Light or dark (or follow your device), seven accent colours, the side menu's order (drag or arrows)
+  and text size, and the first day of the week, chosen in Settings and applied on every device.
 - **Small and hardened.** One container: non-root, read-only root filesystem, built-in health check.
 
 | Mobile | Todo lists | Settings |
@@ -544,7 +550,7 @@ its agent ("failed to list workers … frame too large").
 
 [`demo-backup-samples/`](demo-backup-samples/) holds a sample account as a Markdown and a JSON export: notes, todo
 lists, quick notes, daily notes, habits, nested tags, archived notes, photos, a video, a voice memo, a PDF and a CSV
-file. Create an account, then restore either file in **Settings → Backup & restore**. Settings are not part of a
+file. Create an account, then restore either file in **Settings → Backup & data**. Settings are not part of a
 backup, so to see everything, turn on note titles (under **Writing**) and daily notes, the habit tracker and link
 previews (under **Features**) in Settings.
 
@@ -607,7 +613,7 @@ end-to-end encryption cannot reset a forgotten password; keep it in a password m
 
 ## Backups
 
-Every user can download their own notes from **Settings → Backup & restore** and restore them there, into the same
+Every user can download their own notes from **Settings → Backup & data** and restore them there, into the same
 account or a new one on any Maple Notes server, 1.2 or later. For the whole instance, back up the data volume.
 
 Everything lives in the data volume. A consistent backup while Maple Notes keeps running:
@@ -649,13 +655,23 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
-### From 1.6 to 1.7
+### From 1.7 to 1.8
 
-Nothing to do: titles on quick notes and double-tap to edit stay off until an account turns them on. For API clients,
-preferences gained `quickNoteTitles` and `doubleTapToEdit`.
+Nothing to do. The migration adds the trash, labels and an index that makes long lists faster. The trash is on for
+every account, so deleting now keeps notes for 30 days (they count towards storage until then); turning the trash off
+in Settings → Features deletes at once, as before. Labels and tag suggestions stay off until an account turns them on,
+and the side menu keeps its usual order.
+
+For API clients: notes gained `labelIds` and `trashedAtUtc`; lists take `state=trash` and `label`; `PATCH
+/api/v1/notes/{id}` takes `isTrashed` and `labelIds`; `DELETE /api/v1/notes/{id}` still deletes for good, and `DELETE
+/api/v1/notes/trash` empties the trash. Labels are managed at `/api/v1/labels`. Preferences gained `tagSuggestions`,
+`labels`, `trash` and `menuOrder`, and conversion batches gained `labels`.
 
 <details>
 <summary>Older versions</summary>
+
+**From 1.6 to 1.7.** Nothing to do: titles on quick notes and double-tap to edit stay off until an account turns them
+on. For API clients, preferences gained `quickNoteTitles` and `doubleTapToEdit`.
 
 **From 1.5 to 1.6.** Nothing to do: the app keeps its name and icon until an administrator changes them, and every
 new setting starts as before. For API clients: the sign-in status gained `branding`, and `version` for signed-in

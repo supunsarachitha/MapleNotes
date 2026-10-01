@@ -6,11 +6,12 @@ import { usePreferences, useUpdatePreferences } from "../lib/preferences";
 import { useAuthStatus } from "../lib/queries";
 import { ACCENTS, DATE_FORMATS, MENU_TEXT_SIZES, THEMES, WEEK_STARTS, type DateFormat, type Preferences, type WeekStart } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { MenuOrderEditor } from "./MenuOrderEditor";
 import { useToast } from "./Toaster";
 import { Section, Switch, cn } from "./ui";
 
 /** A switch with its label and explanation, for one preference. */
-function PreferenceSwitch({
+export function PreferenceSwitch({
   label,
   description,
   checked,
@@ -38,7 +39,7 @@ function PreferenceSwitch({
 }
 
 /** Saves preference changes, telling the user when one could not be saved (it is then undone). */
-function useSavePreferences() {
+export function useSavePreferences() {
   const update = useUpdatePreferences();
   const toast = useToast();
   return (changes: Partial<Preferences>) =>
@@ -47,7 +48,7 @@ function useSavePreferences() {
 
 const THEME_ICONS = { System: Monitor, Light: Sun, Dark: Moon } as const;
 
-/** Light or dark, and the accent colour; saved for the account, so every device looks the same. */
+/** Light or dark, the accent colour and the first day of the week; saved for the account, so every device looks the same. */
 export function AppearanceSection() {
   const id = useId();
   const preferences = usePreferences();
@@ -114,35 +115,6 @@ export function AppearanceSection() {
         </div>
       </fieldset>
 
-      <fieldset className="mt-5">
-        <legend className="mb-2 text-sm font-medium">Menu text size</legend>
-        <div className="grid grid-cols-3 gap-2">
-          {MENU_TEXT_SIZES.map((size) => (
-            <label
-              key={size}
-              className={cn(
-                "flex cursor-pointer items-center justify-center rounded-xl border px-3 py-2.5 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-maple-500",
-                size === "Small" ? "text-[13px]" : size === "Large" ? "text-[17px]" : "text-[15px]",
-                preferences.menuTextSize === size
-                  ? "border-maple-600 bg-maple-50 font-medium text-maple-700 dark:border-maple-500 dark:bg-maple-600/15 dark:text-maple-400"
-                  : "border-stone-200 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800",
-              )}
-            >
-              <input
-                type="radio"
-                name="menuTextSize"
-                value={size}
-                checked={preferences.menuTextSize === size}
-                onChange={() => save({ menuTextSize: size })}
-                className="sr-only"
-              />
-              {size}
-            </label>
-          ))}
-        </div>
-        <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">The size of the items in the side menu.</p>
-      </fieldset>
-
       <div className="mt-5">
         <label htmlFor={`${id}-week`} className="mb-2 block text-sm font-medium">
           Week starts on
@@ -165,7 +137,51 @@ export function AppearanceSection() {
   );
 }
 
-/** Which tabs and cards the app shows. Turning one off hides it but keeps its notes. */
+/** The side menu: the order of its items, and how large they are. */
+export function MenuSection() {
+  const preferences = usePreferences();
+  const save = useSavePreferences();
+
+  return (
+    <>
+      <Section title="Menu order" description="Arrange the side menu's items the way you use them. The order follows you to every device.">
+        <MenuOrderEditor />
+      </Section>
+      <Section title="Menu text size">
+        <fieldset>
+          <legend className="sr-only">Menu text size</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {MENU_TEXT_SIZES.map((size) => (
+              <label
+                key={size}
+                className={cn(
+                  "flex cursor-pointer items-center justify-center rounded-xl border px-3 py-2.5 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-maple-500",
+                  size === "Small" ? "text-[13px]" : size === "Large" ? "text-[17px]" : "text-[15px]",
+                  preferences.menuTextSize === size
+                    ? "border-maple-600 bg-maple-50 font-medium text-maple-700 dark:border-maple-500 dark:bg-maple-600/15 dark:text-maple-400"
+                    : "border-stone-200 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="menuTextSize"
+                  value={size}
+                  checked={preferences.menuTextSize === size}
+                  onChange={() => save({ menuTextSize: size })}
+                  className="sr-only"
+                />
+                {size}
+              </label>
+            ))}
+          </div>
+          <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">The size of the items in the side menu.</p>
+        </fieldset>
+      </Section>
+    </>
+  );
+}
+
+/** Which pages and tools the app shows. Turning one off hides it but keeps its notes. */
 export function FeaturesSection() {
   const preferences = usePreferences();
   const save = useSavePreferences();
@@ -174,114 +190,131 @@ export function FeaturesSection() {
   const [confirmPreviews, setConfirmPreviews] = useState(false);
 
   return (
-    <Section title="Features" description="Turning a feature off hides it; nothing is deleted.">
-      <div className="divide-y divide-stone-100 dark:divide-stone-800">
-        <PreferenceSwitch
-          label="Todo lists"
-          description="A Todo tab for checklists you create and tick off."
-          checked={preferences.todoLists}
-          onChange={(todoLists) => save({ todoLists })}
-        />
-        <PreferenceSwitch
-          label="Quick notes"
-          description="A Quick notes tab: a scratchpad for short notes that stay out of your timeline."
-          checked={preferences.quickNotes}
-          onChange={(quickNotes) => save({ quickNotes })}
-        />
-        <PreferenceSwitch
-          label="Daily notes"
-          description="Show today's note at the top of Home, titled with the date. It is saved the first time you write in it, so days you skip leave no empty notes."
-          checked={preferences.dailyNotes}
-          onChange={(dailyNotes) => save({ dailyNotes })}
-        />
-        <PreferenceSwitch
-          label="Calendar"
-          description="A month calendar in the side menu. Days with notes are marked; choose one to see its notes."
-          checked={preferences.calendar}
-          onChange={(calendar) => save({ calendar })}
-        />
-        <PreferenceSwitch
-          label="Habit tracker"
-          description="A Habits tab: tick off your daily habits and see your progress in a chart."
-          checked={preferences.habitTracker}
-          onChange={(habitTracker) => save({ habitTracker })}
-        />
-        <PreferenceSwitch
-          label="Archive"
-          description="An Archive page for notes you put away, and the Archive action on notes and lists. Turning it off hides them; archived notes are kept."
-          checked={preferences.archive}
-          onChange={(archive) => save({ archive })}
-        />
-        <PreferenceSwitch
-          label="Tags page"
-          description="A Tags page listing every tag with how many notes use it. Tags in your notes work either way."
-          checked={preferences.tags}
-          onChange={(tags) => save({ tags })}
-        />
-        <PreferenceSwitch
-          label="Double-tap to edit"
-          description="Double-tap a note, or double-click it, to start editing it. Its ⋯ menu still has Edit too."
-          checked={preferences.doubleTapToEdit}
-          onChange={(doubleTapToEdit) => save({ doubleTapToEdit })}
-        />
-        <PreferenceSwitch
-          label="Shrink photos before uploading"
-          description="Large photos are resized to 2560 pixels on their longest side and saved as JPEG, often a tenth of the size. Their location and camera details are left out too. Photos already uploaded stay as they are."
-          checked={preferences.shrinkPhotos}
-          onChange={(shrinkPhotos) => save({ shrinkPhotos })}
-        />
-        {status?.linkPreviewsAvailable && (
+    <>
+      <Section title="Pages" description="Each one adds a page to the side menu. Turning one off hides it; nothing is deleted.">
+        <div className="divide-y divide-stone-100 dark:divide-stone-800">
           <PreferenceSwitch
-            label="Link previews"
-            description={
-              <>
-                Show the title and description of links in your notes.
-                <span className="mt-1 flex items-start gap-1.5 text-amber-800 dark:text-amber-300">
-                  <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                  <span>
-                    Privacy cost: this server visits each linked page, so it learns which links you save
-                    {endToEnd ? <strong> — even though your notes are end-to-end encrypted</strong> : null}.
-                  </span>
-                </span>
-              </>
-            }
-            checked={preferences.linkPreviews}
-            // Turning previews on asks first; turning them off is immediate.
-            onChange={(linkPreviews) => (linkPreviews ? setConfirmPreviews(true) : save({ linkPreviews: false }))}
+            label="Todo lists"
+            description="A Todo tab for checklists you create and tick off."
+            checked={preferences.todoLists}
+            onChange={(todoLists) => save({ todoLists })}
           />
-        )}
-        <ConfirmDialog
-          open={confirmPreviews}
-          onOpenChange={setConfirmPreviews}
-          title="Turn on link previews?"
-          description={
-            <>
-              <p>To show a preview, this server visits every link in the notes you open. That means:</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                <li>
-                  The server learns the addresses you save.
-                  {endToEnd && (
-                    <strong> Your notes are end-to-end encrypted, but the links in them would no longer be private from the server.</strong>
-                  )}
-                </li>
-                <li>The sites you link to see a visit from the server, though not from you.</li>
-                <li>A link can make the server fetch a page you did not mean to open. The server only visits public web addresses.</li>
-              </ul>
-              <p className="mt-2">You can turn previews off again at any time.</p>
-            </>
-          }
-          confirmLabel="Turn on"
-          onConfirm={() => {
-            setConfirmPreviews(false);
-            save({ linkPreviews: true });
-          }}
-        />
-      </div>
-    </Section>
+          <PreferenceSwitch
+            label="Quick notes"
+            description="A Quick notes tab: a scratchpad for short notes that stay out of your timeline."
+            checked={preferences.quickNotes}
+            onChange={(quickNotes) => save({ quickNotes })}
+          />
+          <PreferenceSwitch
+            label="Habit tracker"
+            description="A Habits tab: tick off your daily habits and see your progress in a chart."
+            checked={preferences.habitTracker}
+            onChange={(habitTracker) => save({ habitTracker })}
+          />
+          <PreferenceSwitch
+            label="Tags page"
+            description="A Tags page listing every tag with how many notes use it. Tags in your notes work either way."
+            checked={preferences.tags}
+            onChange={(tags) => save({ tags })}
+          />
+          <PreferenceSwitch
+            label="Archive"
+            description="An Archive page for notes you put away, and the Archive action on notes and lists. Turning it off hides them; archived notes are kept."
+            checked={preferences.archive}
+            onChange={(archive) => save({ archive })}
+          />
+        </div>
+      </Section>
+
+      <Section title="Home and menu">
+        <div className="divide-y divide-stone-100 dark:divide-stone-800">
+          <PreferenceSwitch
+            label="Daily notes"
+            description="Show today's note at the top of Home, titled with the date. It is saved the first time you write in it, so days you skip leave no empty notes."
+            checked={preferences.dailyNotes}
+            onChange={(dailyNotes) => save({ dailyNotes })}
+          />
+          <PreferenceSwitch
+            label="Calendar"
+            description="A month calendar in the side menu. Days with notes are marked; choose one to see its notes."
+            checked={preferences.calendar}
+            onChange={(calendar) => save({ calendar })}
+          />
+          <PreferenceSwitch
+            label="Labels"
+            description="Coloured labels you put on notes and todo lists from their ⋯ menu, listed in the side menu. Manage them under Settings → Labels."
+            checked={preferences.labels}
+            onChange={(labels) => save({ labels })}
+          />
+        </div>
+      </Section>
+
+      <Section title="Notes and files">
+        <div className="divide-y divide-stone-100 dark:divide-stone-800">
+          <PreferenceSwitch
+            label="Trash"
+            description="Deleted notes go to the trash, where you can restore them for 30 days; it is in Settings → Backup & data. Off, deleting is immediate and permanent."
+            checked={preferences.trash}
+            onChange={(trash) => save({ trash })}
+          />
+          <PreferenceSwitch
+            label="Shrink photos before uploading"
+            description="Large photos are resized to 2560 pixels on their longest side and saved as JPEG, often a tenth of the size. Their location and camera details are left out too. Photos already uploaded stay as they are."
+            checked={preferences.shrinkPhotos}
+            onChange={(shrinkPhotos) => save({ shrinkPhotos })}
+          />
+          {status?.linkPreviewsAvailable && (
+            <PreferenceSwitch
+              label="Link previews"
+              description={
+                <>
+                  Show the title and description of links in your notes.
+                  <span className="mt-1 flex items-start gap-1.5 text-amber-800 dark:text-amber-300">
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    <span>
+                      Privacy cost: this server visits each linked page, so it learns which links you save
+                      {endToEnd ? <strong> — even though your notes are end-to-end encrypted</strong> : null}.
+                    </span>
+                  </span>
+                </>
+              }
+              checked={preferences.linkPreviews}
+              // Turning previews on asks first; turning them off is immediate.
+              onChange={(linkPreviews) => (linkPreviews ? setConfirmPreviews(true) : save({ linkPreviews: false }))}
+            />
+          )}
+        </div>
+      </Section>
+
+      <ConfirmDialog
+        open={confirmPreviews}
+        onOpenChange={setConfirmPreviews}
+        title="Turn on link previews?"
+        description={
+          <>
+            <p>To show a preview, this server visits every link in the notes you open. That means:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>
+                The server learns the addresses you save.
+                {endToEnd && <strong> Your notes are end-to-end encrypted, but the links in them would no longer be private from the server.</strong>}
+              </li>
+              <li>The sites you link to see a visit from the server, though not from you.</li>
+              <li>A link can make the server fetch a page you did not mean to open. The server only visits public web addresses.</li>
+            </ul>
+            <p className="mt-2">You can turn previews off again at any time.</p>
+          </>
+        }
+        confirmLabel="Turn on"
+        onConfirm={() => {
+          setConfirmPreviews(false);
+          save({ linkPreviews: true });
+        }}
+      />
+    </>
   );
 }
 
-/** Titles, and dates in titles and daily notes. */
+/** Titles, and dates in titles and daily notes; then how writing and editing behave. */
 export function WritingSection() {
   const preferences = usePreferences();
   const save = useSavePreferences();
@@ -289,7 +322,7 @@ export function WritingSection() {
   const today = new Date();
 
   return (
-    <Section title="Writing">
+    <Section title="Titles and dates">
       <div className="divide-y divide-stone-100 dark:divide-stone-800">
         <PreferenceSwitch
           label="Note titles"
@@ -329,6 +362,31 @@ export function WritingSection() {
           </select>
           <p className="text-sm text-stone-600 dark:text-stone-300">Used for dates in titles and for daily notes.</p>
         </div>
+      </div>
+    </Section>
+  );
+}
+
+/** How writing and editing behave: tag suggestions and double-tap to edit. */
+export function EditingSection() {
+  const preferences = usePreferences();
+  const save = useSavePreferences();
+
+  return (
+    <Section title="Editing">
+      <div className="divide-y divide-stone-100 dark:divide-stone-800">
+        <PreferenceSwitch
+          label="Suggest tags while typing"
+          description="When you type # in a note, your existing tags that match are offered; choose one with the arrows and Enter, or tap it."
+          checked={preferences.tagSuggestions}
+          onChange={(tagSuggestions) => save({ tagSuggestions })}
+        />
+        <PreferenceSwitch
+          label="Double-tap to edit"
+          description="Double-tap a note, or double-click it, to start editing it. Its ⋯ menu still has Edit too."
+          checked={preferences.doubleTapToEdit}
+          onChange={(doubleTapToEdit) => save({ doubleTapToEdit })}
+        />
       </div>
     </Section>
   );

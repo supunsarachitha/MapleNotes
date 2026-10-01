@@ -131,13 +131,15 @@ worker that converts between `None` and `Server` never touches end-to-end conten
 
 **Changing mode with existing content.** Only the browser holds the data key, so it converts:
 
-1. `GET /api/v1/account/conversion?limit=n` returns the next items: in end-to-end mode the notes and files that are
-   not end-to-end yet (notes with their plain text), in any other mode the end-to-end ones (notes as envelopes, files
-   with their encrypted metadata), and how many remain. File content comes from the file's usual URL.
+1. `GET /api/v1/account/conversion?limit=n` returns the next items: in end-to-end mode the notes, files and labels
+   that are not end-to-end yet (notes with their plain text, labels with their names), in any other mode the
+   end-to-end ones (notes as envelopes, files with their encrypted metadata, labels with their encrypted names), and how
+   many remain. File content comes from the file's usual URL.
 2. The browser converts each item and sends it back on its own: `PUT …/conversion/notes/{id}` with the encrypted text
-   and tags (entering) or the plain text (leaving), together with the note's `updatedAtUtc` from the batch; and
+   and tags (entering) or the plain text (leaving), together with the note's `updatedAtUtc` from the batch;
    `PUT …/conversion/attachments/{id}` with the file encrypted for its existing ID plus its encrypted metadata
-   (entering), or the plain file with its name and type (leaving).
+   (entering), or the plain file with its name and type (leaving); and `PUT /api/v1/labels/{id}` with the label's name
+   encrypted for its ID (entering) or decrypted (leaving), §4a.
 3. The server applies a note only if it was not edited since the batch (`updatedAtUtc` unchanged) and is not converted
    yet (409 otherwise, and the browser moves on), and keeps the note's timestamps: converting is not editing. A file is
    written under a new storage key before its row switches, so a crash leaves one complete version.
@@ -148,7 +150,8 @@ Leaving is `PUT /api/v1/account/encryption` to `Off` or `AtRest`; while the acco
 same request with `EndToEnd` switches back and reuses that key. **Key cleanup:** in end-to-end mode the server deletes
 its own data key as soon as no server-encrypted item is left, and then holds no key to any of the account's content;
 in any other mode it deletes the end-to-end key material (both wrapped keys and the recovery key's hash) as soon as no
-end-to-end item is left. Until then each key stays, so an interrupted change never strands content.
+end-to-end item is left, label names included. Until then each key stays, so an interrupted change never strands
+content.
 
 ## 4. Tags
 
@@ -165,6 +168,24 @@ end-to-end item is left. Until then each key stays, so an interrupted change nev
   repeated `tagToken` parameters. The browser knows these from the decrypted tag list, which it loads first if needed.
 - **Names in filters:** the browser adds `tag=work` only while plain-text notes of the account carry that tag (during
   a conversion), so the server never receives a tag name it does not already store.
+
+## 4a. Labels
+
+Labels are coloured markers the owner puts on notes by hand (version 1.8). Unlike tags they are not part of a note's
+text, so they have their own records.
+
+- **ID:** in end-to-end mode the browser chooses each new label's ID (a UUID version 7, checked like a note's) and
+  sends it with the encrypted name; the server refuses a plain name from an end-to-end account (409) and an
+  encrypted one from any other account (409).
+- **Name:** the name as written (trimmed; at most 40 characters), as UTF-8, sealed as an envelope (§2) with
+  `metadataKey` under the context `maple-notes/v2/e2ee/label/{userId:N}/{labelId:N}`. Binding the label's ID means a
+  name moved to another label does not open. Renaming seals the new name again for the same ID.
+- **What stays readable:** the colour (one of ten), when the label was created, and which notes carry it. The
+  note–label links are what lets the server list a label's notes (`GET /api/v1/notes?label={id}`) and count them, as
+  tag tokens do for tags. `GET /api/v1/labels` returns `{ id, name: null, encryptedName, color, noteCount }` for such
+  labels; the browser decrypts the names.
+- **Changing mode:** labels are converted with the notes and files (§3): the server lists the labels whose names are
+  not in the account's current form, and the browser saves each name again with `PUT /api/v1/labels/{id}`.
 
 ## 5. Attachments
 
@@ -262,8 +283,8 @@ all saved copies. Re-issuing the cookie for the same session (a password change 
 ## 8. Test vectors
 
 `src/maple-web/src/crypto/test-vectors.json` fixes every input: the password, salts, nonces, data key, recovery key,
-IDs and a two-chunk attachment. It also records every output: the derived keys, the envelopes, the tag token, the
-displayed recovery key, and the SHA-256 of the encrypted attachment. The vectors use the minimum Argon2 parameters so
+IDs and a two-chunk attachment. It also records every output: the derived keys, the envelopes (a label name's
+included), the tag token, the displayed recovery key, and the SHA-256 of the encrypted attachment. The vectors use the minimum Argon2 parameters so
 the tests stay fast. The C# test (`tests/MapleNotes.Server.Tests/E2ee/E2eeVectorTests.cs`) regenerates the file when
 `MAPLE_WRITE_VECTORS=1` is set and otherwise verifies it; the TypeScript test
 (`src/maple-web/src/crypto/vectors.test.ts`) verifies it with the browser code.

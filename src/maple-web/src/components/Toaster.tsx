@@ -2,14 +2,21 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { X } from "lucide-react";
 import { cn } from "./ui";
 
+/** A button in a toast, such as Undo; choosing it also dismisses the toast. */
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface Toast {
   id: number;
   message: string;
   tone: "info" | "error";
+  action?: ToastAction;
 }
 
 interface ToastApi {
-  info: (message: string) => void;
+  info: (message: string, action?: ToastAction) => void;
   error: (message: string) => void;
 }
 
@@ -24,16 +31,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const dismiss = useCallback((id: number) => setToasts((current) => current.filter((t) => t.id !== id)), []);
 
   const show = useCallback(
-    (message: string, tone: Toast["tone"]) => {
+    (message: string, tone: Toast["tone"], action?: ToastAction) => {
       const id = nextId++;
-      setToasts((current) => [...current.slice(-2), { id, message, tone }]);
-      window.setTimeout(() => dismiss(id), tone === "error" ? 8000 : 4000);
+      setToasts((current) => [...current.slice(-2), { id, message, tone, action }]);
+      // A toast with a button stays longer, to give time to reach it.
+      window.setTimeout(() => dismiss(id), tone === "error" || action ? 8000 : 4000);
     },
     [dismiss],
   );
 
   const api = useMemo<ToastApi>(
-    () => ({ info: (m) => show(m, "info"), error: (m) => show(m, "error") }),
+    () => ({ info: (m, action) => show(m, "info", action), error: (m) => show(m, "error") }),
     [show],
   );
 
@@ -54,6 +62,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             )}
           >
             <span className="flex-1">{toast.message}</span>
+            {toast.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  dismiss(toast.id);
+                  toast.action!.onClick();
+                }}
+                className="-my-1 shrink-0 rounded-md px-2 py-1 font-semibold text-maple-400 hover:bg-white/10 dark:text-maple-700 dark:hover:bg-black/10"
+              >
+                {toast.action.label}
+              </button>
+            )}
             <button type="button" aria-label="Dismiss" onClick={() => dismiss(toast.id)} className="opacity-70 hover:opacity-100">
               <X className="size-4" />
             </button>

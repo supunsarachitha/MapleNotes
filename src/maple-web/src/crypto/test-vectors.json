@@ -13,7 +13,8 @@
   "ids": {
     "userId": "0192f3a1-7c2e-7d4b-9a1c-3e5f7a9b1c2d",
     "noteId": "0192f3a2-0000-7abc-8def-0123456789ab",
-    "attachmentId": "0192f3a3-1111-7222-8333-444455556666"
+    "attachmentId": "0192f3a3-1111-7222-8333-444455556666",
+    "labelId": "0192f3a4-2222-7333-8444-555566667777"
   },
   "dataKeyB64": "AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dw=",
   "subkeys": {
@@ -56,5 +57,10 @@
     "json": "{\u0022name\u0022:\u0022sunset.png\u0022,\u0022type\u0022:\u0022image/png\u0022,\u0022size\u0022:70000}",
     "nonceB64": "8PHy8/T19vf4\u002Bfr7",
     "envelopeB64": "AQHw8fLz9PX29/j5\u002BvvoJSrEw\u002ByNabJ4p8UVQ9f0vTmSPPWMpjjaumY38Ilohu26RM\u002BFRmXL5GkhBxfcaVXJwcpSXBGCMTGdb5ZuQlf3GvUsUkA="
+  },
+  "label": {
+    "name": "Caf\u00E9 plans \uD83C\uDF41",
+    "nonceB64": "kJGSk5SVlpeYmZqb",
+    "encryptedNameB64": "AQGQkZKTlJWWl5iZmpvalGb\u002BlkcLLuFvRcDA67sBUWzV\u002B9m/5uyaoYDF9S5mTg=="
   }
 }

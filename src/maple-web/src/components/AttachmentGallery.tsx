@@ -1,15 +1,22 @@
-import { FileText } from "lucide-react";
-import { useState } from "react";
+import { FileText, Play } from "lucide-react";
+import { useRef, useState } from "react";
 import { formatBytes } from "../lib/format";
 import { useAttachmentSrc } from "../lib/mediaWorker";
 import type { Attachment } from "../lib/types";
+import { useNearViewport } from "../lib/viewport";
 import { ImageViewer } from "./ImageViewer";
 import { cn, Spinner } from "./ui";
 
+// Pictures, players and files of notes far down a long list load only as they come near the screen: the browser does
+// that by itself for plain pictures (loading="lazy"), and these components do it for players, which fetch part of
+// their file as soon as they exist, and for end-to-end files decrypted in the page.
+
 function GalleryImage({ image, single, onOpen }: { image: Attachment; single: boolean; onOpen: () => void }) {
-  const src = useAttachmentSrc(image);
+  const box = useRef<HTMLButtonElement>(null);
+  const src = useAttachmentSrc(image, { load: useNearViewport(box) });
   return (
     <button
+      ref={box}
       type="button"
       onClick={onOpen}
       aria-label={`View ${image.fileName}`}
@@ -36,28 +43,42 @@ function GalleryImage({ image, single, onOpen }: { image: Attachment; single: bo
 }
 
 function VideoPlayer({ video }: { video: Attachment }) {
-  const src = useAttachmentSrc(video);
+  const box = useRef<HTMLDivElement>(null);
+  const near = useNearViewport(box);
+  const src = useAttachmentSrc(video, { load: near });
   return (
-    <video src={src} controls preload="metadata" aria-label={video.fileName} className="w-full rounded-xl bg-black">
-      <track kind="captions" />
-    </video>
+    <div ref={box}>
+      {near ? (
+        <video src={src} controls preload="metadata" aria-label={video.fileName} className="w-full rounded-xl bg-black">
+          <track kind="captions" />
+        </video>
+      ) : (
+        <div aria-label={video.fileName} role="img" className="flex aspect-video w-full items-center justify-center rounded-xl bg-black">
+          <Play className="size-8 text-white/70" aria-hidden="true" />
+        </div>
+      )}
+    </div>
   );
 }
 
 function AudioPlayer({ clip }: { clip: Attachment }) {
-  const src = useAttachmentSrc(clip);
+  const box = useRef<HTMLDivElement>(null);
+  const near = useNearViewport(box);
+  const src = useAttachmentSrc(clip, { load: near });
   return (
-    <div className="flex flex-col gap-1">
+    <div ref={box} className="flex flex-col gap-1">
       <span className="text-xs text-stone-500 dark:text-stone-400">{clip.fileName}</span>
-      <audio src={src} controls preload="metadata" className="w-full" />
+      {near ? <audio src={src} controls preload="metadata" className="w-full" /> : <div className="h-[54px] w-full rounded-full bg-stone-100 dark:bg-stone-800" />}
     </div>
   );
 }
 
 function FileLink({ file }: { file: Attachment }) {
-  const href = useAttachmentSrc(file, { download: true });
+  const link = useRef<HTMLAnchorElement>(null);
+  const href = useAttachmentSrc(file, { download: true, load: useNearViewport(link) });
   return (
     <a
+      ref={link}
       href={href}
       download={file.endToEnd ? file.fileName : undefined}
       aria-disabled={!href}

@@ -26,7 +26,7 @@ describe("Help", () => {
     for (const section of GUIDE) {
       expect(screen.getByRole("region", { name: section.title })).toBeInTheDocument();
     }
-    expect(within(screen.getByRole("region", { name: "Link previews" })).getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+    expect(within(screen.getByRole("region", { name: "Link previews" })).getByRole("link", { name: "Settings → Features" })).toHaveAttribute("href", "/settings/features");
   });
 
   it("jumps to a section from the contents", async () => {

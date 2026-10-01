@@ -17,6 +17,9 @@ public static class EndToEndContent
     /// <summary>Largest encrypted tag name: 64 characters of at most 4 UTF-8 bytes each, plus the overhead.</summary>
     public const int MaxTagNameEnvelopeBytes = EnvelopeOverhead + (64 * 4);
 
+    /// <summary>Largest encrypted label name: 40 characters of at most 4 UTF-8 bytes each, plus the overhead.</summary>
+    public const int MaxLabelNameEnvelopeBytes = EnvelopeOverhead + (Domain.Label.MaxNameLength * 4);
+
     /// <summary>Most tags one note may carry.</summary>
     public const int MaxTagsPerNote = 100;
 

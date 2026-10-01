@@ -18,7 +18,7 @@
 /* Windows shorter than 900 px: the side menu and its calendar tighten so they fit without scrolling. */
 @custom-variant short (@media (max-height: 56.25rem));
 
-/* The side menu's items. Each account chooses the text size (Settings → Appearance), which scales them all. */
+/* The side menu's items. Each account chooses the text size (Settings → Side menu), which scales them all. */
 [data-menu] {
   --menu-scale: 1;
   --menu-text: calc(15px * var(--menu-scale));
@@ -197,4 +197,14 @@ body {
 }
 .markdown img {
   @apply max-w-full rounded-lg;
+}
+
+/*
+ * Cards in long lists of notes. The browser skips laying out and painting cards that are far off screen, so a list of
+ * hundreds of notes scrolls as smoothly as a short one; `auto` remembers each card's real height once it has been
+ * shown, so the scroll bar does not jump. Find in page and screen readers still see every card.
+ */
+.note-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 10rem;
 }

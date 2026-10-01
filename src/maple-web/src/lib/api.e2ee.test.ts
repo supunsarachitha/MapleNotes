@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { encryptNote, tagToken } from "../crypto/content";
+import { decryptLabelName, encryptLabelName, encryptNote, tagToken } from "../crypto/content";
 import { importDataKey, type DataKeys } from "../crypto/datakey";
 import { fromBase64, toBase64 } from "../crypto/encoding";
 import v from "../crypto/test-vectors.json";
@@ -95,5 +95,34 @@ describe("api client with end-to-end notes", () => {
     expect(url(0).searchParams.has("q")).toBe(false); // the server never sees the search
     expect(url(0).searchParams.get("limit")).toBe("100");
     expect(url(1).searchParams.get("cursor")).toBe("c1");
+  });
+
+  it("encrypts label names for the label's own ID, and decrypts them when listing", async () => {
+    fetchMock.mockImplementationOnce(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string) as { id: string; encryptedName: string; color: string };
+      return json({ id: body.id, name: null, encryptedName: body.encryptedName, color: body.color, noteCount: 0 }, 201);
+    });
+
+    const created = await api.labels.create("Zanzibar trip", "Teal");
+
+    const sent = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string) as Record<string, string>;
+    expect(sent).not.toHaveProperty("name");
+    expect(JSON.stringify(sent)).not.toContain("Zanzibar");
+    expect(await decryptLabelName(keys, userId, sent.id!, fromBase64(sent.encryptedName!))).toBe("Zanzibar trip");
+    expect(created).toEqual({ id: sent.id, name: "Zanzibar trip", color: "Teal", noteCount: 0 });
+
+    const other = "0192f3a4-0000-7000-8000-000000000002";
+    fetchMock.mockResolvedValueOnce(
+      json([
+        { id: v.ids.labelId, name: null, encryptedName: toBase64(await encryptLabelName(keys, userId, v.ids.labelId, "Work")), color: "Blue", noteCount: 2 },
+        { id: other, name: null, encryptedName: toBase64(await encryptLabelName(keys, userId, v.ids.labelId, "moved")), color: "Red", noteCount: 0 },
+        { id: "0192f3a4-0000-7000-8000-000000000003", name: "Archive", color: "Grey", noteCount: 1 },
+      ]),
+    );
+    expect(await api.labels.list()).toEqual([
+      { id: "0192f3a4-0000-7000-8000-000000000003", name: "Archive", color: "Grey", noteCount: 1 },
+      { id: other, name: "Encrypted label", color: "Red", noteCount: 0 }, // a name moved to another label does not open
+      { id: v.ids.labelId, name: "Work", color: "Blue", noteCount: 2 },
+    ]);
   });
 });

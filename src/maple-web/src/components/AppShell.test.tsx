@@ -21,6 +21,10 @@ const user: User = {
 
 function renderShell(preferences: Partial<Preferences>, branding?: AuthStatus["branding"]) {
   vi.spyOn(api, "listTags").mockResolvedValue([]);
+  vi.spyOn(api.labels, "list").mockResolvedValue([
+    { id: "l-work", name: "Work", color: "Blue", noteCount: 4 },
+    { id: "l-home", name: "Home", color: "Green", noteCount: 0 },
+  ]);
   vi.spyOn(api, "calendar").mockResolvedValue([]);
   const account = { ...user, preferences: { ...DEFAULT_PREFERENCES, ...preferences } };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
@@ -56,5 +60,26 @@ describe("AppShell", () => {
     expect(screen.queryByText("Maple Notes")).not.toBeInTheDocument();
     expect(container.querySelector('img[src="/api/v1/branding/icon?v=abc"]')).toBeInTheDocument();
     expect(container.querySelector('[data-menu="large"]')).toBeInTheDocument();
+  });
+
+  it("orders the menu as the user chose, leaving out pages that are turned off", () => {
+    renderShell({ menuOrder: "help,settings,todo", habitTracker: false });
+
+    const links = within(screen.getByRole("navigation", { name: "Main" })).getAllByRole("link");
+    expect(links.map((link) => link.textContent)).toEqual(["Help", "Settings", "Todo", "Home", "Quick notes", "Tags", "Archive"]);
+  });
+
+  it("lists the labels under the menu while labels are on", async () => {
+    const { unmount } = renderShell({ labels: true });
+
+    const labels = await screen.findByRole("navigation", { name: "Labels" });
+    expect(within(labels).getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["Work4", "/?label=l-work"],
+      ["Home", "/?label=l-home"],
+    ]);
+    unmount();
+
+    renderShell({});
+    expect(screen.queryByRole("navigation", { name: "Labels" })).not.toBeInTheDocument();
   });
 });

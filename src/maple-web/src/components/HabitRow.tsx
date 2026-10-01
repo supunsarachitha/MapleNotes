@@ -3,11 +3,12 @@ import { Archive, ArchiveRestore, Check, MoreHorizontal, Pencil, Trash2 } from "
 import { useRef, useState, type KeyboardEvent } from "react";
 import { dateOf, parseHabit, serializeHabit, toggleDay, type Habit } from "../lib/habits";
 import { saveErrorMessage } from "../lib/apiError";
+import { focusAtEndRef } from "../lib/focus";
 import { useNoteEditor } from "../lib/noteEditor";
-import { useDeleteNote, usePatchNote } from "../lib/queries";
+import { usePatchNote } from "../lib/queries";
 import type { Note } from "../lib/types";
-import { ConfirmDialog } from "./ConfirmDialog";
 import { MenuItem } from "./NoteCard";
+import { useRemoveNote } from "./NoteRemoval";
 import { useToast } from "./Toaster";
 import { Button, IconButton, cn } from "./ui";
 
@@ -34,7 +35,7 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
   );
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const removal = useRemoveHabit(note, habit);
   // Renaming starts once the menu has closed: while it is open, it keeps focus inside itself.
   const renameAfterClose = useRef(false);
   const patch = usePatchNote();
@@ -61,7 +62,7 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
     <li className={cn(HABIT_ROW, "py-2.5")}>
       {renaming ? (
         <input
-          autoFocus
+          ref={focusAtEndRef}
           aria-label="Habit name"
           value={draft}
           maxLength={300}
@@ -116,8 +117,8 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
               Archive
             </MenuItem>
             <DropdownMenu.Separator className="my-1 h-px bg-stone-200 dark:bg-stone-700" />
-            <MenuItem icon={Trash2} danger onSelect={() => setConfirmDelete(true)}>
-              Delete…
+            <MenuItem icon={Trash2} danger onSelect={removal.start}>
+              {removal.menuLabel}
             </MenuItem>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
@@ -150,7 +151,7 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
         })}
       </div>
 
-      <DeleteHabitDialog note={note} habit={habit} open={confirmDelete} onOpenChange={setConfirmDelete} />
+      {removal.dialog}
     </li>
   );
 }
@@ -158,7 +159,7 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
 /** An archived habit: out of the list and the chart, with its history kept, until it is restored or deleted. */
 export function ArchivedHabitRow({ note }: { note: Note }) {
   const habit = parseHabit(note.content);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const removal = useRemoveHabit(note, habit);
   const patch = usePatchNote();
   const toast = useToast();
   const name = habitName(habit);
@@ -179,46 +180,20 @@ export function ArchivedHabitRow({ note }: { note: Note }) {
       >
         <ArchiveRestore className="size-4" aria-hidden="true" /> Restore
       </Button>
-      <IconButton label={`Delete ${name}`} onClick={() => setConfirmDelete(true)}>
+      <IconButton label={removal.inTrash ? `Move ${name} to the trash` : `Delete ${name}`} onClick={removal.start}>
         <Trash2 className="size-5" />
       </IconButton>
-      <DeleteHabitDialog note={note} habit={habit} open={confirmDelete} onOpenChange={setConfirmDelete} />
+      {removal.dialog}
     </li>
   );
 }
 
-function DeleteHabitDialog({
-  note,
-  habit,
-  open,
-  onOpenChange,
-}: {
-  note: Note;
-  habit: Habit;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const remove = useDeleteNote();
-  const toast = useToast();
+/** Deleting a habit: into the trash, or for good after confirming when the trash is off. */
+function useRemoveHabit(note: Note, habit: Habit) {
   const history = habit.days.length > 0 ? ` and its history (${dayCount(habit.days.length)} done)` : "";
-
-  return (
-    <ConfirmDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Delete this habit?"
-      description={`"${habitName(habit)}"${history} will be deleted permanently.${note.isArchived ? "" : " To keep its history out of sight instead, archive it."}`}
-      confirmLabel="Delete"
-      busy={remove.isPending}
-      onConfirm={() =>
-        remove.mutate(note.id, {
-          onSuccess: () => {
-            onOpenChange(false);
-            toast.info("Habit deleted.");
-          },
-          onError: () => toast.error("Could not delete the habit."),
-        })
-      }
-    />
-  );
+  return useRemoveNote(note, {
+    noun: "habit",
+    confirmTitle: "Delete this habit?",
+    confirmDescription: `"${habitName(habit)}"${history} will be deleted permanently.${note.isArchived ? "" : " To keep its history out of sight instead, archive it."}`,
+  });
 }

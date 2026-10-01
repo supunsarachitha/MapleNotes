@@ -39,7 +39,11 @@ public sealed class ConversionService(MapleDbContext db, NoteService notes, Atta
             .Where(n => n.UserId == userId && (entering ? n.Scheme != ContentScheme.EndToEnd : n.Scheme == ContentScheme.EndToEnd));
         var pendingAttachments = db.Attachments.AsNoTracking()
             .Where(a => a.UserId == userId && (entering ? a.Scheme != ContentScheme.EndToEnd : a.Scheme == ContentScheme.EndToEnd));
-        var remaining = await pendingNotes.CountAsync(cancellationToken) + await pendingAttachments.CountAsync(cancellationToken);
+        var pendingLabels = db.Labels.AsNoTracking()
+            .Where(l => l.UserId == userId && (entering ? l.Name != null : l.EncryptedName != null));
+        var remaining = await pendingNotes.CountAsync(cancellationToken)
+            + await pendingAttachments.CountAsync(cancellationToken)
+            + await pendingLabels.CountAsync(cancellationToken);
 
         var take = Math.Clamp(limit ?? 20, 1, MaxBatchSize);
         var noteBatch = await pendingNotes.OrderBy(n => n.CreatedAtUtc).ThenBy(n => n.Id).Take(take).ToListAsync(cancellationToken);
@@ -59,7 +63,13 @@ public sealed class ConversionService(MapleDbContext db, NoteService notes, Atta
                 ? new ConversionAttachment(a.Id, a.FileName, a.ContentType, a.SizeBytes, null)
                 : new ConversionAttachment(a.Id, null, null, a.SizeBytes, a.EncryptedMetadata))
             .ToList();
-        return new ConversionBatchResponse(mode, remaining, convertNotes, convertAttachments);
+        var room = take - noteBatch.Count - attachmentBatch.Count;
+        var convertLabels = room <= 0
+            ? []
+            : await pendingLabels.OrderBy(l => l.CreatedAtUtc).ThenBy(l => l.Id).Take(room)
+                .Select(l => new ConversionLabel(l.Id, l.Name, l.EncryptedName))
+                .ToListAsync(cancellationToken);
+        return new ConversionBatchResponse(mode, remaining, convertNotes, convertAttachments, convertLabels);
     }
 
     /// <summary>Applies the browser's conversion of one note.</summary>
