@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-30
+
+Titles for quick notes, checkboxes you can tick right in a note, double-tap to edit, and editing a whole todo list as
+Markdown.
+
+### Added
+
+- **Titles on quick notes** (Settings → Writing, off by default): with note titles on, quick notes get a title field
+  too, both when you jot one down and when you edit it.
+- **Double-tap to edit** (Settings → Features, off by default): double-tap a note on a touch screen, or double-click
+  it, to edit it. Links, checkboxes, pictures, players and the note's menu work as before, and archived notes are
+  left alone.
+- **Edit as Markdown** (a todo list's ⋯ menu): all of a list's items in one text box, one `- [ ]` or `- [x]` line
+  each, to change, reorder, add or remove many at once. Lines without a box become items to do. Ctrl/⌘+Enter saves
+  and Esc cancels.
+
+### Fixed
+
+- **Checkboxes in notes** (task lists such as `- [ ] stamps`) could not be ticked. They now tick and untick with a
+  tap in quick notes, timeline notes and daily notes alike; the tick shows at once and the note is saved in the
+  background. Archived notes keep theirs as they are.
+
+### Changed
+
+- API: preferences gain `quickNoteTitles` and `doubleTapToEdit`.
+
 ## [1.6.0] - 2026-09-30
 
 Your own name and icon for the app, and more ways for each person to set it up for themselves.
@@ -338,7 +364,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/supunsarachitha/MapleNotes/compare/1.3.1...v1.4.0

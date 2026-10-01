@@ -1,7 +1,11 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Archive, ArchiveRestore, Copy, Home, MoreHorizontal, Pencil, Pin, PinOff, Trash2, Zap, type LucideIcon } from "lucide-react";
 import { useState } from "react";
+import { saveErrorMessage } from "../lib/apiError";
+import { useDoubleTap } from "../lib/doubleTap";
 import { formatAbsolute, formatRelative } from "../lib/format";
+import { toggleTask } from "../lib/markdownEdit";
+import { useNoteEditor } from "../lib/noteEditor";
 import { usePreferences } from "../lib/preferences";
 import { useAuthStatus } from "../lib/queries";
 import { useDeleteNote, usePatchNote } from "../lib/queries";
@@ -42,9 +46,13 @@ export function MenuItem({
   );
 }
 
+const same = (content: string) => content;
+
 /**
  * One note in a list: rendered Markdown, attachments, and an actions menu (pin, edit, move between Home and quick
- * notes, archive, delete). Lists that mix kinds label todo lists and quick notes.
+ * notes, archive, delete). Lists that mix kinds label todo lists and quick notes. Ticking a checkbox in the note
+ * shows at once and is saved in the background (lib/noteEditor.ts); with Double-tap to edit on, double-tapping or
+ * double-clicking the note opens it for editing.
  */
 export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boolean }) {
   const [editing, setEditing] = useState(false);
@@ -52,9 +60,13 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
   const patch = usePatchNote();
   const remove = useDeleteNote();
   const toast = useToast();
-  const { noteTitles, quickNotes, linkPreviews, archive } = usePreferences();
+  const { noteTitles, quickNoteTitles, quickNotes, linkPreviews, archive, doubleTapToEdit } = usePreferences();
   const previewsAvailable = useAuthStatus().data?.linkPreviewsAvailable === true;
-  const { title, body } = noteTitles ? splitTitle(note.content) : { title: "", body: note.content };
+  const [content, commit] = useNoteEditor(note, same, same, (error) =>
+    toast.error(saveErrorMessage(error, "A change to this note could not be saved. Please try again.")),
+  );
+  const doubleTap = useDoubleTap(() => setEditing(true));
+  const { title, body } = noteTitles ? splitTitle(content) : { title: "", body: content };
   const edited = new Date(note.updatedAtUtc).getTime() - new Date(note.createdAtUtc).getTime() > 60_000;
 
   function change(changes: { isPinned?: boolean; isArchived?: boolean; kind?: Note["kind"] }, message: string) {
@@ -64,13 +76,27 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
     });
   }
 
-  if (editing) {
-    // Only timeline notes get the title field; quick notes and todo lists are edited as they are.
-    return <Composer note={note} onDone={() => setEditing(false)} allowTitle={note.kind === "Note"} autoFocus />;
+  // The body is the end of the note's text, after any title, so its offsets are shifted by what comes before it.
+  function toggleItem(offset: number) {
+    const next = toggleTask(content, content.length - body.length + offset);
+    if (next !== null) commit(next);
   }
 
+  if (editing) {
+    // Timeline notes get the title field, and quick notes when titles are on for them; todo lists are edited as they are.
+    const allowTitle = note.kind === "Note" || (note.kind === "Quick" && quickNoteTitles);
+    return <Composer note={{ ...note, content }} onDone={() => setEditing(false)} allowTitle={allowTitle} autoFocus />;
+  }
+
+  const tapToEdit = doubleTapToEdit && !note.isArchived;
   return (
-    <article className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+    <article
+      {...(tapToEdit ? doubleTap : {})}
+      className={cn(
+        "rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900",
+        tapToEdit && "touch-manipulation", // no double-tap zoom
+      )}
+    >
       <header className="-mt-1 mb-1 flex items-center gap-2 text-sm text-stone-500 dark:text-stone-400">
         <time dateTime={note.createdAtUtc} title={formatAbsolute(note.createdAtUtc)}>
           {formatRelative(note.createdAtUtc)}
@@ -123,7 +149,7 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
                   icon={Copy}
                   onSelect={() =>
                     void navigator.clipboard
-                      .writeText(note.content)
+                      .writeText(content)
                       .then(() => toast.info("Copied to the clipboard."))
                       .catch(() => toast.error("Copying is not allowed here."))
                   }
@@ -149,8 +175,8 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
       </header>
 
       {title && <h3 className="mb-1 break-words text-lg font-semibold leading-snug">{title}</h3>}
-      {body.trim() && <Markdown content={body} />}
-      {linkPreviews && previewsAvailable && <LinkPreviews content={note.content} />}
+      {body.trim() && <Markdown content={body} onToggleTask={note.isArchived ? undefined : toggleItem} />}
+      {linkPreviews && previewsAvailable && <LinkPreviews content={content} />}
       <AttachmentGallery attachments={note.attachments} />
 
       <ConfirmDialog

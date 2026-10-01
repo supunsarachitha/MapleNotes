@@ -42,7 +42,7 @@ flowchart LR
 | `src/MapleNotes.Server/Infrastructure/` | Cross-cutting code: `Configuration`, `Crypto`, `Persistence` (EF Core, migrations, backups), `Storage` (attachment files), `Hosting`, `Web` (auth, antiforgery, security headers, rate limits). |
 | `src/maple-web/` | React + TypeScript + Vite + Tailwind CSS single-page app. |
 | `src/maple-web/src/crypto/` | Browser cryptography: Argon2id in a Web Worker, HKDF, envelopes, the attachment format, recovery keys, key storage, and the shared test vectors. |
-| `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`), habits (`habits.ts`: a habit's text, streaks and chart periods), and the save queue that todo lists and habits share (`noteEditor.ts`). |
+| `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`), habits (`habits.ts`: a habit's text, streaks and chart periods), and the save queue that todo lists, habits and checkboxes ticked in notes share (`noteEditor.ts`). |
 | `src/maple-web/src/sw/` | The service worker (`/sw.js`, built separately by `vite.sw.config.ts`): decrypts end-to-end media and streams browser exports. |
 | `src/maple-web/src/export/` | The browser export, a port of the server's, with the shared export vectors. |
 | `src/maple-web/src/import/` | Restoring: a ZIP reader, the parser for every export format and for single files, and the runner that restores notes through the API. |
@@ -421,10 +421,11 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 - **Shared vectors:** `test-vectors.json` (every end-to-end derivation and format) and `export-vectors.json` (the
   server's export archives) are written by the C# tests and checked by the web tests, so both implementations agree
   byte for byte.
-- **Web:** about 225 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
+- **Web:** about 250 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
   conversion, the service worker's range decryption, the browser export against the server's archives, restoring
-  those archives, Markdown safety, the composer with titles, todo lists, quick and daily notes, habits and their
-  chart, shrinking photos, preferences, storage limits, and the settings and recovery screens.
+  those archives, Markdown safety and checkboxes ticked in notes, the composer with titles, todo lists (also edited
+  as Markdown), quick and daily notes, double-tap to edit, habits and their chart, shrinking photos, preferences,
+  storage limits, and the settings and recovery screens.
 - **Releases:** additionally tested in a real browser (Playwright, Chromium) against the built container at desktop
   and 375 px widths, including end-to-end setup, unlock, recovery, video seeking, mode changes, export, the 1.2
   to 1.4 features, and export → restore round trips.

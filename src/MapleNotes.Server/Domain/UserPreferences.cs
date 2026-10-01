@@ -40,6 +40,9 @@ public sealed record UserPreferences
     /// <summary>With titles on, start the title of a new note with today's date.</summary>
     public bool DateInTitles { get; init; }
 
+    /// <summary>With titles on, give quick notes a title field too; off by default.</summary>
+    public bool QuickNoteTitles { get; init; }
+
     /// <summary>How dates are written in titles and daily notes: one of <see cref="DateFormats"/>.</summary>
     public string DateFormat { get; init; } = "yyyy-MM-dd";
 
@@ -81,6 +84,9 @@ public sealed record UserPreferences
     /// end-to-end accounts; off by default.
     /// </summary>
     public bool LinkPreviews { get; init; }
+
+    /// <summary>Double-tap (or double-click) a note to edit it, as well as choosing Edit from its menu; off by default.</summary>
+    public bool DoubleTapToEdit { get; init; }
 
     /// <summary>Light or dark: one of <see cref="Themes"/>.</summary>
     public string Theme { get; init; } = "System";

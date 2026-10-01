@@ -87,3 +87,14 @@ export function formatEdit(format: Format, text: string, start: number, end: num
 export function applyEdit(text: string, edit: Edit): string {
   return text.slice(0, edit.start) + edit.insert + text.slice(edit.end);
 }
+
+// A task-list item's marker as it starts in the text: the bullet or number, then `[ ]` or `[x]`.
+const TASK = /^(?:[-*+]|\d{1,9}[.)])[ \t]+\[([ xX])\]/;
+
+/** Ticks or unticks the task-list item whose list marker starts at `offset`; null when no item starts there. */
+export function toggleTask(text: string, offset: number): string | null {
+  const match = TASK.exec(text.slice(offset));
+  if (!match) return null;
+  const box = offset + match[0].length - 2;
+  return text.slice(0, box) + (match[1] === " " ? "x" : " ") + text.slice(box + 1);
+}

@@ -9,6 +9,7 @@ import type { AuthStatus, Preferences } from "./types";
 export const DEFAULT_PREFERENCES: Preferences = {
   noteTitles: false,
   dateInTitles: false,
+  quickNoteTitles: false,
   dateFormat: "yyyy-MM-dd",
   todoLists: true,
   quickNotes: true,
@@ -19,6 +20,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   tags: true,
   shrinkPhotos: false,
   linkPreviews: false,
+  doubleTapToEdit: false,
   theme: "System",
   accent: "Maple",
   menuTextSize: "Medium",

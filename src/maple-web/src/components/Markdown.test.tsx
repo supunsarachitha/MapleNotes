@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { Markdown } from "./Markdown";
 
 describe("Markdown", () => {
@@ -9,6 +10,20 @@ describe("Markdown", () => {
     expect(container.querySelector("strong")).toHaveTextContent("bold");
     expect(container.querySelector("del")).toHaveTextContent("old");
     expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
+  });
+
+  it("ticks task-list items only when the note can be changed, naming each box after its item", async () => {
+    const content = "Plan\n\n- [ ] book **flights**\n- [x] pack\n  - [ ] socks\n\n> 1. [ ] quoted";
+    const view = render(<Markdown content={content} />);
+
+    expect(screen.getByRole("checkbox", { name: "book flights" })).toBeDisabled();
+
+    const toggle = vi.fn();
+    view.rerender(<Markdown content={content} onToggleTask={toggle} />);
+    for (const name of ["book flights", "pack", "socks", "quoted"]) await userEvent.click(screen.getByRole("checkbox", { name }));
+
+    // Where each item's list marker starts in the text.
+    expect(toggle.mock.calls).toEqual([["- [ ] book"], ["- [x] pack"], ["- [ ] socks"], ["1. [ ]"]].map(([marker]) => [content.indexOf(marker!)]));
   });
 
   it("turns #tags into links to the tag view", () => {

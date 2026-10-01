@@ -45,6 +45,8 @@ export interface Preferences {
   noteTitles: boolean;
   /** With titles on, start a new note's title with today's date. */
   dateInTitles: boolean;
+  /** With titles on, give quick notes a title field too. */
+  quickNoteTitles: boolean;
   /** How dates are written in titles and daily notes. */
   dateFormat: DateFormat;
   /** Show the Todo tab. */
@@ -65,6 +67,8 @@ export interface Preferences {
   shrinkPhotos: boolean;
   /** Show previews of links in notes (the server fetches the pages). */
   linkPreviews: boolean;
+  /** Double-tap (or double-click) a note to edit it. */
+  doubleTapToEdit: boolean;
   theme: Theme;
   accent: Accent;
   /** The side menu's text size. */

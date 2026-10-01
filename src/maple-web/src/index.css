@@ -170,6 +170,9 @@ body {
 .markdown li.task-list-item input {
   @apply mt-1.5 size-4 accent-maple-600;
 }
+.markdown li.task-list-item input:enabled {
+  @apply cursor-pointer;
+}
 .markdown blockquote {
   @apply border-l-4 border-stone-300 pl-4 text-stone-600 dark:border-stone-700 dark:text-stone-300;
 }

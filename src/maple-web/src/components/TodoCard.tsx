@@ -1,24 +1,76 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Archive, ArchiveRestore, ListChecks, MoreHorizontal, Pencil, Pin, PinOff, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { Archive, ArchiveRestore, FileText, ListChecks, MoreHorizontal, Pencil, Pin, PinOff, Trash2, X } from "lucide-react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { saveErrorMessage } from "../lib/apiError";
 import { useNoteEditor } from "../lib/noteEditor";
 import { usePreferences } from "../lib/preferences";
 import { useDeleteNote, usePatchNote } from "../lib/queries";
-import { parseTodo, serializeTodo, type TodoList } from "../lib/todo";
+import { parseItems, parseTodo, serializeItems, serializeTodo, type TodoList } from "../lib/todo";
 import type { Note } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MenuItem } from "./NoteCard";
 import { useToast } from "./Toaster";
-import { IconButton, cn } from "./ui";
+import { Button, IconButton, cn } from "./ui";
 
 const inputClass =
   "min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-2 py-1 text-[15px] outline-none focus:border-maple-500 dark:border-stone-700 dark:bg-stone-950";
 
+/** All of a list's items as Markdown in one text box, one per line, for changing many of them at once. */
+function ItemsEditor({ title, initial, onSave, onCancel }: { title: string; initial: string; onSave: (markdown: string) => void; onCancel: () => void }) {
+  const [text, setText] = useState(initial);
+  const textarea = useRef<HTMLTextAreaElement>(null);
+  const hint = useId();
+
+  // Grow the text box with its content, up to a comfortable maximum.
+  useLayoutEffect(() => {
+    const element = textarea.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${Math.min(element.scrollHeight, 480)}px`;
+  }, [text]);
+
+  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      onSave(text);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      onCancel();
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <textarea
+        ref={textarea}
+        autoFocus
+        aria-label={`Items in ${title} as Markdown`}
+        aria-describedby={hint}
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={onKeyDown}
+        rows={3}
+        placeholder="- [ ] An item"
+        className="block w-full resize-none rounded-lg border border-stone-300 bg-white px-2 py-1.5 font-mono text-sm leading-relaxed outline-none focus:border-maple-500 dark:border-stone-700 dark:bg-stone-950"
+      />
+      <p id={hint} className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+        One item per line: <code>- [ ]</code> to do, <code>- [x]</code> done. Other lines become items to do.
+      </p>
+      <div className="mt-2 flex items-center justify-end gap-2">
+        <span className="mr-auto hidden text-xs text-stone-400 sm:inline">Ctrl/⌘ + Enter to save</span>
+        <Button variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button onClick={() => onSave(text)}>Save</Button>
+      </div>
+    </div>
+  );
+}
+
 /**
- * A todo list in the Todo tab: tick, add, edit and remove items, rename, pin, archive or delete the list. Every change
- * shows at once and is saved in the background, one save after another, as the list's Markdown (see lib/todo.ts and
- * lib/noteEditor.ts).
+ * A todo list in the Todo tab: tick, add, edit and remove items, or edit them all at once as Markdown; rename, pin,
+ * archive or delete the list. Every change shows at once and is saved in the background, one save after another, as
+ * the list's Markdown (see lib/todo.ts and lib/noteEditor.ts).
  */
 export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: boolean }) {
   const toast = useToast();
@@ -31,9 +83,11 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
   const [draft, setDraft] = useState("");
   const [newItem, setNewItem] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // The items as Markdown while they are being edited all at once.
+  const [markdown, setMarkdown] = useState<string | null>(null);
   const addInput = useRef<HTMLInputElement>(null);
-  // Renaming starts once the menu has closed: while it is open, it keeps focus inside itself.
-  const renameAfterClose = useRef(false);
+  // Renaming and editing as Markdown start once the menu has closed: while it is open, it keeps focus inside itself.
+  const afterClose = useRef<(() => void) | null>(null);
   const patch = usePatchNote();
   const remove = useDeleteNote();
 
@@ -69,6 +123,12 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
     else if (text !== list.items[index]!.text) {
       commit({ ...list, items: list.items.map((item, i) => (i === index ? { ...item, text } : item)) });
     }
+  }
+
+  function saveMarkdown(text: string) {
+    setMarkdown(null);
+    const items = parseItems(text);
+    if (serializeItems(items) !== serializeItems(list.items)) commit({ ...list, items });
   }
 
   function finishRename() {
@@ -129,11 +189,11 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
               align="end"
               sideOffset={4}
               onCloseAutoFocus={(event) => {
-                if (!renameAfterClose.current) return;
-                renameAfterClose.current = false;
-                event.preventDefault(); // the name field takes focus instead of the menu button
-                setDraft(list.title);
-                setRenaming(true);
+                const start = afterClose.current;
+                if (!start) return;
+                afterClose.current = null;
+                event.preventDefault(); // the field takes focus instead of the menu button
+                start();
               }}
               className="z-50 min-w-48 rounded-xl border border-stone-200 bg-white p-1 text-stone-800 shadow-lg dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
             >
@@ -145,11 +205,27 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
                   <MenuItem
                     icon={Pencil}
                     onSelect={() => {
-                      renameAfterClose.current = true;
+                      afterClose.current = () => {
+                        setDraft(list.title);
+                        setRenaming(true);
+                      };
                     }}
                   >
                     Rename
                   </MenuItem>
+                  {markdown === null && (
+                    <MenuItem
+                      icon={FileText}
+                      onSelect={() => {
+                        afterClose.current = () => {
+                          setEditing(null);
+                          setMarkdown(serializeItems(list.items));
+                        };
+                      }}
+                    >
+                      Edit as Markdown
+                    </MenuItem>
+                  )}
                   {done > 0 && (
                     <MenuItem icon={ListChecks} onSelect={() => commit({ ...list, items: list.items.filter((item) => !item.done) })}>
                       Clear completed
@@ -174,64 +250,70 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
         </DropdownMenu.Root>
       </header>
 
-      {list.items.length > 0 && (
-        <ul className="mt-2 flex flex-col" aria-label={`Items in ${list.title}`}>
-          {list.items.map((item, index) => (
-            <li key={index} className="flex min-h-10 items-center gap-3">
-              <input
-                type="checkbox"
-                checked={item.done}
-                onChange={() => toggle(index)}
-                disabled={note.isArchived}
-                aria-label={item.text}
-                className="size-5 shrink-0 cursor-pointer accent-maple-600"
-              />
-              {editing === index ? (
-                <input
-                  autoFocus
-                  aria-label="Edit item"
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onBlur={finishEdit}
-                  onKeyDown={(event) => onKey(event, finishEdit)}
-                  className={inputClass}
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => startEdit(index)}
-                  disabled={note.isArchived}
-                  title="Edit"
-                  className={cn(
-                    "min-w-0 flex-1 break-words py-1 text-left text-[15px]",
-                    item.done && "text-stone-400 line-through dark:text-stone-500",
+      {markdown !== null && !note.isArchived ? (
+        <ItemsEditor title={list.title} initial={markdown} onSave={saveMarkdown} onCancel={() => setMarkdown(null)} />
+      ) : (
+        <>
+          {list.items.length > 0 && (
+            <ul className="mt-2 flex flex-col" aria-label={`Items in ${list.title}`}>
+              {list.items.map((item, index) => (
+                <li key={index} className="flex min-h-10 items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={item.done}
+                    onChange={() => toggle(index)}
+                    disabled={note.isArchived}
+                    aria-label={item.text}
+                    className="size-5 shrink-0 cursor-pointer accent-maple-600"
+                  />
+                  {editing === index ? (
+                    <input
+                      autoFocus
+                      aria-label="Edit item"
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                      onBlur={finishEdit}
+                      onKeyDown={(event) => onKey(event, finishEdit)}
+                      className={inputClass}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => startEdit(index)}
+                      disabled={note.isArchived}
+                      title="Edit"
+                      className={cn(
+                        "min-w-0 flex-1 break-words py-1 text-left text-[15px]",
+                        item.done && "text-stone-400 line-through dark:text-stone-500",
+                      )}
+                    >
+                      {item.text}
+                    </button>
                   )}
-                >
-                  {item.text}
-                </button>
-              )}
-              {!note.isArchived && (
-                <IconButton label={`Remove ${item.text}`} onClick={() => commit({ ...list, items: list.items.filter((_, i) => i !== index) })} className="size-8 text-stone-400">
-                  <X className="size-4" />
-                </IconButton>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+                  {!note.isArchived && (
+                    <IconButton label={`Remove ${item.text}`} onClick={() => commit({ ...list, items: list.items.filter((_, i) => i !== index) })} className="size-8 text-stone-400">
+                      <X className="size-4" />
+                    </IconButton>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
 
-      {!note.isArchived && (
-        <form onSubmit={add} className="mt-2 flex items-center gap-2">
-          <input
-            ref={addInput}
-            value={newItem}
-            onChange={(event) => setNewItem(event.target.value)}
-            placeholder="Add an item"
-            aria-label={`Add an item to ${list.title}`}
-            maxLength={500}
-            className="h-10 min-w-0 flex-1 rounded-xl border border-dashed border-stone-300 bg-transparent px-3 text-[15px] outline-none focus:border-solid focus:border-maple-500 dark:border-stone-700"
-          />
-        </form>
+          {!note.isArchived && (
+            <form onSubmit={add} className="mt-2 flex items-center gap-2">
+              <input
+                ref={addInput}
+                value={newItem}
+                onChange={(event) => setNewItem(event.target.value)}
+                placeholder="Add an item"
+                aria-label={`Add an item to ${list.title}`}
+                maxLength={500}
+                className="h-10 min-w-0 flex-1 rounded-xl border border-dashed border-stone-300 bg-transparent px-3 text-[15px] outline-none focus:border-solid focus:border-maple-500 dark:border-stone-700"
+              />
+            </form>
+          )}
+        </>
       )}
 
       <ConfirmDialog
