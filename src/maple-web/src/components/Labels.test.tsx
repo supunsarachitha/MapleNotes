@@ -95,6 +95,8 @@ describe("Labels on notes", () => {
     await user.click(await screen.findByRole("menuitem", { name: "Labels…" }));
     const dialog = await screen.findByRole("dialog", { name: "Labels" });
     expect(await within(dialog).findByRole("checkbox", { name: "Work" })).toBeChecked();
+    expect(within(dialog).getByRole("textbox", { name: "Find or create a label" })).not.toHaveFocus(); // no phone keyboard
+    expect(dialog).toHaveFocus();
     await user.click(within(dialog).getByRole("checkbox", { name: "Work" }));
     await user.click(within(dialog).getByRole("checkbox", { name: "Urgent" }));
 

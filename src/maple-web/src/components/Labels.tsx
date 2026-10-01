@@ -57,7 +57,12 @@ export function LabelPicker({ note, open, onOpenChange }: { note: Note; open: bo
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
         <Dialog.Content
           aria-describedby={undefined}
-          className="fixed left-1/2 top-1/2 z-50 flex max-h-[min(36rem,calc(100dvh-2rem))] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl bg-white p-5 shadow-xl dark:bg-stone-900"
+          // Focus the dialog itself, not the find-or-create field, so opening it does not bring up a phone's keyboard.
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            (event.currentTarget as HTMLElement).focus();
+          }}
+          className="fixed left-1/2 top-1/2 z-50 flex max-h-[min(36rem,calc(100dvh-2rem))] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl bg-white p-5 shadow-xl outline-none dark:bg-stone-900"
         >
           <Dialog.Title className="text-lg font-semibold">Labels</Dialog.Title>
           {open && <LabelPickerBody note={note} onDone={() => onOpenChange(false)} />}
