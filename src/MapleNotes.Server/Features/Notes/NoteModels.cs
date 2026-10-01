@@ -18,6 +18,9 @@ public enum NoteState
 
     /// <summary>Archived notes.</summary>
     Archived,
+
+    /// <summary>Notes in the trash, most recently deleted first. Every other state leaves them out.</summary>
+    Trash,
 }
 
 /// <summary>Query parameters for listing notes.</summary>
@@ -49,6 +52,9 @@ public sealed record NoteListQuery
     /// </summary>
     [FromQuery(Name = "tagToken")]
     public string[]? TagTokens { get; init; }
+
+    /// <summary>Only notes with this label (its ID).</summary>
+    public Guid? Label { get; init; }
 
     /// <summary>
     /// Only notes whose text or attachment names contain this text (case-insensitive). End-to-end encrypted notes never
@@ -100,6 +106,8 @@ public sealed record CalendarDayResponse(DateOnly Date, int Count);
 /// <param name="EncryptedContent">The envelope of an end-to-end encrypted note (base64), for the browser to decrypt.</param>
 /// <param name="Kind">Where the note belongs: the timeline, the Todo tab, the Quick notes tab or the Habits page.</param>
 /// <param name="DailyDate">For a daily note, the day it belongs to.</param>
+/// <param name="LabelIds">The IDs of the labels on the note.</param>
+/// <param name="TrashedAtUtc">When the note was moved to the trash; null when it is not in the trash.</param>
 public sealed record NoteResponse(
     Guid Id,
     string? Content,
@@ -111,7 +119,9 @@ public sealed record NoteResponse(
     IReadOnlyList<AttachmentResponse> Attachments,
     byte[]? EncryptedContent = null,
     NoteKind Kind = NoteKind.Note,
-    DateOnly? DailyDate = null);
+    DateOnly? DailyDate = null,
+    IReadOnlyList<Guid>? LabelIds = null,
+    DateTime? TrashedAtUtc = null);
 
 /// <summary>One page of notes, newest first.</summary>
 /// <param name="Items">The notes.</param>
@@ -195,12 +205,23 @@ public sealed record ImportExistingResponse(IReadOnlyList<Guid> Existing);
 /// <param name="Encrypted">For an end-to-end account: the new text and tags, encrypted by the browser.</param>
 public sealed record UpdateNoteRequest(string? Content = null, IReadOnlyList<Guid>? AttachmentIds = null, EncryptedNote? Encrypted = null);
 
-/// <summary>Request to pin, unpin, archive, restore or move a note. Omitted fields are unchanged.</summary>
+/// <summary>
+/// Request to pin, unpin, archive, restore, move, label or trash a note. Omitted fields are unchanged.
+/// </summary>
 /// <param name="IsPinned">Pin or unpin.</param>
 /// <param name="IsArchived">Archive (soft-delete) or restore.</param>
 /// <param name="Kind">Move the note, for example a quick note to the timeline. A daily note moved out of the timeline
 /// stops being the day's daily note. Habits cannot move to another kind, and other notes cannot become habits.</param>
-public sealed record PatchNoteRequest(bool? IsPinned = null, bool? IsArchived = null, NoteKind? Kind = null);
+/// <param name="IsTrashed">Move the note to the trash, or restore it from there to where it was. A daily note moved to
+/// the trash stops being the day's daily note.</param>
+/// <param name="LabelIds">The complete set of labels the note should have (at most 20 of the account's own).</param>
+public sealed record PatchNoteRequest(
+    bool? IsPinned = null, bool? IsArchived = null, NoteKind? Kind = null, bool? IsTrashed = null, IReadOnlyList<Guid>? LabelIds = null);
+
+/// <summary>What emptying the trash deleted.</summary>
+/// <param name="Notes">How many notes.</param>
+/// <param name="Files">How many of their files.</param>
+public sealed record EmptyTrashResponse(int Notes, int Files);
 
 /// <summary>A tag and how many active notes (of the requested kinds) use it.</summary>
 /// <param name="Name">Tag name without <c>#</c>; null for an end-to-end tag.</param>

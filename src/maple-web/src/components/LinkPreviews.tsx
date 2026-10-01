@@ -1,14 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { Globe } from "lucide-react";
+import { useRef } from "react";
 import { api } from "../lib/api";
 import { linksIn } from "../lib/links";
+import { useNearViewport } from "../lib/viewport";
 
-function LinkPreviewCard({ url }: { url: string }) {
+function LinkPreviewCard({ url, load }: { url: string; load: boolean }) {
   const preview = useQuery({
     queryKey: ["link-preview", url],
     queryFn: () => api.linkPreview(url),
     staleTime: 24 * 60 * 60_000,
     retry: false,
+    enabled: load,
   });
   if (!preview.data) return null;
   const { title, description, siteName } = preview.data;
@@ -29,14 +32,19 @@ function LinkPreviewCard({ url }: { url: string }) {
   );
 }
 
-/** Previews of the first links in a note (title, description, site), for accounts that turned them on. */
+/**
+ * Previews of the first links in a note (title, description, site), for accounts that turned them on. They are fetched
+ * once the note comes near the screen, so a long list does not make the server visit every link at once.
+ */
 export function LinkPreviews({ content }: { content: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const near = useNearViewport(box);
   const links = linksIn(content);
   if (links.length === 0) return null;
   return (
-    <div className="mt-3 flex flex-col gap-2" aria-label="Link previews">
+    <div ref={box} className="mt-3 flex flex-col gap-2" aria-label="Link previews">
       {links.map((url) => (
-        <LinkPreviewCard key={url} url={url} />
+        <LinkPreviewCard key={url} url={url} load={near} />
       ))}
     </div>
   );

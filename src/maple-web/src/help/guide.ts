@@ -19,14 +19,15 @@ are at the top.
   and links.
 - **Pictures and files.** Choose the paperclip, paste, or drag files onto the box. They upload while you write.
 - **Checklists.** Tick a checklist's boxes right in the note; the change is saved straight away.
-- **Changing a note.** Open a note's **⋯** menu to edit it, pin it to the top, copy its text, archive it or delete it.
-  Archived notes wait in the **Archive**, where you can restore them. To edit a note faster, turn on **Double-tap to
-  edit** in [Settings](/settings), then double-tap the note (or double-click it).`,
+- **Changing a note.** Open a note's **⋯** menu to edit it, pin it to the top, label it, copy its text, archive it or
+  delete it. Editing starts with the cursor at the end of the note, ready to carry on. Archived notes wait in the
+  **Archive**, where you can restore them, and deleted ones in the [trash](/trash). To edit a note faster, turn on
+  **Double-tap to edit** in [Settings → Writing](/settings/writing), then double-tap the note (or double-click it).`,
   },
   {
     id: "titles",
     title: "Titles and dates",
-    body: `Turn on **Note titles** in [Settings](/settings) to get a title field above your text. The title is saved as the
+    body: `Turn on **Note titles** in [Settings → Writing](/settings/writing) to get a title field above your text. The title is saved as the
 note's first line, as a heading, so it also shows up in searches and exports.
 
 With **Start titles with today's date**, new notes begin with the date. Choose how dates look under **Date format**.
@@ -42,7 +43,25 @@ nested tags, like \`#work/meetings\`.
 
 Choose a tag in a note, or open **Tags** in the menu, to see its notes. Choosing a parent tag such as \`#work\` also shows
 notes tagged \`#work/meetings\`. The Tags page lists every tag with how many notes use it, and has a filter for when
-there are many.`,
+there are many.
+
+To keep your tags consistent, turn on **Suggest tags while typing** in [Settings → Writing](/settings/writing). When you
+type a hash, the tags you already use appear under it, the most used first; pick one with the arrow keys and Enter (or
+Tab), or tap it. Esc closes the list.`,
+  },
+  {
+    id: "labels",
+    title: "Labels",
+    body: `Labels are coloured markers you put on notes and todo lists by hand, such as *Work* in blue or *Urgent* in red.
+Unlike tags, they are not part of what you write, so adding or removing one never changes a note.
+
+Turn on **Labels** in [Settings → Labels](/settings/labels), where you also create, rename, recolour and delete them.
+Then choose **Labels…** in a note's **⋯** menu to tick the ones it should have; you can create a new label right there
+by typing its name. A note shows its labels at the bottom, and choosing one, or a label in the side menu, lists its
+notes.
+
+With end-to-end encryption, label names are encrypted like your notes. Their colours, and which notes carry them, are
+not. Exports do not include labels yet.`,
   },
   {
     id: "search",
@@ -73,7 +92,7 @@ quick notes.`,
   {
     id: "daily",
     title: "Daily notes",
-    body: `Turn on **Daily notes** in [Settings](/settings) to get a **Today** card at the top of Home, titled with today's
+    body: `Turn on **Daily notes** in [Settings → Features](/settings/features) to get a **Today** card at the top of Home, titled with today's
 date. Write in it and it becomes today's note; days you skip leave no empty notes. If you start the day's note on two
 devices at once, the second one adds to it rather than starting another.`,
   },
@@ -81,12 +100,12 @@ devices at once, the second one adds to it rather than starting another.`,
     id: "calendar",
     title: "The calendar",
     body: `The calendar in the menu marks the days you wrote on. Choose a day to see that day's notes, and use the arrows to go
-to other months. You can turn the calendar off in [Settings](/settings).`,
+to other months. You can turn the calendar off in [Settings → Features](/settings/features).`,
   },
   {
     id: "habits",
     title: "Habits",
-    body: `Turn on the **Habit tracker** in [Settings](/settings) to get **Habits** in the menu. Add a habit, such as "Read 20
+    body: `Turn on the **Habit tracker** in [Settings → Features](/settings/features) to get **Habits** in the menu. Add a habit, such as "Read 20
 minutes", then tap a day's circle on each day you do it; tap it again to undo. The last seven days are shown, with
 today outlined, and the arrows go back a week at a time, so you can fill in a day you missed.
 
@@ -107,14 +126,17 @@ them.`,
 download it with the download button, and close with Esc or ✕. Videos and audio play in the note, and other files
 download when you choose them.
 
-To save space, turn on **Shrink photos before uploading** in [Settings](/settings): large photos are resized to 2560
+Pictures, players and link previews load as you scroll towards them, so a long timeline opens quickly however many
+files it has.
+
+To save space, turn on **Shrink photos before uploading** in [Settings → Features](/settings/features): large photos are resized to 2560
 pixels on their longest side and saved as JPEG before they upload, often a tenth of the size, and their location and
 camera details are left out. The full-size original is not kept, and photos you uploaded earlier stay as they are.`,
   },
   {
     id: "links",
     title: "Link previews",
-    body: `With **Link previews** on in [Settings](/settings), notes show the title and description of the pages they link
+    body: `With **Link previews** on in [Settings → Features](/settings/features), notes show the title and description of the pages they link
 to. To get them, the server visits each linked page, so it learns which links you save, even if your notes are
 end-to-end encrypted. That is why they are off until you turn them on, and why Maple Notes asks you to confirm when you
 do. Your server's administrator may also have switched them off for everyone.`,
@@ -122,27 +144,44 @@ do. Your server's administrator may also have switched them off for everyone.`,
   {
     id: "appearance",
     title: "Appearance",
-    body: `Under **Appearance** in [Settings](/settings), choose **Light**, **Dark**, or **Device** to follow your phone or
-computer, and pick an accent colour. You can also make the side menu's text smaller or larger, and choose the day
-your weeks start on in the calendars. Your choices follow you to every device you sign in on.`,
+    body: `Under [Settings → Appearance](/settings/appearance), choose **Light**, **Dark**, or **Device** to follow your phone
+or computer, pick an accent colour, and choose the day your weeks start on in the calendars.
+
+Under [Settings → Side menu](/settings/menu), put the menu's items in the order you use them: drag an item by its
+handle, or move it with its arrows. You can also make the menu's text smaller or larger. Your choices follow you to
+every device you sign in on.`,
   },
   {
     id: "features",
     title: "Choosing your features",
-    body: `Everything beyond plain notes can be switched on or off under **Features** in [Settings](/settings): todo lists,
-quick notes, daily notes, the calendar, the habit tracker, the archive, the Tags page and link previews. Turning
-something off only hides it; nothing is deleted, and it all comes back when you turn it on again.`,
+    body: `Everything beyond plain notes can be switched on or off in [Settings → Features](/settings/features): todo
+lists, quick notes, the habit tracker, the Tags page, the archive, daily notes, the calendar, labels, the trash and
+link previews. Turning something off only hides it; nothing is deleted, and it all comes back when you turn it on
+again.`,
+  },
+  {
+    id: "trash",
+    title: "The trash",
+    body: `Deleting a note, todo list or habit moves it to the trash, and **Undo** in the message that appears brings it
+straight back. The trash is not in the menu: open it from [Settings → Backup & data](/settings/data). There you can
+**Restore** anything to where it was, **Delete forever** one item, or **Empty trash**.
+
+Things stay in the trash for 30 days, then they are deleted for good by themselves. Until then they still count
+towards your storage, and they are left out of your timeline, searches, tags, the calendar and exports.
+
+If you would rather delete for good at once, turn the **Trash** off in [Settings → Features](/settings/features);
+deleting then asks first.`,
   },
   {
     id: "encryption",
     title: "Keeping your notes private",
-    body: `Your server always keeps its database encrypted. Under **Advanced → Encryption** in [Settings](/settings) you choose
-how much more protection your own notes get:
+    body: `Your server always keeps its database encrypted. Under **Encryption** in [Settings → Privacy &
+security](/settings/security) you choose how much more protection your own notes get:
 
 - **Encrypted at rest** (the usual choice): your notes and files are also encrypted with a key of your own, which the
   server holds. This protects against stolen disks and leaked backups.
-- **End-to-end**: your browser encrypts notes, tags, file names and files with a key only you hold. Nobody else can
-  read them, not even whoever runs the server.
+- **End-to-end**: your browser encrypts notes, tags, label names, file names and files with a key only you hold.
+  Nobody else can read them, not even whoever runs the server.
 - **Off**: only the database encryption.
 
 When you turn on end-to-end encryption you get a **recovery key**. Save it somewhere safe, such as a password
@@ -152,23 +191,24 @@ key, nobody can recover your notes. On a new device, you unlock your notes by en
   {
     id: "account",
     title: "Your name",
-    body: `**Account** in [Settings](/settings) shows your username and the name the app shows for you. Choose **Change**
-to pick another display name; leave it empty to use your username.`,
+    body: `[Settings → Account](/settings/account) shows your username and the name the app shows for you. Choose
+**Change** to pick another display name; leave it empty to use your username.`,
   },
   {
     id: "password",
     title: "Passwords and signing out",
-    body: `Change your password in [Settings](/settings). This signs you out on your other devices.
+    body: `Change your password in [Settings → Privacy & security](/settings/security). This signs you out on your other
+devices.
 
 - **Forgot your password?** With end-to-end encryption, choose **Forgot your password?** on the sign-in page and enter
   your recovery key. Without end-to-end encryption, a forgotten password cannot be reset, so keep it in a password
   manager.
-- **Lost a device?** Use **Advanced → Sign out everywhere** to end every session at once.`,
+- **Lost a device?** Use **Sign out everywhere** in the same place to end every session at once.`,
   },
   {
     id: "backup",
     title: "Backing up and restoring",
-    body: `Under **Backup & restore** in [Settings](/settings), **Export** downloads your notes as a ZIP file of Markdown, plain
+    body: `Under [Settings → Backup & data](/settings/data), **Export** downloads your notes as a ZIP file of Markdown, plain
 text or JSON, with your files, in folders by year, month or day. It is a good idea to keep a copy somewhere safe.
 Exports are not encrypted, so store them with care.
 
@@ -176,8 +216,8 @@ Exports are not encrypted, so store them with care.
 archive state and files, and notes you already have are skipped, so restoring twice does no harm. You can also add
 single Markdown, text or JSON files as notes.
 
-To start over, **Advanced → Delete all notes and files** deletes everything you wrote and uploaded at once, after
-you confirm your password. Your account, password, settings and encryption stay. This cannot be undone, so export
+To start over, **Delete all notes and files**, in the same place, deletes everything you wrote and uploaded at once,
+labels and the trash included, after you confirm your password. Your account, password, settings and encryption stay. This cannot be undone, so export
 first if you might want your notes back.`,
   },
   {
@@ -190,8 +230,8 @@ explains this instead of signing you in. Ask whoever runs your server for its HT
   {
     id: "storage",
     title: "How much you store",
-    body: `**Account** in [Settings](/settings) shows how much space your notes and files take, with how many of each.
-Archived notes and files count too; deleting them frees the space. Only you see your own usage: administrators see
+    body: `[Settings → Account](/settings/account) shows how much space your notes and files take, with how many of each.
+Archived notes, the trash and files count too; deleting them for good frees the space. Only you see your own usage: administrators see
 the server's totals, never yours.
 
 Your administrator may limit how much each account stores. Settings then shows how much of it you use, and warns you
@@ -213,7 +253,7 @@ when it is almost full. Once it is full, new files, notes and longer edits are n
   {
     id: "admins",
     title: "For administrators",
-    body: `The first account on a server is its administrator. Under **Administration** in [Settings](/settings) you can let
+    body: `The first account on a server is its administrator. Under [Settings → Administration](/settings/admin) you can let
 visitors create accounts, limit how much each account can store, disable or remove accounts, and make others
 administrators. **Compact database** gives the space that deleted notes leave in the database back to the disk, and
 **Name and icon** gives the app your own name and picture, on the sign-in page too. Administrators manage accounts, but they can never read anyone's notes through the app, nor see how

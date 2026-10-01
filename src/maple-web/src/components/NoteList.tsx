@@ -14,6 +14,7 @@ export function NoteList({
   q,
   kinds,
   day,
+  label,
   renderNote = (note) => <NoteCard note={note} />,
   empty,
   header,
@@ -27,6 +28,8 @@ export function NoteList({
   kinds?: NoteKind[];
   /** Only notes created on this local day (yyyy-MM-dd). */
   day?: string;
+  /** Only notes with this label (its ID). */
+  label?: string;
   /** How each note is shown; default: a note card. */
   renderNote?: (note: Note) => ReactNode;
   empty?: ReactNode;
@@ -36,7 +39,7 @@ export function NoteList({
   /** Notes shown elsewhere on the page (today's daily note). */
   hideIds?: string[];
 }) {
-  const query = useNotes(state, tag, q, kinds, day);
+  const query = useNotes(state, tag, q, kinds, day, label);
   const sentinel = useRef<HTMLDivElement>(null);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
 

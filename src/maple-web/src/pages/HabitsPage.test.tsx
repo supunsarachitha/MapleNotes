@@ -157,9 +157,24 @@ describe("Habits", () => {
     await waitFor(() => expect(patch).toHaveBeenCalledWith(read.id, { isArchived: true }));
 
     await user.click(screen.getByRole("button", { name: "Habit actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Move to trash" }));
+    await waitFor(() => expect(patch).toHaveBeenCalledWith(read.id, { isTrashed: true }));
+    expect(await screen.findByText("Habit moved to the trash.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() => expect(patch).toHaveBeenLastCalledWith(read.id, { isTrashed: false }));
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("deletes a habit for good, after asking, when the trash is off", async () => {
+    serve([read]);
+    const remove = vi.spyOn(api, "deleteNote").mockResolvedValue();
+    const user = userEvent.setup();
+    renderWith(<HabitsPage />, { habitTracker: true, trash: false });
+
+    await user.click(await screen.findByRole("button", { name: "Habit actions" }));
     await user.click(await screen.findByRole("menuitem", { name: "Delete…" }));
     const dialog = await screen.findByRole("dialog", { name: "Delete this habit?" });
-    expect(dialog).toHaveTextContent('"Read 30 minutes" and its history (2 days done) will be deleted permanently.');
+    expect(dialog).toHaveTextContent('"Read 20 minutes" and its history (2 days done) will be deleted permanently.');
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(remove.mock.calls[0]?.[0]).toBe(read.id));
   });

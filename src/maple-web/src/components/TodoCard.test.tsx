@@ -213,6 +213,49 @@ describe("TodoCard and refreshes", () => {
 });
 
 describe("TodoPage", () => {
+  it("puts the caret at the end when renaming, editing an item or editing as Markdown", async () => {
+    const user = userEvent.setup();
+    renderWith(<TodoCard note={list} />);
+    const atEnd = (field: HTMLElement) => {
+      const { selectionStart, value } = field as HTMLInputElement;
+      return selectionStart === value.length;
+    };
+
+    await user.click(screen.getByRole("button", { name: "oats" }));
+    const item = screen.getByRole("textbox", { name: "Edit item" });
+    expect(item).toHaveFocus();
+    expect(atEnd(item)).toBe(true);
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
+    const name = await screen.findByRole("textbox", { name: "List name" });
+    await waitFor(() => expect(name).toHaveFocus());
+    expect(atEnd(name)).toBe(true);
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit as Markdown" }));
+    const markdown = await screen.findByRole("textbox", { name: "Items in Groceries as Markdown" });
+    await waitFor(() => expect(markdown).toHaveFocus());
+    expect(atEnd(markdown)).toBe(true);
+  });
+
+  it("moves a list to the trash, and puts labels on it while labels are on", async () => {
+    vi.spyOn(api.labels, "list").mockResolvedValue([{ id: "l-home", name: "Home", color: "Green", noteCount: 1 }]);
+    const patch = vi.spyOn(api, "patchNote").mockImplementation(async (_id, changes) => ({ ...list, ...changes }));
+    const user = userEvent.setup();
+    renderWith(<TodoCard note={{ ...list, labelIds: ["l-home"] }} />, { labels: true });
+
+    expect(await screen.findByRole("link", { name: "Home" })).toHaveAttribute("href", "/?label=l-home");
+    await user.click(screen.getByRole("button", { name: "List actions" }));
+    expect(screen.getByRole("menuitem", { name: "Labels…" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Move to trash" }));
+
+    await waitFor(() => expect(patch).toHaveBeenCalledWith(list.id, { isTrashed: true }));
+    expect(await screen.findByText("List moved to the trash.")).toBeInTheDocument();
+  });
+
   it("creates a list", async () => {
     vi.spyOn(api, "listNotes").mockResolvedValue({ items: [], nextCursor: null });
     const create = vi.spyOn(api, "createNote").mockResolvedValue({ ...list, content: "# Packing" });

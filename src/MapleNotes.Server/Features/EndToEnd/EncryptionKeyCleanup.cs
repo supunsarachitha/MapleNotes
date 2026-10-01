@@ -40,7 +40,9 @@ public sealed class EncryptionKeyCleanup(MapleDbContext db)
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    // Label names are never encrypted by the server: they are plain, or encrypted by the browser.
     private async Task<bool> UsesAsync(Guid userId, ContentScheme scheme, CancellationToken cancellationToken) =>
         await db.Notes.AnyAsync(n => n.UserId == userId && n.Scheme == scheme, cancellationToken)
-        || await db.Attachments.AnyAsync(a => a.UserId == userId && a.Scheme == scheme, cancellationToken);
+        || await db.Attachments.AnyAsync(a => a.UserId == userId && a.Scheme == scheme, cancellationToken)
+        || (scheme == ContentScheme.EndToEnd && await db.Labels.AnyAsync(l => l.UserId == userId && l.EncryptedName != null, cancellationToken));
 }

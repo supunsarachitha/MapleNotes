@@ -33,6 +33,12 @@ public sealed class Note : IRevisioned
     /// <summary>When the note was archived (UTC); null for active notes. Archiving is a reversible soft delete.</summary>
     public DateTime? ArchivedAtUtc { get; set; }
 
+    /// <summary>
+    /// When the note was moved to the trash (UTC); null for notes that are not in it. A note in the trash is listed only
+    /// there, can be restored to where it was, and is deleted for good once it has been in the trash for 30 days.
+    /// </summary>
+    public DateTime? TrashedAtUtc { get; set; }
+
     /// <summary>When the note was created (UTC). The feed is ordered by this value, newest first.</summary>
     public DateTime CreatedAtUtc { get; set; }
 
@@ -47,4 +53,7 @@ public sealed class Note : IRevisioned
 
     /// <summary>Tags found in the note body (<c>#tag</c>).</summary>
     public List<Tag> Tags { get; init; } = [];
+
+    /// <summary>Labels the owner put on the note, from the account's own labels.</summary>
+    public List<Label> Labels { get; init; } = [];
 }

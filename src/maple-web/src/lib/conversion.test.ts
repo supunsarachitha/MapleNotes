@@ -2,7 +2,7 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { decryptAttachment, encryptAttachment } from "../crypto/attachments";
-import { decryptMetadata, decryptNote, encryptMetadata, encryptNote, tagToken } from "../crypto/content";
+import { decryptLabelName, decryptMetadata, decryptNote, encryptLabelName, encryptMetadata, encryptNote, tagToken } from "../crypto/content";
 import { importDataKey, type DataKeys } from "../crypto/datakey";
 import { fromBase64, toBase64, type Bytes } from "../crypto/encoding";
 import v from "../crypto/test-vectors.json";
@@ -132,5 +132,23 @@ describe("conversion to and from end-to-end encryption", () => {
     expect(await convertNextBatch()).toBe(1); // tried once: nothing sent
     expect(await convertNextBatch()).toBe(0); // now known as damaged: nothing it can do
     expect(sent[`/api/v1/account/conversion/notes/${noteId}`]).toBeUndefined();
+  });
+
+  it("saves label names again in the new form, both ways", async () => {
+    const labelId = v.ids.labelId;
+    setContentSession({ userId, mode: "EndToEnd", keys });
+    serve({ mode: "EndToEnd", remaining: 1, notes: [], attachments: [], labels: [{ id: labelId, name: "Quokka plans", encryptedName: null }] }, new Uint8Array());
+
+    expect(await convertNextBatch()).toBe(1);
+    const entering = JSON.parse(sent[`/api/v1/labels/${labelId}`]!.body as string) as { encryptedName: string };
+    expect(sent[`/api/v1/labels/${labelId}`]!.method).toBe("PUT");
+    expect(await decryptLabelName(keys, userId, labelId, fromBase64(entering.encryptedName))).toBe("Quokka plans");
+
+    setContentSession({ userId, mode: "AtRest", keys });
+    const encryptedName = toBase64(await encryptLabelName(keys, userId, labelId, "Quokka plans"));
+    serve({ mode: "AtRest", remaining: 1, notes: [], attachments: [], labels: [{ id: labelId, name: null, encryptedName }] }, new Uint8Array());
+
+    expect(await convertNextBatch()).toBe(1);
+    expect(JSON.parse(sent[`/api/v1/labels/${labelId}`]!.body as string)).toEqual({ name: "Quokka plans" });
   });
 });

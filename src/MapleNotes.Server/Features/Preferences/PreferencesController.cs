@@ -25,7 +25,8 @@ public sealed class PreferencesController(PreferencesService preferences) : Cont
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The saved preferences.</returns>
     /// <response code="200">The preferences were saved.</response>
-    /// <response code="400">The date format, theme or accent colour is not one of the offered ones.</response>
+    /// <response code="400">A choice (date format, theme, accent colour, menu text size, week start) is not one of the
+    /// offered ones, or the menu order names an unknown or repeated item.</response>
     [HttpPut]
     [ProducesResponseType<UserPreferences>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]

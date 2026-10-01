@@ -31,6 +31,9 @@ public sealed record UserPreferences
     /// <summary>The first days of the week a user can choose; <c>Auto</c> follows the browser's language settings.</summary>
     public static IReadOnlyList<string> WeekStarts { get; } = ["Auto", "Sunday", "Monday", "Saturday"];
 
+    /// <summary>The items of the side menu, in their default order; <see cref="MenuOrder"/> rearranges them.</summary>
+    public static IReadOnlyList<string> MenuItems { get; } = ["home", "todo", "quick", "habits", "tags", "archive", "settings", "help"];
+
     /// <summary>
     /// Show a title field when writing notes. A title is stored as the note's first line, written as a Markdown
     /// heading, so turning this off never changes a note.
@@ -88,6 +91,21 @@ public sealed record UserPreferences
     /// <summary>Double-tap (or double-click) a note to edit it, as well as choosing Edit from its menu; off by default.</summary>
     public bool DoubleTapToEdit { get; init; }
 
+    /// <summary>Suggest the account's existing tags while a <c>#tag</c> is being typed; off by default.</summary>
+    public bool TagSuggestions { get; init; }
+
+    /// <summary>
+    /// Coloured labels: put labels on notes from their menu and list a label's notes. Turning it off hides them but keeps
+    /// them; off by default.
+    /// </summary>
+    public bool Labels { get; init; }
+
+    /// <summary>
+    /// Deleting moves notes to the trash, where they can be restored for 30 days; on by default. Off, deleting is
+    /// immediate and permanent.
+    /// </summary>
+    public bool Trash { get; init; } = true;
+
     /// <summary>Light or dark: one of <see cref="Themes"/>.</summary>
     public string Theme { get; init; } = "System";
 
@@ -99,4 +117,11 @@ public sealed record UserPreferences
 
     /// <summary>The first day of the week in the calendars and the weekly habit chart: one of <see cref="WeekStarts"/>.</summary>
     public string WeekStart { get; init; } = "Auto";
+
+    /// <summary>
+    /// The side menu's items in the order the user chose, separated by commas (<c>todo,home,help</c>): items of
+    /// <see cref="MenuItems"/>, each at most once. Items left out follow in their default order, so an empty value (the
+    /// default) is the default order. A string rather than a list, so that preferences compare by value.
+    /// </summary>
+    public string MenuOrder { get; init; } = "";
 }

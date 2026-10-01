@@ -75,6 +75,14 @@ internal sealed record EndToEndAccount(Guid UserId, byte[] DataKey, byte[] Recov
     public string DecryptName(TagResponse tag) =>
         Encoding.UTF8.GetString(E2eeCrypto.Open(E2eeCrypto.SubKeys(DataKey).Metadata, tag.EncryptedName!, E2eeCrypto.TagContext(UserId, tag.Token!)));
 
+    /// <summary>Encrypts a label's name for its ID as the web app does (docs/e2ee-spec.md §4a).</summary>
+    public byte[] EncryptLabelName(Guid labelId, string name) =>
+        E2eeCrypto.Seal(E2eeCrypto.SubKeys(DataKey).Metadata, Encoding.UTF8.GetBytes(name), E2eeCrypto.LabelContext(UserId, labelId));
+
+    /// <summary>Decrypts the name of an end-to-end label.</summary>
+    public string DecryptLabelName(Guid labelId, byte[] envelope) =>
+        Encoding.UTF8.GetString(E2eeCrypto.Open(E2eeCrypto.SubKeys(DataKey).Metadata, envelope, E2eeCrypto.LabelContext(UserId, labelId)));
+
     /// <summary>Encrypts a file as the web app does (docs/e2ee-spec.md §5).</summary>
     public byte[] EncryptFile(Guid attachmentId, byte[] plaintext) => E2eeCrypto.EncryptAttachment(DataKey, UserId, attachmentId, plaintext);
 

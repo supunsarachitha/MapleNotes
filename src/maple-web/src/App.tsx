@@ -20,6 +20,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { TagsPage } from "./pages/TagsPage";
 import { QuickNotesPage } from "./pages/QuickNotesPage";
 import { TodoPage } from "./pages/TodoPage";
+import { TrashPage } from "./pages/TrashPage";
 import { UnlockPage } from "./pages/UnlockPage";
 
 function FullScreen({ children }: { children: ReactNode }) {
@@ -145,8 +146,10 @@ export function App() {
     <AppShell user={user}>
       {path === "/archive" ? (
         <ArchivePage />
-      ) : path === "/settings" ? (
+      ) : path === "/settings" || path.startsWith("/settings/") ? (
         <SettingsPage user={user} />
+      ) : path === "/trash" ? (
+        <TrashPage />
       ) : path === "/todo" ? (
         <TodoPage />
       ) : path === "/quick" ? (

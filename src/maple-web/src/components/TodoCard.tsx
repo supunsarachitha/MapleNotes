@@ -1,14 +1,16 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Archive, ArchiveRestore, FileText, ListChecks, MoreHorizontal, Pencil, Pin, PinOff, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, FileText, ListChecks, MoreHorizontal, Pencil, Pin, PinOff, Tag, Trash2, X } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { saveErrorMessage } from "../lib/apiError";
+import { focusAtEnd, focusAtEndRef } from "../lib/focus";
 import { useNoteEditor } from "../lib/noteEditor";
 import { usePreferences } from "../lib/preferences";
-import { useDeleteNote, usePatchNote } from "../lib/queries";
+import { usePatchNote } from "../lib/queries";
 import { parseItems, parseTodo, serializeItems, serializeTodo, type TodoList } from "../lib/todo";
 import type { Note } from "../lib/types";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { LabelChips, LabelPicker } from "./Labels";
 import { MenuItem } from "./NoteCard";
+import { useRemoveNote } from "./NoteRemoval";
 import { useToast } from "./Toaster";
 import { Button, IconButton, cn } from "./ui";
 
@@ -29,6 +31,9 @@ function ItemsEditor({ title, initial, onSave, onCancel }: { title: string; init
     element.style.height = `${Math.min(element.scrollHeight, 480)}px`;
   }, [text]);
 
+  // Carry on at the end of the items, once the box has its full height.
+  useEffect(() => focusAtEnd(textarea.current), []);
+
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
@@ -43,7 +48,6 @@ function ItemsEditor({ title, initial, onSave, onCancel }: { title: string; init
     <div className="mt-2">
       <textarea
         ref={textarea}
-        autoFocus
         aria-label={`Items in ${title} as Markdown`}
         aria-describedby={hint}
         value={text}
@@ -68,13 +72,13 @@ function ItemsEditor({ title, initial, onSave, onCancel }: { title: string; init
 }
 
 /**
- * A todo list in the Todo tab: tick, add, edit and remove items, or edit them all at once as Markdown; rename, pin,
- * archive or delete the list. Every change shows at once and is saved in the background, one save after another, as
- * the list's Markdown (see lib/todo.ts and lib/noteEditor.ts).
+ * A todo list in the Todo tab: tick, add, edit and remove items, or edit them all at once as Markdown; rename, label,
+ * pin, archive or delete the list. Every change shows at once and is saved in the background, one save after another,
+ * as the list's Markdown (see lib/todo.ts and lib/noteEditor.ts).
  */
 export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: boolean }) {
   const toast = useToast();
-  const { archive } = usePreferences();
+  const { archive, labels } = usePreferences();
   const [list, commit] = useNoteEditor<TodoList>(note, parseTodo, serializeTodo, (error) =>
     toast.error(saveErrorMessage(error, "A change to this list could not be saved. Please try again.")),
   );
@@ -82,14 +86,18 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
   const [newItem, setNewItem] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [choosingLabels, setChoosingLabels] = useState(false);
   // The items as Markdown while they are being edited all at once.
   const [markdown, setMarkdown] = useState<string | null>(null);
   const addInput = useRef<HTMLInputElement>(null);
   // Renaming and editing as Markdown start once the menu has closed: while it is open, it keeps focus inside itself.
   const afterClose = useRef<(() => void) | null>(null);
   const patch = usePatchNote();
-  const remove = useDeleteNote();
+  const removal = useRemoveNote(note, {
+    noun: "list",
+    confirmTitle: "Delete this list?",
+    confirmDescription: `"${list.title}" and its ${list.items.length} item(s) will be deleted permanently. To keep it out of sight instead, archive it.`,
+  });
 
   useEffect(() => {
     if (autoFocus) addInput.current?.focus();
@@ -158,12 +166,12 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
   return (
     <article
       aria-label={list.title}
-      className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900"
+      className="note-card rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900"
     >
       <header className="-mt-1 flex items-center gap-2">
         {renaming ? (
           <input
-            autoFocus
+            ref={focusAtEndRef}
             aria-label="List name"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
@@ -213,6 +221,11 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
                   >
                     Rename
                   </MenuItem>
+                  {labels && (
+                    <MenuItem icon={Tag} onSelect={() => setChoosingLabels(true)}>
+                      Labels…
+                    </MenuItem>
+                  )}
                   {markdown === null && (
                     <MenuItem
                       icon={FileText}
@@ -242,8 +255,8 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
                 </MenuItem>
               )}
               <DropdownMenu.Separator className="my-1 h-px bg-stone-200 dark:bg-stone-700" />
-              <MenuItem icon={Trash2} danger onSelect={() => setConfirmDelete(true)}>
-                Delete…
+              <MenuItem icon={Trash2} danger onSelect={removal.start}>
+                {removal.menuLabel}
               </MenuItem>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
@@ -268,7 +281,7 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
                   />
                   {editing === index ? (
                     <input
-                      autoFocus
+                      ref={focusAtEndRef}
                       aria-label="Edit item"
                       value={draft}
                       onChange={(event) => setDraft(event.target.value)}
@@ -316,23 +329,9 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
         </>
       )}
 
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title="Delete this list?"
-        description={`"${list.title}" and its ${list.items.length} item(s) will be deleted permanently. To keep it out of sight instead, archive it.`}
-        confirmLabel="Delete"
-        busy={remove.isPending}
-        onConfirm={() =>
-          remove.mutate(note.id, {
-            onSuccess: () => {
-              setConfirmDelete(false);
-              toast.info("List deleted.");
-            },
-            onError: () => toast.error("Could not delete the list."),
-          })
-        }
-      />
+      <LabelChips ids={note.labelIds} />
+      {removal.dialog}
+      {labels && <LabelPicker note={note} open={choosingLabels} onOpenChange={setChoosingLabels} />}
     </article>
   );
 }

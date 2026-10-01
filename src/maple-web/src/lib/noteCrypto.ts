@@ -1,8 +1,10 @@
 import { decryptAttachment, encryptAttachment } from "../crypto/attachments";
 import {
+  decryptLabelName,
   decryptMetadata,
   decryptNote,
   decryptTagName,
+  encryptLabelName,
   encryptMetadata,
   encryptNote,
   encryptTags,
@@ -14,7 +16,7 @@ import type { DataKeys } from "../crypto/datakey";
 import { fromBase64, toBase64, uuidv7 } from "../crypto/encoding";
 import { ApiError } from "./apiError";
 import { DOWNLOAD_CONTENT_TYPE, isInlineImage } from "./media";
-import type { Attachment, AttachmentWire, EncryptedNoteWire, EncryptionMode, Note, NoteWire, Tag, TagWire } from "./types";
+import type { Attachment, AttachmentWire, EncryptedNoteWire, EncryptionMode, Label, LabelWire, Note, NoteWire, Tag, TagWire } from "./types";
 
 // End-to-end encryption of notes and tags at the API boundary (docs/e2ee-spec.md §2, §4). Components always work with
 // plain notes: api.ts passes what it sends and receives through here, and this module encrypts, decrypts and turns tag
@@ -185,6 +187,37 @@ export async function tagFilterParams(tag: string): Promise<{ tag?: string; tagT
   const names = [name, ...(knownTags ?? []).filter((known) => known !== name && below(known))];
   const tokens = await Promise.all(names.map((known) => tagToken(keys, known)));
   return [...plainTags].some(below) ? { tag, tagToken: tokens } : { tagToken: tokens };
+}
+
+/** Shown in place of a label name that cannot be decrypted in this browser. */
+export const UNREADABLE_LABEL = "Encrypted label";
+
+/** Request fields for a new label: its name, or in end-to-end mode an ID chosen here and the name encrypted for it. */
+export async function encodeNewLabel(name: string): Promise<{ name?: string; id?: string; encryptedName?: string }> {
+  if (session?.mode !== "EndToEnd") return { name };
+  const id = uuidv7();
+  return { id, ...(await encodeLabelName(id, name)) };
+}
+
+/** Request fields for a label's new name: as it is, or encrypted for the label in end-to-end mode. */
+export async function encodeLabelName(id: string, name: string): Promise<{ name?: string; encryptedName?: string }> {
+  if (session?.mode !== "EndToEnd") return { name };
+  const { userId, keys } = unlocked();
+  return { encryptedName: toBase64(await encryptLabelName(keys, userId, id, name)) };
+}
+
+/** Labels as components see them: end-to-end names decrypted, sorted by name. */
+export async function decodeLabels(labels: LabelWire[]): Promise<Label[]> {
+  const decoded = await Promise.all(
+    labels.map(async ({ encryptedName, ...label }) => {
+      let name = label.name;
+      if (!name && encryptedName && session?.keys) {
+        name = await decryptLabelName(session.keys, session.userId, label.id, fromBase64(encryptedName)).catch(() => null);
+      }
+      return { ...label, name: name ?? UNREADABLE_LABEL };
+    }),
+  );
+  return decoded.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) || (a.id < b.id ? -1 : 1));
 }
 
 /** The signed-in account and its unlocked key, for the media service worker; null when there is none. */

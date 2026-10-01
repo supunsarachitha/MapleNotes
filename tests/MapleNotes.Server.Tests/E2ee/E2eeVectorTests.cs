@@ -68,6 +68,7 @@ public sealed class E2eeVectorTests
         var userId = Guid.Parse("0192f3a1-7c2e-7d4b-9a1c-3e5f7a9b1c2d");
         var noteId = Guid.Parse("0192f3a2-0000-7abc-8def-0123456789ab");
         var attachmentId = Guid.Parse("0192f3a3-1111-7222-8333-444455556666");
+        var labelId = Guid.Parse("0192f3a4-2222-7333-8444-555566667777");
         var dataKey = Enumerable.Range(0, 32).Select(i => (byte)((i * 7) + 3)).ToArray();
         var (noteKey, metadataKey, tagIndexKey) = E2eeCrypto.SubKeys(dataKey);
 
@@ -76,6 +77,7 @@ public sealed class E2eeVectorTests
         var tagNonce = Sequence(12, start: 0xC0);
         var recoveryNonce = Sequence(12, start: 0xE0);
         var metadataNonce = Sequence(12, start: 0xF0);
+        var labelNonce = Sequence(12, start: 0x90);
 
         const string noteText = "Buy **maple** syrup #groceries 🍁\n\n- [ ] pancakes";
         const string tagName = "#Work/Meetings-";
@@ -88,11 +90,12 @@ public sealed class E2eeVectorTests
         var plaintext = Pattern(70_000); // two chunks: 65,536 + 4,464 bytes
         var encrypted = E2eeCrypto.EncryptAttachment(dataKey, userId, attachmentId, plaintext, attachmentSalt);
         const string metadataJson = "{\"name\":\"sunset.png\",\"type\":\"image/png\",\"size\":70000}";
+        const string labelName = "Café plans 🍁"; // as written: label names keep their case
 
         return new Vectors(
             Version: 2,
             Kdf: new KdfVector(password, B64(salt), E2eeCrypto.TestMemoryKiB, E2eeCrypto.TestIterations, 1, B64(master), B64(authKey), B64(wrapKey)),
-            Ids: new IdsVector(userId.ToString(), noteId.ToString(), attachmentId.ToString()),
+            Ids: new IdsVector(userId.ToString(), noteId.ToString(), attachmentId.ToString(), labelId.ToString()),
             DataKeyB64: B64(dataKey),
             Subkeys: new SubkeysVector(B64(noteKey), B64(metadataKey), B64(tagIndexKey)),
             WrappedDataKey: new EnvelopeVector(B64(wrapNonce), B64(E2eeCrypto.Seal(wrapKey, dataKey, E2eeCrypto.DataKeyContext(userId), wrapNonce))),
@@ -104,7 +107,9 @@ public sealed class E2eeVectorTests
             Attachment: new AttachmentVector(plaintext.Length, "byte i = i mod 251", B64(attachmentSalt), encrypted.Length,
                 Convert.ToHexStringLower(SHA256.HashData(encrypted))),
             Metadata: new MetadataVector(metadataJson, B64(metadataNonce),
-                B64(E2eeCrypto.SealMetadata(dataKey, userId, attachmentId, metadataJson, metadataNonce))));
+                B64(E2eeCrypto.SealMetadata(dataKey, userId, attachmentId, metadataJson, metadataNonce))),
+            Label: new LabelVector(labelName, B64(labelNonce),
+                B64(E2eeCrypto.Seal(metadataKey, System.Text.Encoding.UTF8.GetBytes(labelName), E2eeCrypto.LabelContext(userId, labelId), labelNonce))));
     }
 
     private static byte[] Sequence(int length, int start) => Enumerable.Range(0, length).Select(i => (byte)(start + i)).ToArray();
@@ -126,12 +131,12 @@ public sealed class E2eeVectorTests
 
     private sealed record Vectors(
         int Version, KdfVector Kdf, IdsVector Ids, string DataKeyB64, SubkeysVector Subkeys, EnvelopeVector WrappedDataKey,
-        NoteVector Note, TagVector Tag, RecoveryVector Recovery, AttachmentVector Attachment, MetadataVector Metadata);
+        NoteVector Note, TagVector Tag, RecoveryVector Recovery, AttachmentVector Attachment, MetadataVector Metadata, LabelVector Label);
 
     private sealed record KdfVector(
         string Password, string SaltB64, int MemoryKiB, int Iterations, int Parallelism, string MasterB64, string AuthKeyB64, string WrapKeyB64);
 
-    private sealed record IdsVector(string UserId, string NoteId, string AttachmentId);
+    private sealed record IdsVector(string UserId, string NoteId, string AttachmentId, string LabelId);
 
     private sealed record SubkeysVector(string NoteKeyB64, string MetadataKeyB64, string TagIndexKeyB64);
 
@@ -147,4 +152,6 @@ public sealed class E2eeVectorTests
     private sealed record AttachmentVector(int PlaintextLength, string PlaintextPattern, string SaltB64, int EncryptedLength, string EncryptedSha256Hex);
 
     private sealed record MetadataVector(string Json, string NonceB64, string EnvelopeB64);
+
+    private sealed record LabelVector(string Name, string NonceB64, string EncryptedNameB64);
 }

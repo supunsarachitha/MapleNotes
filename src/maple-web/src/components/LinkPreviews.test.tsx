@@ -7,6 +7,7 @@ import { linksIn } from "../lib/links";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
 import type { AuthStatus, Note, Preferences } from "../lib/types";
+import { onScreen } from "../test/viewport";
 import { NoteCard } from "./NoteCard";
 import { FeaturesSection } from "./PreferenceSections";
 import { ToastProvider } from "./Toaster";
@@ -39,7 +40,10 @@ function renderWith(ui: React.ReactNode, preferences: Partial<Preferences>, stat
   );
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("link previews", () => {
   it("finds the first distinct web links, leaving out code", () => {
@@ -52,6 +56,7 @@ describe("link previews", () => {
     const preview = vi.spyOn(api, "linkPreview").mockImplementation(async (url) =>
       url.includes("news") ? { url, title: "A story", description: "What happened", siteName: "News" } : null,
     );
+    onScreen();
     renderWith(<NoteCard note={note} />, { linkPreviews: true });
 
     expect(await screen.findByRole("link", { name: /A story/ })).toHaveAttribute("href", "https://news.example/story");

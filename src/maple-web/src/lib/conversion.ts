@@ -1,10 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { decryptAttachment, encryptAttachment } from "../crypto/attachments";
-import { decryptMetadata, decryptNote, encryptMetadata } from "../crypto/content";
+import { decryptLabelName, decryptMetadata, decryptNote, encryptLabelName, encryptMetadata } from "../crypto/content";
 import { fromBase64, toBase64 } from "../crypto/encoding";
 import { DecryptionError } from "../crypto/envelope";
-import { api, ApiError } from "./api";
+import { api, ApiError, request } from "./api";
 import { DOWNLOAD_CONTENT_TYPE } from "./media";
 import { encryptForNote, unlockedSession } from "./noteCrypto";
 import { queryKeys } from "./queries";
@@ -60,6 +60,17 @@ async function convertAttachment(batch: ConversionBatch, file: ConversionBatch["
   await api.conversion.attachment(file.id, form);
 }
 
+/** Saves a label's name again in the account's new form: encrypted for end-to-end mode, plain otherwise. */
+async function convertLabel(batch: ConversionBatch, label: NonNullable<ConversionBatch["labels"]>[number]): Promise<void> {
+  const { userId, keys } = unlockedSession() ?? {};
+  if (!userId || !keys) throw new ApiError(0, { title: "Unlock your notes first." });
+  const body =
+    batch.mode === "EndToEnd"
+      ? { encryptedName: toBase64(await encryptLabelName(keys, userId, label.id, label.name ?? "")) }
+      : { name: await decryptLabelName(keys, userId, label.id, fromBase64(label.encryptedName ?? "")) };
+  await request<void>("PUT", `/api/v1/labels/${label.id}`, body);
+}
+
 async function attempt(id: string, convert: () => Promise<void>): Promise<void> {
   try {
     await convert();
@@ -80,6 +91,10 @@ export async function convertNextBatch(): Promise<number> {
   for (const file of batch.attachments.filter((a) => !unconvertible.has(a.id))) {
     attempted++;
     await attempt(file.id, () => convertAttachment(batch, file));
+  }
+  for (const label of (batch.labels ?? []).filter((l) => !unconvertible.has(l.id))) {
+    attempted++;
+    await attempt(label.id, () => convertLabel(batch, label));
   }
   return attempted === 0 ? 0 : batch.remaining;
 }
@@ -121,6 +136,7 @@ export function useConversionRunner(user: User | null, unlocked: boolean): void 
         await queryClient.invalidateQueries({ queryKey: queryKeys.status });
         await queryClient.invalidateQueries({ queryKey: queryKeys.notes });
         await queryClient.invalidateQueries({ queryKey: queryKeys.tags });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.labels });
       }
     })();
     return () => {

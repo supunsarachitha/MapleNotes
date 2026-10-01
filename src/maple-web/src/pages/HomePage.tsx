@@ -1,5 +1,7 @@
-import { CalendarDays, Hash, Search, X } from "lucide-react";
+import { CalendarDays, Hash, Search, Tag, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { Composer } from "../components/Composer";
+import { LabelDot } from "../components/Labels";
 import { NoteList } from "../components/NoteList";
 import { EmptyState } from "../components/ui";
 import { NoteCard } from "../components/NoteCard";
@@ -7,13 +9,14 @@ import { useTodaysNote } from "../lib/daily";
 import { formatDate, parseDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
+import { useLabels } from "../lib/queries";
 import { Link, useLocation } from "../lib/router";
 import { FeatureOff } from "./TodoPage";
 
-function FilterHeader({ icon: Icon, label }: { icon: typeof Hash; label: string }) {
+function FilterHeader({ icon: Icon, marker, label }: { icon: typeof Hash; marker?: ReactNode; label: string }) {
   return (
     <div className="mb-4 flex items-center gap-3">
-      <Icon className="size-5 text-maple-600 dark:text-maple-400" aria-hidden="true" />
+      {marker ?? <Icon className="size-5 text-maple-600 dark:text-maple-400" aria-hidden="true" />}
       <h1 className="min-w-0 flex-1 truncate text-xl font-semibold">{label}</h1>
       <Link
         href="/"
@@ -44,12 +47,33 @@ function TodayCard({ today }: { today: ReturnType<typeof useTodaysNote> }) {
   );
 }
 
-/** Home: today's note, the composer, pinned notes and the feed; or, with ?tag= or ?q=, the matching notes. */
+/** The notes with one label (?label=), named and coloured like the label. */
+function LabelNotes({ id }: { id: string }) {
+  const kinds = useEnabledKinds();
+  const labels = useLabels(kinds);
+  const label = labels.data?.find((candidate) => candidate.id === id);
+  const name = label?.name ?? (labels.isPending ? "Label" : "Deleted label");
+  return (
+    <>
+      <FilterHeader icon={Tag} marker={label && <LabelDot color={label.color} className="size-3.5" />} label={name} />
+      <NoteList
+        key={id}
+        state="active"
+        label={id}
+        kinds={kinds}
+        empty={<EmptyState title="No notes with this label">Put it on a note from the note's ⋯ menu. Archived notes are not included.</EmptyState>}
+      />
+    </>
+  );
+}
+
+/** Home: today's note, the composer, pinned notes and the feed; or, with ?tag=, ?q=, ?day= or ?label=, the matching notes. */
 export function HomePage() {
   const { params } = useLocation();
   const kinds = useEnabledKinds();
   const tag = params.get("tag") ?? undefined;
   const q = params.get("q") ?? undefined;
+  const label = params.get("label") ?? undefined;
   const dayKey = params.get("day") ?? undefined;
   const day = dayKey ? parseDateKey(dayKey) : null;
   const { dateFormat } = usePreferences();
@@ -70,6 +94,8 @@ export function HomePage() {
       </>
     );
   }
+
+  if (label) return <LabelNotes id={label} />;
 
   if (tag || q) {
     return (

@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-01
+
+A trash, coloured labels, tag suggestions, a side menu in your own order, Settings in sections, and long timelines
+that open quickly.
+
+### Added
+
+- **Trash** (Settings → Features, on by default): deleting a note, todo list or habit moves it to the trash, and Undo
+  in the message brings it straight back. The trash is not in the side menu; it opens from Settings → Backup & data,
+  where each item can be restored to where it was or deleted forever, and the whole trash emptied. Items are deleted
+  for good after 30 days by a background job. Until then they count towards storage, and they are left out of the
+  timeline, searches, tags, labels, the calendar and exports. A daily note moved to the trash gives up its day. With
+  the trash off, deleting asks first and is permanent, as before.
+- **Labels** (Settings → Labels, off by default): coloured labels, in ten colours, that you put on notes and todo
+  lists by hand from their ⋯ menu, creating new ones as you go. A note shows its labels as chips; choosing one, or a
+  label in the side menu, lists its notes. Settings → Labels creates, renames, recolours and deletes them. Up to 100
+  labels, 40 characters each, and 20 on a note. With end-to-end encryption, label names are encrypted in the browser
+  for each label's ID (docs/e2ee-spec.md §4a); colours, and which notes carry a label, are not. Changing to or from
+  end-to-end encryption converts label names with the rest. Exports do not include labels yet.
+- **Tag suggestions** (Settings → Writing, off by default): typing `#` in a note offers the tags you already use that
+  match, most used first, next to the cursor. Arrows and Enter or Tab choose one, Esc closes the list, and a tap works
+  too.
+- **Menu order** (Settings → Side menu): drag the side menu's items by their handle, or move them with their arrows,
+  into the order you use them, on every device. Back to the usual order is one button.
+
+### Changed
+
+- **Settings in sections:** Account, Appearance, Side menu, Writing, Features, Labels, Backup & data, Privacy &
+  security and, for administrators, Administration. Wide screens show the list beside the open section; phones show
+  the list, and each section on its own page. Each section has its own address (`/settings/features`, for example),
+  so Back and links from Help work. The collapsed Advanced section is gone: encryption, the recovery key, sessions and
+  the password are under Privacy & security, starting over under Backup & data, and deleting the account under
+  Account. Features are grouped into Pages, Home and menu, and Notes and files.
+- **Editing starts at the end:** editing a note, a todo item, a list's name or items as Markdown, a habit's name, a
+  label's name or the display name puts the cursor after the text, ready to carry on.
+- **Long timelines open quickly:** players, the decryption of end-to-end files in the page and link previews wait
+  until their note comes near the screen, and cards far off screen are not laid out. On the server, a new index lets
+  the feed, the pinned notes and the tag and label counts be read from the index alone. Tag counts are now one query
+  instead of one per tag. With 3,000 notes, the tag list went from about 5 seconds to 5 ms and the pinned notes from
+  29 ms to 1.5 ms.
+- API: notes have `labelIds` and `trashedAtUtc`. Lists take `state=trash` and `label`. `PATCH /api/v1/notes/{id}`
+  takes `isTrashed` and `labelIds`. `DELETE /api/v1/notes/trash` empties the trash; `DELETE /api/v1/notes/{id}` still
+  deletes for good. New: `GET`/`POST /api/v1/labels` and `PUT`/`DELETE /api/v1/labels/{id}`. Preferences gain
+  `tagSuggestions`, `labels`, `trash` and `menuOrder` (comma-separated). Conversion batches gain `labels`. Deleting
+  all of an account's content also deletes its labels.
+
 ## [1.7.0] - 2026-09-30
 
 Titles for quick notes, checkboxes you can tick right in a note, double-tap to edit, and editing a whole todo list as
@@ -364,7 +410,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.4.0...v1.5.0

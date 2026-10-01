@@ -14,8 +14,8 @@ using Microsoft.EntityFrameworkCore;
 namespace MapleNotes.Server.Features.Notes;
 
 /// <summary>
-/// Creates, reads, updates, archives and deletes notes. Every operation is scoped to the owner, and note text is
-/// encrypted or decrypted transparently according to the owner's encryption mode and each note's scheme.
+/// Creates, reads, updates, archives, labels, trashes and deletes notes. Every operation is scoped to the owner, and note
+/// text is encrypted or decrypted transparently according to the owner's encryption mode and each note's scheme.
 /// </summary>
 /// <param name="db">Database context.</param>
 /// <param name="keys">Per-request data keys.</param>
@@ -37,6 +37,9 @@ public sealed class NoteService(
 
     /// <summary>The most IDs <see cref="FindExistingAsync"/> answers at a time.</summary>
     public const int MaxImportIds = 500;
+
+    /// <summary>How long a note stays in the trash before it is deleted for good.</summary>
+    public static readonly TimeSpan TrashRetention = TimeSpan.FromDays(30);
 
     /// <summary>Shown in place of a note whose text cannot be decrypted (damaged data).</summary>
     public const string UnreadablePlaceholder = "⚠️ This note could not be decrypted. Its stored data may be damaged.";
@@ -78,7 +81,7 @@ public sealed class NoteService(
             throw new ApiValidationException("createdBefore", "The end must be after the start.");
         }
 
-        var filter = new TagFilter(tag, tagTokens, Utc(query.CreatedFrom), Utc(query.CreatedBefore));
+        var filter = new TagFilter(tag, tagTokens, Utc(query.CreatedFrom), Utc(query.CreatedBefore), query.Label);
         var kinds = ValidateKinds(query.Kinds) ?? [NoteKind.Note];
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
 
@@ -91,7 +94,7 @@ public sealed class NoteService(
                 items.Add(await ToResponseAsync(note, cancellationToken));
             }
 
-            var next = page.Count > limit ? new NoteCursor(page[limit - 1].CreatedAtUtc, page[limit - 1].Id).Encode() : null;
+            var next = page.Count > limit ? CursorAfter(page[limit - 1], query.State).Encode() : null;
             return new NotePageResponse(items, next);
         }
 
@@ -103,7 +106,7 @@ public sealed class NoteService(
             foreach (var note in batch)
             {
                 scanned++;
-                cursor = new NoteCursor(note.CreatedAtUtc, note.Id);
+                cursor = CursorAfter(note, query.State);
                 var response = await ToResponseAsync(note, cancellationToken);
                 if (Matches(response, search))
                 {
@@ -419,13 +422,14 @@ public sealed class NoteService(
         return await ToResponseAsync(note, cancellationToken);
     }
 
-    /// <summary>Pins, unpins, archives, restores or moves a note.</summary>
+    /// <summary>Pins, unpins, archives, restores, moves, labels or trashes a note.</summary>
     /// <param name="userId">The owner.</param>
     /// <param name="noteId">The note.</param>
     /// <param name="request">The changes.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The updated note, or null when it does not exist or belongs to someone else.</returns>
-    /// <exception cref="ApiValidationException">The kind is not valid, or the move is to or from habits.</exception>
+    /// <exception cref="ApiValidationException">The kind is not valid, the move is to or from habits, or a label is not
+    /// one of the owner's.</exception>
     public async Task<NoteResponse?> PatchAsync(Guid userId, Guid noteId, PatchNoteRequest request, CancellationToken cancellationToken)
     {
         if (request.Kind is { } kind)
@@ -455,14 +459,52 @@ public sealed class NoteService(
             note.ArchivedAtUtc = archived ? note.ArchivedAtUtc ?? time.GetUtcNow().UtcDateTime : null;
         }
 
-        note.Kind = request.Kind ?? note.Kind;
-        if (note.Kind != NoteKind.Note)
+        if (request.IsTrashed is { } trashed)
         {
-            note.DailyDate = null; // a daily note moved out of the timeline no longer holds its day
+            note.TrashedAtUtc = trashed ? note.TrashedAtUtc ?? time.GetUtcNow().UtcDateTime : null;
+        }
+
+        if (request.LabelIds is { } labelIds)
+        {
+            await SetLabelsAsync(note, labelIds, cancellationToken);
+        }
+
+        note.Kind = request.Kind ?? note.Kind;
+        if (note.Kind != NoteKind.Note || note.TrashedAtUtc is not null)
+        {
+            // A daily note moved out of the timeline, or to the trash, no longer holds its day, so the day can have a
+            // new one; restored, it is an ordinary note.
+            note.DailyDate = null;
         }
 
         await db.SaveChangesAsync(cancellationToken);
         return await ToResponseAsync(note, cancellationToken);
+    }
+
+    /// <summary>Replaces a loaded note's labels.</summary>
+    /// <param name="note">The note, loaded with its labels.</param>
+    /// <param name="labelIds">The labels it should have.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>A task that completes when the note is updated in memory (the caller saves).</returns>
+    /// <exception cref="ApiValidationException">Too many labels, or one is not the owner's.</exception>
+    private async Task SetLabelsAsync(Note note, IReadOnlyList<Guid> labelIds, CancellationToken cancellationToken)
+    {
+        var ids = labelIds.Distinct().ToList();
+        if (ids.Count > Label.MaxPerNote)
+        {
+            throw new ApiValidationException("labelIds", $"A note can have at most {Label.MaxPerNote} labels.");
+        }
+
+        var labels = ids.Count == 0
+            ? []
+            : await db.Labels.Where(l => l.UserId == note.UserId && ids.Contains(l.Id)).ToListAsync(cancellationToken);
+        if (labels.Count != ids.Count)
+        {
+            throw new ApiValidationException("labelIds", "One or more labels do not exist.");
+        }
+
+        note.Labels.Clear();
+        note.Labels.AddRange(labels);
     }
 
     /// <summary>Permanently deletes a note and its attachments.</summary>
@@ -472,15 +514,73 @@ public sealed class NoteService(
     /// <returns>False when the note does not exist or belongs to someone else.</returns>
     public async Task<bool> DeleteAsync(Guid userId, Guid noteId, CancellationToken cancellationToken)
     {
-        var note = await db.Notes.Include(n => n.Attachments)
-            .SingleOrDefaultAsync(n => n.Id == noteId && n.UserId == userId, cancellationToken);
-        if (note is null)
+        var deleted = await DeleteWhereAsync(db.Notes.Where(n => n.Id == noteId && n.UserId == userId), cancellationToken);
+        if (deleted.Notes == 0)
         {
             return false;
         }
 
-        var files = note.Attachments.Select(a => a.StorageKey).ToList();
-        db.Notes.Remove(note);
+        await RemoveUnusedTagsAsync(userId, cancellationToken);
+        return true;
+    }
+
+    /// <summary>Permanently deletes every note in the user's trash, with their attachments.</summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>How many notes and files were deleted.</returns>
+    public async Task<EmptyTrashResponse> EmptyTrashAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var deleted = await DeleteWhereAsync(db.Notes.Where(n => n.UserId == userId && n.TrashedAtUtc != null), cancellationToken);
+        await RemoveUnusedTagsAsync(userId, cancellationToken);
+        return deleted;
+    }
+
+    /// <summary>
+    /// Permanently deletes the notes of every account that have been in the trash for longer than
+    /// <see cref="TrashRetention"/>, a batch at a time.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>How many notes and files were deleted.</returns>
+    public async Task<EmptyTrashResponse> PurgeExpiredTrashAsync(CancellationToken cancellationToken)
+    {
+        var cutoff = time.GetUtcNow().UtcDateTime - TrashRetention;
+        var (notes, files) = (0, 0);
+        while (true)
+        {
+            var batch = await db.Notes.AsNoTracking()
+                .Where(n => n.TrashedAtUtc != null && n.TrashedAtUtc < cutoff)
+                .Select(n => new { n.Id, n.UserId })
+                .Take(200)
+                .ToListAsync(cancellationToken);
+            if (batch.Count == 0)
+            {
+                return new EmptyTrashResponse(notes, files);
+            }
+
+            var ids = batch.Select(n => n.Id).ToList();
+            var deleted = await DeleteWhereAsync(db.Notes.Where(n => ids.Contains(n.Id)), cancellationToken);
+            (notes, files) = (notes + deleted.Notes, files + deleted.Files);
+            foreach (var owner in batch.Select(n => n.UserId).Distinct())
+            {
+                await RemoveUnusedTagsAsync(owner, cancellationToken);
+            }
+        }
+    }
+
+    /// <summary>Permanently deletes notes and their attachments: the rows, then the stored files.</summary>
+    /// <param name="notes">The notes to delete, already scoped to their owner.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>How many notes and files were deleted.</returns>
+    private async Task<EmptyTrashResponse> DeleteWhereAsync(IQueryable<Note> notes, CancellationToken cancellationToken)
+    {
+        var doomed = await notes.Include(n => n.Attachments).ToListAsync(cancellationToken);
+        if (doomed.Count == 0)
+        {
+            return new EmptyTrashResponse(0, 0);
+        }
+
+        var files = doomed.SelectMany(n => n.Attachments).Select(a => a.StorageKey).ToList();
+        db.Notes.RemoveRange(doomed);
         await db.SaveChangesAsync(cancellationToken);
 
         foreach (var storageKey in files)
@@ -488,8 +588,7 @@ public sealed class NoteService(
             store.Delete(storageKey);
         }
 
-        await RemoveUnusedTagsAsync(userId, cancellationToken);
-        return true;
+        return new EmptyTrashResponse(doomed.Count, files.Count);
     }
 
     /// <summary>Lists the user's tags with the number of active notes using each.</summary>
@@ -500,26 +599,34 @@ public sealed class NoteService(
     /// <exception cref="ApiValidationException">A kind is not valid.</exception>
     public async Task<IReadOnlyList<TagResponse>> ListTagsAsync(Guid userId, NoteKind[]? kinds, CancellationToken cancellationToken)
     {
-        var counted = db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null);
+        var counted = db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null);
         counted = ValidateKinds(kinds) is { } wanted
             ? counted.Where(n => wanted.Contains(n.Kind))
             : counted.Where(n => n.Kind != NoteKind.Habit);
 
-        var rows = await db.Tags
+        var tags = await db.Tags.AsNoTracking()
             .Where(t => t.UserId == userId)
-            .Select(t => new
-            {
-                t.Name,
-                t.Token,
-                t.EncryptedName,
-                Count = counted.Count(n => n.Tags.Any(nt => nt.Id == t.Id)),
-            })
-            .Where(row => row.Count > 0)
-            .OrderBy(row => row.Name == null)
-            .ThenBy(row => row.Name)
-            .ThenBy(row => row.Token)
+            .Select(t => new { t.Id, t.Name, t.Token, t.EncryptedName })
             .ToListAsync(cancellationToken);
-        return rows.Select(row => new TagResponse(row.Name, row.Count, row.Token, row.EncryptedName)).ToList();
+        if (tags.Count == 0)
+        {
+            return [];
+        }
+
+        // One pass over the notes and their tag links, grouped by tag. (Counting each tag with its own subquery read every
+        // note once per tag: seconds for a few thousand notes, since each read decrypts database pages.)
+        var counts = await counted
+            .SelectMany(n => n.Tags.Select(t => t.Id))
+            .GroupBy(id => id)
+            .Select(g => new { TagId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.TagId, g => g.Count, cancellationToken);
+        return tags
+            .Where(t => counts.ContainsKey(t.Id))
+            .OrderBy(t => t.Name is null)
+            .ThenBy(t => t.Name, StringComparer.Ordinal)
+            .ThenBy(t => t.Token, StringComparer.Ordinal)
+            .Select(t => new TagResponse(t.Name, counts[t.Id], t.Token, t.EncryptedName))
+            .ToList();
     }
 
     /// <summary>
@@ -543,7 +650,9 @@ public sealed class NoteService(
             note.Attachments.OrderBy(a => a.CreatedAtUtc).Select(AttachmentResponse.From).ToList(),
             endToEnd ? note.Content : null,
             note.Kind,
-            note.DailyDate);
+            note.DailyDate,
+            note.Labels.Select(l => l.Id).Order().ToList(),
+            note.TrashedAtUtc);
     }
 
     /// <summary>Returns a note's text, decrypting it when necessary.</summary>
@@ -595,11 +704,21 @@ public sealed class NoteService(
         await SetEncryptedTagsAsync(note, encrypted.Tags, cancellationToken);
     }
 
-    /// <summary>Loads notes with their attachments and tags.</summary>
+    /// <summary>Loads notes with their attachments, tags and labels.</summary>
     /// <param name="notes">The notes to load.</param>
     /// <returns>The query including details.</returns>
     internal static IQueryable<Note> WithDetails(IQueryable<Note> notes) =>
-        notes.Include(n => n.Attachments).Include(n => n.Tags).AsSplitQuery();
+        notes.Include(n => n.Attachments).Include(n => n.Tags).Include(n => n.Labels).AsSplitQuery();
+
+    /// <summary>
+    /// The position after a note in a list: its creation time, or in the trash, which lists the most recently deleted
+    /// first, the time it was deleted.
+    /// </summary>
+    /// <param name="note">The last note of a page.</param>
+    /// <param name="state">The list.</param>
+    /// <returns>The cursor of the next page.</returns>
+    private static NoteCursor CursorAfter(Note note, NoteState state) =>
+        new(state == NoteState.Trash ? note.TrashedAtUtc ?? note.CreatedAtUtc : note.CreatedAtUtc, note.Id);
 
     private Task<List<Note>> LoadBatchAsync(
         Guid userId, NoteState state, NoteKind[] kinds, TagFilter filter, NoteCursor? cursor, int count, CancellationToken cancellationToken)
@@ -615,12 +734,15 @@ public sealed class NoteService(
             notes = notes.Where(n => kinds.Contains(n.Kind));
         }
 
+        // Compared with a parameter, not as a bare flag, so that SQLite can seek the index on it (MapleDbContext).
+        var pinned = state == NoteState.Pinned;
         notes = state switch
         {
-            NoteState.Pinned => notes.Where(n => n.ArchivedAtUtc == null && n.IsPinned),
-            NoteState.Active => notes.Where(n => n.ArchivedAtUtc == null),
-            NoteState.Archived => notes.Where(n => n.ArchivedAtUtc != null),
-            _ => notes.Where(n => n.ArchivedAtUtc == null && !n.IsPinned),
+            NoteState.Feed or NoteState.Pinned => notes.Where(n => n.IsPinned == pinned && n.ArchivedAtUtc == null && n.TrashedAtUtc == null),
+            NoteState.Active => notes.Where(n => n.ArchivedAtUtc == null && n.TrashedAtUtc == null),
+            NoteState.Archived => notes.Where(n => n.ArchivedAtUtc != null && n.TrashedAtUtc == null),
+            NoteState.Trash => notes.Where(n => n.TrashedAtUtc != null),
+            _ => throw new ApiValidationException("state", "The state must be feed, pinned, active, archived or trash."),
         };
 
         if (filter.CreatedFrom is { } from)
@@ -640,6 +762,26 @@ public sealed class NoteService(
             notes = notes.Where(n => n.Tags.Any(t =>
                 (tag != null && t.Name != null && (t.Name == tag || t.Name.StartsWith(nestedPrefix)))
                 || (t.Token != null && tokens.Contains(t.Token))));
+        }
+
+        if (filter.Label is { } labelId)
+        {
+            notes = notes.Where(n => n.Labels.Any(l => l.Id == labelId));
+        }
+
+        if (state == NoteState.Trash)
+        {
+            if (cursor is { } deletedAt)
+            {
+                notes = notes.Where(n => n.TrashedAtUtc < deletedAt.CreatedAtUtc
+                    || (n.TrashedAtUtc == deletedAt.CreatedAtUtc && n.Id.CompareTo(deletedAt.Id) < 0));
+            }
+
+            return WithDetails(notes)
+                .OrderByDescending(n => n.TrashedAtUtc)
+                .ThenByDescending(n => n.Id)
+                .Take(count)
+                .ToListAsync(cancellationToken);
         }
 
         if (cursor is { } position)
@@ -676,7 +818,8 @@ public sealed class NoteService(
 
         var start = Export.NoteExporter.StartOfDayUtc(query.From, zone!);
         var end = Export.NoteExporter.StartOfDayUtc(query.To.AddDays(1), zone!);
-        var notes = db.Notes.AsNoTracking().Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.CreatedAtUtc >= start && n.CreatedAtUtc < end);
+        var notes = db.Notes.AsNoTracking().Where(n =>
+            n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null && n.CreatedAtUtc >= start && n.CreatedAtUtc < end);
         notes = ValidateKinds(query.Kinds) is { } kinds
             ? notes.Where(n => kinds.Contains(n.Kind))
             : notes.Where(n => n.Kind != NoteKind.Habit);
@@ -696,7 +839,7 @@ public sealed class NoteService(
     /// <param name="kinds">The kinds, possibly null or empty.</param>
     /// <returns>The distinct kinds, or null when none were given.</returns>
     /// <exception cref="ApiValidationException">A value is not a <see cref="NoteKind"/>.</exception>
-    private static NoteKind[]? ValidateKinds(NoteKind[]? kinds)
+    internal static NoteKind[]? ValidateKinds(NoteKind[]? kinds)
     {
         if (kinds is null || kinds.Length == 0)
         {
@@ -842,10 +985,11 @@ public sealed class NoteService(
             .ExecuteDeleteAsync(cancellationToken);
 
     /// <summary>
-    /// A list filter: a tag name (plain-text notes) and blind tokens (end-to-end notes), matched with OR, and an optional
-    /// creation-time range.
+    /// A list filter: a tag name (plain-text notes) and blind tokens (end-to-end notes), matched with OR, an optional
+    /// creation-time range and an optional label.
     /// </summary>
-    private readonly record struct TagFilter(string? Name, string[] Tokens, DateTime? CreatedFrom = null, DateTime? CreatedBefore = null)
+    private readonly record struct TagFilter(
+        string? Name, string[] Tokens, DateTime? CreatedFrom = null, DateTime? CreatedBefore = null, Guid? Label = null)
     {
         public bool IsActive => Name is not null || Tokens.Length > 0;
     }

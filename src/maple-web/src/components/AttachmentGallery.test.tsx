@@ -1,7 +1,8 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Attachment } from "../lib/types";
+import { onScreen } from "../test/viewport";
 
 vi.mock("../lib/noteCrypto", () => ({
   fetchDecrypted: vi.fn(async () => new Blob(["decrypted"], { type: "image/png" })),
@@ -21,6 +22,8 @@ const encrypted: Attachment = {
   endToEnd: true,
 };
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe("AttachmentGallery", () => {
   it("shows plain files from their own URL", () => {
     render(<AttachmentGallery attachments={[{ ...encrypted, endToEnd: undefined }]} />);
@@ -35,10 +38,30 @@ describe("AttachmentGallery", () => {
   });
 
   it("decrypts end-to-end files in the page when no service worker is available", async () => {
+    onScreen();
     render(<AttachmentGallery attachments={[encrypted]} />);
 
     await waitFor(() => expect(screen.getByRole("img", { name: "sunset.png" }).getAttribute("src")).toMatch(/^blob:/));
     expect(fetchDecrypted).toHaveBeenCalledWith(encrypted);
+  });
+
+  it("decrypts nothing for notes far off screen", async () => {
+    vi.mocked(fetchDecrypted).mockClear();
+    const film: Attachment = { ...encrypted, id: "0192f3a3-1111-7222-8333-444455550000", fileName: "film.mp4", contentType: "video/mp4", isImage: false };
+    render(<AttachmentGallery attachments={[encrypted, film]} />);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fetchDecrypted).not.toHaveBeenCalled();
+    expect(screen.queryByRole("img", { name: "sunset.png" })).not.toBeInTheDocument(); // a placeholder until then
+    expect(document.querySelector("video")).toBeNull(); // players fetch part of their file as soon as they exist
+    expect(screen.getByRole("img", { name: "film.mp4" })).toBeInTheDocument();
+  });
+
+  it("puts a player in once a video comes near the screen", () => {
+    onScreen();
+    render(<AttachmentGallery attachments={[{ ...encrypted, endToEnd: undefined, fileName: "film.mp4", contentType: "video/mp4", isImage: false }]} />);
+
+    expect(screen.getByLabelText("film.mp4").tagName).toBe("VIDEO");
   });
 
   it("opens images in a viewer that pages through a note's images", async () => {

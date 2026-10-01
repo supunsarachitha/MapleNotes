@@ -2,16 +2,19 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { api } from "./api";
 import { e2ee } from "./e2ee";
 import { dayRange } from "./dates";
+import type { NoteChanges } from "./api";
 import type { AuthStatus, Note, NoteKind, NoteState } from "./types";
 
 export const queryKeys = {
   status: ["auth", "status"] as const,
   notes: ["notes"] as const,
-  noteList: (state: NoteState, tag?: string, q?: string, kinds: NoteKind[] = ["Note"], day?: string) =>
-    ["notes", state, tag ?? "", q ?? "", kinds.join(","), day ?? ""] as const,
+  noteList: (state: NoteState, tag?: string, q?: string, kinds: NoteKind[] = ["Note"], day?: string, label?: string) =>
+    ["notes", state, tag ?? "", q ?? "", kinds.join(","), day ?? "", label ?? ""] as const,
   calendar: (month: string, kinds: NoteKind[]) => ["notes", "calendar", month, kinds.join(",")] as const,
   tags: ["tags"] as const,
   tagList: (kinds: NoteKind[]) => ["tags", kinds.join(",")] as const,
+  labels: ["labels"] as const,
+  labelList: (kinds: NoteKind[]) => ["labels", kinds.join(",")] as const,
   adminSettings: ["admin", "settings"] as const,
   adminUsers: ["admin", "users"] as const,
   encryption: ["account", "encryption"] as const,
@@ -40,29 +43,38 @@ export function useSignedOut() {
   };
 }
 
-/** One infinitely scrolling list of notes of the given kinds, optionally of one local day (cursor pagination). */
-export function useNotes(state: NoteState, tag?: string, q?: string, kinds: NoteKind[] = ["Note"], day?: string) {
+/**
+ * One infinitely scrolling list of notes of the given kinds, optionally of one local day or with one label (cursor
+ * pagination).
+ */
+export function useNotes(state: NoteState, tag?: string, q?: string, kinds: NoteKind[] = ["Note"], day?: string, label?: string) {
   return useInfiniteQuery({
-    queryKey: queryKeys.noteList(state, tag, q, kinds, day),
+    queryKey: queryKeys.noteList(state, tag, q, kinds, day, label),
     queryFn: ({ pageParam }) =>
-      api.listNotes({ state, tag, q, kinds, cursor: pageParam, limit: PAGE_SIZE, ...(day ? dayRange(day) : {}) }),
+      api.listNotes({ state, tag, q, kinds, label, cursor: pageParam, limit: PAGE_SIZE, ...(day ? dayRange(day) : {}) }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
 }
 
 /** Tags with how many active notes of these kinds use them. */
-export function useTags(kinds: NoteKind[]) {
-  return useQuery({ queryKey: queryKeys.tagList(kinds), queryFn: () => api.listTags(kinds), staleTime: 30_000 });
+export function useTags(kinds: NoteKind[], enabled = true) {
+  return useQuery({ queryKey: queryKeys.tagList(kinds), queryFn: () => api.listTags(kinds), staleTime: 30_000, enabled });
 }
 
-/** Refreshes every note list and the tag list after a change. */
+/** The account's labels, sorted by name, with how many active notes of these kinds carry each. */
+export function useLabels(kinds: NoteKind[], enabled = true) {
+  return useQuery({ queryKey: queryKeys.labelList(kinds), queryFn: () => api.labels.list(kinds), staleTime: 30_000, enabled });
+}
+
+/** Refreshes every note list, the tag list and the label counts after a change. */
 export function useInvalidateNotes() {
   const client = useQueryClient();
   return () =>
     Promise.all([
       client.invalidateQueries({ queryKey: queryKeys.notes }),
       client.invalidateQueries({ queryKey: queryKeys.tags }),
+      client.invalidateQueries({ queryKey: queryKeys.labels }),
     ]);
 }
 
@@ -86,8 +98,7 @@ export function useHabits(state: "active" | "archived") {
 export function usePatchNote() {
   const invalidate = useInvalidateNotes();
   return useMutation({
-    mutationFn: ({ id, ...changes }: { id: string; isPinned?: boolean; isArchived?: boolean; kind?: NoteKind }) =>
-      api.patchNote(id, changes),
+    mutationFn: ({ id, ...changes }: NoteChanges & { id: string }) => api.patchNote(id, changes),
     onSuccess: invalidate,
   });
 }

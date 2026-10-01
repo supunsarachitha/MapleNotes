@@ -1,15 +1,17 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Archive, CalendarCheck, CircleHelp, Hash, Home, ListTodo, LogOut, Menu, Search, Settings, X, Zap } from "lucide-react";
+import { Home, LogOut, Menu, Search, X } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { useBranding } from "../lib/branding";
 import { useEnabledKinds } from "../lib/kinds";
+import { MENU_INFO, menuOrder, type MenuItemId } from "../lib/menu";
 import { usePreferences } from "../lib/preferences";
-import { useSignedOut, useTags } from "../lib/queries";
-import { Link, navigate, useLocation } from "../lib/router";
+import { useLabels, useSignedOut, useTags } from "../lib/queries";
+import { Link, navigate, useLocation, type Location } from "../lib/router";
 import type { User } from "../lib/types";
 import { Calendar } from "./Calendar";
 import { BrandMark } from "./BrandMark";
+import { LabelDot } from "./Labels";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
 
@@ -35,6 +37,52 @@ function NavLink({ href, icon: Icon, children, active, onNavigate }: {
       <Icon className="size-(--menu-icon) shrink-0" aria-hidden="true" />
       {children}
     </Link>
+  );
+}
+
+/** Whether a menu item is the page being shown. Settings stays marked on the trash, which is reached from it. */
+function isActive(item: MenuItemId, { path, params }: Location): boolean {
+  const filtered = ["tag", "q", "day", "label"].some((name) => params.has(name));
+  switch (item) {
+    case "home":
+      return path === "/" && !filtered;
+    case "tags":
+      return path === "/tags" || (path === "/" && params.has("tag"));
+    case "settings":
+      return path === "/settings" || path.startsWith("/settings/") || path === "/trash";
+    default:
+      return path === MENU_INFO[item].href;
+  }
+}
+
+/** The account's labels with how many notes carry each, under the menu; each lists its notes. */
+function LabelLinks({ onNavigate }: { onNavigate?: () => void }) {
+  const { params } = useLocation();
+  const labels = useLabels(useEnabledKinds());
+  if (!labels.data || labels.data.length === 0) return null;
+  const active = params.get("label");
+  return (
+    <nav aria-label="Labels" className="flex flex-col gap-0.5">
+      <h2 className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Labels</h2>
+      {labels.data.map((label) => (
+        <Link
+          key={label.id}
+          href={`/?label=${encodeURIComponent(label.id)}`}
+          onClick={onNavigate}
+          aria-current={active === label.id ? "page" : undefined}
+          className={cn(
+            "flex min-h-9 items-center gap-3 rounded-xl px-3 text-sm transition-colors",
+            active === label.id
+              ? "bg-maple-50 font-medium text-maple-700 dark:bg-maple-600/15 dark:text-maple-400"
+              : "text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800",
+          )}
+        >
+          <LabelDot color={label.color} className="ml-1 size-3" />
+          <span className="min-w-0 flex-1 truncate">{label.name}</span>
+          {label.noteCount > 0 && <span className="text-xs text-stone-400">{label.noteCount}</span>}
+        </Link>
+      ))}
+    </nav>
   );
 }
 
@@ -65,13 +113,13 @@ function SearchBox({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) {
-  const { path, params } = useLocation();
+  const location = useLocation();
   const preferences = usePreferences();
-  const tags = useTags(useEnabledKinds());
+  const tags = useTags(useEnabledKinds(), preferences.tags);
   const signedOut = useSignedOut();
   const { appName } = useBranding();
   const toast = useToast();
-  const activeTag = params.get("tag");
+  const items = menuOrder(preferences.menuOrder).filter((item) => MENU_INFO[item].shown(preferences));
 
   async function signOut() {
     try {
@@ -97,42 +145,20 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
       {/* The menu and the calendar scroll when the window is too short for them; the account row below always shows. */}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-1 short:gap-2">
         <nav aria-label="Main" className="flex flex-col gap-1 short:gap-0">
-          <NavLink href="/" icon={Home} active={path === "/" && !activeTag && !params.get("q") && !params.get("day")} onNavigate={onNavigate}>
-            Home
-          </NavLink>
-          {preferences.todoLists && (
-            <NavLink href="/todo" icon={ListTodo} active={path === "/todo"} onNavigate={onNavigate}>
-              Todo
-            </NavLink>
-          )}
-          {preferences.quickNotes && (
-            <NavLink href="/quick" icon={Zap} active={path === "/quick"} onNavigate={onNavigate}>
-              Quick notes
-            </NavLink>
-          )}
-          {preferences.habitTracker && (
-            <NavLink href="/habits" icon={CalendarCheck} active={path === "/habits"} onNavigate={onNavigate}>
-              Habits
-            </NavLink>
-          )}
-          {preferences.tags && (
-            <NavLink href="/tags" icon={Hash} active={path === "/tags" || (path === "/" && !!activeTag)} onNavigate={onNavigate}>
-              Tags
-              {tags.data && tags.data.length > 0 && <span className="ml-auto text-xs font-normal text-stone-400">{tags.data.length}</span>}
-            </NavLink>
-          )}
-          {preferences.archive && (
-            <NavLink href="/archive" icon={Archive} active={path === "/archive"} onNavigate={onNavigate}>
-              Archive
-            </NavLink>
-          )}
-          <NavLink href="/settings" icon={Settings} active={path === "/settings"} onNavigate={onNavigate}>
-            Settings
-          </NavLink>
-          <NavLink href="/help" icon={CircleHelp} active={path === "/help"} onNavigate={onNavigate}>
-            Help
-          </NavLink>
+          {items.map((item) => {
+            const { label, href, icon } = MENU_INFO[item];
+            return (
+              <NavLink key={item} href={href} icon={icon} active={isActive(item, location)} onNavigate={onNavigate}>
+                {label}
+                {item === "tags" && tags.data && tags.data.length > 0 && (
+                  <span className="ml-auto text-xs font-normal text-stone-400">{tags.data.length}</span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
+
+        {preferences.labels && <LabelLinks onNavigate={onNavigate} />}
 
         {preferences.calendar && <Calendar onNavigate={onNavigate} />}
       </div>
@@ -162,7 +188,10 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
  */
 export function AppShell({ user, children }: { user: User; children: ReactNode }) {
   const { appName } = useBranding();
+  const { path } = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Settings lists its sections beside the open one, so it gets a wider column than the notes.
+  const wide = path === "/settings" || path.startsWith("/settings/");
 
   return (
     <div className="min-h-dvh bg-stone-100 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
@@ -185,7 +214,7 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
           <Sidebar user={user} />
         </aside>
         <main id="main" className="min-w-0 flex-1 px-4 pb-24 pt-4 lg:px-10 lg:pt-8">
-          <div className="mx-auto max-w-2xl">{children}</div>
+          <div className={cn("mx-auto", wide ? "max-w-4xl" : "max-w-2xl")}>{children}</div>
         </main>
       </div>
 

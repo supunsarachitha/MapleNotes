@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import { argon2Master } from "./argon2";
 import { AttachmentDecryptor, decryptAttachment, encryptAttachment } from "./attachments";
 import {
+  decryptLabelName,
   decryptMetadata,
   decryptNote,
   decryptTagName,
+  encryptLabelName,
   encryptMetadata,
   encryptNote,
   encryptTagName,
@@ -130,6 +132,16 @@ describe("E2EE test vectors", () => {
       type: "image/png",
       size: 70000,
     });
+  });
+
+  it("encrypt label names for their label", async () => {
+    const keys = await importDataKey(b(v.dataKeyB64));
+
+    const envelope = await encryptLabelName(keys, v.ids.userId, v.ids.labelId, v.label.name, b(v.label.nonceB64));
+
+    expect(toBase64(envelope)).toBe(v.label.encryptedNameB64);
+    expect(await decryptLabelName(keys, v.ids.userId, v.ids.labelId, envelope)).toBe(v.label.name);
+    await expect(decryptLabelName(keys, v.ids.userId, uuidv7(), envelope)).rejects.toBeInstanceOf(DecryptionError);
   });
 });
 

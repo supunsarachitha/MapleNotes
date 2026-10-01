@@ -30,7 +30,7 @@ public sealed class AccountDeletionService(MapleDbContext db, AttachmentStore st
     {
         var files = await db.Attachments.Where(a => a.UserId == userId).Select(a => a.StorageKey).ToListAsync(cancellationToken);
 
-        // Foreign keys cascade from the user to notes, attachments, tags and their links.
+        // Foreign keys cascade from the user to notes, attachments, tags, labels and their links.
         await db.Users.Where(u => u.Id == userId).ExecuteDeleteAsync(cancellationToken);
 
         foreach (var storageKey in files)
@@ -40,7 +40,7 @@ public sealed class AccountDeletionService(MapleDbContext db, AttachmentStore st
     }
 
     /// <summary>
-    /// Deletes all of an account's notes, tags and files, and keeps the account itself: its sign-in details,
+    /// Deletes all of an account's notes, tags, labels and files, and keeps the account itself: its sign-in details,
     /// encryption keys, settings and sessions.
     /// </summary>
     /// <param name="userId">The account.</param>
@@ -56,6 +56,7 @@ public sealed class AccountDeletionService(MapleDbContext db, AttachmentStore st
             await db.Attachments.Where(a => a.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             notes = await db.Notes.Where(n => n.UserId == userId).ExecuteDeleteAsync(cancellationToken); // with their tag links
             await db.Tags.Where(t => t.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+            await db.Labels.Where(l => l.UserId == userId).ExecuteDeleteAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
 

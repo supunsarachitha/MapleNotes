@@ -75,6 +75,8 @@ internal static class E2eeCrypto
 
     public static string TagContext(Guid userId, string token) => $"maple-notes/v2/e2ee/tag/{N(userId)}/{token}";
 
+    public static string LabelContext(Guid userId, Guid labelId) => $"maple-notes/v2/e2ee/label/{N(userId)}/{N(labelId)}";
+
     public static string MetadataContext(Guid userId, Guid attachmentId) =>
         $"maple-notes/v2/e2ee/attachment-meta/{N(userId)}/{N(attachmentId)}";
 

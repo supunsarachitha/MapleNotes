@@ -24,6 +24,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
     /// <summary>Per-user tags.</summary>
     public DbSet<Tag> Tags => Set<Tag>();
 
+    /// <summary>Per-user labels.</summary>
+    public DbSet<Label> Labels => Set<Label>();
+
     /// <summary>Runtime-editable instance settings.</summary>
     public DbSet<InstanceSetting> InstanceSettings => Set<InstanceSetting>();
 
@@ -82,6 +85,11 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             // searches) and over one kind (the timeline and the Todo and Quick notes tabs).
             note.HasIndex(n => new { n.UserId, n.CreatedAtUtc, n.Id });
             note.HasIndex(n => new { n.UserId, n.Kind, n.CreatedAtUtc, n.Id });
+
+            // Serves the feed and the pinned notes of a tab in order, and counting tags and labels, from the index alone:
+            // each list's flags are equalities (IsPinned is compared with a parameter, see NoteService.LoadBatchAsync),
+            // so no note is read just to be skipped. Without it, every pinned list and tag count read every note.
+            note.HasIndex(n => new { n.UserId, n.Kind, n.IsPinned, n.ArchivedAtUtc, n.TrashedAtUtc, n.CreatedAtUtc, n.Id });
             note.Property(n => n.Kind).HasConversion<string>().HasMaxLength(16);
 
             // At most one daily note per account and day (SQLite treats NULLs as distinct, so other notes are free).
@@ -94,6 +102,18 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
                 tag => tag.HasOne<Tag>().WithMany().HasForeignKey("TagId").OnDelete(DeleteBehavior.Cascade),
                 owner => owner.HasOne<Note>().WithMany().HasForeignKey("NoteId").OnDelete(DeleteBehavior.Cascade),
                 join => join.HasKey("NoteId", "TagId"));
+            note.HasMany(n => n.Labels).WithMany().UsingEntity<Dictionary<string, object>>(
+                "NoteLabels",
+                label => label.HasOne<Label>().WithMany().HasForeignKey("LabelId").OnDelete(DeleteBehavior.Cascade),
+                owner => owner.HasOne<Note>().WithMany().HasForeignKey("NoteId").OnDelete(DeleteBehavior.Cascade),
+                join =>
+                {
+                    join.HasKey("NoteId", "LabelId");
+                    join.HasIndex("LabelId"); // a label's notes, and its count
+                });
+
+            // Serves emptying the trash after 30 days: WHERE TrashedAtUtc < @cutoff.
+            note.HasIndex(n => n.TrashedAtUtc);
         });
 
         modelBuilder.Entity<Attachment>(attachment =>
@@ -118,6 +138,15 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             tag.HasIndex(t => new { t.UserId, t.Name }).IsUnique();
             tag.Property(t => t.Token).HasMaxLength(22);
             tag.HasIndex(t => new { t.UserId, t.Token }).IsUnique();
+        });
+
+        modelBuilder.Entity<Label>(label =>
+        {
+            label.ToTable("Labels");
+            label.HasOne<User>().WithMany().HasForeignKey(l => l.UserId).OnDelete(DeleteBehavior.Cascade);
+            label.Property(l => l.Name).HasMaxLength(Label.MaxNameLength);
+            label.Property(l => l.Color).HasMaxLength(16);
+            label.HasIndex(l => new { l.UserId, l.CreatedAtUtc });
         });
 
         modelBuilder.Entity<InstanceSetting>(setting =>

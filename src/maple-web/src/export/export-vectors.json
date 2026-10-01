@@ -24,7 +24,9 @@
         ],
         "encryptedContent": null,
         "kind": "Note",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000017",
@@ -37,7 +39,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Note",
-        "dailyDate": "2025-07-15"
+        "dailyDate": "2025-07-15",
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000011",
@@ -93,7 +97,9 @@
         ],
         "encryptedContent": null,
         "kind": "Note",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000015",
@@ -108,7 +114,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Todo",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000018",
@@ -121,7 +129,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Habit",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000006",
@@ -134,7 +144,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Note",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000005",
@@ -150,7 +162,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Note",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000004",
@@ -163,7 +177,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Note",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000003",
@@ -176,7 +192,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Note",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000002",
@@ -191,7 +209,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Note",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000001",
@@ -206,7 +226,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Note",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       }
     ],
     "nextCursor": null
@@ -224,7 +246,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Quick",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000014",
@@ -239,7 +263,9 @@
         "attachments": [],
         "encryptedContent": null,
         "kind": "Note",
-        "dailyDate": null
+        "dailyDate": null,
+        "labelIds": [],
+        "trashedAtUtc": null
       }
     ],
     "nextCursor": null

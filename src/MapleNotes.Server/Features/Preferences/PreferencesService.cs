@@ -22,7 +22,8 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
     /// <param name="preferences">The complete new preferences.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The saved preferences.</returns>
-    /// <exception cref="ApiValidationException">The date format is not one of <see cref="UserPreferences.DateFormats"/>.</exception>
+    /// <exception cref="ApiValidationException">A choice is not one of those offered, or the menu order names an unknown
+    /// or repeated item.</exception>
     public async Task<UserPreferences> SetAsync(Guid userId, UserPreferences preferences, CancellationToken cancellationToken)
     {
         if (!UserPreferences.DateFormats.Contains(preferences.DateFormat, StringComparer.Ordinal))
@@ -50,6 +51,16 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
             throw new ApiValidationException("weekStart", $"Choose one of: {string.Join(", ", UserPreferences.WeekStarts)}.");
         }
 
+        var menuOrder = preferences.MenuOrder ?? "";
+        var items = menuOrder.Length == 0 ? [] : menuOrder.Split(',');
+        if (!items.All(item => UserPreferences.MenuItems.Contains(item, StringComparer.Ordinal))
+            || items.Distinct(StringComparer.Ordinal).Count() != items.Length)
+        {
+            throw new ApiValidationException(
+                "menuOrder", $"List each of these at most once, separated by commas: {string.Join(",", UserPreferences.MenuItems)}.");
+        }
+
+        preferences = preferences with { MenuOrder = menuOrder };
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
         user.Preferences = preferences;
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;

@@ -4,6 +4,7 @@ import { api, ApiError, uploadAttachment } from "../lib/api";
 import { AttachmentThumbnail } from "./AttachmentGallery";
 import { applyFormat, FormatToolbar, shortcutFormat } from "./FormatToolbar";
 import { formatDate } from "../lib/dates";
+import { focusAtEnd } from "../lib/focus";
 import { formatBytes } from "../lib/format";
 import { usePreferences } from "../lib/preferences";
 import { shrinkPhoto } from "../lib/shrinkPhoto";
@@ -11,6 +12,7 @@ import { useInvalidateNotes } from "../lib/queries";
 import { saveDailyNote } from "../lib/daily";
 import { joinTitle, splitTitle } from "../lib/titles";
 import type { Attachment, Note, NoteKind } from "../lib/types";
+import { useTagSuggestions } from "./TagSuggestions";
 import { useToast } from "./Toaster";
 import { Button, IconButton, cn } from "./ui";
 
@@ -49,7 +51,8 @@ function fromAttachment(attachment: Attachment): ComposerFile {
 /**
  * Writes a new note or edits an existing one. Files are uploaded as soon as they are chosen, pasted or dropped, so
  * posting is instant; the note only references their IDs. With note titles on, a title field is shown; the title is
- * saved as the note's first line, as a heading (see lib/titles.ts), and may start with today's date.
+ * saved as the note's first line, as a heading (see lib/titles.ts), and may start with today's date. Editing starts
+ * with the caret at the end of the text, and with tag suggestions on, existing tags are offered while a #tag is typed.
  */
 export function Composer({
   note,
@@ -87,6 +90,7 @@ export function Composer({
   const fileInput = useRef<HTMLInputElement>(null);
   const invalidateNotes = useInvalidateNotes();
   const toast = useToast();
+  const suggestions = useTagSuggestions(textarea, setText, preferences.tagSuggestions);
   const editing = note !== undefined;
 
   // Grow the text box with its content, up to a comfortable maximum.
@@ -96,6 +100,13 @@ export function Composer({
     element.style.height = "auto";
     element.style.height = `${Math.min(element.scrollHeight, 480)}px`;
   }, [text]);
+
+  // Opened for writing: the caret goes after the text, where one carries on, once the box has grown to fit it.
+  useEffect(() => {
+    if (autoFocus) focusAtEnd(textarea.current);
+    // Only when the composer opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Release the object URLs used for local image previews when the composer goes away.
   const filesRef = useRef(files);
@@ -192,6 +203,7 @@ export function Composer({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (suggestions.onKeyDown(event)) return;
     const format = shortcutFormat(event);
     if (format) {
       event.preventDefault();
@@ -260,18 +272,26 @@ export function Composer({
       <label htmlFor={editing ? `edit-${note.id}` : "composer"} className="sr-only">
         {editing ? "Edit note" : "New note"}
       </label>
-      <textarea
-        id={editing ? `edit-${note.id}` : "composer"}
-        ref={textarea}
-        value={text}
-        autoFocus={autoFocus}
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={onKeyDown}
-        onPaste={onPaste}
-        rows={editing ? 3 : 2}
-        placeholder={editing ? undefined : placeholder}
-        className="block w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100"
-      />
+      <div className="relative">
+        <textarea
+          id={editing ? `edit-${note.id}` : "composer"}
+          ref={textarea}
+          value={text}
+          onChange={(event) => {
+            setText(event.target.value);
+            suggestions.update();
+          }}
+          onSelect={suggestions.update}
+          onBlur={suggestions.close}
+          onKeyDown={onKeyDown}
+          onPaste={onPaste}
+          rows={editing ? 3 : 2}
+          placeholder={editing ? undefined : placeholder}
+          {...suggestions.inputProps}
+          className="block w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100"
+        />
+        {suggestions.popup}
+      </div>
 
       <FormatToolbar target={textarea} onChange={setText} />
 

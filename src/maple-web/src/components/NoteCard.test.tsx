@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { api } from "../lib/api";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
 import type { AuthStatus, Note, Preferences } from "../lib/types";
@@ -114,5 +115,40 @@ describe("Double-tap to edit", () => {
     tap(link, 7100);
 
     expect(editor()).not.toBeInTheDocument();
+  });
+});
+
+describe("Deleting a note", () => {
+  it("moves it to the trash at once, and Undo brings it back", async () => {
+    const patch = vi.spyOn(api, "patchNote").mockImplementation(async (_id, changes) => ({ ...note, ...changes }));
+    const remove = vi.spyOn(api, "deleteNote");
+    const user = userEvent.setup();
+    renderWith(<NoteCard note={note} />);
+
+    await user.click(screen.getByRole("button", { name: "Note actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Move to trash" }));
+
+    await waitFor(() => expect(patch).toHaveBeenCalledWith(note.id, { isTrashed: true }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(); // nothing to confirm: it can be restored
+    expect(await screen.findByText("Note moved to the trash.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() => expect(patch).toHaveBeenLastCalledWith(note.id, { isTrashed: false }));
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("asks first and deletes it for good when the trash is off", async () => {
+    const remove = vi.spyOn(api, "deleteNote").mockResolvedValue();
+    const patch = vi.spyOn(api, "patchNote");
+    const user = userEvent.setup();
+    renderWith(<NoteCard note={note} />, { trash: false });
+
+    await user.click(screen.getByRole("button", { name: "Note actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete this note?" });
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => expect(remove.mock.calls[0]?.[0]).toBe(note.id));
+    expect(await screen.findByText("Note deleted.")).toBeInTheDocument();
+    expect(patch).not.toHaveBeenCalled();
   });
 });

@@ -49,12 +49,13 @@ export function useMediaWorker(): boolean {
 
 /**
  * Where to load an attachment from: its own URL for a plain file; for an end-to-end file the service worker's URL,
- * or, without the worker, the whole file decrypted into a blob: URL (undefined while that loads).
+ * or, without the worker, the whole file decrypted into a blob: URL (undefined while that loads). With `load: false`
+ * nothing is downloaded yet, for a file still far off screen; the decryption starts when it becomes true.
  */
-export function useAttachmentSrc(attachment: Attachment, options: { download?: boolean } = {}): string | undefined {
+export function useAttachmentSrc(attachment: Attachment, options: { download?: boolean; load?: boolean } = {}): string | undefined {
   const worker = useMediaWorker();
   const [blobUrl, setBlobUrl] = useState<{ id: string; url: string } | null>(null);
-  const needsBlob = attachment.endToEnd === true && !worker;
+  const needsBlob = attachment.endToEnd === true && !worker && options.load !== false;
 
   useEffect(() => {
     if (!needsBlob) return;
