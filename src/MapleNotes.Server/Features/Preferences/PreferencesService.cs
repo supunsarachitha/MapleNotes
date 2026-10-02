@@ -41,6 +41,11 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
             throw new ApiValidationException("accent", $"Choose one of: {string.Join(", ", UserPreferences.Accents)}.");
         }
 
+        if (!UserPreferences.PhotoSizes.Contains(preferences.PhotoSize, StringComparer.Ordinal))
+        {
+            throw new ApiValidationException("photoSize", $"Choose one of: {string.Join(", ", UserPreferences.PhotoSizes)}.");
+        }
+
         if (!UserPreferences.MenuTextSizes.Contains(preferences.MenuTextSize, StringComparer.Ordinal))
         {
             throw new ApiValidationException("menuTextSize", $"Choose one of: {string.Join(", ", UserPreferences.MenuTextSizes)}.");

@@ -151,7 +151,7 @@ export function Composer({
       ]);
 
       const send = async () => {
-        const upload = preferences.shrinkPhotos ? await shrinkPhoto(file) : file;
+        const upload = preferences.shrinkPhotos ? await shrinkPhoto(file, preferences.photoSize) : file;
         if (upload !== file) update(key, { name: upload.name, size: upload.size });
         abort.signal.throwIfAborted(); // removed while it was being shrunk
         return uploadAttachment(upload, (progress) => update(key, { progress }), abort.signal);

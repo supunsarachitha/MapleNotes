@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-02
+
+### Added
+
+- **Photo size** (Settings → Features, with Shrink photos before uploading on): choose how far photos shrink. **Large**
+  (2560 pixels on the longest side, JPEG quality 85%) is the size photos were shrunk to before, and stays the default;
+  **Medium** (1920 pixels, 80%) and **Small** (1280 pixels, 75%) save much more space. In a test with a 12-megapixel
+  photo, Large kept about 14% of the original, Medium 5% and Small 2%. Preferences gained `photoSize`.
+
+### Changed
+
+- Shrinking photos now uses the browser's high-quality smoothing, so downscaled photos stay sharper.
+
 ## [1.9.0] - 2026-10-02
 
 Labels in exports and restores, and Help can leave the side menu.
@@ -437,7 +450,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.7.0...v1.8.0

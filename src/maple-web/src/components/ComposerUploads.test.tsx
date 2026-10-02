@@ -51,12 +51,12 @@ describe("Composer uploads", () => {
   it("shrinks photos before they upload when the setting is on", async () => {
     const small = new File([new Uint8Array(400_000)], "IMG_1234.jpg", { type: "image/jpeg" });
     vi.mocked(shrinkPhoto).mockResolvedValue(small);
-    renderComposer({ shrinkPhotos: true });
+    renderComposer({ shrinkPhotos: true, photoSize: "Small" });
 
     await userEvent.upload(fileInput(), photo);
 
     await waitFor(() => expect(uploadAttachment).toHaveBeenCalledWith(small, expect.any(Function), expect.any(AbortSignal)));
-    expect(shrinkPhoto).toHaveBeenCalledWith(photo);
+    expect(shrinkPhoto).toHaveBeenCalledWith(photo, "Small");
   });
 
   it("uploads photos as they are when the setting is off", async () => {

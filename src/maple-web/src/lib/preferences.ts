@@ -20,6 +20,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   tags: true,
   helpMenu: true,
   shrinkPhotos: false,
+  photoSize: "Large",
   linkPreviews: false,
   doubleTapToEdit: false,
   tagSuggestions: false,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canShrink, fitWithin, jpegName, shrinkPhoto } from "./shrinkPhoto";
+import { canShrink, fitWithin, jpegName, PHOTO_PRESETS, shrinkPhoto } from "./shrinkPhoto";
 
 describe("shrinking photos", () => {
   it("fits the longest side within 2560 pixels and never enlarges", () => {
@@ -7,6 +7,16 @@ describe("shrinking photos", () => {
     expect(fitWithin(3000, 4000)).toEqual({ width: 1920, height: 2560 });
     expect(fitWithin(1200, 800)).toEqual({ width: 1200, height: 800 });
     expect(fitWithin(10_000, 3)).toEqual({ width: 2560, height: 1 });
+  });
+
+  it("shrinks smaller photo sizes further, at a lower quality", () => {
+    expect(PHOTO_PRESETS).toEqual({
+      Large: { maxSide: 2560, quality: 0.85 },
+      Medium: { maxSide: 1920, quality: 0.8 },
+      Small: { maxSide: 1280, quality: 0.75 },
+    });
+    expect(fitWithin(4000, 3000, PHOTO_PRESETS.Medium.maxSide)).toEqual({ width: 1920, height: 1440 });
+    expect(fitWithin(3000, 4000, PHOTO_PRESETS.Small.maxSide)).toEqual({ width: 960, height: 1280 });
   });
 
   it("tries still images only", () => {

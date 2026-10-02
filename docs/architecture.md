@@ -291,8 +291,10 @@ MVC's form binding is disabled for that action so the body is never buffered. A 
 `MAPLE_MAX_UPLOAD_MB` while reading. File names are sanitized.
 
 With **Shrink photos before uploading** on, the web app shrinks still images before they upload
-(`src/maple-web/src/lib/shrinkPhoto.ts`): it decodes them upright with `createImageBitmap`, draws them at most 2560
-pixels on the longest side, and re-encodes them as JPEG at 85% quality. It keeps the original when the browser cannot
+(`src/maple-web/src/lib/shrinkPhoto.ts`): it decodes them upright with `createImageBitmap`, draws them with high-quality
+smoothing at most the chosen photo size's longest side, and re-encodes them as JPEG at that size's quality: Large is 2560
+pixels at 85%, Medium 1920 at 80% and Small 1280 at 75% (the `photoSize` preference). Presets rather than a free ratio,
+as photo and messaging apps offer, because size and quality only work well in matching pairs. It keeps the original when the browser cannot
 decode it, when it has transparent pixels, or when the result is not at least a tenth smaller. The server sees only
 an ordinary upload, and for end-to-end accounts the shrunk file is what gets encrypted.
 

@@ -1,10 +1,20 @@
 // Shrinking photos in the browser before they upload (Settings → Features), so they take a fraction of the space.
 // It happens before any encryption, so it works the same for end-to-end accounts.
 
-/** Photos are shrunk to at most this many pixels on their longest side. */
-export const MAX_PHOTO_SIDE = 2560;
+import type { PhotoSize } from "./types";
 
-const JPEG_QUALITY = 0.85;
+/**
+ * How far each photo size shrinks: the longest side in pixels, and the JPEG quality. Like the "standard" and "HD"
+ * choices of messaging and photo apps, smaller photos are also saved at a lower quality, where it shows least.
+ */
+export const PHOTO_PRESETS: Record<PhotoSize, { maxSide: number; quality: number }> = {
+  Large: { maxSide: 2560, quality: 0.85 },
+  Medium: { maxSide: 1920, quality: 0.8 },
+  Small: { maxSide: 1280, quality: 0.75 },
+};
+
+/** Photos are shrunk to at most this many pixels on their longest side, at the largest size. */
+export const MAX_PHOTO_SIDE = PHOTO_PRESETS.Large.maxSide;
 
 /** The shrunk photo is kept only when it saves at least a tenth. */
 const WORTHWHILE = 0.9;
@@ -28,17 +38,17 @@ export function jpegName(name: string): string {
   return `${name.replace(/\.[^.]*$/, "") || "photo"}.jpg`;
 }
 
-function canvasOf(width: number, height: number) {
+function canvasOf(width: number, height: number, quality: number) {
   if (typeof OffscreenCanvas !== "undefined") {
     const canvas = new OffscreenCanvas(width, height);
-    return { context: canvas.getContext("2d"), toJpeg: () => canvas.convertToBlob({ type: "image/jpeg", quality: JPEG_QUALITY }) };
+    return { context: canvas.getContext("2d"), toJpeg: () => canvas.convertToBlob({ type: "image/jpeg", quality }) };
   }
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   return {
     context: canvas.getContext("2d"),
-    toJpeg: () => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY)),
+    toJpeg: () => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality)),
   };
 }
 
@@ -51,11 +61,11 @@ function hasTransparency(context: OffscreenCanvasRenderingContext2D | CanvasRend
 }
 
 /**
- * Shrinks a photo: upright (as its camera meant it), at most {@link MAX_PHOTO_SIDE} pixels on its longest side, re-saved
- * as a JPEG. Re-saving leaves out the location and camera details a photo may carry. Returns the file unchanged when the
+ * Shrinks a photo: upright (as its camera meant it), at most the size's longest side (see {@link PHOTO_PRESETS}),
+ * re-saved as a JPEG at the size's quality. Re-saving leaves out the location and camera details a photo may carry. Returns the file unchanged when the
  * browser cannot decode it, when it has transparent parts (which JPEG cannot keep), or when shrinking would hardly help.
  */
-export async function shrinkPhoto(file: File): Promise<File> {
+export async function shrinkPhoto(file: File, size: PhotoSize = "Large"): Promise<File> {
   if (!canShrink(file) || typeof createImageBitmap !== "function") return file;
   let bitmap: ImageBitmap;
   try {
@@ -64,9 +74,11 @@ export async function shrinkPhoto(file: File): Promise<File> {
     return file; // a format this browser cannot decode, such as HEIC outside Safari
   }
   try {
-    const { width, height } = fitWithin(bitmap.width, bitmap.height);
-    const { context, toJpeg } = canvasOf(width, height);
+    const { maxSide, quality } = PHOTO_PRESETS[size];
+    const { width, height } = fitWithin(bitmap.width, bitmap.height, maxSide);
+    const { context, toJpeg } = canvasOf(width, height, quality);
     if (!context) return file;
+    context.imageSmoothingQuality = "high"; // a smoother downscale than the default, which keeps small sizes sharp
     context.drawImage(bitmap, 0, 0, width, height);
     if (file.type !== "image/jpeg" && hasTransparency(context, width, height)) return file;
     const jpeg = await toJpeg();

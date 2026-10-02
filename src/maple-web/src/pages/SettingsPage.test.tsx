@@ -146,6 +146,20 @@ describe("Settings", () => {
     expect(todo).toHaveAttribute("aria-checked", "false");
   });
 
+  it("offers a photo size once photos are shrunk", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderSettings(idle, user, null, "/settings/features");
+
+    expect(screen.queryByRole("group", { name: "Photo size" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("switch", { name: "Shrink photos before uploading" }));
+    const sizes = within(await screen.findByRole("group", { name: "Photo size" }));
+    expect(sizes.getByRole("radio", { name: /^Large/ })).toBeChecked(); // as before sizes could be chosen
+    await userEvent.click(sizes.getByRole("radio", { name: /^Small/ }));
+
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, shrinkPhotos: true, photoSize: "Small" }));
+    expect(screen.getByText(/at most 1,280 pixels on the longest side/)).toBeInTheDocument();
+  });
+
   it("offers the habit tracker, off by default", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
     renderSettings(idle, user, null, "/settings/features");
