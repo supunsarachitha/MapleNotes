@@ -63,6 +63,8 @@ export interface Preferences {
   archive: boolean;
   /** Show the Tags page. */
   tags: boolean;
+  /** Show Help in the side menu (the guide stays at /help either way). */
+  helpMenu: boolean;
   /** Shrink photos in the browser before they upload. */
   shrinkPhotos: boolean;
   /** Show previews of links in notes (the server fetches the pages). */

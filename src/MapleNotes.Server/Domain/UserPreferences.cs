@@ -76,6 +76,9 @@ public sealed record UserPreferences
     /// <summary>Show the Tags page. Turning it off hides the page; tags in notes still work. On by default.</summary>
     public bool Tags { get; init; } = true;
 
+    /// <summary>Show Help in the side menu. Turning it off hides the item; the guide stays at <c>/help</c>. On by default.</summary>
+    public bool HelpMenu { get; init; } = true;
+
     /// <summary>
     /// Shrink photos in the browser before they upload: at most 2560 pixels on their longest side, re-saved as JPEG.
     /// The original is not kept; off by default.

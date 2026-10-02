@@ -223,6 +223,12 @@ export function FeaturesSection() {
             checked={preferences.archive}
             onChange={(archive) => save({ archive })}
           />
+          <PreferenceSwitch
+            label="Help in the menu"
+            description="Help in the side menu. Turning it off hides the item; the guide stays at /help."
+            checked={preferences.helpMenu}
+            onChange={(helpMenu) => save({ helpMenu })}
+          />
         </div>
       </Section>
 

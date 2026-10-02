@@ -40,7 +40,8 @@
   the pages, so it sees the links.
 - **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.
 - **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes, the calendar, the
-  habit tracker, the archive, the Tags page, labels and the trash on or off in Settings, on every device at once.
+  habit tracker, the archive, the Tags page, labels, the trash and Help in the side menu on or off in Settings, on
+  every device at once.
   Turning a feature off hides it and deletes nothing. Settings is organised in sections (Account, Appearance, Side
   menu, Writing, Features, Labels, Backup & data, Privacy & security), each with its own address.
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists you tick in place, tables, code), with a formatting toolbar and shortcuts
@@ -655,6 +656,16 @@ deploy. With `docker run`, pull `ghcr.io/supunsarachitha/maplenotes:latest`, rem
 with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
+
+### From 1.8 to 1.9
+
+Nothing to do. Exports now list each note's labels by name, and the manifest lists the labels' colours (manifest
+version 3); restoring such an export into Maple Notes 1.8 brings the notes back without their labels. Help stays in the
+side menu until an account hides it in Settings → Features.
+
+For API clients: `POST /api/v1/notes/import` takes `labelIds`, preferences gained `helpMenu`, and an account with
+end-to-end label names (but no end-to-end notes or files) is now exported by the browser: `GET /api/v1/export` answers
+409 for it.
 
 ### From 1.7 to 1.8
 

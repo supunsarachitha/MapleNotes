@@ -23,7 +23,7 @@ export const MENU_INFO: Record<MenuItemId, MenuItemInfo> = {
   tags: { label: "Tags", href: "/tags", icon: Hash, shown: (p) => p.tags, feature: "Tags page" },
   archive: { label: "Archive", href: "/archive", icon: Archive, shown: (p) => p.archive, feature: "Archive" },
   settings: { label: "Settings", href: "/settings", icon: Settings, shown: () => true },
-  help: { label: "Help", href: "/help", icon: CircleHelp, shown: () => true },
+  help: { label: "Help", href: "/help", icon: CircleHelp, shown: (p) => p.helpMenu, feature: "Help in the menu" },
 };
 
 const isMenuItem = (value: string): value is MenuItemId => (MENU_ITEMS as readonly string[]).includes(value);

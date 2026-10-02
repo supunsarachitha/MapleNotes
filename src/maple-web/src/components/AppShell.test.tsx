@@ -41,16 +41,18 @@ function renderShell(preferences: Partial<Preferences>, branding?: AuthStatus["b
 afterEach(() => vi.restoreAllMocks());
 
 describe("AppShell", () => {
-  it("shows the Archive and Tags pages in the menu unless they are turned off", () => {
+  it("shows the Archive and Tags pages and Help in the menu unless they are turned off", () => {
     const { unmount } = renderShell({});
     const menu = () => screen.getByRole("navigation", { name: "Main" });
     expect(within(menu()).getByRole("link", { name: /^Tags/ })).toBeInTheDocument();
     expect(within(menu()).getByRole("link", { name: "Archive" })).toBeInTheDocument();
+    expect(within(menu()).getByRole("link", { name: "Help" })).toBeInTheDocument();
     unmount();
 
-    renderShell({ archive: false, tags: false });
+    renderShell({ archive: false, tags: false, helpMenu: false });
     expect(within(menu()).queryByRole("link", { name: /^Tags/ })).not.toBeInTheDocument();
     expect(within(menu()).queryByRole("link", { name: "Archive" })).not.toBeInTheDocument();
+    expect(within(menu()).queryByRole("link", { name: "Help" })).not.toBeInTheDocument();
   });
 
   it("shows the app's name and icon, and sizes the menu as the user chose", () => {

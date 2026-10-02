@@ -155,9 +155,9 @@ every device you sign in on.`,
     id: "features",
     title: "Choosing your features",
     body: `Everything beyond plain notes can be switched on or off in [Settings → Features](/settings/features): todo
-lists, quick notes, the habit tracker, the Tags page, the archive, daily notes, the calendar, labels, the trash and
-link previews. Turning something off only hides it; nothing is deleted, and it all comes back when you turn it on
-again.`,
+lists, quick notes, the habit tracker, the Tags page, the archive, Help in the side menu, daily notes, the calendar,
+labels, the trash and link previews. Turning something off only hides it; nothing is deleted, and it all comes back
+when you turn it on again. With Help hidden from the menu, this guide is still at [/help](/help).`,
   },
   {
     id: "trash",
