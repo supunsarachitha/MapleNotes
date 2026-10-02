@@ -58,6 +58,7 @@ export function apiExportSource(account: string, onNotes?: (count: number) => vo
       }
       return all;
     },
+    labels: () => api.labels.list(),
     openAttachment: (attachment) => (attachment.endToEnd ? readEndToEnd(attachment) : readPlain(attachment)),
   };
 }

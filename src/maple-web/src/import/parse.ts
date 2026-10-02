@@ -1,5 +1,5 @@
 import { fromUtf8 } from "../crypto/encoding";
-import type { NoteKind } from "../lib/types";
+import { LABEL_COLORS, type LabelColor, type NoteKind } from "../lib/types";
 import { readZip, type ZipEntry } from "./zip";
 
 // Reads what a restore brings in: Maple Notes export archives (every format and folder layout, with their
@@ -26,6 +26,8 @@ export interface ImportItem {
   archived: boolean;
   kind: NoteKind;
   dailyDate: string | null;
+  /** The names of its labels. */
+  labels: string[];
   attachments: ImportAttachment[];
   /** Attached files the note mentions that are not in the archive. */
   missing: string[];
@@ -35,6 +37,8 @@ export interface ImportPlan {
   items: ImportItem[];
   /** Files that could not be read. */
   problems: string[];
+  /** Label colours from the exports' manifests, by name in lower case. */
+  labelColors: Map<string, LabelColor>;
 }
 
 /** File types a restore accepts. */
@@ -82,6 +86,7 @@ interface ParsedNote {
   archived: boolean;
   kind: NoteKind;
   dailyDate: string | null;
+  labels: string[];
   /** Attachment paths relative to the note file, with their original names and types when the format keeps them. */
   attachments: Array<{ path: string; name?: string; type?: string }>;
 }
@@ -92,6 +97,16 @@ const date = (value: unknown) => {
 };
 const day = (value: unknown) => (typeof value === "string" && DATE.test(value) ? value : null);
 const kind = (value: unknown) => KINDS[typeof value === "string" ? value.toLowerCase() : ""] ?? "Note";
+const names = (value: unknown) => (Array.isArray(value) ? value.filter((name): name is string => typeof name === "string") : []);
+/** A list of names written as a JSON array, as the exports write labels. */
+const jsonNames = (value: string | undefined) => {
+  if (!value) return [];
+  try {
+    return names(JSON.parse(value));
+  } catch {
+    return [];
+  }
+};
 const jsonString = (value: string) => {
   try {
     const parsed: unknown = JSON.parse(value);
@@ -145,6 +160,7 @@ function parseMarkdown(text: string): ParsedNote | null {
     archived: fields.get("archived") === "true",
     kind: kind(fields.get("kind")),
     dailyDate: day(fields.get("daily")),
+    labels: jsonNames(fields.get("labels")),
     attachments: paths.map((path, i) => ({ path, name: names.length === paths.length ? names[i] : undefined })),
   };
 }
@@ -174,6 +190,7 @@ function parsePlainText(text: string): ParsedNote | null {
     archived: state.includes("archived"),
     kind: kind(fields.get("Kind")),
     dailyDate: day(fields.get("Daily")),
+    labels: jsonNames(fields.get("Labels")),
     attachments: paths.map((path) => ({ path })),
   };
 }
@@ -198,6 +215,7 @@ function parseJson(text: string): ParsedNote | null {
     archived: note.archived === true,
     kind: kind(note.kind),
     dailyDate: day(note.dailyDate),
+    labels: names(note.labels),
     attachments: attachments
       .filter((a) => typeof a.path === "string")
       .map((a) => ({
@@ -216,7 +234,7 @@ function parseNote(name: string, text: string, modified: Date): ParsedNote {
     extension === "json" ? parseJson(clean) : extension === "txt" ? parsePlainText(clean) : parseMarkdown(clean);
   if (parsed) return parsed;
   if (extension === "json") throw new Error("This JSON file is not a Maple Notes note.");
-  return { id: null, content: clean, createdAt: modified, updatedAt: modified, pinned: false, archived: false, kind: "Note", dailyDate: null, attachments: [] };
+  return { id: null, content: clean, createdAt: modified, updatedAt: modified, pinned: false, archived: false, kind: "Note", dailyDate: null, labels: [], attachments: [] };
 }
 
 /** Resolves a path relative to a file inside the archive, e.g. ../attachments/x from 2026-09/note.md. */
@@ -256,6 +274,7 @@ function toItem(source: string, parsed: ParsedNote, fallbackTime: Date, entries:
     archived: parsed.archived || manifest?.archived === true,
     kind: manifest?.kind ? kind(manifest.kind) : parsed.kind,
     dailyDate: parsed.dailyDate ?? day(manifest?.dailyDate),
+    labels: parsed.labels.length > 0 ? parsed.labels : names(manifest?.labels),
     attachments,
     missing,
   };
@@ -268,6 +287,7 @@ interface ManifestNote {
   archived?: boolean;
   kind?: string;
   dailyDate?: string | null;
+  labels?: unknown;
 }
 
 async function readArchive(file: File, plan: ImportPlan): Promise<void> {
@@ -277,8 +297,12 @@ async function readArchive(file: File, plan: ImportPlan): Promise<void> {
   let listed: ManifestNote[] | null = null;
   if (manifestEntry) {
     try {
-      const manifest = JSON.parse(fromUtf8(await manifestEntry.read())) as { application?: string; notes?: ManifestNote[] };
+      const manifest = JSON.parse(fromUtf8(await manifestEntry.read())) as { application?: string; notes?: ManifestNote[]; labels?: unknown };
       if (manifest.application === "Maple Notes" && Array.isArray(manifest.notes)) listed = manifest.notes;
+      for (const label of Array.isArray(manifest.labels) ? (manifest.labels as Array<{ name?: unknown; color?: unknown }>) : []) {
+        const color = LABEL_COLORS.find((known) => known === label?.color);
+        if (typeof label?.name === "string" && color) plan.labelColors.set(label.name.trim().toLocaleLowerCase(), color);
+      }
     } catch {
       plan.problems.push(`${file.name}: manifest.json could not be read; its notes are read without it.`);
     }
@@ -305,7 +329,7 @@ async function readArchive(file: File, plan: ImportPlan): Promise<void> {
 
 /** Reads the chosen files: export archives and single note files. */
 export async function readImport(files: File[]): Promise<ImportPlan> {
-  const plan: ImportPlan = { items: [], problems: [] };
+  const plan: ImportPlan = { items: [], problems: [], labelColors: new Map() };
   for (const file of files) {
     try {
       if (extensionOf(file.name) === "zip") {

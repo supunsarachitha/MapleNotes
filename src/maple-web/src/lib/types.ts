@@ -63,6 +63,8 @@ export interface Preferences {
   archive: boolean;
   /** Show the Tags page. */
   tags: boolean;
+  /** Show Help in the side menu (the guide stays at /help either way). */
+  helpMenu: boolean;
   /** Shrink photos in the browser before they upload. */
   shrinkPhotos: boolean;
   /** Show previews of links in notes (the server fetches the pages). */
@@ -224,6 +226,8 @@ export interface Label {
   color: LabelColor;
   /** Active notes (neither archived nor in the trash) with the label. */
   noteCount: number;
+  /** An end-to-end label whose name could not be decrypted in this browser (`name` is then a placeholder). */
+  unreadable?: boolean;
 }
 
 /** A label as the API returns it: end-to-end labels carry `encryptedName` instead of a name. */

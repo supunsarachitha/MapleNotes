@@ -1,4 +1,4 @@
-import type { Label, LabelColor } from "./types";
+import { LABEL_COLORS, type Label, type LabelColor } from "./types";
 
 // The shades of each label colour, written out in full so that Tailwind finds every class.
 
@@ -30,6 +30,11 @@ export function labelsOf(labels: Label[] | undefined, ids: string[] | undefined)
   if (!labels || !ids || ids.length === 0) return [];
   const wanted = new Set(ids);
   return labels.filter((label) => wanted.has(label.id));
+}
+
+/** The colour a new label gets: the next one in turn, so a few labels made in a row look different. */
+export function nextLabelColor(labels: Label[]): LabelColor {
+  return LABEL_COLORS[(labels.length % (LABEL_COLORS.length - 1)) + 1]!;
 }
 
 /** Whether a label of this name exists already, ignoring case and surrounding spaces. */

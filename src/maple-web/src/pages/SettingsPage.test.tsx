@@ -186,7 +186,7 @@ describe("Settings", () => {
     expect(screen.queryByRole("textbox", { name: "Display name" })).not.toBeInTheDocument();
   });
 
-  it("changes the menu text size, the first day of the week, and the Archive and Tags pages", async () => {
+  it("changes the menu text size, the first day of the week, the Archive and Tags pages, and Help in the menu", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
     renderSettings(idle, user, null, "/settings/menu");
     const sections = within(screen.getByRole("navigation", { name: "Settings sections" }));
@@ -199,9 +199,17 @@ describe("Settings", () => {
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ weekStart: "Monday" })));
     await userEvent.click(screen.getByRole("switch", { name: "Archive" }));
     await userEvent.click(screen.getByRole("switch", { name: "Tags page" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Help in the menu" }));
 
     await waitFor(() =>
-      expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuTextSize: "Large", weekStart: "Monday", archive: false, tags: false }),
+      expect(save).toHaveBeenLastCalledWith({
+        ...DEFAULT_PREFERENCES,
+        menuTextSize: "Large",
+        weekStart: "Monday",
+        archive: false,
+        tags: false,
+        helpMenu: false,
+      }),
     );
   });
 

@@ -61,7 +61,7 @@ by typing its name. A note shows its labels at the bottom, and choosing one, or 
 notes.
 
 With end-to-end encryption, label names are encrypted like your notes. Their colours, and which notes carry them, are
-not. Exports do not include labels yet.`,
+not. Exports list each note's labels by name, and restoring one brings them back.`,
   },
   {
     id: "search",
@@ -155,9 +155,9 @@ every device you sign in on.`,
     id: "features",
     title: "Choosing your features",
     body: `Everything beyond plain notes can be switched on or off in [Settings → Features](/settings/features): todo
-lists, quick notes, the habit tracker, the Tags page, the archive, daily notes, the calendar, labels, the trash and
-link previews. Turning something off only hides it; nothing is deleted, and it all comes back when you turn it on
-again.`,
+lists, quick notes, the habit tracker, the Tags page, the archive, Help in the side menu, daily notes, the calendar,
+labels, the trash and link previews. Turning something off only hides it; nothing is deleted, and it all comes back
+when you turn it on again. With Help hidden from the menu, this guide is still at [/help](/help).`,
   },
   {
     id: "trash",
@@ -213,7 +213,8 @@ text or JSON, with your files, in folders by year, month or day. It is a good id
 Exports are not encrypted, so store them with care.
 
 **Restore** brings notes back from such a file, even on another Maple Notes server. Notes keep their dates, pins,
-archive state and files, and notes you already have are skipped, so restoring twice does no harm. You can also add
+archive state, labels and files, and notes you already have are skipped, so restoring twice does no harm. A label is
+matched by name to one you already have, or created in the colour it had. You can also add
 single Markdown, text or JSON files as notes.
 
 To start over, **Delete all notes and files**, in the same place, deletes everything you wrote and uploaded at once,

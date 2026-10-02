@@ -312,8 +312,11 @@ memory, and attachments are decrypted chunk by chunk. File names derive from the
 line (`2026-09-28_1430_buy-maple-syrup.md`). They are safe on Windows, macOS and Linux, and made unique
 case-insensitively. Folders follow the chosen layout; todo lists, quick notes and habits go under `todo/`,
 `quick-notes/` and `habits/`. Attachments go to `attachments/` and are linked from notes by relative path. Every
-format records each note's ID (the manifest does for plain text), kind and daily date. `manifest.json` (version 2)
-describes the export, lists every note, and lists any damaged files.
+format records each note's ID (the manifest does for plain text), kind, daily date and labels. Labels are written by
+name, in ordinal order, since label IDs belong to one account: as a JSON array in Markdown front matter (`labels:`),
+plain text (`Labels:`, only when there are any) and JSON. `manifest.json` (version 3) describes the export, lists every
+note, lists any damaged files, and lists the labels the exported notes carry with their colours. An account with
+end-to-end label names is exported by the browser, like one with end-to-end notes or files.
 
 .NET's `ZipArchive` still performs some synchronous writes internally, which ASP.NET Core forbids on the response. The
 archive is therefore produced on a background task into a bounded in-memory pipe (about 1 MB) that the request copies
@@ -337,8 +340,11 @@ directory, then one entry at a time from the chosen file, so a large export is n
 
 The browser first asks `POST /api/v1/notes/import/existing` which of the export's note IDs the account already has, and
 skips those. For the rest it uploads each note's files like any upload, then sends the note to
-`POST /api/v1/notes/import` with its original ID, dates, pinned and archived state, kind and daily date, as plain text
-or, for end-to-end accounts, encrypted in the browser for that ID. The server never reuses another account's ID and
+`POST /api/v1/notes/import` with its original ID, dates, pinned and archived state, kind, daily date and labels, as
+plain text or, for end-to-end accounts, encrypted in the browser for that ID. Before that, the browser matches the label
+names the notes carry to the account's labels (ignoring case and surrounding spaces) and creates the missing ones in
+the colour the manifest records, encrypting their names for end-to-end accounts; a label it cannot create, for example
+past the account's 100, is reported and the notes arrive without it. The server never reuses another account's ID and
 never says whether one exists: a plain note gets a new ID, and an end-to-end note answers 409 and is encrypted again
 for a new one. A daily date already taken in the account is dropped, so the note arrives as an ordinary one.
 

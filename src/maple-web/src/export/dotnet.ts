@@ -58,6 +58,11 @@ export function lowerInvariant(codePoint: string): string {
   return [...lower].length === 1 ? lower : codePoint;
 }
 
+/** StringComparer.Ordinal: by UTF-16 code unit, as JavaScript's < compares strings. */
+export function compareOrdinal(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /** The comparison key of StringComparer.OrdinalIgnoreCase (per-character invariant upper case). */
 export function ignoreCaseKey(text: string): string {
   return Array.from(text, (ch) => {

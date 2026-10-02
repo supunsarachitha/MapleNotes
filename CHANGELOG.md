@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-02
+
+Labels in exports and restores, and Help can leave the side menu.
+
+### Added
+
+- **Labels in exports:** every export format lists each note's labels by name (`labels:` in Markdown front matter and
+  JSON, `Labels:` in plain text), and `manifest.json` lists the colours of the labels the exported notes carry
+  (manifest version 3). End-to-end accounts get the same archive from the browser, which decrypts label names; a label
+  whose name does not decrypt is left out and reported in the manifest.
+- **Labels in restores:** restoring an export brings each note's labels back. A label is matched by name (ignoring
+  case) to one the account has, or created in the colour it had; one that cannot be created, for example past the
+  limit of 100, is reported and the notes arrive without it. `POST /api/v1/notes/import` takes `labelIds`.
+- **Help in the menu** (Settings → Features, on by default): turn it off to hide Help from the side menu. The guide
+  stays at `/help`.
+
+### Changed
+
+- An account with end-to-end label names is always exported by the browser, even without end-to-end notes or files.
+
 ## [1.8.1] - 2026-10-01
 
 ### Fixed
@@ -417,7 +437,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.6.0...v1.7.0

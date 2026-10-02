@@ -24,6 +24,8 @@ export interface ExportedNote {
   /** Updated minus created, in milliseconds. */
   editedAfterMs: number;
   tags: string[];
+  /** The names of the note's labels, in ordinal order. */
+  labels: string[];
   pinned: boolean;
   archived: boolean;
   attachments: ExportedAttachment[];
@@ -54,6 +56,7 @@ export function markdown(note: ExportedNote): string {
   text += `created: ${timestamp(note.created)}\n`;
   text += `updated: ${timestamp(note.updated)}\n`;
   text += `tags: [${note.tags.map(jsonString).join(", ")}]\n`;
+  text += `labels: [${note.labels.map(jsonString).join(", ")}]\n`;
   text += `pinned: ${note.pinned}\n`;
   text += `archived: ${note.archived}\n`;
   if (note.attachments.length > 0) {
@@ -79,6 +82,8 @@ export function plainText(note: ExportedNote): string {
   if (note.kind !== "Note") text += `Kind: ${kindName(note.kind)}\n`;
   if (note.dailyDate) text += `Daily: ${note.dailyDate}\n`;
   if (note.tags.length > 0) text += `Tags: ${note.tags.map((tag) => `#${tag}`).join(" ")}\n`;
+  // As a JSON array: label names may contain spaces and commas.
+  if (note.labels.length > 0) text += `Labels: [${note.labels.map(jsonString).join(", ")}]\n`;
   if (note.pinned || note.archived) {
     text += `State: ${[note.pinned ? "pinned" : null, note.archived ? "archived" : null].filter(Boolean).join(", ")}\n`;
   }
@@ -94,6 +99,7 @@ export function json(note: ExportedNote): string {
     createdAt: timestamp(note.created),
     updatedAt: timestamp(note.updated),
     tags: note.tags,
+    labels: note.labels,
     pinned: note.pinned,
     archived: note.archived,
     content: note.content,

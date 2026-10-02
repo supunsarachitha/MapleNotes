@@ -214,7 +214,7 @@ export async function decodeLabels(labels: LabelWire[]): Promise<Label[]> {
       if (!name && encryptedName && session?.keys) {
         name = await decryptLabelName(session.keys, session.userId, label.id, fromBase64(encryptedName)).catch(() => null);
       }
-      return { ...label, name: name ?? UNREADABLE_LABEL };
+      return name ? { ...label, name } : { ...label, name: UNREADABLE_LABEL, unreadable: true };
     }),
   );
   return decoded.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) || (a.id < b.id ? -1 : 1));

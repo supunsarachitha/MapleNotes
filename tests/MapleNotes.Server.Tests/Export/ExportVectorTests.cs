@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Encryption;
+using MapleNotes.Server.Features.Labels;
 using MapleNotes.Server.Features.Notes;
 using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Infrastructure.Storage;
@@ -74,9 +75,20 @@ public sealed class ExportVectorTests
                 };
             }
 
+            Label Label(string name, string color)
+            {
+                var label = new Label
+                {
+                    Id = Guid.Parse($"0192f3a4-0000-7000-8000-{++sequence:D12}"), UserId = userId, Name = name, Color = color,
+                    CreatedAtUtc = Utc("2025-01-01T00:00:00Z"),
+                };
+                db.Labels.Add(label);
+                return label;
+            }
+
             async Task Note(
                 string text, string createdAtUtc, string? updatedAtUtc = null, bool pinned = false, bool archived = false,
-                NoteKind kind = NoteKind.Note, string? daily = null, params Attachment[] attachments)
+                NoteKind kind = NoteKind.Note, string? daily = null, Label[]? labels = null, params Attachment[] attachments)
             {
                 var note = new Note
                 {
@@ -91,19 +103,27 @@ public sealed class ExportVectorTests
                 };
                 await notes.ApplyPlainTextAsync(note, text, Ct); // text and tags, as the app stores them
                 note.Attachments.AddRange(attachments);
+                note.Labels.AddRange(labels ?? []);
                 db.Notes.Add(note);
                 await db.SaveChangesAsync(Ct);
             }
 
+            // Added in 1.9: labels, with names that need escaping and sort differently by code unit than by culture, and
+            // one on no note, which exports leave out.
+            var work = Label("Work", "Blue");
+            var summer = Label("été ☀️", "Orange");
+            var quoted = Label("Zebra, \"quoted\" #1", "Pink");
+            Label("Unused", "Grey");
+
             // In Paris this is already 2025-01-01: folders follow the export's time zone.
-            await Note("# Meeting notes\n\n- discuss #work/meetings\n- budget", "2024-12-31T23:30:00Z");
+            await Note("# Meeting notes\n\n- discuss #work/meetings\n- budget", "2024-12-31T23:30:00Z", labels: [work]);
             // Around the switch to summer time in Paris (2025-03-30, 01:00 UTC), and a slug collision in the same minute.
             await Note("Buy **maple** syrup! #groceries 🍁", "2025-03-30T00:59:00Z", "2025-03-30T01:30:00.5Z");
             await Note("Buy maple syrup", "2025-03-30T01:59:30Z");
             await Note("Buy maple syrup", "2025-03-30T01:59:50Z");
             await Note("#only #tags", "2025-04-01T08:00:00Z");
             await Note("- [ ] Quote \"this\", back\\slash,\ttab, <b>&amp;</b>, 'apostrophe', line\u2028separator, bell\u0007", "2025-04-02T08:00:00Z");
-            await Note("Café résumé — naïve 日本語テキスト\nsecond line #voyage", "2025-07-14T12:00:00Z", pinned: true, attachments:
+            await Note("Café résumé — naïve 日本語テキスト\nsecond line #voyage", "2025-07-14T12:00:00Z", pinned: true, labels: [work, summer, quoted], attachments:
             [
                 await File("photo.png", "image/png", Encoding.ASCII.GetBytes("\u0089PNG fake image bytes"), "2025-07-14T12:00:01Z"),
                 await File("Café menu (2).pdf", "application/pdf", Encoding.UTF8.GetBytes("%PDF-1.7 menu"), "2025-07-14T12:00:02Z"),
@@ -111,13 +131,13 @@ public sealed class ExportVectorTests
                 await File("[draft] plan.txt", "text/plain", Encoding.UTF8.GetBytes("draft"), "2025-07-14T12:00:04Z"),
             ]);
             await Note(string.Empty, "2025-08-01T09:00:00Z", attachments: [await File("notes.txt", "text/plain", Encoding.UTF8.GetBytes("only a file"), "2025-08-01T09:00:01Z")]);
-            await Note("Old idea #archive-me", "2023-05-05T05:05:05Z", archived: true);
+            await Note("Old idea #archive-me", "2023-05-05T05:05:05Z", archived: true, labels: [summer]);
             // Added in 1.2: a todo list, a quick note (archived) and a daily note, whose day is the author's local date.
             await Note("# Groceries\n\n- [x] oats\n- [ ] maple syrup #groceries", "2025-07-14T08:00:00Z", kind: NoteKind.Todo);
             await Note("Call the plumber", "2025-07-14T09:00:00Z", archived: true, kind: NoteKind.Quick);
             await Note("# Tuesday, 15 July 2025\n\nA quiet day", "2025-07-14T22:30:00Z", daily: "2025-07-15");
             // Added in 1.3: a habit, ticked on three days, the last after it was created.
-            await Note("# Stretch 🧘\n\n- 2025-07-12\n- 2025-07-13\n- 2025-07-15", "2025-07-13T06:45:00Z", "2025-07-15T06:50:00Z", kind: NoteKind.Habit);
+            await Note("# Stretch 🧘\n\n- 2025-07-12\n- 2025-07-13\n- 2025-07-15", "2025-07-13T06:45:00Z", "2025-07-15T06:50:00Z", kind: NoteKind.Habit, labels: [quoted]);
         }
 
         var exports = new JsonArray();
@@ -136,6 +156,7 @@ public sealed class ExportVectorTests
             ["account"] = "maple",
             ["active"] = JsonSerializer.SerializeToNode(await client.GetJsonAsync<NotePageResponse>($"/api/v1/notes?state=active&limit=100&{AllKinds}"), ApiClient.Json),
             ["archived"] = JsonSerializer.SerializeToNode(await client.GetJsonAsync<NotePageResponse>($"/api/v1/notes?state=archived&limit=100&{AllKinds}"), ApiClient.Json),
+            ["labels"] = JsonSerializer.SerializeToNode(await client.GetJsonAsync<List<LabelResponse>>("/api/v1/labels"), ApiClient.Json),
             ["files"] = new JsonObject(files.Select(f => KeyValuePair.Create(f.Key.ToString(), (JsonNode?)Convert.ToBase64String(f.Value)))),
             ["exports"] = exports,
         };

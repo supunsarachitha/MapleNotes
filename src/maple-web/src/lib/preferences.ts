@@ -18,6 +18,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   habitTracker: false,
   archive: true,
   tags: true,
+  helpMenu: true,
   shrinkPhotos: false,
   linkPreviews: false,
   doubleTapToEdit: false,
