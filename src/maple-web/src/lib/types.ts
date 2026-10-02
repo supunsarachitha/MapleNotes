@@ -224,6 +224,8 @@ export interface Label {
   color: LabelColor;
   /** Active notes (neither archived nor in the trash) with the label. */
   noteCount: number;
+  /** An end-to-end label whose name could not be decrypted in this browser (`name` is then a placeholder). */
+  unreadable?: boolean;
 }
 
 /** A label as the API returns it: end-to-end labels carry `encryptedName` instead of a name. */

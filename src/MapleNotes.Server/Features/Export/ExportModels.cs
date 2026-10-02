@@ -76,6 +76,7 @@ public sealed record ExportedAttachment(
 /// <param name="Attachments">Attached files included in the export.</param>
 /// <param name="Kind">A timeline note, a todo list, a quick note or a habit.</param>
 /// <param name="DailyDate">For a daily note, its day.</param>
+/// <param name="Labels">The names of the note's labels, in ordinal order; null is read as none.</param>
 public sealed record ExportedNote(
     Guid Id,
     string Content,
@@ -86,8 +87,12 @@ public sealed record ExportedNote(
     bool Archived,
     IReadOnlyList<ExportedAttachment> Attachments,
     NoteKind Kind = NoteKind.Note,
-    DateOnly? DailyDate = null)
+    DateOnly? DailyDate = null,
+    IReadOnlyList<string>? Labels = null)
 {
+    /// <summary>The names of the note's labels; empty when it has none.</summary>
+    public IReadOnlyList<string> LabelNames => Labels ?? [];
+
     /// <summary>The kind as written in exports: <c>note</c>, <c>todo</c>, <c>quick</c> or <c>habit</c>.</summary>
     public string KindName => Kind.ToString().ToLowerInvariant();
 }

@@ -37,7 +37,7 @@ public static class NoteFormatter
     };
 
     /// <summary>
-    /// Markdown with YAML front matter (id, kind, daily date, dates, tags, state, attachments), the original text, and an
+    /// Markdown with YAML front matter (id, kind, daily date, dates, tags, labels, state, attachments), the original text, and an
     /// "Attachments" section that embeds images and links other files by relative path.
     /// </summary>
     /// <param name="note">The note.</param>
@@ -56,6 +56,7 @@ public static class NoteFormatter
         text.Append("created: ").Append(Timestamp(note.Created)).Append('\n');
         text.Append("updated: ").Append(Timestamp(note.Updated)).Append('\n');
         text.Append("tags: [").Append(string.Join(", ", note.Tags.Select(Quote))).Append("]\n");
+        text.Append("labels: [").Append(string.Join(", ", note.LabelNames.Select(Quote))).Append("]\n");
         text.Append("pinned: ").Append(note.Pinned ? "true" : "false").Append('\n');
         text.Append("archived: ").Append(note.Archived ? "true" : "false").Append('\n');
         if (note.Attachments.Count > 0)
@@ -85,7 +86,7 @@ public static class NoteFormatter
     }
 
     /// <summary>
-    /// Plain text: a short header (dates, kind and daily date when they matter, tags, state, attachment paths), a blank
+    /// Plain text: a short header (dates, kind and daily date when they matter, tags, labels, state, attachment paths), a blank
     /// line, then the note text.
     /// </summary>
     /// <param name="note">The note.</param>
@@ -114,6 +115,12 @@ public static class NoteFormatter
             text.Append("Tags: ").Append(string.Join(' ', note.Tags.Select(t => "#" + t))).Append('\n');
         }
 
+        if (note.LabelNames.Count > 0)
+        {
+            // As a JSON array: label names may contain spaces and commas.
+            text.Append("Labels: [").Append(string.Join(", ", note.LabelNames.Select(Quote))).Append("]\n");
+        }
+
         if (note.Pinned || note.Archived)
         {
             text.Append("State: ").Append(string.Join(", ", new[] { note.Pinned ? "pinned" : null, note.Archived ? "archived" : null }.OfType<string>())).Append('\n');
@@ -140,6 +147,7 @@ public static class NoteFormatter
             CreatedAt = Timestamp(note.Created),
             UpdatedAt = Timestamp(note.Updated),
             note.Tags,
+            Labels = note.LabelNames,
             note.Pinned,
             note.Archived,
             note.Content,

@@ -37,8 +37,11 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
   }
 
   async function restore(plan: ImportPlan) {
-    const final = await runImport(plan.items, (progress) =>
-      setStep({ name: "running", plan, progress }),
+    const final = await runImport(
+      plan.items,
+      (progress) => setStep({ name: "running", plan, progress }),
+      undefined,
+      plan.labelColors,
     );
     setStep({ name: "done", plan, progress: final });
     await invalidate();
@@ -61,8 +64,8 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
         Bring notes back from a Maple Notes export (<code>.zip</code>, any
         format), or add <code>.md</code>, <code>.txt</code> and{" "}
-        <code>.json</code> files. Notes keep their dates, pins, archive state
-        and files. Notes you already have are skipped, so restoring the same
+        <code>.json</code> files. Notes keep their dates, pins, archive state,
+        labels and files. Notes you already have are skipped, so restoring the same
         export twice is safe.
         {endToEnd &&
           " Your notes are end-to-end encrypted, so this browser encrypts each one before sending it: keep this page open until it finishes."}
@@ -145,6 +148,9 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
             {step.name === "running"
               ? `Restoring… ${step.progress.done.toLocaleString()} of ${step.progress.total.toLocaleString()}`
               : `Restored ${plural(step.progress.imported, "note")} and ${plural(step.progress.files, "file")}.` +
+                (step.progress.labels > 0
+                  ? ` Added ${plural(step.progress.labels, "label")}.`
+                  : "") +
                 (step.progress.skipped > 0
                   ? ` ${plural(step.progress.skipped, "note was", "notes were")} already here.`
                   : "")}

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { api } from "../lib/api";
 import { apiExportSource } from "./download";
 import { concat, fromBase64, fromUtf8, toBase64 } from "../crypto/encoding";
-import type { Attachment, Note } from "../lib/types";
+import type { Attachment, Label, Note } from "../lib/types";
 import { buildExport, type ExportOptions, type ExportSource } from "./exporter";
 import vectors from "./export-vectors.json";
 
@@ -18,6 +18,7 @@ const files = vectors.files as Record<string, string>;
 const source: ExportSource = {
   account: vectors.account,
   notes: async (includeArchived) => notes.filter((note) => includeArchived || !note.isArchived),
+  labels: async () => vectors.labels as Label[],
   async *openAttachment(attachment: Attachment) {
     const bytes = fromBase64(files[attachment.id]!);
     yield bytes.subarray(0, 5); // in pieces, as downloads arrive
@@ -73,6 +74,25 @@ describe("browser export", () => {
 
     expect(manifest.problems).toEqual([expect.stringMatching(/_con\.txt: the stored file could not be read, so it was left out\.$/)]);
     expect(manifest.attachmentCount).toBe(4);
+  });
+
+  it("leaves out labels it could not decrypt, and says so", async () => {
+    const locked: ExportSource = {
+      ...source,
+      labels: async () => (vectors.labels as Label[]).map((label) => (label.name === "Work" ? { ...label, name: "Encrypted label", unreadable: true } : label)),
+    };
+    const chunks: Uint8Array[] = [];
+    const options = optionsFrom("format=json&layout=flat&includeArchived=true&timeZone=UTC");
+    for await (const chunk of buildExport(locked, options, new Date())) chunks.push(chunk);
+    const manifest = JSON.parse(fromUtf8(unzipSync(concat(...chunks))["manifest.json"]!)) as {
+      problems: string[];
+      labels: Array<{ name: string }>;
+      notes: Array<{ labels: string[] }>;
+    };
+
+    expect(manifest.labels.map((l) => l.name)).toEqual(["Zebra, \"quoted\" #1", "été ☀️"]);
+    expect(manifest.notes.flatMap((n) => n.labels)).not.toContain("Encrypted label");
+    expect(manifest.problems).toEqual(["Some labels could not be decrypted in this browser, so the notes that carry them do not list them."]);
   });
 });
 

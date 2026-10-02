@@ -258,12 +258,13 @@ export const api = {
   },
 
   /**
-   * Restores one note with its original ID, dates, state, kind and daily date. A note the account already has is
-   * left as it is (`imported: false`). An end-to-end note whose ID another account uses is encrypted again for a new ID.
+   * Restores one note with its original ID, dates, state, kind, daily date and labels (the account's own, at most 20).
+   * A note the account already has is left as it is (`imported: false`). An end-to-end note whose ID another account uses is encrypted again for a new ID.
    */
   async importNote(
     note: { id: string | null; content: string; createdAt: Date; updatedAt: Date; pinned: boolean; archived: boolean; kind: NoteKind; dailyDate: string | null },
     attachmentIds: string[],
+    labelIds: string[] = [],
   ): Promise<{ imported: boolean; note: Note }> {
     const body = {
       createdAtUtc: note.createdAt.toISOString(),
@@ -273,6 +274,7 @@ export const api = {
       isArchived: note.archived,
       kind: note.kind,
       dailyDate: note.dailyDate,
+      labelIds,
     };
     const send = async (fresh: boolean) => {
       const result = await request<{ imported: boolean; note: NoteWire }>("POST", "/api/v1/notes/import", {

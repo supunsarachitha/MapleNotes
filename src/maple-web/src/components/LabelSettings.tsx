@@ -4,13 +4,13 @@ import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import { focusAtEndRef } from "../lib/focus";
 import { useEnabledKinds } from "../lib/kinds";
-import { hasLabelNamed, LABEL_STYLES, MAX_LABEL_NAME } from "../lib/labels";
+import { hasLabelNamed, LABEL_STYLES, MAX_LABEL_NAME, nextLabelColor } from "../lib/labels";
 import { usePreferences } from "../lib/preferences";
 import { useAuthStatus, useInvalidateNotes, useLabels } from "../lib/queries";
 import { Link } from "../lib/router";
 import { LABEL_COLORS, type Label, type LabelColor } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { LabelDot, nextLabelColor } from "./Labels";
+import { LabelDot } from "./Labels";
 import { PreferenceSwitch, useSavePreferences } from "./PreferenceSections";
 import { useToast } from "./Toaster";
 import { Button, IconButton, Section, cn } from "./ui";
@@ -257,7 +257,7 @@ export function LabelSettings() {
           </ul>
         )}
         <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">
-          Up to 100 labels, 40 characters each, and 20 on a note. Exports do not include labels yet.
+          Up to 100 labels, 40 characters each, and 20 on a note. Exports keep each note's labels, and restoring one brings them back.
         </p>
       </Section>
     </>

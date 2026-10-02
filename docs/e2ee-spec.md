@@ -184,6 +184,10 @@ text, so they have their own records.
   note–label links are what lets the server list a label's notes (`GET /api/v1/notes?label={id}`) and count them, as
   tag tokens do for tags. `GET /api/v1/labels` returns `{ id, name: null, encryptedName, color, noteCount }` for such
   labels; the browser decrypts the names.
+- **Exports and restores:** exports carry label names, decrypted by the browser, never label IDs or ciphertext. An
+  account with any end-to-end label name is exported by the browser (the server answers 409); a label whose name does
+  not decrypt is left out and reported in the manifest's `problems`. A restore finds or creates labels by name, so new
+  ones get new IDs chosen by the browser, as above.
 - **Changing mode:** labels are converted with the notes and files (§3): the server lists the labels whose names are
   not in the account's current form, and the browser saves each name again with `PUT /api/v1/labels/{id}`.
 

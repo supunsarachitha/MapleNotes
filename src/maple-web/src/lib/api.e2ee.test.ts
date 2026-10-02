@@ -121,7 +121,7 @@ describe("api client with end-to-end notes", () => {
     );
     expect(await api.labels.list()).toEqual([
       { id: "0192f3a4-0000-7000-8000-000000000003", name: "Archive", color: "Grey", noteCount: 1 },
-      { id: other, name: "Encrypted label", color: "Red", noteCount: 0 }, // a name moved to another label does not open
+      { id: other, name: "Encrypted label", color: "Red", noteCount: 0, unreadable: true }, // a name moved to another label does not open
       { id: v.ids.labelId, name: "Work", color: "Blue", noteCount: 2 },
     ]);
   });

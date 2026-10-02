@@ -172,6 +172,8 @@ public sealed record CreateNoteRequest(
 /// <param name="IsArchived">Whether it was archived.</param>
 /// <param name="Kind">Timeline note, todo list, quick note or habit.</param>
 /// <param name="DailyDate">Its day, for a daily note. Dropped if the account already has a daily note for that day.</param>
+/// <param name="LabelIds">The account's labels to put on it (at most 20), found or created by the browser from the
+/// label names in the export.</param>
 public sealed record ImportNoteRequest(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
@@ -182,7 +184,8 @@ public sealed record ImportNoteRequest(
     bool IsPinned = false,
     bool IsArchived = false,
     NoteKind Kind = NoteKind.Note,
-    DateOnly? DailyDate = null);
+    DateOnly? DailyDate = null,
+    IReadOnlyList<Guid>? LabelIds = null);
 
 /// <summary>The result of restoring one note.</summary>
 /// <param name="Imported">False when the account already had the note (same ID), which was left unchanged.</param>

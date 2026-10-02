@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using MapleNotes.Server.Features.Attachments;
 using MapleNotes.Server.Features.Export;
+using MapleNotes.Server.Features.Labels;
 using MapleNotes.Server.Features.Notes;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Persistence;
@@ -147,6 +148,50 @@ public sealed partial class ExportTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Labels_are_exported_by_name_with_their_colours_in_the_manifest()
+    {
+        var work = await CreateLabelAsync("Work", "blue");
+        var trip = await CreateLabelAsync("Road trip, 2026", "teal");
+        await CreateLabelAsync("Unused", "grey");
+        var note = await CreateAsync("Pack the car");
+        (await _client.PatchJsonAsync($"/api/v1/notes/{note.Id}", new PatchNoteRequest(LabelIds: [work.Id, trip.Id]))).EnsureSuccessStatusCode();
+        await SetCreatedAsync(note.Id, new DateTime(2026, 9, 3, 7, 0, 0, DateTimeKind.Utc));
+
+        using var markdown = await ExportAsync("format=md&layout=flat");
+        using var text = await ExportAsync("format=txt&layout=flat");
+        using var json = await ExportAsync("format=json&layout=flat");
+
+        Assert.Contains("\nlabels: [\"Road trip, 2026\", \"Work\"]\n", await ReadTextAsync(markdown.GetEntry("2026-09-03_0700_pack-the-car.md")!), StringComparison.Ordinal);
+        Assert.Contains("\nlabels: []\n", await ReadTextAsync(markdown.GetEntry("2026-09-30_2330_late-night-thought.md")!), StringComparison.Ordinal);
+        Assert.Contains("\nLabels: [\"Road trip, 2026\", \"Work\"]\n", await ReadTextAsync(text.GetEntry("2026-09-03_0700_pack-the-car.txt")!), StringComparison.Ordinal);
+        Assert.DoesNotContain("Labels:", await ReadTextAsync(text.GetEntry("2026-09-30_2330_late-night-thought.txt")!), StringComparison.Ordinal);
+        var exported = JsonDocument.Parse(await ReadTextAsync(json.GetEntry("2026-09-03_0700_pack-the-car.json")!)).RootElement;
+        Assert.Equal(["Road trip, 2026", "Work"], exported.GetProperty("labels").EnumerateArray().Select(l => l.GetString()));
+        var manifest = JsonDocument.Parse(await ReadTextAsync(markdown.GetEntry("manifest.json")!)).RootElement;
+        Assert.Equal( // only the labels the exported notes carry
+            [("Road trip, 2026", "Teal"), ("Work", "Blue")],
+            manifest.GetProperty("labels").EnumerateArray().Select(l => (l.GetProperty("name").GetString(), l.GetProperty("color").GetString())));
+        var listed = manifest.GetProperty("notes").EnumerateArray().Single(n => n.GetProperty("id").GetGuid() == note.Id);
+        Assert.Equal(["Road trip, 2026", "Work"], listed.GetProperty("labels").EnumerateArray().Select(l => l.GetString()));
+    }
+
+    [Fact]
+    public async Task Labels_with_encrypted_names_are_left_to_the_browser()
+    {
+        using (var scope = _app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MapleDbContext>();
+            var userId = await db.Users.Where(u => u.Username == "maple").Select(u => u.Id).SingleAsync(Ct);
+            db.Labels.Add(new Domain.Label { UserId = userId, EncryptedName = [1, 2, 3], CreatedAtUtc = DateTime.UtcNow });
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var response = await _client.GetAsync("/api/v1/export");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode); // the server cannot read their names
+    }
+
+    [Fact]
     public async Task Archived_notes_are_included_on_request()
     {
         using var zip = await ExportAsync("format=md&layout=flat&includeArchived=true");
@@ -192,7 +237,7 @@ public sealed partial class ExportTests : IAsyncLifetime
         var daily = JsonDocument.Parse(await ReadTextAsync(Assert.Single(json.Entries, e => e.FullName.EndsWith("_today.json", StringComparison.Ordinal)))).RootElement;
         Assert.Equal(("note", "2026-09-29"), (daily.GetProperty("kind").GetString(), daily.GetProperty("dailyDate").GetString()));
         var manifest = JsonDocument.Parse(await ReadTextAsync(markdown.GetEntry("manifest.json")!)).RootElement;
-        Assert.Equal(2, manifest.GetProperty("manifestVersion").GetInt32());
+        Assert.Equal(3, manifest.GetProperty("manifestVersion").GetInt32());
         var kinds = manifest.GetProperty("notes").EnumerateArray().Select(n => n.GetProperty("kind").GetString()).ToList();
         Assert.Contains("todo", kinds);
         Assert.Contains("quick", kinds);
@@ -272,6 +317,13 @@ public sealed partial class ExportTests : IAsyncLifetime
     {
         var response = await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest(content, attachmentIds));
         return (await response.Content.ReadFromJsonAsync<NoteResponse>(ApiClient.Json, Ct))!;
+    }
+
+    private async Task<LabelResponse> CreateLabelAsync(string name, string color)
+    {
+        var response = await _client.PostJsonAsync("/api/v1/labels", new CreateLabelRequest(name, color));
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<LabelResponse>(ApiClient.Json, Ct))!;
     }
 
     private async Task SetCreatedAsync(Guid noteId, DateTime createdUtc)

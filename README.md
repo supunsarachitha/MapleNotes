@@ -64,7 +64,8 @@
   - Changing mode converts existing notes and files safely, resuming if it is interrupted.
 - **Export and restore.** Download everything, decrypted, as a ZIP of Markdown, plain text or JSON files, in flat or
   year/month/day folders, with attachments linked by relative path. Restore such an export into any account, even on
-  another server: notes keep their dates, pins, archive state, kind and files, and notes you already have are skipped.
+  another server: notes keep their dates, pins, archive state, kind, labels and files, and notes you already have are
+  skipped.
   Single Markdown, text and JSON files can be added too. With end-to-end encryption, your browser does both. To
   start over, an account can delete all of its notes and files at once and keep its sign-in and settings.
 - **Storage at a glance.** Settings shows how much your notes and files take; administrators see the server's totals

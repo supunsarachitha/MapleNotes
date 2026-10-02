@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Attachments;
+using MapleNotes.Server.Features.Labels;
 using MapleNotes.Server.Features.Notes;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Tests.TestSupport;
@@ -10,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MapleNotes.Server.Tests.Notes;
 
 /// <summary>
-/// Restoring notes from an export: original IDs, dates and state are kept, notes the account has are skipped, IDs of
+/// Restoring notes from an export: original IDs, dates, state and labels are kept, notes the account has are skipped, IDs of
 /// other accounts are never reused or revealed, and end-to-end accounts restore ciphertext.
 /// </summary>
 public sealed class ImportTests : IAsyncLifetime
@@ -49,6 +50,33 @@ public sealed class ImportTests : IAsyncLifetime
         Assert.Equal((id, Created, Updated, true, true, NoteKind.Todo), (note.Id, note.CreatedAtUtc, note.UpdatedAtUtc, note.IsPinned, note.IsArchived, note.Kind));
         Assert.Equal(["trip"], note.Tags);
         Assert.Equal(upload.Id, Assert.Single(note.Attachments).Id);
+    }
+
+    [Fact]
+    public async Task A_restored_note_carries_the_accounts_labels_it_is_given()
+    {
+        var label = await ReadLabelAsync(await _client.PostJsonAsync("/api/v1/labels", new CreateLabelRequest("Work", "blue")));
+        using var other = new ApiClient(_app);
+        await other.SignUpAsync("other");
+        var foreign = await ReadLabelAsync(await other.PostJsonAsync("/api/v1/labels", new CreateLabelRequest("Theirs", "red")));
+
+        var response = await _client.PostJsonAsync("/api/v1/notes/import", new ImportNoteRequest(Created, Updated, Content: "Standup", LabelIds: [label.Id]));
+        var refused = await _client.PostJsonAsync("/api/v1/notes/import", new ImportNoteRequest(Created, Updated, Content: "Theirs", LabelIds: [foreign.Id]));
+        var tooMany = await _client.PostJsonAsync("/api/v1/notes/import", new ImportNoteRequest(
+            Created, Updated, Content: "Busy", LabelIds: [.. Enumerable.Range(0, 21).Select(_ => Guid.CreateVersion7())]));
+
+        var note = (await response.Content.ReadFromJsonAsync<ImportNoteResponse>(ApiClient.Json, Ct))!.Note;
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal([label.Id], note.LabelIds);
+        Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+        Assert.Contains("labelIds", (await refused.Content.ReadFromJsonAsync<ValidationProblemDetails>(Ct))!.Errors.Keys);
+        Assert.Equal(HttpStatusCode.BadRequest, tooMany.StatusCode);
+    }
+
+    private static async Task<LabelResponse> ReadLabelAsync(HttpResponseMessage response)
+    {
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<LabelResponse>(ApiClient.Json, Ct))!;
     }
 
     [Fact]

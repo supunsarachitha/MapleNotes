@@ -269,14 +269,14 @@ public sealed class NoteService(
     }
 
     /// <summary>
-    /// Restores a note from an export with its original ID, dates, state, kind and daily date. A note the account already
-    /// has is left unchanged, so restoring the same export twice is safe.
+    /// Restores a note from an export with its original ID, dates, state, kind, daily date and labels. A note the
+    /// account already has is left unchanged, so restoring the same export twice is safe.
     /// </summary>
     /// <param name="userId">The owner.</param>
     /// <param name="request">The note.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>Whether it was restored, and the note.</returns>
-    /// <exception cref="ApiValidationException">The content, dates, kind, ID or attachments are not acceptable.</exception>
+    /// <exception cref="ApiValidationException">The content, dates, kind, ID, attachments or labels are not acceptable.</exception>
     /// <exception cref="ApiProblemException">The request does not match the account's mode, (end-to-end) the ID is
     /// used by another account and the note must be encrypted for a new one (409), or the note does not fit in the
     /// account's storage limit (507).</exception>
@@ -327,6 +327,11 @@ public sealed class NoteService(
             await SetContentAsync(note, content, cancellationToken);
             await AttachAsync(note, attachmentIds, cancellationToken);
             await SetTagsAsync(note, content, cancellationToken);
+        }
+
+        if (request.LabelIds is { Count: > 0 } labelIds)
+        {
+            await SetLabelsAsync(note, labelIds, cancellationToken);
         }
 
         note.Kind = request.Kind;

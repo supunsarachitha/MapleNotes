@@ -85,10 +85,11 @@ public sealed class NoteExporter(
     /// </summary>
     /// <param name="userId">The account.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
-    /// <returns>True when a note or attachment is end-to-end encrypted.</returns>
+    /// <returns>True when a note, attachment or label name is end-to-end encrypted.</returns>
     public async Task<bool> HasEndToEndContentAsync(Guid userId, CancellationToken cancellationToken) =>
         await db.Notes.AnyAsync(n => n.UserId == userId && n.Scheme == ContentScheme.EndToEnd, cancellationToken)
-        || await db.Attachments.AnyAsync(a => a.UserId == userId && a.Scheme == ContentScheme.EndToEnd, cancellationToken);
+        || await db.Attachments.AnyAsync(a => a.UserId == userId && a.Scheme == ContentScheme.EndToEnd, cancellationToken)
+        || await db.Labels.AnyAsync(l => l.UserId == userId && l.EncryptedName != null, cancellationToken);
 
     /// <summary>The download's file name, e.g. <c>maple-notes-2026-09-28.zip</c>.</summary>
     /// <param name="options">The export options (for the time zone).</param>
@@ -154,6 +155,7 @@ public sealed class NoteExporter(
         var usedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "manifest.json" };
         var problems = new List<string>();
         var manifestNotes = new List<object>();
+        var labelColors = new SortedDictionary<string, string>(StringComparer.Ordinal); // the labels the notes carry
         var attachmentCount = 0;
 
         await using (var zip = await ZipArchive.CreateAsync(output, ZipArchiveMode.Create, leaveOpen: true, entryNameEncoding: null, cancellationToken))
@@ -166,6 +168,11 @@ public sealed class NoteExporter(
                 {
                     var (path, exported) = await WriteNoteAsync(zip, note, options, usedPaths, problems, cancellationToken);
                     attachmentCount += exported.Attachments.Count;
+                    foreach (var label in note.Labels.Where(l => l.Name is not null))
+                    {
+                        labelColors[label.Name!] = label.Color;
+                    }
+
                     manifestNotes.Add(new
                     {
                         exported.Id,
@@ -174,6 +181,7 @@ public sealed class NoteExporter(
                         DailyDate = exported.DailyDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                         CreatedAt = exported.Created.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
                         exported.Tags,
+                        Labels = exported.LabelNames,
                         exported.Archived,
                         Attachments = exported.Attachments.Select(a => a.ArchivePath),
                     });
@@ -190,7 +198,7 @@ public sealed class NoteExporter(
             var manifest = new
             {
                 Application = "Maple Notes",
-                ManifestVersion = 2, // 2: notes record their kind and daily date
+                ManifestVersion = 3, // 2: notes record their kind and daily date; 3: and their labels
                 ExportedAt = exportedAt.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture),
                 Account = username,
                 Options = new
@@ -206,6 +214,7 @@ public sealed class NoteExporter(
                 NoteCount = manifestNotes.Count,
                 AttachmentCount = attachmentCount,
                 Problems = problems,
+                Labels = labelColors.Select(l => new { Name = l.Key, Color = l.Value }),
                 Notes = manifestNotes,
             };
             await WriteTextAsync(zip, "manifest.json", NoteFormatter.ManifestJson(manifest), exportedAt, cancellationToken);
@@ -245,6 +254,7 @@ public sealed class NoteExporter(
         return query
             .Include(n => n.Attachments)
             .Include(n => n.Tags)
+            .Include(n => n.Labels)
             .AsSplitQuery()
             .OrderBy(n => n.CreatedAtUtc)
             .ThenBy(n => n.Id)
@@ -282,7 +292,8 @@ public sealed class NoteExporter(
         var exported = new ExportedNote(
             note.Id, content, created, updated,
             note.Tags.Where(t => t.Name is not null).Select(t => t.Name!).Order(StringComparer.Ordinal).ToList(),
-            note.IsPinned, note.ArchivedAtUtc is not null, exportedAttachments, note.Kind, note.DailyDate);
+            note.IsPinned, note.ArchivedAtUtc is not null, exportedAttachments, note.Kind, note.DailyDate,
+            note.Labels.Where(l => l.Name is not null).Select(l => l.Name!).Order(StringComparer.Ordinal).ToList());
         await WriteTextAsync(zip, notePath, NoteFormatter.Render(exported, options.Format), updated, cancellationToken);
         return (notePath, exported);
     }

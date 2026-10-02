@@ -3,11 +3,11 @@ import { Check, Plus, Search } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import { useEnabledKinds } from "../lib/kinds";
-import { hasLabelNamed, LABEL_STYLES, labelsOf, MAX_LABEL_NAME } from "../lib/labels";
+import { hasLabelNamed, LABEL_STYLES, labelsOf, MAX_LABEL_NAME, nextLabelColor } from "../lib/labels";
 import { usePreferences } from "../lib/preferences";
 import { useInvalidateNotes, useLabels, usePatchNote } from "../lib/queries";
 import { Link } from "../lib/router";
-import { LABEL_COLORS, type Label, type LabelColor, type Note } from "../lib/types";
+import type { LabelColor, Note } from "../lib/types";
 import { useToast } from "./Toaster";
 import { Button, cn } from "./ui";
 
@@ -39,11 +39,6 @@ export function LabelChips({ ids }: { ids?: string[] }) {
       ))}
     </ul>
   );
-}
-
-/** The colour a new label gets: the next one in turn, so a few labels made in a row look different. */
-export function nextLabelColor(labels: Label[]): LabelColor {
-  return LABEL_COLORS[(labels.length % (LABEL_COLORS.length - 1)) + 1]!;
 }
 
 /**
