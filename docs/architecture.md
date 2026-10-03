@@ -130,6 +130,7 @@ flowchart TD
     mk -- HKDF-SHA256 --> kek["Key-encryption key"]
     mk -- HKDF-SHA256 --> dpk["Data Protection wrapping key"]
     mk -- HKDF-SHA256 --> pk["Prelogin key<br/>(pseudo-salts for unknown usernames)"]
+    mk -- HKDF-SHA256 --> tfk["Two-factor key<br/>(seals authenticator secrets, keys recovery-code HMACs)"]
     mk -- HKDF-SHA256 --> fp["Fingerprint<br/>(8 hex chars, safe to log)"]
     kek -- "AES-256-GCM wrap<br/>bound to the user ID" --> dek["Per-user data key<br/>(stored wrapped in Users)"]
     dek -- "AES-256-GCM envelope" --> notes["Note text"]

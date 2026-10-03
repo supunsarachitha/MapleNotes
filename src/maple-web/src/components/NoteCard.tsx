@@ -1,12 +1,28 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Archive, ArchiveRestore, CloudUpload, Copy, Home, MoreHorizontal, Pencil, Pin, PinOff, Tag, Trash2, Zap, type LucideIcon } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  CalendarCheck,
+  CalendarX,
+  CloudUpload,
+  Copy,
+  Home,
+  MoreHorizontal,
+  Pencil,
+  Pin,
+  PinOff,
+  Tag,
+  Trash2,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { saveErrorMessage } from "../lib/apiError";
 import { useDoubleTap } from "../lib/doubleTap";
 import { formatAbsolute, formatRelative } from "../lib/format";
 import { toggleTask } from "../lib/markdownEdit";
 import { useNoteEditor } from "../lib/noteEditor";
-import { usePreferences } from "../lib/preferences";
+import { usePreferences, useUpdatePreferences } from "../lib/preferences";
 import { useAuthStatus } from "../lib/queries";
 import { usePatchNote } from "../lib/queries";
 import { splitTitle } from "../lib/titles";
@@ -60,7 +76,12 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
   const [choosingLabels, setChoosingLabels] = useState(false);
   const patch = usePatchNote();
   const toast = useToast();
-  const { noteTitles, quickNoteTitles, quickNotes, linkPreviews, archive, doubleTapToEdit, labels } = usePreferences();
+  const { noteTitles, quickNoteTitles, quickNotes, linkPreviews, archive, doubleTapToEdit, labels, dailyNotes, dailyNoteTemplate } =
+    usePreferences();
+  const updatePreferences = useUpdatePreferences();
+  const isTemplate = note.id === dailyNoteTemplate;
+  // A daily note cannot be the template of the others, and a note kept only on this device has no ID on the server yet.
+  const canBeTemplate = dailyNotes && !note.dailyDate && !note.pending;
   const previewsAvailable = useAuthStatus().data?.linkPreviewsAvailable === true;
   const [content, commit] = useNoteEditor(note, same, same, (error) =>
     toast.error(saveErrorMessage(error, "A change to this note could not be saved. Please try again.")),
@@ -165,6 +186,22 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
                       </MenuItem>
                     )}
                   </>
+                )}
+                {(canBeTemplate || isTemplate) && (
+                  <MenuItem
+                    icon={isTemplate ? CalendarX : CalendarCheck}
+                    onSelect={() =>
+                      updatePreferences.mutate(
+                        { dailyNoteTemplate: isTemplate ? "" : note.id },
+                        {
+                          onSuccess: () => toast.info(isTemplate ? "Daily notes start empty again." : "New daily notes start with this note's text."),
+                          onError: () => toast.error("Could not save the setting."),
+                        },
+                      )
+                    }
+                  >
+                    {isTemplate ? "Stop using as daily template" : "Use as daily-note template"}
+                  </MenuItem>
                 )}
                 <MenuItem
                   icon={Copy}

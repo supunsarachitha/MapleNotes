@@ -38,6 +38,7 @@
 - **Quick notes.** A scratchpad tab for short notes that stay out of your timeline; move one to Home when it is worth
   keeping.
 - **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.
+  Optionally, a note of yours serves as the template each new day's note starts with.
 - **Habit tracker.** Optionally, a Habits tab: tick off the days you keep each habit, and follow your progress in a
   chart of weeks or months, with streaks, and in a month calendar.
 - **Link previews.** Optionally, the title and description of links in your notes. Off by default: the server fetches
@@ -79,9 +80,11 @@
 - **Storage limit.** Optionally, administrators set how much each account can store, notes and files together. Each
   account sees its own usage against it; anything that would pass it is refused, and nothing already stored is lost.
 - **Help built in.** A user guide in the app explains every feature, and works offline.
-- **Accounts.** Multiple users with secure authentication, each with a display name of their choice. The first
+- **Accounts.** Multiple users with secure authentication, each with a display name of their choice, and optional
+  two-factor sign-in with an authenticator app and single-use recovery codes. The first
   account becomes the administrator, who can give the app its own name and icon, open registration, limit each
-  account's storage, choose how long devices stay signed in (30 to 400 days), disable or remove accounts, and appoint other administrators. Administrators never see anyone's
+  account's storage, choose how long devices stay signed in (30 to 400 days), disable or remove accounts, turn off
+  two-factor sign-in for someone who lost their phone, and appoint other administrators. Administrators never see anyone's
   notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
@@ -598,6 +601,7 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 | Notes and attachments | Each account chooses a mode in Settings. **Encrypted at rest** (the default): notes and files are also encrypted with the account's own key, which the server holds (AES-256-GCM). **End-to-end**: the browser encrypts notes, file names and files with a key the server never sees (AES-256-GCM), and tags become keyed tokens. **Off**: only the database encryption applies. |
 | End-to-end keys | Created in the browser and stored on the server only in wrapped form: once under a key derived from your password, once under a recovery key that is shown to you once. An open session keeps the key in the browser as a non-extractable key, sealed with a secret that lives in the session cookie. |
 | Passwords | Never leave the browser: it derives a sign-in key with Argon2id (64 MiB), and the server stores only a PBKDF2-HMAC-SHA512 hash of that key (210,000 iterations). Lockout after 5 failed attempts; rate limiting. |
+| Two-factor sign-in | Optional, per account: a code from an authenticator app (TOTP) or a single-use recovery code after the password. The secret is stored encrypted with a key derived from the master key, recovery codes only as HMACs; wrong codes count toward the lockout. |
 | Sessions | HttpOnly, SameSite=Strict cookies, checked on every request, so a password change or "sign out everywhere" takes effect at once. |
 | Web | Strict Content-Security-Policy, antiforgery tokens, API responses never cached by the browser, and uploaded files never run as web content. |
 
@@ -680,6 +684,13 @@ For API clients: `PUT /api/v1/notes/{id}` takes an optional `expectedUpdatedAtUt
 client last saw it. When it is given and the note has been edited since, the request fails with 409 and changes
 nothing. Requests without it behave as before. `GET` and `PUT /api/v1/admin/settings` gained `sessionDays` (1 to 400;
 left out of a `PUT`, it goes back to 30).
+
+The migration adds the columns for two-factor sign-in, which stays off until an account turns it on. A client that
+signs in to such an account gets 401 with `twoFactorRequired: true` after the right password, and sends the same
+`POST /api/v1/auth/login` again with `twoFactorCode`; `POST /api/v1/auth/recovery/reset` works the same way. The
+account gained `twoFactorEnabled`, `/api/v1/account/two-factor` is new, the admin account list gained
+`twoFactorEnabled` and `PATCH /api/v1/admin/users/{id}` takes `turnOffTwoFactor`. Preferences gained
+`dailyNoteTemplate`, the ID of the note new daily notes start with (empty for none).
 
 ### From 1.11 to 1.12
 

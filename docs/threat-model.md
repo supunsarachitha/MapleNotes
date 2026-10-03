@@ -146,6 +146,18 @@ server is one of the adversaries above.
 
 - Five failed attempts lock an account for 15 minutes, and sign-in, prelogin and recovery are rate-limited per client
   IP.
+- **Two-factor sign-in** is optional. With it on, the right password alone gets only the request for a code: a code
+  from an authenticator app (TOTP, 30-second steps, one step of tolerance either side) or one of ten single-use
+  recovery codes. A wrong code counts toward the same lockout as a wrong password, and only a complete sign-in resets
+  the count, so knowing the password gives five guesses at a code per 15 minutes. Each authenticator code is accepted
+  once. A reset with the end-to-end recovery key signs in, so it needs the code too. Turning two-factor sign-in on
+  ends the account's other sessions.
+- The server must hold the authenticator secret to check codes. It keeps it encrypted with a key derived from the
+  master key and bound to the account, and keeps recovery codes only as HMACs under that key, so a copy of the
+  database without the master key gives neither. Someone with the master key and the database can make codes, as
+  they can already read every account's sessions.
+- Two-factor sign-in protects sign-in, not content: end-to-end encryption still rests on the password alone, and a
+  compromised server gains nothing from the code.
 - Unknown usernames receive the same answer as real ones (default parameters and a stable pseudo-salt), so they
   cannot be told apart, with one temporary exception (below).
 
@@ -161,6 +173,9 @@ the password to the server one last time.
   Without both the password and the recovery key, the content cannot be recovered by anyone.
 - **Other accounts:** Maple Notes sends no email and administrators cannot reset passwords, so there is currently no
   reset.
+- **Lost authenticator:** a recovery code signs in instead. Without one, an administrator can turn two-factor sign-in
+  off for the account, after which the password alone signs in again. Administrators should check that such a request
+  comes from the account's owner.
 
 ## What the server sees in end-to-end mode
 

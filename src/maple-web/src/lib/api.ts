@@ -338,6 +338,16 @@ export const api = {
     }
   },
 
+  /** One note, or null when it no longer exists. */
+  async note(id: string): Promise<Note | null> {
+    try {
+      return await decodeNote(await request<NoteWire>("GET", `/api/v1/notes/${id}`));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
+  },
+
   /** The daily note of a day (`yyyy-MM-dd`), or null when the day has none yet. */
   async dailyNote(date: string): Promise<Note | null> {
     try {

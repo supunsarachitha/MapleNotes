@@ -44,6 +44,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.Equal((false, false), (preferences.QuickNoteTitles, preferences.DoubleTapToEdit)); // both opt-in
         Assert.Equal((false, false, true, ""), (preferences.TagSuggestions, preferences.Labels, preferences.Trash, preferences.MenuOrder));
         Assert.True(preferences.HelpMenu);
+        Assert.Equal("", preferences.DailyNoteTemplate); // no template until one is chosen
         Assert.Equal("Large", preferences.PhotoSize); // as photos were shrunk before sizes could be chosen
         Assert.Equal(preferences, (await _alice.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.Preferences);
     }
@@ -56,7 +57,7 @@ public sealed class PreferencesTests : IAsyncLifetime
             NoteTitles = true, DateInTitles = true, DateFormat = "dddd, d MMMM yyyy", TodoLists = false, QuickNotes = false, DailyNotes = true,
             HabitTracker = true, ShrinkPhotos = true, Archive = false, Tags = false, MenuTextSize = "Large", WeekStart = "Monday",
             QuickNoteTitles = true, DoubleTapToEdit = true, TagSuggestions = true, Labels = true, Trash = false, MenuOrder = "help,home,todo",
-            HelpMenu = false, PhotoSize = "Small",
+            HelpMenu = false, PhotoSize = "Small", DailyNoteTemplate = Guid.CreateVersion7().ToString(),
         };
 
         var response = await _alice.PutJsonAsync("/api/v1/account/preferences", wanted);
@@ -112,6 +113,22 @@ public sealed class PreferencesTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("menuOrder", (await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+    }
+
+    [Theory]
+    [InlineData("today")]
+    [InlineData("0199a1b2c3d4e5f60718293a4b5c6d7e")]
+    [InlineData("{0199a1b2-c3d4-e5f6-0718-293a4b5c6d7e}")]
+    public async Task The_daily_note_template_is_a_note_id_or_nothing(string template)
+    {
+        var response = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { DailyNoteTemplate = template });
+        var upperCase = await _alice.PutJsonAsync("/api/v1/account/preferences",
+            new UserPreferences { DailyNoteTemplate = "0199A1B2-C3D4-E5F6-0718-293A4B5C6D7E" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("dailyNoteTemplate", (await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+        Assert.Equal("0199a1b2-c3d4-e5f6-0718-293a4b5c6d7e", (await _alice.GetJsonAsync<UserPreferences>("/api/v1/account/preferences"))!.DailyNoteTemplate);
+        Assert.Equal(HttpStatusCode.OK, upperCase.StatusCode);
     }
 
     [Fact]

@@ -8,7 +8,7 @@ import { api, ApiError } from "./api";
 import { saveDailyNote } from "./daily";
 import { DEFAULT_PREFERENCES } from "./preferences";
 import { queryKeys } from "./queries";
-import type { AuthStatus, Note } from "./types";
+import type { AuthStatus, Note, Preferences } from "./types";
 
 const note = (overrides: Partial<Note>): Note => ({
   id: "d1",
@@ -88,5 +88,63 @@ describe("daily notes", () => {
     await waitFor(() =>
       expect(create).toHaveBeenCalledWith("# Tuesday, 29 September 2026\n\nMorning run", [], { dailyDate: "2026-09-29" }),
     );
+  });
+
+  function renderHome(preferences: Partial<Preferences>) {
+    vi.spyOn(api, "listNotes").mockResolvedValue({ items: [], nextCursor: null });
+    vi.spyOn(api, "dailyNote").mockResolvedValue(null);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    client.setQueryData<AuthStatus>(queryKeys.status, {
+      setupRequired: false,
+      registrationOpen: false,
+      user: {
+        id: "u",
+        username: "maple",
+        displayName: "Maple",
+        role: "User",
+        encryptionMode: "AtRest",
+        hasEndToEndKey: false,
+        createdAtUtc: "2026-09-28T12:00:00Z",
+        preferences: { ...DEFAULT_PREFERENCES, dailyNotes: true, dateFormat: "dddd, d MMMM yyyy", ...preferences },
+      },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <HomePage />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("starts a new day's note with the template's text, without the template's title", async () => {
+    const template = note({ id: "t1", dailyDate: null, kind: "Quick", content: "# Daily template\n\n## Plan\n- [ ] \n\n## Done\n" });
+    const load = vi.spyOn(api, "note").mockResolvedValue(template);
+    const create = vi.spyOn(api, "createNote").mockResolvedValue(note({}));
+    renderHome({ dailyNoteTemplate: "t1" });
+
+    await waitFor(() => expect(screen.getAllByLabelText("New note")[0]).toHaveValue("## Plan\n- [ ] \n\n## Done\n"));
+    expect(load).toHaveBeenCalledWith("t1");
+    await userEvent.setup().click(screen.getAllByRole("button", { name: "Post" })[0]!);
+
+    await waitFor(() =>
+      expect(create).toHaveBeenCalledWith("# Tuesday, 29 September 2026\n\n## Plan\n- [ ] \n\n## Done\n", [], { dailyDate: "2026-09-29" }),
+    );
+  });
+
+  it("starts empty when the template note is in the trash or gone", async () => {
+    vi.spyOn(api, "note").mockResolvedValue(note({ id: "t1", dailyDate: null, content: "Old template", trashedAtUtc: "2026-09-28T10:00:00Z" }));
+    renderHome({ dailyNoteTemplate: "t1" });
+
+    expect(await screen.findByText("Tuesday, 29 September 2026")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("New note")[0]).toHaveValue("");
+  });
+
+  it("does not load a template while none is chosen", async () => {
+    const load = vi.spyOn(api, "note");
+    renderHome({ dailyNoteTemplate: "" });
+
+    expect(await screen.findByText("Tuesday, 29 September 2026")).toBeInTheDocument();
+    expect(load).not.toHaveBeenCalled();
   });
 });

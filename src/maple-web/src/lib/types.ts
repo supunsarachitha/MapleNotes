@@ -59,6 +59,8 @@ export interface Preferences {
   quickNotes: boolean;
   /** Show today's daily note at the top of Home. */
   dailyNotes: boolean;
+  /** The ID of the note whose text starts each new daily note, or "" for none. */
+  dailyNoteTemplate: string;
   /** Show a month calendar in the side menu. */
   calendar: boolean;
   /** Show the Habits tab. */

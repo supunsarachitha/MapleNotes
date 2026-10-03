@@ -94,7 +94,13 @@ quick notes.`,
     title: "Daily notes",
     body: `Turn on **Daily notes** in [Settings → Features](/settings/features) to get a **Today** card at the top of Home, titled with today's
 date. Write in it and it becomes today's note; days you skip leave no empty notes. If you start the day's note on two
-devices at once, the second one adds to it rather than starting another.`,
+devices at once, the second one adds to it rather than starting another.
+
+**A template** gives each new day's note the same start, such as headings or a checklist. Write it as an ordinary note,
+then choose **Use as daily-note template** from its **⋯** menu. Today's card then starts with its text, ready to fill in;
+the template's title, if it has one, is left out, and its files are not copied. Edit the note to change the template.
+A quick note or an archived note works well for it, as it stays out of your timeline. To stop, choose **Stop using as
+daily template** from its menu, or **Stop using** under Daily notes in [Settings → Features](/settings/features).`,
   },
   {
     id: "calendar",
@@ -244,6 +250,25 @@ devices.
 - **Lost a device?** Use **Sign out everywhere** in the same place to end every session at once.`,
   },
   {
+    id: "two-factor",
+    title: "Two-factor sign-in",
+    body: `Two-factor sign-in is optional. With it on, signing in needs a code from an authenticator app on your phone as well
+as your password, so a stolen password alone is not enough.
+
+1. In [Settings → Privacy & security](/settings/security), choose **Turn on two-factor sign-in**.
+2. Scan the QR code with an authenticator app, such as Aegis, 2FAS, Google Authenticator or a password manager. On the
+   phone itself, choose **Open in authenticator app**, or type the key shown.
+3. Enter the 6-digit code the app shows, and your password.
+4. Save the ten **recovery codes**. Each one signs you in once if you lose your phone. You see them only once.
+
+Turning it on signs you out on your other devices. From then on, after your password the app asks for the code; type
+a recovery code there if your phone is not at hand. A password reset with the recovery key asks for it too.
+
+In the same place you can create new recovery codes, which makes the old ones stop working, or turn two-factor sign-in
+off; both need your password and a code. If you lose both your phone and your recovery codes, an administrator can
+turn it off for you.`,
+  },
+  {
     id: "backup",
     title: "Backing up and restoring",
     body: `Under [Settings → Backup & data](/settings/data), **Export** downloads your notes as a ZIP file of Markdown, plain
@@ -294,7 +319,8 @@ when it is almost full. Once it is full, new files, notes and longer edits are n
     title: "For administrators",
     body: `The first account on a server is its administrator. Under [Settings → Administration](/settings/admin) you can let
 visitors create accounts, limit how much each account can store, disable or remove accounts, and make others
-administrators. **Compact database** gives the space that deleted notes leave in the database back to the disk, and
+administrators. **Turn off two-factor** helps someone who lost both their phone and their recovery codes; their
+password is still needed, so check first that the request really comes from them. **Compact database** gives the space that deleted notes leave in the database back to the disk, and
 **Name and icon** gives the app your own name and picture, on the sign-in page too. Administrators manage accounts, but they can never read anyone's notes through the app, nor see how
 much an account stores.`,
   },

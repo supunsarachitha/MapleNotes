@@ -69,7 +69,7 @@ describe("password reset with the recovery key", () => {
     await person.type(screen.getByLabelText("New password"), "a brand new passphrase");
     await person.click(screen.getByRole("button", { name: "Reset password" }));
 
-    expect(recover).toHaveBeenCalledWith("maple", "7k3m qx2p ....", "a brand new passphrase");
+    expect(recover).toHaveBeenCalledWith("maple", "7k3m qx2p ....", "a brand new passphrase", undefined);
     expect(await screen.findByLabelText("Recovery key")).toHaveTextContent("7K3M-QX2P-0000");
     const next = screen.getByRole("button", { name: "Continue to my notes" });
     expect(next).toBeDisabled();
@@ -88,5 +88,32 @@ describe("password reset with the recovery key", () => {
     await person.click(screen.getByRole("button", { name: "Reset password" }));
 
     expect(await screen.findByText("Incorrect username or recovery key.")).toBeInTheDocument();
+  });
+
+  it("asks for the two-factor code when the account uses one, then resets with it", async () => {
+    const needsCode = (title: string) => new ApiError(401, { title, twoFactorRequired: true });
+    const recover = vi
+      .spyOn(e2ee, "recover")
+      .mockRejectedValueOnce(needsCode("Enter the code from your authenticator app."))
+      .mockRejectedValueOnce(needsCode("That code is not correct."))
+      .mockResolvedValueOnce({ user, recoveryKey: "7K3M-QX2P-0000" });
+    const person = userEvent.setup();
+    render(withQueries(<RecoverPage />));
+
+    await person.type(screen.getByLabelText("Username"), "maple");
+    await person.type(screen.getByLabelText("Recovery key"), "7k3m qx2p ....");
+    await person.type(screen.getByLabelText("New password"), "a brand new passphrase");
+    await person.click(screen.getByRole("button", { name: "Reset password" }));
+
+    const code = await screen.findByLabelText("Authentication code");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument(); // asking is not an error
+    await person.type(code, "111111");
+    await person.click(screen.getByRole("button", { name: "Reset password" }));
+    expect(await screen.findByText("That code is not correct.")).toBeInTheDocument();
+    await person.type(screen.getByLabelText("Authentication code"), "123456");
+    await person.click(screen.getByRole("button", { name: "Reset password" }));
+
+    expect(await screen.findByRole("button", { name: "Continue to my notes" })).toBeInTheDocument();
+    expect(recover).toHaveBeenLastCalledWith("maple", "7k3m qx2p ....", "a brand new passphrase", "123456");
   });
 });

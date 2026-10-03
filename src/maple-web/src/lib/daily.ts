@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { api, ApiError } from "./api";
 import { formatDate, localDateKey } from "./dates";
 import { usePreferences } from "./preferences";
-import { joinTitle } from "./titles";
+import { joinTitle, splitTitle } from "./titles";
 import type { Note } from "./types";
 
 /** Today's date on this device, updated when the day changes while the app is open. */
@@ -30,6 +30,22 @@ export function useTodaysNote() {
     enabled: dailyNotes,
   });
   return { enabled: dailyNotes, date, title: formatDate(today, dateFormat), query };
+}
+
+/** The text a template note gives a new daily note: everything but its title, since the daily note has the date. */
+export const templateText = (content: string) => splitTitle(content).body;
+
+/**
+ * The daily-note template, when one is chosen: an ordinary note, whose text starts each new daily note. A template
+ * that was deleted, or is in the trash, counts as none; so does one that cannot be loaded (offline, for example).
+ */
+export function useDailyTemplate() {
+  const { dailyNotes, dailyNoteTemplate: id } = usePreferences();
+  const enabled = dailyNotes && id !== "";
+  // Under "notes", so editing the template refreshes it like any other note.
+  const query = useQuery({ queryKey: ["notes", "template", id], queryFn: () => api.note(id), enabled, retry: false });
+  const note = enabled && query.data && !query.data.trashedAtUtc ? query.data : null;
+  return { id, note, text: note ? templateText(note.content) : "", pending: enabled && query.isPending, failed: enabled && query.isError };
 }
 
 /**
