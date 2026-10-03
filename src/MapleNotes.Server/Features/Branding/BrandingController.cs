@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Infrastructure.Web;
@@ -16,6 +17,9 @@ namespace MapleNotes.Server.Features.Branding;
 [Produces("application/json")]
 public sealed class BrandingController(InstanceSettingsService settings) : ControllerBase
 {
+    /// <summary>The smallest custom icon used for the installed app; smaller ones fall back to the app's own icons.</summary>
+    public const int MinInstallIconSide = 144;
+
     /// <summary>Returns the custom icon.</summary>
     /// <remarks>With <c>?v=</c> set to the current version (as the status response links it), it may be cached for good.</remarks>
     /// <param name="v">The version the link was made for.</param>
@@ -37,6 +41,48 @@ public sealed class BrandingController(InstanceSettingsService settings) : Contr
         Response.Headers.CacheControl = v == icon.Version ? "public, max-age=31536000, immutable" : "no-cache";
         Response.Headers.ContentSecurityPolicy = SecurityHeaders.AttachmentContentSecurityPolicy;
         return File(icon.Content, icon.ContentType);
+    }
+
+    /// <summary>The web app manifest, which lets browsers install the app on a phone or computer.</summary>
+    /// <remarks>
+    /// It follows the instance's branding: the app's name, and its custom icon when that is at least
+    /// <see cref="MinInstallIconSide"/> pixels on its shorter side (browsers need that much for an installed app); otherwise
+    /// the app's own icons, including one Android can mask to any shape.
+    /// </remarks>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The manifest.</returns>
+    /// <response code="200">The manifest.</response>
+    [HttpGet("manifest.webmanifest")]
+    [AllowAnonymous]
+    [Produces("application/manifest+json")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetManifest(CancellationToken cancellationToken)
+    {
+        var name = await settings.GetAppNameAsync(cancellationToken) ?? InstanceSettingsService.DefaultAppName;
+        object[] icons = await settings.GetIconAsync(cancellationToken) is { } icon
+            && InstanceSettingsService.ReadImageSize(icon.Content) is { } size && Math.Min(size.Width, size.Height) >= MinInstallIconSide
+            ? [new { src = $"/api/v1/branding/icon?v={icon.Version}", sizes = $"{size.Width}x{size.Height}", type = icon.ContentType, purpose = "any" }]
+            :
+            [
+                new { src = "/icons/icon-192.png", sizes = "192x192", type = "image/png", purpose = "any" },
+                new { src = "/icons/icon-512.png", sizes = "512x512", type = "image/png", purpose = "any" },
+                new { src = "/icons/maskable-512.png", sizes = "512x512", type = "image/png", purpose = "maskable" },
+            ];
+        var manifest = new Dictionary<string, object>
+        {
+            ["id"] = "/",
+            ["name"] = name,
+            ["short_name"] = name,
+            ["description"] = "Quick notes on your own server, private by design.",
+            ["start_url"] = "/",
+            ["scope"] = "/",
+            ["display"] = "standalone",
+            ["background_color"] = "#f5f5f4",
+            ["theme_color"] = "#8f1d21",
+            ["icons"] = icons,
+        };
+        Response.Headers.CacheControl = "no-cache"; // the name and icon can change at any time
+        return Content(JsonSerializer.Serialize(manifest), "application/manifest+json");
     }
 
     /// <summary>Replaces the app's icon.</summary>

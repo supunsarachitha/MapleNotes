@@ -155,6 +155,18 @@ handle, or move it with its arrows. You can also make the menu's text smaller or
 every device you sign in on.`,
   },
   {
+    id: "install",
+    title: "Installing the app",
+    body: `Maple Notes can live on your home screen and open in its own window, like any other app:
+
+- **iPhone and iPad (Safari):** tap the **Share** button, then **Add to Home Screen**.
+- **Android (Chrome):** open the **⋮** menu and choose **Add to Home screen** or **Install app**.
+- **Computer (Chrome, Edge):** choose the install icon at the right of the address bar.
+
+The installed app keeps its own sign-in: sign in once inside it (and, with end-to-end encryption, unlock your notes
+there too). It still needs a connection to your server.`,
+  },
+  {
     id: "features",
     title: "Choosing your features",
     body: `Everything beyond plain notes can be switched on or off in [Settings → Features](/settings/features): todo

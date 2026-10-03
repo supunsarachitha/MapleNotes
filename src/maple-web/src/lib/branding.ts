@@ -21,6 +21,10 @@ export function useBranding(): Branding {
 /** Shows the app's name in the browser tab, and its icon as the tab's icon. */
 export function applyBranding({ appName, iconUrl }: Branding): void {
   document.title = appName;
+  // The name and icon a phone gives the app when it is added to the home screen (the manifest follows the server's).
+  document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]')?.setAttribute("content", appName);
+  const touchIcon = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+  if (touchIcon) touchIcon.href = iconUrl ?? "/icons/apple-touch-icon.png";
   const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
   if (!link) return;
   link.href = iconUrl ?? "/favicon.svg";

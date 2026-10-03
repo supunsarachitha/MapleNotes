@@ -125,6 +125,53 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
         return content.Length >= 12 && content[..4].SequenceEqual("RIFF"u8) && content[8..12].SequenceEqual("WEBP"u8) ? "image/webp" : null;
     }
 
+    /// <summary>Reads an image's size from its header, without decoding it.</summary>
+    /// <param name="content">A PNG, JPEG or WebP image.</param>
+    /// <returns>Its width and height in pixels, or null when the header cannot be read.</returns>
+    public static (int Width, int Height)? ReadImageSize(ReadOnlySpan<byte> content)
+    {
+        static int BigEndian16(ReadOnlySpan<byte> b, int at) => (b[at] << 8) | b[at + 1];
+        static int LittleEndian24(ReadOnlySpan<byte> b, int at) => b[at] | (b[at + 1] << 8) | (b[at + 2] << 16);
+
+        switch (DetectIconType(content))
+        {
+            case "image/png" when content.Length >= 24 && content[12..16].SequenceEqual("IHDR"u8):
+                return (System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(content[16..]),
+                    System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(content[20..]));
+            case "image/jpeg":
+                // Walk the segments to the frame header (SOF0–SOF15, except DHT, JPG and DAC), which holds the size.
+                for (var at = 2; at + 9 <= content.Length && content[at] == 0xFF;)
+                {
+                    var marker = content[at + 1];
+                    if (marker is >= 0xC0 and <= 0xCF and not (0xC4 or 0xC8 or 0xCC))
+                    {
+                        return (BigEndian16(content, at + 7), BigEndian16(content, at + 5));
+                    }
+
+                    at += 2 + BigEndian16(content, at + 2);
+                }
+
+                return null;
+            case "image/webp" when content.Length >= 30:
+                if (content[12..16].SequenceEqual("VP8X"u8))
+                {
+                    return (1 + LittleEndian24(content, 24), 1 + LittleEndian24(content, 27));
+                }
+
+                if (content[12..16].SequenceEqual("VP8L"u8))
+                {
+                    return (1 + (content[21] | ((content[22] & 0x3F) << 8)),
+                        1 + ((content[22] >> 6) | (content[23] << 2) | ((content[24] & 0x0F) << 10)));
+                }
+
+                return content[12..16].SequenceEqual("VP8 "u8)
+                    ? ((content[26] | (content[27] << 8)) & 0x3FFF, (content[28] | (content[29] << 8)) & 0x3FFF)
+                    : null;
+            default:
+                return null;
+        }
+    }
+
     /// <summary>Replaces the app's icon.</summary>
     /// <param name="content">A PNG, JPEG or WebP image, at most <see cref="MaxIconBytes"/>.</param>
     /// <param name="contentType">Its type, from <see cref="DetectIconType"/>.</param>
