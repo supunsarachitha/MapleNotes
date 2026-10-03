@@ -165,6 +165,25 @@ public sealed class AuthTests
     }
 
     [Fact]
+    public async Task Attempts_made_at_the_same_time_still_lock_the_account()
+    {
+        await using var app = new MapleAppFactory();
+        using var client = new ApiClient(app);
+        await client.SignUpAsync("maple");
+
+        using var attacker = new ApiClient(app);
+        await attacker.RefreshAntiforgeryTokenAsync();
+        var wrongKey = ApiClient.DeriveKeys("wrong password!!", (await attacker.PreloginAsync("maple")).Kdf).AuthKey;
+
+        var attempts = await Task.WhenAll(Enumerable.Range(0, 30).Select(_ => attacker.PostJsonAsync("/api/v1/auth/login", new LoginRequest("maple", wrongKey))));
+        var correctButLocked = await client.LoginAsync("maple");
+
+        // Each failure counts, however the requests overlap: at most four are answered before the account locks.
+        Assert.True(attempts.Count(r => r.StatusCode == HttpStatusCode.Unauthorized) < AccountService.MaxFailedAttempts);
+        Assert.Equal(HttpStatusCode.TooManyRequests, correctButLocked.StatusCode);
+    }
+
+    [Fact]
     public async Task Api_requires_sign_in()
     {
         await using var app = new MapleAppFactory();

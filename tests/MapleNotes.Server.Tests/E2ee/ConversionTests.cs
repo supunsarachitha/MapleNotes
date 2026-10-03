@@ -127,6 +127,22 @@ public sealed class ConversionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_conversion_cannot_store_more_than_the_note()
+    {
+        var account = await EndToEndAccount.EnableAsync(_client);
+        var (id, (text, updated)) = _notes.First();
+
+        var padded = await _client.PutJsonAsync($"/api/v1/account/conversion/notes/{id}",
+            new ConvertNoteRequest(updated, Encrypted: account.EncryptNote(id, text + new string(' ', 300_000))));
+        var exact = await _client.PutJsonAsync($"/api/v1/account/conversion/notes/{id}",
+            new ConvertNoteRequest(updated, Encrypted: account.EncryptNote(id, text)));
+
+        // A conversion is not counted against the storage limit, so it may not grow the note.
+        Assert.Equal(HttpStatusCode.BadRequest, padded.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, exact.StatusCode);
+    }
+
+    [Fact]
     public async Task Conversion_requests_must_match_the_direction()
     {
         var account = await EndToEndAccount.EnableAsync(_client);

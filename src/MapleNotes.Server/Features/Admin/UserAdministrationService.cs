@@ -1,6 +1,7 @@
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Persistence;
+using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.EntityFrameworkCore;
 
 namespace MapleNotes.Server.Features.Admin;
@@ -65,7 +66,13 @@ public sealed class UserAdministrationService(MapleDbContext db, AccountDeletion
     public async Task<UserUpdateResult> UpdateUserAsync(
         Guid actingAdminId, Guid userId, UpdateUserRequest request, CancellationToken cancellationToken)
     {
-        if (userId == actingAdminId && (request.IsDisabled == true || request.Role is UserRole.User))
+        if (request.Role is { } requested && !Enum.IsDefined(requested))
+        {
+            // JSON accepts any number for an enum; an unknown role would demote an administrator past the check below.
+            throw new ApiValidationException("role", $"Choose one of: {string.Join(", ", Enum.GetNames<UserRole>())}.");
+        }
+
+        if (userId == actingAdminId && (request.IsDisabled == true || request.Role is { } own && own != UserRole.Admin))
         {
             return UserUpdateResult.CannotChangeSelf;
         }

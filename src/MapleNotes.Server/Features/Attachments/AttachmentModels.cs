@@ -10,8 +10,8 @@ namespace MapleNotes.Server.Features.Attachments;
 /// <param name="IsImage">Whether the app can display the file as an image.</param>
 /// <param name="Url">
 /// Where to download the file (requires the session cookie). It names the stored version (<c>?v=</c>), because
-/// downloads are cached as immutable while converting to or from end-to-end encryption replaces the stored bytes.
-/// End-to-end files download as ciphertext.
+/// end-to-end files, which download as ciphertext, are cached as immutable while converting to or from end-to-end
+/// encryption replaces the stored bytes. Decrypted files are never cached.
 /// </param>
 /// <param name="CreatedAtUtc">When the file was uploaded.</param>
 /// <param name="EncryptedMetadata">For an end-to-end file: its name, type and size, for the browser to decrypt.</param>

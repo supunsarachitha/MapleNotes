@@ -563,7 +563,9 @@ public sealed class NoteService(
             }
 
             var ids = batch.Select(n => n.Id).ToList();
-            var deleted = await DeleteWhereAsync(db.Notes.Where(n => ids.Contains(n.Id)), cancellationToken);
+            // The trash condition is checked again: a note restored since the batch was read stays.
+            var deleted = await DeleteWhereAsync(
+                db.Notes.Where(n => ids.Contains(n.Id) && n.TrashedAtUtc != null && n.TrashedAtUtc < cutoff), cancellationToken);
             (notes, files) = (notes + deleted.Notes, files + deleted.Files);
             foreach (var owner in batch.Select(n => n.UserId).Distinct())
             {

@@ -8,11 +8,13 @@ namespace MapleNotes.Server.Infrastructure.Persistence;
 /// </summary>
 /// <remarks>
 /// <c>secure_delete</c> makes SQLite overwrite deleted content instead of merely marking it free, so deleted notes
-/// and deleted accounts' wrapped keys do not linger inside the database file.
+/// and deleted accounts' wrapped keys do not linger inside the database file. <c>journal_size_limit = 0</c> truncates
+/// the write-ahead log after each checkpoint, so old copies of changed pages (a note's text from before it was
+/// converted to end-to-end encryption, say) do not linger in <c>maple.db-wal</c> either.
 /// </remarks>
 internal sealed class SqlitePragmaInterceptor : DbConnectionInterceptor
 {
-    private const string Pragmas = "PRAGMA secure_delete = ON;";
+    private const string Pragmas = "PRAGMA secure_delete = ON; PRAGMA journal_size_limit = 0;";
 
     /// <inheritdoc />
     public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData)

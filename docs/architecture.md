@@ -420,8 +420,9 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy: no-referrer`, `Permissions-Policy` and
   `Cross-Origin-Opener/Resource-Policy`.
 - API responses carry `Cache-Control: no-store` unless they set their own, so decrypted notes are not kept in the
-  browser's disk cache. Attachments are the exception: they are cached as immutable under URLs that change with the
-  stored bytes (`?v={Revision}`).
+  browser's disk cache. Decrypted attachments are `no-store` too. End-to-end attachments, which download as
+  ciphertext, are the exception: they are cached as immutable under URLs that change with the stored bytes
+  (`?v={Revision}`).
 - HSTS is sent on HTTPS requests outside Development.
 - Request bodies are limited to 2 MB except uploads.
 - `X-Forwarded-*` headers are honoured only from `MAPLE_TRUSTED_PROXIES`.

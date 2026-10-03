@@ -217,7 +217,7 @@ one tag per chunk. It cannot see other damage; decryption in the browser detects
 
 **Download:** `GET /api/v1/attachments/{id}` serves the ciphertext as a download (`application/octet-stream`, file
 name `{id}.bin`) with HTTP Range support, and `GET /api/v1/attachments/{id}/info` returns the encrypted metadata.
-Attachment URLs in API responses carry the stored version (`?v={revision}`): downloads are cached as immutable, and a
+Attachment URLs in API responses carry the stored version (`?v={revision}`): ciphertext downloads are cached as immutable, and a
 change of mode replaces the stored bytes behind the same ID, so a changed file always gets a new URL. The media
 service worker uses the URL from the info, and the conversion bypasses the cache.
 

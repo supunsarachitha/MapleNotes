@@ -75,6 +75,7 @@ public sealed class AttachmentsApiTests : IAsyncLifetime
         Assert.Equal("inline", response.Content.Headers.ContentDisposition!.DispositionType);
         Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
         Assert.Contains("sandbox", Assert.Single(response.Headers.GetValues("Content-Security-Policy")), StringComparison.Ordinal);
+        Assert.True(response.Headers.CacheControl!.NoStore); // decrypted files are not left in the browser's cache
     }
 
     [Fact]

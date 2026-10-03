@@ -30,15 +30,20 @@ public static class UploadPolicy
     };
 
     /// <summary>
-    /// Returns a safe file name: no directories, control characters or reserved characters, at most 200 characters,
+    /// Returns a safe file name: no directories, control characters, reserved characters or the invisible characters
+    /// that reorder text (which can disguise <c>invoice‮fdp.exe</c> as <c>invoiceexe.pdf</c>), at most 200 characters,
     /// never empty.
     /// </summary>
     /// <param name="fileName">The name supplied by the client.</param>
     /// <returns>The sanitized name.</returns>
     public static string SanitizeFileName(string? fileName)
     {
+        static bool IsBidiControlOrSeparator(char c) =>
+            c is '\u061C' or '\u200E' or '\u200F' or (>= '\u202A' and <= '\u202E') or (>= '\u2066' and <= '\u2069') or '\u2028' or '\u2029';
+
         var name = Path.GetFileName((fileName ?? string.Empty).Replace('\\', '/'));
-        name = new string(name.Where(c => !char.IsControl(c) && c is not ('"' or '<' or '>' or '|' or ':' or '*' or '?' or '/')).ToArray());
+        name = new string(name.Where(c => !char.IsControl(c) && !IsBidiControlOrSeparator(c)
+            && c is not ('"' or '<' or '>' or '|' or ':' or '*' or '?' or '/')).ToArray());
         name = name.Trim().Trim('.').Trim();
         if (name.Length == 0)
         {

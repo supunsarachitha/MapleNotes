@@ -72,6 +72,16 @@ public sealed class AdminTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Unknown_roles_are_refused()
+    {
+        // JSON accepts any number for an enum; 7 is no role, and would have demoted the administrator.
+        var response = await _admin.PatchJsonAsync($"/api/v1/admin/users/{_adminUser.Id}", new { role = 7 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _admin.GetAsync("/api/v1/admin/users")).StatusCode);
+    }
+
+    [Fact]
     public async Task Unknown_accounts_return_404()
     {
         var response = await _admin.PatchJsonAsync($"/api/v1/admin/users/{Guid.CreateVersion7()}", new UpdateUserRequest(IsDisabled: true));

@@ -378,14 +378,16 @@ public sealed class AccountDeletionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Database_connections_use_secure_delete()
+    public async Task Database_connections_use_secure_delete_and_keep_no_old_pages_in_the_log()
     {
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<MapleDbContext>();
 
         var secureDelete = await db.Database.SqlQueryRaw<long>("SELECT secure_delete AS \"Value\" FROM pragma_secure_delete").SingleAsync(Ct);
+        var journalLimit = await db.Database.SqlQueryRaw<long>("SELECT journal_size_limit AS \"Value\" FROM pragma_journal_size_limit").SingleAsync(Ct);
 
         Assert.Equal(1, secureDelete);
+        Assert.Equal(0, journalLimit); // the write-ahead log is truncated after each checkpoint
     }
 
     public async ValueTask DisposeAsync()
