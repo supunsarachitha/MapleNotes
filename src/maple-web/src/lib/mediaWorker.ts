@@ -3,8 +3,8 @@ import type { DataKeys } from "../crypto/datakey";
 import { fetchDecrypted } from "./noteCrypto";
 import type { Attachment } from "./types";
 
-// The page's side of the media service worker (src/sw): registering it, sharing the unlocked key with it, and
-// choosing where an attachment is loaded from.
+// The page's side of the service worker (src/sw): registering it, sharing the unlocked key with it, and choosing where
+// an attachment is loaded from.
 
 const supported = typeof navigator !== "undefined" && "serviceWorker" in navigator;
 let registering = false;
@@ -17,8 +17,11 @@ function post(): void {
 
 if (supported) navigator.serviceWorker.addEventListener("controllerchange", post);
 
-/** Registers the media service worker, which is only needed by accounts with end-to-end files. */
-export function registerMediaWorker(): void {
+/**
+ * Registers the service worker, which every account uses: it keeps the app and recently read notes for offline reading,
+ * and decrypts end-to-end files.
+ */
+export function registerServiceWorker(): void {
   if (!supported || registering) return;
   registering = true;
   // In development Vite serves the worker as a module from its source; the build emits a classic /sw.js.
@@ -28,6 +31,21 @@ export function registerMediaWorker(): void {
     .catch(() => {
       registering = false; // unavailable (for example in some private windows): files are decrypted in the page
     });
+}
+
+/**
+ * Calls `listener` once, when a service worker takes control of a page that opened without one (the first visit, or the
+ * first after an update that added the worker). Requests made before that went past it, so nothing was saved for
+ * offline reading yet.
+ */
+export function onFirstWorkerControl(listener: () => void): () => void {
+  if (!supported || navigator.serviceWorker.controller) return () => undefined;
+  const once = () => {
+    navigator.serviceWorker.removeEventListener("controllerchange", once);
+    listener();
+  };
+  navigator.serviceWorker.addEventListener("controllerchange", once);
+  return () => navigator.serviceWorker.removeEventListener("controllerchange", once);
 }
 
 /** Gives the worker the unlocked key, or null to make it forget; repeated whenever a new worker takes over. */

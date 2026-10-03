@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, type ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { BrandMark } from "./components/BrandMark";
 import { Button, Spinner } from "./components/ui";
@@ -7,11 +8,12 @@ import { useAppearance } from "./lib/appearance";
 import { applyBranding, useBranding } from "./lib/branding";
 import { useConversionRunner } from "./lib/conversion";
 import { e2ee, useEndToEndKeys } from "./lib/e2ee";
-import { registerMediaWorker } from "./lib/mediaWorker";
+import { onFirstWorkerControl, registerServiceWorker } from "./lib/mediaWorker";
 import { forgetMode, TrustedModeContext, useTrustedMode } from "./lib/modeRecord";
 import { setContentSession } from "./lib/noteCrypto";
+import { useOffline } from "./lib/offline";
 import { hasWebCrypto } from "./lib/secureContext";
-import { useAuthStatus, useSignedOut } from "./lib/queries";
+import { queryKeys, useAuthStatus, useSignedOut } from "./lib/queries";
 import { useLocation } from "./lib/router";
 import { AuthPage } from "./pages/AuthPage";
 import { ArchivePage, HomePage } from "./pages/HomePage";
@@ -97,6 +99,25 @@ function InsecureConnection() {
   );
 }
 
+/** Shown when the app opens without a connection and has nothing saved to show. */
+function CannotReachServer({ offline, onRetry }: { offline: boolean; onRetry: () => void }) {
+  const { appName } = useBranding();
+  return (
+    <>
+      <p>{offline ? "You are offline." : `${appName} cannot reach its server right now.`}</p>
+      {offline && (
+        <p className="max-w-md text-sm text-stone-600 dark:text-stone-300">
+          Notes you read recently open without a connection only on a device where you signed in with “Keep me signed
+          in”.
+        </p>
+      )}
+      <Button variant="secondary" onClick={onRetry}>
+        Try again
+      </Button>
+    </>
+  );
+}
+
 /**
  * Chooses between the sign-in screens, the unlock screen (end-to-end accounts whose key this browser does not hold)
  * and the app, then routes within the app.
@@ -111,7 +132,8 @@ export function App() {
   useEffect(() => applyBranding({ appName, iconUrl }), [appName, iconUrl]);
   const keys = useEndToEndKeys(user);
   const signedOut = status.data !== undefined && !status.data.user;
-  const needsMediaWorker = user?.hasEndToEndKey === true;
+  const client = useQueryClient();
+  const offline = useOffline();
 
   // The mode this browser encrypts for: the server's word is not enough to leave end-to-end mode (lib/modeRecord.ts).
   const trusted = useTrustedMode(user, keys);
@@ -126,10 +148,26 @@ export function App() {
     void e2ee.forget();
   }, [signedOut]);
 
-  // Only accounts with end-to-end files need the media service worker.
+  // The service worker saves what the account reads for offline use (src/sw/offline.ts). When it first takes over, the
+  // status is fetched again through it, which tells it whose reads to keep, and then everything shown, to save it.
   useEffect(() => {
-    if (needsMediaWorker) registerMediaWorker();
-  }, [needsMediaWorker]);
+    registerServiceWorker();
+    return onFirstWorkerControl(() => {
+      void client
+        .refetchQueries({ queryKey: queryKeys.status })
+        .then(() => client.invalidateQueries({ predicate: (query) => query.queryKey[0] !== "auth" }));
+    });
+  }, [client]);
+
+  // Unlocking offline needs the password settings and the wrapped key, which a session that restored its key never
+  // asks for: fetch them once per visit, through the worker, which keeps them when this device keeps notes.
+  const unlockSaved = useRef<string | null>(null);
+  const keepsNotes = status.data?.sessionPersistent === true && user?.hasEndToEndKey === true && keys.status === "unlocked";
+  useEffect(() => {
+    if (!keepsNotes || !user || offline || unlockSaved.current === user.id) return;
+    unlockSaved.current = user.id;
+    void Promise.allSettled([api.prelogin(user.username), api.e2ee.key()]);
+  }, [keepsNotes, user, offline]);
 
   if (!hasWebCrypto()) {
     return (
@@ -150,10 +188,7 @@ export function App() {
   if (status.isError) {
     return (
       <FullScreen>
-        <p>{branding.appName} cannot reach its server right now.</p>
-        <Button variant="secondary" onClick={() => void status.refetch()}>
-          Try again
-        </Button>
+        <CannotReachServer offline={offline} onRetry={() => void status.refetch()} />
       </FullScreen>
     );
   }

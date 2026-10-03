@@ -45,7 +45,7 @@ flowchart LR
 | `src/maple-web/` | React + TypeScript + Vite + Tailwind CSS single-page app. |
 | `src/maple-web/src/crypto/` | Browser cryptography: Argon2id in a Web Worker, HKDF, envelopes, the attachment format, recovery keys, key storage, and the shared test vectors. |
 | `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`), habits (`habits.ts`: a habit's text, streaks and chart periods), the save queue that todo lists, habits and checkboxes ticked in notes share (`noteEditor.ts`), the side menu's items and order (`menu.ts`), label colours (`labels.ts`), tag suggestions (`tagSuggest.ts`, `caret.ts`), and loading only what is near the screen (`viewport.ts`). |
-| `src/maple-web/src/sw/` | The service worker (`/sw.js`, built separately by `vite.sw.config.ts`): decrypts end-to-end media and streams browser exports. |
+| `src/maple-web/src/sw/` | The service worker (`/sw.js`, built separately by `vite.sw.config.ts`): keeps the app and recently read notes for offline reading, decrypts end-to-end media and streams browser exports. |
 | `src/maple-web/src/export/` | The browser export, a port of the server's, with the shared export vectors. |
 | `src/maple-web/src/import/` | Restoring: a ZIP reader, the parser for every export format and for single files, and the runner that restores notes through the API. |
 | `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Habits (with the progress chart and a month calendar), Archive, Settings, Help, and the sign-in, unlock and recovery screens. |
@@ -388,7 +388,40 @@ settings: the app's name, and the custom icon when it is at least 144 pixels on 
 size from the image's header). Otherwise it lists the app's own icons: PNGs at 192 and 512 pixels and a maskable one
 for Android, rendered from `favicon.svg` and kept in `public/icons`. On iPhone, the home-screen icon and title come from
 `apple-touch-icon` and `apple-mobile-web-app-title` in the page, which the web app points at the custom icon and name.
-Installing needs no service worker, so the media service worker is still registered only for end-to-end accounts.
+Installing needs no service worker; the service worker that every account registers is for offline reading (below).
+
+## Offline reading
+
+Every account's browser registers the service worker (`/sw.js`, `src/maple-web/src/sw/offline.ts`), which keeps two
+things in the browser's Cache Storage for when the server cannot be reached:
+
+- **The app.** When a new worker installs it saves the page and every file of the build (scripts, styles, icons, the
+  web app manifest). `vite.sw.config.ts` lists them into the worker at build time; their names carry content hashes,
+  so each release that changes them is a new worker, which saves the new files and deletes the old ones. Any page of
+  the app opens from the saved page when the server does not answer.
+- **What the account last read.** Sign-in status, note lists (including daily notes, habits and the calendar), tags,
+  labels and the encryption status, exactly as the server sent them, so end-to-end notes stay encrypted. At most 300
+  reads are kept, the least recently read going first. Searches, files, the session's secret, link previews and
+  administration are never kept.
+
+Reads still go to the server first; the saved copy answers only when the request fails, marked with
+`X-Maple-Offline: 1`, and the app then shows a notice that it is offline and that changes cannot be saved. Writing
+offline is not supported: writes go to the server and fail as before.
+
+The worker decides what to keep from the sign-in status it passes on. It keeps copies only when the status shows a
+signed-in account whose session was started with "keep me signed in" (`sessionPersistent`), and records that account,
+its username and its encryption mode. A status without them, another account, another mode, a 401 on a read, or a
+sign-out request (`POST /api/v1/auth/logout`, `/sign-out-everywhere`, `DELETE /api/v1/account`, deleted before the
+request is even sent) deletes every copy; a read that was on its way when that happened is not saved. A session that
+ends with the browser therefore leaves nothing behind, and a change of mode never leaves plain copies of notes that are
+now end-to-end encrypted. Requests made before the worker first controlled the page went past it, so the page fetches
+the status and its lists again when that happens.
+
+End-to-end accounts open offline on the unlock screen, because the session's secret that opens the saved key
+([e2ee-spec.md §7](e2ee-spec.md#7-keeping-the-key-in-the-browser)) is never kept. The password unlocks them there with
+the account's Argon2id parameters (from `POST /api/v1/auth/prelogin`, kept for the recorded username only) and the
+wrapped key (`GET /api/v1/account/e2ee`), which the app fetches once per visit so that they are saved. Offline, a POST
+cannot get an antiforgery token, so the app sends it without one and the worker answers it from the saved copy.
 
 ## Storage usage
 
@@ -427,7 +460,8 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy: no-referrer`, `Permissions-Policy` and
   `Cross-Origin-Opener/Resource-Policy`.
 - API responses carry `Cache-Control: no-store` unless they set their own, so decrypted notes are not kept in the
-  browser's disk cache. Decrypted attachments are `no-store` too. End-to-end attachments, which download as
+  browser's disk cache. Offline reading keeps some of them deliberately, in the service worker's cache, under the
+  rules above. Decrypted attachments are `no-store` too. End-to-end attachments, which download as
   ciphertext, are the exception: they are cached as immutable under URLs that change with the stored bytes
   (`?v={Revision}`).
 - HSTS is sent on HTTPS requests outside Development.
@@ -454,7 +488,8 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
   server's export archives) are written by the C# tests and checked by the web tests, so both implementations agree
   byte for byte.
 - **Web:** about 295 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
-  conversion, the service worker's range decryption, the browser export against the server's archives, restoring
+  conversion, the service worker's range decryption and offline reading (what is kept, for whom, and when it is
+  deleted), the browser export against the server's archives, restoring
   those archives, Markdown safety and checkboxes ticked in notes, the composer with titles and tag suggestions, the
   caret at the end when editing, todo lists (also edited as Markdown), quick and daily notes, double-tap to edit,
   habits and their chart, labels, the trash with Undo, the menu's order, loading media only near the screen, shrinking

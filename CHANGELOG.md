@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-03
+
+Read your notes offline.
+
+### Added
+
+- **Offline reading:** the app opens without a connection and shows the notes read recently on that device: the
+  timeline and other lists, daily notes, tags and labels. A note at the top says when the notes shown are saved copies
+  and that changes cannot be saved. Copies are kept only for sessions started with "keep me signed in", only for the
+  account signed in, and are deleted on sign-out, when the session ends, or when the account changes encryption mode.
+  End-to-end accounts keep their notes encrypted on the device and unlock offline with the password. Searches and files
+  still need a connection, and writing offline is not supported yet.
+- `GET /api/v1/auth/status` says whether the session outlives the browser (`sessionPersistent`).
+
+### Changed
+
+- The service worker is registered for every account, not only end-to-end accounts with files. It keeps the app's
+  files for offline use and replaces them with each release.
+
 ## [1.11.0] - 2026-10-03
 
 Install Maple Notes as an app, and the fixes from the October 2026 security audit.
@@ -498,7 +517,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.9.0...v1.10.0

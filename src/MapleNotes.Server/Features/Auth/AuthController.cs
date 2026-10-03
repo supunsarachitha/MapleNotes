@@ -49,9 +49,12 @@ public sealed class AuthController(
     public async Task<AuthStatusResponse> GetStatus(CancellationToken cancellationToken)
     {
         UserResponse? current = null;
+        var persistent = false;
         if (User.Identity?.IsAuthenticated == true && await accounts.FindAsync(User.GetUserId(), cancellationToken) is { } user)
         {
             current = UserResponse.From(user);
+            var session = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            persistent = session.Properties?.IsPersistent ?? false;
         }
 
         var setupRequired = await accounts.IsSetupRequiredAsync(cancellationToken);
@@ -61,7 +64,7 @@ public sealed class AuthController(
             await instanceSettings.GetAppNameAsync(cancellationToken) ?? InstanceSettingsService.DefaultAppName,
             iconVersion is null ? null : $"/api/v1/branding/icon?v={iconVersion}");
         var version = current is null ? null : typeof(AuthController).Assembly.GetName().Version?.ToString(3);
-        return new AuthStatusResponse(setupRequired, registrationOpen, current, options.LinkPreviews, branding, version);
+        return new AuthStatusResponse(setupRequired, registrationOpen, current, options.LinkPreviews, branding, version, persistent);
     }
 
     /// <summary>Issues an antiforgery token for the current visitor and sets its companion cookie.</summary>

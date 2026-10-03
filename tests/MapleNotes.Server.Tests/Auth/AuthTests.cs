@@ -128,6 +128,24 @@ public sealed class AuthTests
     }
 
     [Fact]
+    public async Task Status_says_whether_the_session_outlives_the_browser()
+    {
+        await using var app = new MapleAppFactory();
+        using var setup = new ApiClient(app);
+        await setup.SignUpAsync("maple");
+        using var kept = new ApiClient(app);
+        await kept.LoginAsync("maple", rememberMe: true);
+        using var temporary = new ApiClient(app);
+        await temporary.LoginAsync("maple");
+        using var visitor = new ApiClient(app);
+
+        // The web app keeps notes for offline reading only on a device where the user chose to stay signed in.
+        Assert.True((await kept.GetJsonAsync<AuthStatusResponse>("/api/v1/auth/status"))!.SessionPersistent);
+        Assert.False((await temporary.GetJsonAsync<AuthStatusResponse>("/api/v1/auth/status"))!.SessionPersistent);
+        Assert.False((await visitor.GetJsonAsync<AuthStatusResponse>("/api/v1/auth/status"))!.SessionPersistent);
+    }
+
+    [Fact]
     public async Task Wrong_password_and_unknown_user_get_the_same_answer()
     {
         await using var app = new MapleAppFactory();

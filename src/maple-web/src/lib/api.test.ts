@@ -70,4 +70,25 @@ describe("api client", () => {
     expect((error as ApiError).status).toBe(0);
     expect((error as ApiError).message).toMatch(/cannot reach the server/i);
   });
+
+  it("still sends a request when the antiforgery token cannot be fetched, so the service worker can answer offline", async () => {
+    vi.resetModules(); // a fresh page, which holds no token yet
+    const fresh = await import("./api");
+    const offline = await import("./offline");
+    fetchMock
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ kdf: { salt: "c2FsdA==" }, upgrade: false }), {
+          headers: { "Content-Type": "application/json", "X-Maple-Offline": "1" },
+        }),
+      );
+
+    const prelogin = await fresh.api.prelogin("maple");
+
+    expect(prelogin.upgrade).toBe(false);
+    const [path, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(path).toBe("/api/v1/auth/prelogin");
+    expect(init.headers).not.toHaveProperty("X-XSRF-TOKEN");
+    expect(offline.isOffline()).toBe(true); // the answer was a saved copy
+  });
 });

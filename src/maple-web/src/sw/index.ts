@@ -4,17 +4,27 @@ import { fromBase64 } from "../crypto/encoding";
 import { loadLocalKey } from "../crypto/keystore";
 import { EXPORT_PREFIX, exportResponse, registerExport } from "./exportStream";
 import { MEDIA_PREFIX, serveAttachment, type Opened, type Unlocked } from "./media";
+import { apiKind, dropOldShells, handleApi, handleShell, isShellRequest, saveShell, type OfflineDeps, type Shell } from "./offline";
 
-// The media service worker: decrypts end-to-end files for the page (see media.ts) and streams exports built in the
-// browser to disk (see exportStream.ts). It handles only /e2ee/… requests; everything else goes to the network
-// untouched, and nothing is cached.
+// The app's service worker: keeps the app and what the account last read for offline reading (see offline.ts),
+// decrypts end-to-end files for the page (see media.ts) and streams exports built in the browser to disk (see
+// exportStream.ts). Every other request goes to the network untouched.
+
+/** The app's files, listed by vite.sw.config.ts at build time; none in development. */
+declare const __MAPLE_SHELL__: Shell | undefined;
+const shell: Shell = typeof __MAPLE_SHELL__ === "undefined" ? { version: "dev", files: [] } : __MAPLE_SHELL__;
 
 const worker = self as unknown as ServiceWorkerGlobalScope;
 let current: Unlocked | null = null;
 const opened = new Map<string, Promise<Opened>>();
+const offline: OfflineDeps = { origin: worker.location.origin, caches: worker.caches, fetch: (request) => fetch(request) };
 
-worker.addEventListener("install", (event) => event.waitUntil(worker.skipWaiting()));
-worker.addEventListener("activate", (event) => event.waitUntil(worker.clients.claim()));
+worker.addEventListener("install", (event) =>
+  event.waitUntil(saveShell(shell, offline).then(() => worker.skipWaiting())),
+);
+worker.addEventListener("activate", (event) =>
+  event.waitUntil(dropOldShells(shell, offline).then(() => worker.clients.claim())),
+);
 
 // The page shares its unlocked key when it unlocks, and asks the worker to forget it on sign-out.
 worker.addEventListener("message", (event: ExtendableMessageEvent) => {
@@ -31,6 +41,15 @@ worker.addEventListener("message", (event: ExtendableMessageEvent) => {
 worker.addEventListener("fetch", (event: FetchEvent) => {
   const url = new URL(event.request.url);
   if (url.origin !== worker.location.origin) return;
+  const kind = apiKind(event.request, worker.location.origin);
+  if (kind) {
+    event.respondWith(handleApi(event.request, kind, offline));
+    return;
+  }
+  if (isShellRequest(event.request, worker.location.origin, shell)) {
+    event.respondWith(handleShell(event.request, shell, offline));
+    return;
+  }
   if (url.pathname.startsWith(EXPORT_PREFIX)) {
     event.respondWith(exportResponse(url.pathname.slice(EXPORT_PREFIX.length)));
     return;

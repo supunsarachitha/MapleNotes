@@ -1,10 +1,11 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Home, LogOut, Menu, Search, X } from "lucide-react";
+import { CloudOff, Home, LogOut, Menu, Search, X } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { useBranding } from "../lib/branding";
 import { useEnabledKinds } from "../lib/kinds";
 import { MENU_INFO, menuOrder, type MenuItemId } from "../lib/menu";
+import { useOffline } from "../lib/offline";
 import { usePreferences } from "../lib/preferences";
 import { useLabels, useSignedOut, useTags } from "../lib/queries";
 import { Link, navigate, useLocation, type Location } from "../lib/router";
@@ -182,6 +183,20 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
   );
 }
 
+/** Says that the notes shown are copies saved on this device, and that changes need a connection. */
+function OfflineNotice() {
+  if (!useOffline()) return null;
+  return (
+    <p
+      role="status"
+      className="mb-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200"
+    >
+      <CloudOff className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      <span>You are offline. You can read notes you opened recently on this device; changes cannot be saved until you are back online.</span>
+    </p>
+  );
+}
+
 /**
  * The signed-in layout. Phones: a top bar with a slide-in navigation drawer. Wide screens (≥1024 px): a fixed
  * sidebar next to a centred reading column.
@@ -214,7 +229,10 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
           <Sidebar user={user} />
         </aside>
         <main id="main" className="min-w-0 flex-1 px-4 pb-24 pt-4 lg:px-10 lg:pt-8">
-          <div className={cn("mx-auto", wide ? "max-w-4xl" : "max-w-2xl")}>{children}</div>
+          <div className={cn("mx-auto", wide ? "max-w-4xl" : "max-w-2xl")}>
+            <OfflineNotice />
+            {children}
+          </div>
         </main>
       </div>
 
