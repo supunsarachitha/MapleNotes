@@ -15,7 +15,11 @@
   <img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-8f1d21" alt="License: PolyForm Noncommercial 1.0.0">
 </p>
 
-<p align="center"><a href="https://supunsarachitha.github.io/MapleNotes/"><b>Website</b></a></p>
+<p align="center">
+  <a href="https://supunsarachitha.github.io/MapleNotes/"><b>Website</b></a> ·
+  <a href="https://maplenotes.onrender.com/"><b>Live demo</b></a> ·
+  <a href="https://buymeacoffee.com/jkhy9gtjs"><b>Buy me a coffee</b></a>
+</p>
 
 ![Home Feed](docs/screenshots/home-feed.png)
 
@@ -550,6 +554,9 @@ its agent ("failed to list workers … frame too large").
 
 ### Try it with sample data
 
+To look around without installing anything, try the [live demo](https://maplenotes.onrender.com/): create an
+account and restore one of the sample backups below. It is a public demo, so don't keep anything private there.
+
 [`demo-backup-samples/`](demo-backup-samples/) holds a sample account as a Markdown and a JSON export: notes, todo
 lists, quick notes, daily notes, habits, nested tags, archived notes, photos, a video, a voice memo, a PDF and a CSV
 file. Create an account, then restore either file in **Settings → Backup & data**. Settings are not part of a
@@ -827,6 +834,12 @@ In Development, the interactive API reference is at <http://localhost:5051/scala
 | Container | Multi-stage, multi-architecture build; chiseled Ubuntu runtime image |
 
 Architecture, file formats and design decisions: [docs/architecture.md](docs/architecture.md).
+
+## Support
+
+If Maple Notes is useful to you, you can support its development:
+
+<a href="https://buymeacoffee.com/jkhy9gtjs"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
 
 ## License
 
