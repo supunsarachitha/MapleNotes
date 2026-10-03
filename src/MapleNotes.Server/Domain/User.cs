@@ -80,6 +80,24 @@ public sealed class User
     public string? RecoveryKeyHash { get; set; }
 
     /// <summary>
+    /// The authenticator-app (TOTP) secret, sealed with the instance two-factor key and bound to the account ID. Null
+    /// while two-factor sign-in is off. The server needs the secret itself to check codes, so it cannot be hashed.
+    /// </summary>
+    public byte[]? TwoFactorSecret { get; set; }
+
+    /// <summary>
+    /// The 30-second time step of the last authenticator code accepted. A code is accepted only for a later step, so a
+    /// code seen once (over a shoulder, or in a proxy log) cannot be used again.
+    /// </summary>
+    public long TwoFactorLastStep { get; set; }
+
+    /// <summary>
+    /// HMAC-SHA256 hashes of the unused two-factor recovery codes (hexadecimal, separated by spaces), or null while
+    /// two-factor sign-in is off. Each code works once, in place of an authenticator code.
+    /// </summary>
+    public string? TwoFactorRecoveryCodes { get; set; }
+
+    /// <summary>
     /// Random value embedded in sign-in cookies. Changing it (password change, "sign out everywhere") invalidates
     /// every existing session of the user.
     /// </summary>

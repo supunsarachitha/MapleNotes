@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import v from "../crypto/test-vectors.json";
 import { fromBase64 } from "../crypto/encoding";
 import { refreshAntiforgeryToken } from "./api";
-import { auth, validateNewPassword } from "./auth";
+import { auth, TwoFactorRequired, validateNewPassword } from "./auth";
 import { DEFAULT_PREFERENCES } from "./preferences";
 import type { User } from "./types";
 
@@ -75,6 +75,32 @@ describe("key-derived sign-in", () => {
     await auth.signIn("maple", v.kdf.password, false);
 
     expect(body(1)).toEqual({ username: "maple", rememberMe: false, authKey: v.kdf.authKeyB64, password: v.kdf.password });
+  });
+
+  it("asks for a two-factor code after the right password and finishes with the keys already derived", async () => {
+    const needsCode = { title: "Enter the code from your authenticator app.", status: 401, twoFactorRequired: true };
+    fetchMock
+      .mockResolvedValueOnce(json({ kdf: vectorKdf, upgrade: false }))
+      .mockResolvedValueOnce(json(needsCode, 401))
+      .mockResolvedValueOnce(json({ ...needsCode, title: "That code is not correct." }, 401))
+      .mockResolvedValueOnce(json(user))
+      .mockResolvedValueOnce(json({ token: "token-2", headerName: "X-XSRF-TOKEN" }));
+
+    const challenge = await auth.signIn("maple", v.kdf.password, true).catch((error: unknown) => error);
+    expect(challenge).toBeInstanceOf(TwoFactorRequired);
+    const { complete } = challenge as TwoFactorRequired;
+    await expect(complete("000000")).rejects.toThrow("That code is not correct.");
+    await expect(complete(" 123456 ")).resolves.toEqual(user);
+
+    expect(fetchMock.mock.calls.map((_, call) => url(call))).toEqual([
+      "/api/v1/auth/prelogin",
+      "/api/v1/auth/login",
+      "/api/v1/auth/login",
+      "/api/v1/auth/login",
+      "/api/v1/auth/antiforgery",
+    ]);
+    expect(body(1)).toEqual({ username: "maple", rememberMe: true, authKey: v.kdf.authKeyB64 });
+    expect(body(3)).toEqual({ username: "maple", rememberMe: true, authKey: v.kdf.authKeyB64, twoFactorCode: "123456" });
   });
 
   it("never sends the password for an account this browser signed in to with a derived key", async () => {

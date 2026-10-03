@@ -34,3 +34,8 @@ export function isStorageFull(error: unknown): error is ApiError {
 export function saveErrorMessage(error: unknown, fallback: string): string {
   return isStorageFull(error) ? error.message : fallback;
 }
+
+/** Whether sign-in (or a reset with the recovery key) needs a two-factor code: none was sent, or it was wrong. */
+export function isTwoFactorRequired(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 401 && error.problem.twoFactorRequired === true;
+}

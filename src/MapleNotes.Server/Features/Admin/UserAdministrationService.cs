@@ -54,7 +54,7 @@ public sealed class UserAdministrationService(MapleDbContext db, AccountDeletion
             .OrderBy(u => u.CreatedAtUtc)
             .Select(u => new AdminUserResponse(
                 u.Id, u.Username, u.DisplayName, u.Role, u.IsDisabled,
-                db.Notes.Count(n => n.UserId == u.Id), u.CreatedAtUtc))
+                db.Notes.Count(n => n.UserId == u.Id), u.CreatedAtUtc, u.TwoFactorSecret != null))
             .ToListAsync(cancellationToken);
 
     /// <summary>Applies an administrator's changes to an account.</summary>
@@ -95,6 +95,11 @@ public sealed class UserAdministrationService(MapleDbContext db, AccountDeletion
         if (request.Role is { } role)
         {
             user.Role = role;
+        }
+
+        if (request.TurnOffTwoFactor == true)
+        {
+            TwoFactorService.Clear(user);
         }
 
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;

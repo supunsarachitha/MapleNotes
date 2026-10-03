@@ -29,10 +29,16 @@ public sealed record UpdateInstanceSettingsRequest(bool AllowRegistration, int? 
 /// <param name="IsDisabled">Whether sign-in is blocked.</param>
 /// <param name="NoteCount">Number of notes (content is never shown to administrators).</param>
 /// <param name="CreatedAtUtc">When the account was created.</param>
+/// <param name="TwoFactorEnabled">Whether the account signs in with an authenticator code as well as the password.</param>
 public sealed record AdminUserResponse(
-    Guid Id, string Username, string DisplayName, UserRole Role, bool IsDisabled, int NoteCount, DateTime CreatedAtUtc);
+    Guid Id, string Username, string DisplayName, UserRole Role, bool IsDisabled, int NoteCount, DateTime CreatedAtUtc,
+    bool TwoFactorEnabled = false);
 
 /// <summary>Changes an administrator can make to another account. Omitted fields are left unchanged.</summary>
 /// <param name="IsDisabled">Block or allow sign-in. Disabling signs the user out everywhere.</param>
 /// <param name="Role">New role.</param>
-public sealed record UpdateUserRequest(bool? IsDisabled = null, UserRole? Role = null);
+/// <param name="TurnOffTwoFactor">
+/// True turns off the account's two-factor sign-in, for an owner who lost both the authenticator app and the recovery
+/// codes. The password is still needed to sign in.
+/// </param>
+public sealed record UpdateUserRequest(bool? IsDisabled = null, UserRole? Role = null, bool? TurnOffTwoFactor = null);

@@ -4,6 +4,7 @@ import { AuthLayout, linkClass } from "../components/AuthLayout";
 import { RecoveryKit } from "../components/RecoveryKit";
 import { Button, ErrorMessage, TextField } from "../components/ui";
 import { ApiError } from "../lib/api";
+import { isTwoFactorRequired } from "../lib/apiError";
 import { MIN_PASSWORD_LENGTH } from "../lib/auth";
 import { e2ee } from "../lib/e2ee";
 import { queryKeys } from "../lib/queries";
@@ -19,6 +20,9 @@ export function RecoverPage() {
   const [username, setUsername] = useState("");
   const [recoveryKey, setRecoveryKey] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  // Shown once the server says the account uses two-factor sign-in, since the reset signs in.
+  const [askCode, setAskCode] = useState(false);
+  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [result, setResult] = useState<{ username: string; recoveryKey: string } | null>(null);
@@ -28,9 +32,17 @@ export function RecoverPage() {
     setBusy(true);
     setError(null);
     try {
-      const recovered = await e2ee.recover(username, recoveryKey, newPassword);
+      const recovered = await e2ee.recover(username, recoveryKey, newPassword, askCode ? code : undefined);
       setResult({ username: recovered.user.username, recoveryKey: recovered.recoveryKey });
     } catch (caught) {
+      if (isTwoFactorRequired(caught)) {
+        setCode("");
+        // The first time, the code was simply not asked for yet: the field is enough, no error.
+        if (!askCode) {
+          setAskCode(true);
+          return;
+        }
+      }
       setError(caught instanceof ApiError ? caught : new ApiError(0, { title: "Something went wrong." }));
     } finally {
       setBusy(false);
@@ -100,6 +112,20 @@ export function RecoverPage() {
           error={error?.fieldError("newPassword")}
           hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
         />
+        {askCode && (
+          <TextField
+            label="Authentication code"
+            name="code"
+            autoComplete="one-time-code"
+            autoCapitalize="none"
+            spellCheck={false}
+            autoFocus
+            required
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            hint="Your account uses two-factor sign-in: enter the code from your authenticator app, or a recovery code."
+          />
+        )}
         <Button type="submit" busy={busy} className="mt-1 h-11">
           Reset password
         </Button>

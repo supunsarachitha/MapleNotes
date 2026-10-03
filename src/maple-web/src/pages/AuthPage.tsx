@@ -3,7 +3,7 @@ import { useState, type FormEvent } from "react";
 import { AuthLayout, linkClass } from "../components/AuthLayout";
 import { Button, ErrorMessage, TextField } from "../components/ui";
 import { ApiError } from "../lib/api";
-import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
+import { auth, MIN_PASSWORD_LENGTH, TwoFactorRequired, validateNewPassword } from "../lib/auth";
 import { useBranding } from "../lib/branding";
 import { queryKeys } from "../lib/queries";
 import { Link, navigate } from "../lib/router";
@@ -29,8 +29,32 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
   const [rememberMe, setRememberMe] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  // With two-factor sign-in, the password was right and this finishes signing in with a code.
+  const [challenge, setChallenge] = useState<TwoFactorRequired | null>(null);
+  const [code, setCode] = useState("");
   const { appName } = useBranding();
   const text = titles[mode];
+
+  async function signedIn() {
+    navigate("/", { replace: true });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.status });
+  }
+
+  async function submitCode(event: FormEvent) {
+    event.preventDefault();
+    if (!challenge) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await challenge.complete(code);
+      await signedIn();
+    } catch (caught) {
+      setCode("");
+      setError(caught instanceof ApiError ? caught : new ApiError(0, { title: "Something went wrong." }));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -44,9 +68,13 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
     try {
       if (mode === "login") await auth.signIn(username, password, rememberMe);
       else await auth.register(username, password, displayName || undefined);
-      navigate("/", { replace: true });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.status });
+      await signedIn();
     } catch (caught) {
+      if (caught instanceof TwoFactorRequired) {
+        setPassword("");
+        setChallenge(caught);
+        return;
+      }
       setError(caught instanceof ApiError ? caught : new ApiError(0, { title: "Something went wrong." }));
     } finally {
       setBusy(false);
@@ -54,6 +82,47 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
   }
 
   const generalError = error && !error.fieldError("username") && !error.fieldError("password") ? error.message : null;
+
+  if (challenge) {
+    return (
+      <AuthLayout
+        heading="Two-factor sign-in"
+        intro="Enter the code your authenticator app shows for this account."
+        footer={
+          <button
+            type="button"
+            className={linkClass}
+            onClick={() => {
+              setChallenge(null);
+              setCode("");
+              setError(null);
+            }}
+          >
+            Back to sign in
+          </button>
+        }
+      >
+        <form onSubmit={(event) => void submitCode(event)} className="flex flex-col gap-4">
+          {error && <ErrorMessage>{error.message}</ErrorMessage>}
+          <TextField
+            label="Authentication code"
+            name="code"
+            autoComplete="one-time-code"
+            autoCapitalize="none"
+            spellCheck={false}
+            autoFocus
+            required
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            hint="6 digits. Lost your phone? Enter one of your recovery codes instead."
+          />
+          <Button type="submit" busy={busy} className="mt-1 h-11">
+            Sign in
+          </Button>
+        </form>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout

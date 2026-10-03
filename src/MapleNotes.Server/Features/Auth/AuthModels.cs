@@ -42,7 +42,12 @@ public sealed record RegisterRequest(string Username, KdfParameters Kdf, byte[] 
 /// Only when prelogin answered <c>upgrade: true</c>: the password, sent this one time so the server can check it
 /// against the old hash and replace that hash with one of <paramref name="AuthKey"/>. Ignored for every other account.
 /// </param>
-public sealed record LoginRequest(string Username, byte[] AuthKey, bool RememberMe = false, string? Password = null);
+/// <param name="TwoFactorCode">
+/// For an account with two-factor sign-in: a code from its authenticator app, or an unused recovery code. Without it,
+/// a right password gets 401 with <c>twoFactorRequired: true</c>, and the browser asks for the code and signs in again.
+/// </param>
+public sealed record LoginRequest(
+    string Username, byte[] AuthKey, bool RememberMe = false, string? Password = null, string? TwoFactorCode = null);
 
 /// <summary>Proof that the caller knows the account password, required for security-relevant changes.</summary>
 /// <param name="AuthKey">The authentication key derived with the parameters from prelogin (base64).</param>
@@ -74,16 +79,17 @@ public sealed record ChangePasswordRequest(
 /// <param name="Preferences">Writing and feature preferences.</param>
 /// <param name="EndToEndModeRecord">For an account with an end-to-end key, the mode its owner chose, sealed by the
 /// browser (docs/e2ee-spec.md §3a); the server cannot read or forge it.</param>
+/// <param name="TwoFactorEnabled">Whether signing in needs a code from an authenticator app as well as the password.</param>
 public sealed record UserResponse(
     Guid Id, string Username, string DisplayName, UserRole Role, EncryptionMode EncryptionMode, bool HasEndToEndKey,
-    DateTime CreatedAtUtc, UserPreferences Preferences, byte[]? EndToEndModeRecord = null)
+    DateTime CreatedAtUtc, UserPreferences Preferences, byte[]? EndToEndModeRecord = null, bool TwoFactorEnabled = false)
 {
     /// <summary>Maps an account entity to its API representation.</summary>
     /// <param name="user">The account.</param>
     /// <returns>The API representation.</returns>
     public static UserResponse From(User user) =>
         new(user.Id, user.Username, user.DisplayName, user.Role, user.EncryptionMode, user.E2eeWrappedKey is not null,
-            user.CreatedAtUtc, user.Preferences, user.E2eeModeRecord);
+            user.CreatedAtUtc, user.Preferences, user.E2eeModeRecord, user.TwoFactorSecret is not null);
 }
 
 /// <summary>Sign-in state of the current visitor and what the instance allows.</summary>

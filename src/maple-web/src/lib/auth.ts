@@ -1,5 +1,6 @@
 import { toBase64 } from "../crypto/encoding";
 import { api } from "./api";
+import { isTwoFactorRequired } from "./apiError";
 import { deriveForAccount, deriveForNewPassword, rememberKeyDerived } from "./credentials";
 import { e2ee } from "./e2ee";
 import type { CredentialProof, User } from "./types";
@@ -10,18 +11,38 @@ import type { CredentialProof, User } from "./types";
 
 export { MIN_PASSWORD_LENGTH, validateNewPassword } from "./credentials";
 
+/**
+ * Thrown by sign-in when the password is right and the account also needs a code from its authenticator app.
+ * `complete` signs in with the code, reusing the keys already derived, so the slow derivation does not run again.
+ */
+export class TwoFactorRequired extends Error {
+  constructor(readonly complete: (code: string) => Promise<User>) {
+    super("Enter the code from your authenticator app.");
+    this.name = "TwoFactorRequired";
+  }
+}
+
 /** Sign-in, registration and password confirmation. Methods live on an object so tests can replace them. */
 export const auth = {
+  /** Signs in; throws {@link TwoFactorRequired} when the account also needs a two-factor code. */
   async signIn(username: string, password: string, rememberMe: boolean): Promise<User> {
     const { proof, keys } = await deriveForAccount(username, password, { signingIn: true });
-    const user = await api.login({ username, rememberMe, ...proof });
-    await rememberKeyDerived(username);
-    if (user.hasEndToEndKey) {
-      // Unlock with the key already derived for signing in, so the password is asked only once. If this fails, the
-      // unlock screen asks again.
-      await e2ee.unlockWithWrapKey(user.id, keys.wrapKey).catch(() => undefined);
+    const finish = async (twoFactorCode?: string) => {
+      const user = await api.login({ username, rememberMe, ...proof, ...(twoFactorCode ? { twoFactorCode } : {}) });
+      await rememberKeyDerived(username);
+      if (user.hasEndToEndKey) {
+        // Unlock with the key already derived for signing in, so the password is asked only once. If this fails, the
+        // unlock screen asks again.
+        await e2ee.unlockWithWrapKey(user.id, keys.wrapKey).catch(() => undefined);
+      }
+      return user;
+    };
+    try {
+      return await finish();
+    } catch (error) {
+      if (isTwoFactorRequired(error)) throw new TwoFactorRequired((code) => finish(code.trim()));
+      throw error;
     }
-    return user;
   },
 
   async register(username: string, password: string, displayName?: string): Promise<User> {

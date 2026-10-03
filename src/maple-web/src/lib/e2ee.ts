@@ -167,9 +167,15 @@ export const e2ee = {
 
   /**
    * Sets a new password with the recovery key and signs in. The used recovery key is retired and a new one is
-   * returned, to show once.
+   * returned, to show once. An account with two-factor sign-in needs `twoFactorCode` too; without it the server answers
+   * with an error that `isTwoFactorRequired` (lib/apiError.ts) recognises.
    */
-  async recover(username: string, recoveryKeyText: string, newPassword: string): Promise<{ user: User; recoveryKey: string }> {
+  async recover(
+    username: string,
+    recoveryKeyText: string,
+    newPassword: string,
+    twoFactorCode?: string,
+  ): Promise<{ user: User; recoveryKey: string }> {
     const weakPassword = validateNewPassword(newPassword);
     if (weakPassword) throw new ApiError(400, { errors: { newPassword: [weakPassword] } });
     let oldKey: Bytes;
@@ -195,6 +201,7 @@ export const e2ee = {
         newWrappedKey: toBase64(await wrapChecked(next.keys.wrapKey, raw, dataKeyContext(userId))),
         newRecoveryWrappedKey: toBase64(await wrapChecked(newRecovery.wrapKey, raw, recoveryContext(userId))),
         newRecoveryAuthKey: toBase64(newRecovery.authKey),
+        ...(twoFactorCode?.trim() ? { twoFactorCode: twoFactorCode.trim() } : {}),
       });
       const recoveryKey = formatRecoveryKey(newRecoveryKey);
       await adopt(userId, raw, version); // signed in now, so this session has a secret to save the key under

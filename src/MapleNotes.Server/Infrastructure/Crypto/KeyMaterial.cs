@@ -12,6 +12,7 @@ namespace MapleNotes.Server.Infrastructure.Crypto;
 ///                          ├── key-encryption key  wraps each user's data key (see DataKeyService)
 ///                          ├── data-protection key wraps the ASP.NET Core Data Protection key ring on disk
 ///                          ├── prelogin key        pseudo-salts for unknown usernames at prelogin (see AccountService)
+///                          ├── two-factor key      seals authenticator secrets and keys recovery-code hashes (see TwoFactorService)
 ///                          └── fingerprint         8 hex characters, safe to log, identifies which key is loaded
 /// </code>
 /// Every derived key uses its own HKDF "info" label, so learning one derived key reveals nothing about the others
@@ -25,6 +26,7 @@ public sealed class KeyMaterial : IDisposable
     private readonly byte[] _keyEncryptionKey;
     private readonly byte[] _dataProtectionKey;
     private readonly byte[] _preloginKey;
+    private readonly byte[] _twoFactorKey;
 
     /// <summary>
     /// Derives all keys from <paramref name="masterKey"/>.
@@ -42,6 +44,7 @@ public sealed class KeyMaterial : IDisposable
         _keyEncryptionKey = Derive(masterKey, "maple-notes/v1/key-encryption", 32);
         _dataProtectionKey = Derive(masterKey, "maple-notes/v1/data-protection", 32);
         _preloginKey = Derive(masterKey, "maple-notes/v1/prelogin", 32);
+        _twoFactorKey = Derive(masterKey, "maple-notes/v1/two-factor", 32);
 
         var fingerprint = Derive(masterKey, "maple-notes/v1/fingerprint", 4);
         Fingerprint = Convert.ToHexStringLower(fingerprint);
@@ -63,6 +66,12 @@ public sealed class KeyMaterial : IDisposable
     public ReadOnlySpan<byte> PreloginKey => _preloginKey;
 
     /// <summary>
+    /// 256-bit key that seals each account's authenticator-app secret and keys the HMAC of its two-factor recovery codes,
+    /// so a copy of the database alone yields neither (see <c>TwoFactorService</c>).
+    /// </summary>
+    public ReadOnlySpan<byte> TwoFactorKey => _twoFactorKey;
+
+    /// <summary>
     /// A short, non-secret identifier of the loaded master key (8 hex characters). Logged at startup so operators
     /// can tell which key an instance runs with without exposing the key.
     /// </summary>
@@ -75,6 +84,7 @@ public sealed class KeyMaterial : IDisposable
         CryptographicOperations.ZeroMemory(_keyEncryptionKey);
         CryptographicOperations.ZeroMemory(_dataProtectionKey);
         CryptographicOperations.ZeroMemory(_preloginKey);
+        CryptographicOperations.ZeroMemory(_twoFactorKey);
     }
 
     private static byte[] Derive(ReadOnlySpan<byte> masterKey, string purpose, int length)

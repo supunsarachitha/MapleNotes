@@ -42,6 +42,10 @@ public sealed record RecoveryKeyResponse(Guid UserId, byte[] RecoveryWrappedKey)
 /// <param name="NewWrappedKey">The data key wrapped with the new password's wrapping key.</param>
 /// <param name="NewRecoveryWrappedKey">The data key wrapped with the new recovery key.</param>
 /// <param name="NewRecoveryAuthKey">The authentication key derived from the new recovery key.</param>
+/// <param name="TwoFactorCode">
+/// For an account with two-factor sign-in: an authenticator or recovery code, since the reset signs in. Without it, a
+/// right recovery key gets 401 with <c>twoFactorRequired: true</c>.
+/// </param>
 public sealed record ResetWithRecoveryKeyRequest(
     string Username,
     byte[] RecoveryAuthKey,
@@ -49,7 +53,8 @@ public sealed record ResetWithRecoveryKeyRequest(
     byte[] NewAuthKey,
     byte[] NewWrappedKey,
     byte[] NewRecoveryWrappedKey,
-    byte[] NewRecoveryAuthKey);
+    byte[] NewRecoveryAuthKey,
+    string? TwoFactorCode = null);
 
 /// <summary>The session's secret, which the browser uses to keep its unlocked key encrypted.</summary>
 /// <param name="Key">32 random bytes (base64) held in the session cookie; see <c>UserPrincipal.SessionKeyClaim</c>.</param>

@@ -39,6 +39,12 @@ public enum AccountError
     /// the next visitor could claim it by creating the first account.
     /// </summary>
     LastAdministrator,
+
+    /// <summary>The password is right, and the account uses two-factor sign-in: a code is needed as well.</summary>
+    TwoFactorRequired,
+
+    /// <summary>The password is right, but the two-factor code is not.</summary>
+    InvalidTwoFactorCode,
 }
 
 /// <summary>Outcome of an account operation.</summary>
@@ -74,6 +80,7 @@ public sealed record AccountResult(
 /// <param name="instanceSettings">Instance settings (open registration).</param>
 /// <param name="options">Instance settings from the environment.</param>
 /// <param name="deletion">Deletes accounts with all their content.</param>
+/// <param name="twoFactor">Checks two-factor codes.</param>
 /// <param name="time">Clock.</param>
 public sealed class AccountService(
     MapleDbContext db,
@@ -83,6 +90,7 @@ public sealed class AccountService(
     InstanceSettingsService instanceSettings,
     MapleOptions options,
     AccountDeletionService deletion,
+    TwoFactorService twoFactor,
     TimeProvider time)
 {
     /// <summary>Failed sign-in attempts that trigger a lockout.</summary>
@@ -207,7 +215,15 @@ public sealed class AccountService(
     /// <param name="now">The current time.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>Whether this attempt locked the account (or found it locked by one made at the same time).</returns>
-    private async Task<bool> RecordFailedAttemptAsync(Guid userId, DateTime now, CancellationToken cancellationToken)
+    private Task<bool> RecordFailedAttemptAsync(Guid userId, DateTime now, CancellationToken cancellationToken) =>
+        RecordFailedAttemptAsync(db, userId, now, cancellationToken);
+
+    /// <inheritdoc cref="RecordFailedAttemptAsync(Guid, DateTime, CancellationToken)"/>
+    /// <param name="db">Database context.</param>
+    /// <param name="userId">The account.</param>
+    /// <param name="now">The current time.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    internal static async Task<bool> RecordFailedAttemptAsync(MapleDbContext db, Guid userId, DateTime now, CancellationToken cancellationToken)
     {
         await db.Users.Where(u => u.Id == userId)
             .ExecuteUpdateAsync(set => set.SetProperty(u => u.AccessFailedCount, u => u.AccessFailedCount + 1), cancellationToken);
@@ -260,11 +276,53 @@ public sealed class AccountService(
             return AccountResult.Fail(AccountError.Disabled);
         }
 
+        if (user.TwoFactorSecret is not null)
+        {
+            await db.SaveChangesAsync(cancellationToken); // keeps a legacy upgrade: the credential was right
+            if (await CheckSecondFactorAsync(user, request.TwoFactorCode, now, cancellationToken) is { } refused)
+            {
+                return refused;
+            }
+        }
+
         user.AccessFailedCount = 0;
         user.LockoutEndUtc = null;
         await db.SaveChangesAsync(cancellationToken);
         return AccountResult.Success(user);
     }
+
+    /// <summary>
+    /// Checks the second factor of an account whose first factor (the password or the recovery key) was right. A missing
+    /// code is not a failure; a wrong one counts toward the lockout like a wrong password, and the count is reset only by
+    /// a complete sign-in, so knowing the password does not buy more guesses at the code.
+    /// </summary>
+    /// <param name="db">Database context.</param>
+    /// <param name="twoFactor">Checks codes.</param>
+    /// <param name="user">The tracked account, with two-factor sign-in on.</param>
+    /// <param name="code">The code sent, if any.</param>
+    /// <param name="now">The current time.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>Null when the code is right (the caller saves the account), otherwise why sign-in was refused.</returns>
+    internal static async Task<AccountResult?> CheckSecondFactorAsync(
+        MapleDbContext db, TwoFactorService twoFactor, User user, string? code, DateTime now, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return AccountResult.Fail(AccountError.TwoFactorRequired);
+        }
+
+        if (twoFactor.CheckCode(user, code))
+        {
+            return null;
+        }
+
+        return await RecordFailedAttemptAsync(db, user.Id, now, cancellationToken)
+            ? new AccountResult(null, AccountError.LockedOut, LockedUntilUtc: now + LockoutDuration)
+            : AccountResult.Fail(AccountError.InvalidTwoFactorCode);
+    }
+
+    private Task<AccountResult?> CheckSecondFactorAsync(User user, string? code, DateTime now, CancellationToken cancellationToken) =>
+        CheckSecondFactorAsync(db, twoFactor, user, code, now, cancellationToken);
 
     /// <summary>
     /// Changes a user's password (that is, their key-derivation salt and authentication key) and signs out all of
