@@ -86,8 +86,10 @@
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
   in its own window, with the app's name and icon (or the ones an administrator chose).
-- **Read offline.** On a device where you stay signed in, the app opens without a connection and shows the notes you
-  read recently, still encrypted on the device for end-to-end accounts. Signing out deletes them.
+- **Read and write offline.** On a device where you stay signed in, the app opens without a connection and shows the
+  notes you read recently, still encrypted on the device for end-to-end accounts. New notes and edits made offline are
+  kept on the device and saved when the server can be reached again; an edit never overwrites a newer one made
+  elsewhere, it is saved as a separate note instead. Signing out deletes them.
 - **Appearance.** Light or dark (or follow your device), seven accent colours, the side menu's order (drag or arrows)
   and text size, and the first day of the week, chosen in Settings and applied on every device.
 - **Small and hardened.** One container: non-root, read-only root filesystem, built-in health check.
@@ -668,6 +670,15 @@ deploy. With `docker run`, pull `ghcr.io/supunsarachitha/maplenotes:latest`, rem
 with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
+
+### From 1.12 to 1.13
+
+Nothing to do. On devices that keep notes for offline reading, new notes and edits made offline are now kept and saved
+later.
+
+For API clients: `PUT /api/v1/notes/{id}` takes an optional `expectedUpdatedAtUtc`, the note's `updatedAtUtc` as the
+client last saw it. When it is given and the note has been edited since, the request fails with 409 and changes
+nothing. Requests without it behave as before.
 
 ### From 1.11 to 1.12
 

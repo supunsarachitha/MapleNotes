@@ -125,11 +125,13 @@ public sealed class NotesController(NoteService notes) : ControllerBase
     /// <response code="200">The note was updated.</response>
     /// <response code="400">The text is invalid or an attachment cannot be used.</response>
     /// <response code="404">No such note for this account.</response>
+    /// <response code="409">The note was edited after the version given in <c>expectedUpdatedAtUtc</c>.</response>
     /// <response code="507">The account's storage limit leaves no room for this.</response>
     [HttpPut("{id:guid}")]
     [ProducesResponseType<NoteResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status507InsufficientStorage)]
     public async Task<ActionResult<NoteResponse>> Update(Guid id, UpdateNoteRequest request, CancellationToken cancellationToken) =>
         await notes.UpdateAsync(User.GetUserId(), id, request, cancellationToken) is { } note ? note : NotFound();

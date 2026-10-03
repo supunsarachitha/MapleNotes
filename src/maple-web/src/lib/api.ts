@@ -36,6 +36,17 @@ import type {
 import { ApiError } from "./apiError";
 import { noteApiResponse } from "./offline";
 import {
+  canKeepOffline,
+  forgetPendingChanges,
+  hasPendingChange,
+  keepEdit,
+  keepNewNote,
+  pendingDailyNote,
+  withPendingChanges,
+  type OutboxEntry,
+  type Sender,
+} from "./outbox";
+import {
   decodeAttachment,
   decodeLabels,
   decodeNote,
@@ -152,7 +163,22 @@ async function listTags(kinds?: NoteKind[]): Promise<Tag[]> {
   return decodeTags(await request<TagWire[]>("GET", `/api/v1/tags${query({ kind: kinds })}`));
 }
 
+/** Notes from the server, with the changes this device has not sent yet shown in them (lib/outbox.ts). */
 async function listNotes(params: NoteListParams): Promise<NotePage> {
+  const page = await fetchNotes(params);
+  return withPendingChanges(page, {
+    state: params.state,
+    kinds: params.kinds ?? ["Note"],
+    firstPage: !params.cursor,
+    tag: params.tag,
+    label: params.label,
+    q: params.q,
+    createdFrom: params.createdFrom,
+    createdBefore: params.createdBefore,
+  });
+}
+
+async function fetchNotes(params: NoteListParams): Promise<NotePage> {
   if (params.tag && needsTagList()) await listTags(); // e.g. a link straight to ?tag=work: find work/… first
   const { tag, kinds, ...fields } = params;
   const rest = { ...fields, kind: kinds };
@@ -226,6 +252,8 @@ export const api = {
 
   async logout(): Promise<void> {
     await request<void>("POST", "/api/v1/auth/logout");
+    // Only once signed out: a sign-out that cannot reach the server leaves the session, and its changes, as they were.
+    await forgetPendingChanges();
     await refreshAntiforgeryToken();
   },
 
@@ -237,6 +265,7 @@ export const api = {
 
   async signOutEverywhere(): Promise<void> {
     await request<void>("POST", "/api/v1/auth/sign-out-everywhere");
+    await forgetPendingChanges();
     await refreshAntiforgeryToken();
   },
 
@@ -250,7 +279,13 @@ export const api = {
   ): Promise<Note> {
     const fields = await encodeNewNote(content);
     const { isPinned = false, kind = "Note", dailyDate } = options;
-    return decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind, dailyDate }));
+    try {
+      return await decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind, dailyDate }));
+    } catch (error) {
+      // Kept on this device and sent later, when the server cannot be reached (lib/outbox.ts).
+      if (error instanceof ApiError && canKeepOffline(error.status)) return keepNewNote(content, attachmentIds, options);
+      throw error;
+    }
   },
 
   /** How many active notes of these kinds were created on each day from `from` to `to` (yyyy-MM-dd), in a time zone. */
@@ -304,16 +339,35 @@ export const api = {
   /** The daily note of a day (`yyyy-MM-dd`), or null when the day has none yet. */
   async dailyNote(date: string): Promise<Note | null> {
     try {
-      return await decodeNote(await request<NoteWire>("GET", `/api/v1/notes/daily/${date}`));
+      const note = await decodeNote(await request<NoteWire>("GET", `/api/v1/notes/daily/${date}`));
+      return (await withPendingChanges({ items: [note], nextCursor: null }, { state: "active", kinds: [], firstPage: false })).items[0]!;
     } catch (error) {
-      if (error instanceof ApiError && error.status === 404) return null;
+      if (!(error instanceof ApiError) || (error.status !== 404 && !canKeepOffline(error.status))) throw error;
+      // The day's note may have been started offline, on this device.
+      const pending = await pendingDailyNote(date);
+      if (pending || error.status === 404) return pending;
       throw error;
     }
   },
 
-  async updateNote(id: string, content: string, attachmentIds: string[]): Promise<Note> {
+  /**
+   * Replaces a note's text. `seen` is the note as it was shown: with it, an edit that cannot reach the server is kept on
+   * this device and sent later, and only if the note has not been edited elsewhere meanwhile (lib/outbox.ts).
+   */
+  async updateNote(id: string, content: string, attachmentIds: string[], seen?: Note): Promise<Note> {
+    // A note with a change still waiting here gets this one queued behind it, so they reach the server in order.
+    if (seen && (await hasPendingChange(id))) {
+      const kept = await keepEdit(seen, content, attachmentIds);
+      void syncNow();
+      return kept;
+    }
     const fields = await encodeNoteUpdate(id, content);
-    return decodeNote(await request<NoteWire>("PUT", `/api/v1/notes/${id}`, { ...fields, attachmentIds }));
+    try {
+      return await decodeNote(await request<NoteWire>("PUT", `/api/v1/notes/${id}`, { ...fields, attachmentIds }));
+    } catch (error) {
+      if (seen && error instanceof ApiError && canKeepOffline(error.status)) return keepEdit(seen, content, attachmentIds);
+      throw error;
+    }
   },
 
   async patchNote(id: string, changes: NoteChanges): Promise<Note> {
@@ -403,10 +457,15 @@ export const api = {
   updateDisplayName: (displayName: string) => request<User>("PUT", "/api/v1/account/display-name", { displayName }),
 
   /** Deletes every note, tag and file of the account; the account, its keys and settings stay. */
-  deleteAllContent: (proof: CredentialProof) => request<DeletedContent>("DELETE", "/api/v1/account/content", { proof }),
+  async deleteAllContent(proof: CredentialProof): Promise<DeletedContent> {
+    const deleted = await request<DeletedContent>("DELETE", "/api/v1/account/content", { proof });
+    await forgetPendingChanges(); // changes to notes that no longer exist
+    return deleted;
+  },
 
   async deleteAccount(proof: CredentialProof): Promise<void> {
     await request<void>("DELETE", "/api/v1/account", { proof });
+    await forgetPendingChanges();
     await refreshAntiforgeryToken();
   },
 
@@ -428,6 +487,56 @@ export const api = {
     compactDatabase: () => request<CompactResult>("POST", "/api/v1/admin/storage/compact"),
   },
 };
+
+/** Sends the changes kept on this device (lib/outbox.ts) through the API. */
+export const outboxSender: Sender = {
+  async create(entry: OutboxEntry, content: string): Promise<Note> {
+    // Restoring is idempotent by ID, so a note whose first send got through without an answer is not added twice, and it
+    // keeps the time it was written. A daily note keeps its day unless another device started that day's note meanwhile.
+    const { note } = await api.importNote(
+      {
+        id: entry.noteId,
+        content,
+        createdAt: new Date(entry.createdAtUtc),
+        updatedAt: new Date(entry.changedAtUtc),
+        pinned: entry.isPinned,
+        archived: false,
+        kind: entry.kind,
+        dailyDate: entry.dailyDate,
+      },
+      entry.attachmentIds,
+    );
+    return note;
+  },
+  async update(entry: OutboxEntry, content: string): Promise<Note> {
+    const fields = await encodeNoteUpdate(entry.noteId, content);
+    const body = { ...fields, attachmentIds: entry.attachmentIds, expectedUpdatedAtUtc: entry.baseUpdatedAtUtc };
+    return decodeNote(await request<NoteWire>("PUT", `/api/v1/notes/${entry.noteId}`, body));
+  },
+  async current(noteId: string): Promise<Note | null> {
+    try {
+      return await decodeNote(await request<NoteWire>("GET", `/api/v1/notes/${noteId}`));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
+  },
+  async saveCopy(entry: OutboxEntry, content: string): Promise<void> {
+    // Habits keep their kind; a copy of a daily note is an ordinary note, since the day already has one.
+    await request<NoteWire>("POST", "/api/v1/notes", { ...(await encodeNewNote(content)), attachmentIds: [], kind: entry.kind });
+  },
+};
+
+let syncListener: (() => void) | null = null;
+
+/** Asks the app to send the kept changes now (lib/outboxSync.ts registers what that does). */
+export function syncNow(): void {
+  syncListener?.();
+}
+
+export function onSyncRequest(listener: (() => void) | null): void {
+  syncListener = listener;
+}
 
 /**
  * Uploads a file with progress reporting (fetch cannot report upload progress, so this uses XMLHttpRequest).

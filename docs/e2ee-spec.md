@@ -252,7 +252,9 @@ service worker uses the URL from the info, and the conversion bypasses the cache
 
 **Media service worker:** every account registers `/sw.js`, which also keeps recently read API responses for offline
 reading, as the server sent them, so end-to-end content stays encrypted there
-([architecture.md](architecture.md#offline-reading)). For end-to-end files it answers requests for
+([architecture.md](architecture.md#offline-reading)). Notes written or edited offline wait in IndexedDB encrypted the
+same way, as a note envelope (§2) for the note's ID, whenever the browser holds the end-to-end key
+([architecture.md](architecture.md#writing-offline)). For end-to-end files it answers requests for
 `/e2ee/attachments/{id}`:
 
 1. It fetches the info and the 42-byte header (`Range: bytes=0-41`), decrypts the metadata, and remembers both for

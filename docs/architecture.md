@@ -405,8 +405,8 @@ things in the browser's Cache Storage for when the server cannot be reached:
   administration are never kept.
 
 Reads still go to the server first; the saved copy answers only when the request fails, marked with
-`X-Maple-Offline: 1`, and the app then shows a notice that it is offline and that changes cannot be saved. Writing
-offline is not supported: writes go to the server and fail as before.
+`X-Maple-Offline: 1`, and the app then shows a notice that it is offline. The worker never answers writes; how the app
+keeps them is below.
 
 The worker decides what to keep from the sign-in status it passes on. It keeps copies only when the status shows a
 signed-in account whose session was started with "keep me signed in" (`sessionPersistent`), and records that account,
@@ -422,6 +422,41 @@ End-to-end accounts open offline on the unlock screen, because the session's sec
 the account's Argon2id parameters (from `POST /api/v1/auth/prelogin`, kept for the recorded username only) and the
 wrapped key (`GET /api/v1/account/e2ee`), which the app fetches once per visit so that they are saved. Offline, a POST
 cannot get an antiforgery token, so the app sends it without one and the worker answers it from the saved copy.
+
+## Writing offline
+
+On a device that keeps notes for offline reading, a new note or new text for a note that cannot reach the server (no
+answer, or 502, 503 or 504 from a proxy) is kept in the page's IndexedDB (`maple-notes-outbox`, `src/maple-web/src/lib/outbox.ts`)
+and the save succeeds. Other changes (pinning, archiving, labels, the trash, files) still need the server. Each note
+has at most one waiting change:
+
+- **A new note** gets its ID in the browser (a UUID version 7) and keeps it. It is sent through `POST
+  /api/v1/notes/import`, which keeps the ID and the time it was written and does nothing for a note the account already
+  has, so a send whose answer was lost does not add it twice. A daily note keeps its day unless another device started
+  that day's note meanwhile, and then becomes an ordinary note.
+- **New text for an existing note** records the note's `updatedAtUtc` as the page last saw it, and is sent with `PUT
+  /api/v1/notes/{id}` and that value as `expectedUpdatedAtUtc`. The server refuses it with 409 when the note has been
+  edited since. The app then fetches the note: if it already has this text (our own earlier send whose answer was
+  lost), nothing more is done; otherwise the text is saved as a separate new note, so neither version is lost, and the
+  app says so. A note deleted meanwhile (404) gets the same treatment.
+
+Further edits of a waiting note replace its text, and while a note has a change waiting every save of it goes to the
+outbox, so changes reach the server in the order they were made. A change sent while a newer edit arrived stays as an
+edit of the version the server just returned.
+
+The app sends waiting changes while it is open and the account's notes can be read (the shell is shown): at once, when
+the browser reports it is online, when the app is shown again, after a save of a note that has a waiting change, and
+every 30 seconds while anything waits. A failure to reach the server, a server error, a full account or a session
+that must sign in again stops the round and leaves the changes for the next one; any other refusal drops that change
+and shows the server's message. The note lists show waiting changes on the notes they belong to, and new notes at
+the top of the first page of the lists they belong in, marked "Not saved yet".
+
+The outbox follows offline reading's rules. Changes are kept only when the session was started with "keep me signed
+in", and only for the signed-in account: another account signing in on the device deletes them. Signing out (after
+asking, while changes wait), signing out everywhere, deleting the account and deleting all its content delete them.
+For an account whose browser holds the end-to-end key the text is kept encrypted for the note, with the note
+envelope ([e2ee-spec.md §2](e2ee-spec.md#2-envelope-aes-256-gcm)), and decrypted only to be encrypted again for the request,
+according to the account's mode at that moment.
 
 ## Storage usage
 
@@ -489,7 +524,7 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
   byte for byte.
 - **Web:** about 295 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
   conversion, the service worker's range decryption and offline reading (what is kept, for whom, and when it is
-  deleted), the browser export against the server's archives, restoring
+  deleted), writing offline (what is kept, how it shows, sending, conflicts, encryption on the device), the browser export against the server's archives, restoring
   those archives, Markdown safety and checkboxes ticked in notes, the composer with titles and tag suggestions, the
   caret at the end when editing, todo lists (also edited as Markdown), quick and daily notes, double-tap to edit,
   habits and their chart, labels, the trash with Undo, the menu's order, loading media only near the screen, shrinking

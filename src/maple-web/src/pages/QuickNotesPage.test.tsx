@@ -105,11 +105,11 @@ describe("Quick notes", () => {
 
     await user.click(screen.getByRole("checkbox", { name: "stamps" }));
     expect(screen.getByRole("checkbox", { name: "stamps" })).toBeChecked();
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("q1", "# Errands\n\n- [x] stamps\n- [x] milk", []));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("q1", "# Errands\n\n- [x] stamps\n- [x] milk", [], expect.anything()));
 
     await user.click(screen.getByRole("checkbox", { name: "milk" }));
     expect(screen.getByRole("checkbox", { name: "milk" })).not.toBeChecked();
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("q1", "# Errands\n\n- [x] stamps\n- [ ] milk", []));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("q1", "# Errands\n\n- [x] stamps\n- [ ] milk", [], expect.anything()));
   });
 
   it("keeps the checkboxes of archived notes as they are", () => {

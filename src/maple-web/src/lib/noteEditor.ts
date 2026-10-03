@@ -37,7 +37,7 @@ export function useNoteEditor<T>(
     const content = serialize(next);
     const attachmentIds = note.attachments.map((attachment) => attachment.id);
     saving.current = saving.current
-      .then(() => api.updateNote(note.id, content, attachmentIds))
+      .then(() => api.updateNote(note.id, content, attachmentIds, note))
       .then(
         (saved) => {
           lastSaved.current = { at: Date.parse(saved.updatedAtUtc), content: saved.content };

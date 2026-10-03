@@ -64,19 +64,19 @@ describe("TodoCard", () => {
     renderWith(<TodoCard note={list} />);
 
     await user.click(screen.getByRole("checkbox", { name: "oats" }));
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [x] maple syrup", []));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [x] maple syrup", [], expect.anything()));
 
     await user.type(screen.getByRole("textbox", { name: "Add an item to Groceries" }), "blueberries{Enter}");
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [x] maple syrup\n- [ ] blueberries", []));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [x] maple syrup\n- [ ] blueberries", [], expect.anything()));
 
     await user.click(screen.getByRole("button", { name: "blueberries" }));
     const edit = screen.getByRole("textbox", { name: "Edit item" });
     await user.clear(edit);
     await user.type(edit, "wild blueberries{Enter}");
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [x] maple syrup\n- [ ] wild blueberries", []));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [x] maple syrup\n- [ ] wild blueberries", [], expect.anything()));
 
     await user.click(screen.getByRole("button", { name: "Remove oats" }));
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] maple syrup\n- [ ] wild blueberries", []));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] maple syrup\n- [ ] wild blueberries", [], expect.anything()));
   });
 
   it("says why a change could not be saved when the storage is full", async () => {
@@ -96,7 +96,7 @@ describe("TodoCard", () => {
 
     await user.click(screen.getByRole("button", { name: "List actions" }));
     await user.click(await screen.findByRole("menuitem", { name: "Clear completed" }));
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [ ] oats", []));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [ ] oats", [], expect.anything()));
 
     await user.click(screen.getByRole("button", { name: "List actions" }));
     await user.click(await screen.findByRole("menuitem", { name: "Rename" }));
@@ -104,7 +104,7 @@ describe("TodoCard", () => {
     expect(name).toHaveFocus();
     await user.clear(name);
     await user.type(name, "Weekend groceries{Enter}");
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Weekend groceries\n\n- [ ] oats", []));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Weekend groceries\n\n- [ ] oats", [], expect.anything()));
   });
 
   it("edits all the items at once as Markdown", async () => {
@@ -124,7 +124,7 @@ describe("TodoCard", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [ ] maple syrup\n- [ ] flour\n- [x] eggs", []),
+      expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [ ] maple syrup\n- [ ] flour\n- [x] eggs", [], expect.anything()),
     );
     expect(screen.queryByRole("textbox", { name: "Items in Groceries as Markdown" })).not.toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "flour" })).not.toBeChecked();

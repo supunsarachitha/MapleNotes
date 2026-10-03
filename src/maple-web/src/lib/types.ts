@@ -182,6 +182,8 @@ export interface Note {
   labelIds?: string[];
   /** When the note was moved to the trash; null or absent when it is not in the trash. */
   trashedAtUtc?: string | null;
+  /** Written or edited offline and kept on this device until the server has it (lib/outbox.ts). */
+  pending?: boolean;
 }
 
 export interface NotePage {

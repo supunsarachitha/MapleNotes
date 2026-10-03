@@ -46,7 +46,7 @@ describe("daily notes", () => {
 
     await saveDailyNote("2026-09-29", "Tuesday, 29 September 2026", "Lunch with Sam", ["new"]);
 
-    expect(update).toHaveBeenCalledWith("d1", "# Tuesday, 29 September 2026\n\nMorning run\n\nLunch with Sam", ["old", "new"]);
+    expect(update).toHaveBeenCalledWith("d1", "# Tuesday, 29 September 2026\n\nMorning run\n\nLunch with Sam", ["old", "new"], expect.anything());
   });
 
   it("shows today's card on Home, keeps the daily note out of the feed, and starts it on first save", async () => {

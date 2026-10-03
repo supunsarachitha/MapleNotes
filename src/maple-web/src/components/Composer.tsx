@@ -177,7 +177,7 @@ export function Composer({
     if (!canSave) return;
     setSaving(true);
     try {
-      if (editing) await api.updateNote(note.id, content, attachmentIds);
+      if (editing) await api.updateNote(note.id, content, attachmentIds, note);
       else if (daily) await saveDailyNote(daily.date, daily.title, text, attachmentIds);
       else if (kind === "Note") await api.createNote(content, attachmentIds);
       else await api.createNote(content, attachmentIds, { kind });
