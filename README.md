@@ -657,6 +657,11 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.9 to 1.10
+
+Nothing to do. Accounts that shrink photos keep today's size (Large) until they choose another in Settings → Features.
+For API clients, preferences gained `photoSize` (`Large`, `Medium` or `Small`).
+
 ### From 1.8 to 1.9
 
 Nothing to do. Exports now list each note's labels by name, and the manifest lists the labels' colours (manifest

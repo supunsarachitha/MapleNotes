@@ -4,7 +4,19 @@ import { ACCENT_COLORS } from "../lib/appearance";
 import { formatDate } from "../lib/dates";
 import { usePreferences, useUpdatePreferences } from "../lib/preferences";
 import { useAuthStatus } from "../lib/queries";
-import { ACCENTS, DATE_FORMATS, MENU_TEXT_SIZES, THEMES, WEEK_STARTS, type DateFormat, type Preferences, type WeekStart } from "../lib/types";
+import { PHOTO_PRESETS } from "../lib/shrinkPhoto";
+import {
+  ACCENTS,
+  DATE_FORMATS,
+  MENU_TEXT_SIZES,
+  PHOTO_SIZES,
+  THEMES,
+  WEEK_STARTS,
+  type DateFormat,
+  type PhotoSize,
+  type Preferences,
+  type WeekStart,
+} from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MenuOrderEditor } from "./MenuOrderEditor";
 import { useToast } from "./Toaster";
@@ -181,6 +193,42 @@ export function MenuSection() {
   );
 }
 
+const PHOTO_SIZE_HINTS: Record<PhotoSize, string> = {
+  Large: "Sharp on large screens",
+  Medium: "Fine on laptops and phones",
+  Small: "Smallest files, fine on phones",
+};
+
+/** How far photos shrink: a few sizes, like the photo quality choices of messaging apps, rather than a raw ratio. */
+function PhotoSizeChoice({ value, onChange }: { value: PhotoSize; onChange: (size: PhotoSize) => void }) {
+  return (
+    <fieldset className="mt-3">
+      <legend className="text-sm font-medium">Photo size</legend>
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {PHOTO_SIZES.map((size) => (
+          <label
+            key={size}
+            className={cn(
+              "flex cursor-pointer flex-col items-center rounded-xl border px-2 py-2.5 text-center transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-maple-500",
+              value === size
+                ? "border-maple-600 bg-maple-50 text-maple-700 dark:border-maple-500 dark:bg-maple-600/15 dark:text-maple-400"
+                : "border-stone-200 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800",
+            )}
+          >
+            <input type="radio" name="photoSize" value={size} checked={value === size} onChange={() => onChange(size)} className="sr-only" />
+            <span className="text-sm font-medium">{size}</span>
+            <span className="text-xs text-stone-500 dark:text-stone-400">{PHOTO_PRESETS[size].maxSide.toLocaleString()} px</span>
+          </label>
+        ))}
+      </div>
+      <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">
+        {PHOTO_SIZE_HINTS[value]}: at most {PHOTO_PRESETS[value].maxSide.toLocaleString()} pixels on the longest side. Smaller sizes
+        also save at a lower quality.
+      </p>
+    </fieldset>
+  );
+}
+
 /** Which pages and tools the app shows. Turning one off hides it but keeps its notes. */
 export function FeaturesSection() {
   const preferences = usePreferences();
@@ -263,12 +311,17 @@ export function FeaturesSection() {
             checked={preferences.trash}
             onChange={(trash) => save({ trash })}
           />
-          <PreferenceSwitch
-            label="Shrink photos before uploading"
-            description="Large photos are resized to 2560 pixels on their longest side and saved as JPEG, often a tenth of the size. Their location and camera details are left out too. Photos already uploaded stay as they are."
-            checked={preferences.shrinkPhotos}
-            onChange={(shrinkPhotos) => save({ shrinkPhotos })}
-          />
+          <div className="py-3 first:pt-0 last:pb-0">
+            <PreferenceSwitch
+              label="Shrink photos before uploading"
+              description="Large photos are resized and saved as JPEG, often a tenth of the size or less. Their location and camera details are left out too. Photos already uploaded stay as they are."
+              checked={preferences.shrinkPhotos}
+              onChange={(shrinkPhotos) => save({ shrinkPhotos })}
+            />
+            {preferences.shrinkPhotos && (
+              <PhotoSizeChoice value={preferences.photoSize} onChange={(photoSize) => save({ photoSize })} />
+            )}
+          </div>
           {status?.linkPreviewsAvailable && (
             <PreferenceSwitch
               label="Link previews"

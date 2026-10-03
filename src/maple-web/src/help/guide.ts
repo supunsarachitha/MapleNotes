@@ -129,9 +129,12 @@ download when you choose them.
 Pictures, players and link previews load as you scroll towards them, so a long timeline opens quickly however many
 files it has.
 
-To save space, turn on **Shrink photos before uploading** in [Settings → Features](/settings/features): large photos are resized to 2560
-pixels on their longest side and saved as JPEG before they upload, often a tenth of the size, and their location and
-camera details are left out. The full-size original is not kept, and photos you uploaded earlier stay as they are.`,
+To save space, turn on **Shrink photos before uploading** in [Settings → Features](/settings/features): large photos are
+resized and saved as JPEG before they upload, and their location and camera details are left out. Then choose a
+**Photo size**: **Large** (2560 pixels on the longest side) stays sharp on big screens and is often a tenth of the
+original; **Medium** (1920 pixels) and **Small** (1280 pixels) are smaller still, and saved at a lower quality, which
+suits photos you mostly look at on a phone. The full-size original is not kept, and photos you uploaded earlier stay as
+they are.`,
   },
   {
     id: "links",

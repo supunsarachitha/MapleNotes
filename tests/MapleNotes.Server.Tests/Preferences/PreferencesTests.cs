@@ -44,6 +44,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.Equal((false, false), (preferences.QuickNoteTitles, preferences.DoubleTapToEdit)); // both opt-in
         Assert.Equal((false, false, true, ""), (preferences.TagSuggestions, preferences.Labels, preferences.Trash, preferences.MenuOrder));
         Assert.True(preferences.HelpMenu);
+        Assert.Equal("Large", preferences.PhotoSize); // as photos were shrunk before sizes could be chosen
         Assert.Equal(preferences, (await _alice.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.Preferences);
     }
 
@@ -55,7 +56,7 @@ public sealed class PreferencesTests : IAsyncLifetime
             NoteTitles = true, DateInTitles = true, DateFormat = "dddd, d MMMM yyyy", TodoLists = false, QuickNotes = false, DailyNotes = true,
             HabitTracker = true, ShrinkPhotos = true, Archive = false, Tags = false, MenuTextSize = "Large", WeekStart = "Monday",
             QuickNoteTitles = true, DoubleTapToEdit = true, TagSuggestions = true, Labels = true, Trash = false, MenuOrder = "help,home,todo",
-            HelpMenu = false,
+            HelpMenu = false, PhotoSize = "Small",
         };
 
         var response = await _alice.PutJsonAsync("/api/v1/account/preferences", wanted);
@@ -89,13 +90,15 @@ public sealed class PreferencesTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Only_the_offered_menu_text_sizes_and_week_starts_are_accepted()
+    public async Task Only_the_offered_menu_text_sizes_week_starts_and_photo_sizes_are_accepted()
     {
         var size = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { MenuTextSize = "Huge" });
         var week = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { WeekStart = "Wednesday" });
+        var photo = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { PhotoSize = "Tiny" });
 
         Assert.Contains("menuTextSize", (await size.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
         Assert.Contains("weekStart", (await week.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+        Assert.Contains("photoSize", (await photo.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
     }
 
     [Theory]

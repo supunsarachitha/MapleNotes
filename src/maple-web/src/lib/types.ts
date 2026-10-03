@@ -67,6 +67,8 @@ export interface Preferences {
   helpMenu: boolean;
   /** Shrink photos in the browser before they upload. */
   shrinkPhotos: boolean;
+  /** How far shrinking makes photos smaller (see lib/shrinkPhoto.ts). */
+  photoSize: PhotoSize;
   /** Show previews of links in notes (the server fetches the pages). */
   linkPreviews: boolean;
   /** Double-tap (or double-click) a note to edit it. */
@@ -87,6 +89,8 @@ export interface Preferences {
   menuOrder: string;
 }
 
+export const PHOTO_SIZES = ["Large", "Medium", "Small"] as const;
+export type PhotoSize = (typeof PHOTO_SIZES)[number];
 export const MENU_TEXT_SIZES = ["Small", "Medium", "Large"] as const;
 export type MenuTextSize = (typeof MENU_TEXT_SIZES)[number];
 export const WEEK_STARTS = ["Auto", "Sunday", "Monday", "Saturday"] as const;

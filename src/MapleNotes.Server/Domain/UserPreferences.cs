@@ -25,6 +25,9 @@ public sealed record UserPreferences
     /// <summary>The accent colours a user can choose.</summary>
     public static IReadOnlyList<string> Accents { get; } = ["Maple", "Ocean", "Forest", "Teal", "Plum", "Amber", "Slate"];
 
+    /// <summary>How far photos shrink before they upload, largest first; the web app maps each to a size and quality.</summary>
+    public static IReadOnlyList<string> PhotoSizes { get; } = ["Large", "Medium", "Small"];
+
     /// <summary>The text sizes a user can choose for the side menu.</summary>
     public static IReadOnlyList<string> MenuTextSizes { get; } = ["Small", "Medium", "Large"];
 
@@ -84,6 +87,12 @@ public sealed record UserPreferences
     /// The original is not kept; off by default.
     /// </summary>
     public bool ShrinkPhotos { get; init; }
+
+    /// <summary>
+    /// With <see cref="ShrinkPhotos"/> on, how far: one of <see cref="PhotoSizes"/>. <c>Large</c> (the default) is at most
+    /// 2560 pixels, <c>Medium</c> 1920 and <c>Small</c> 1280, each at a lower JPEG quality than the one before.
+    /// </summary>
+    public string PhotoSize { get; init; } = "Large";
 
     /// <summary>
     /// Show previews of links in notes. The server then fetches the linked pages, so it learns those links, also for
