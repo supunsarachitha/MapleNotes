@@ -18,6 +18,8 @@ Write notes offline.
   elsewhere meanwhile; otherwise the text written offline is saved as a separate note, and the app says so. End-to-end
   accounts keep the text encrypted on the device. Signing out asks first while changes are waiting, then deletes them.
   Files still need a connection.
+- **Connection badge:** an Online or Offline badge at the top right of the page, in the title bar on phones. It shows
+  Offline whenever the server cannot be reached, even while the device has a connection.
 - **Session length:** administrators choose how long "keep me signed in" lasts after a device last used the app, from
   30 days (the default) up to 400 days, the longest browsers keep a cookie, in Settings → Administration. A device
   can then stay offline that long and still be signed in when it is back. It applies from each device's next sign-in.

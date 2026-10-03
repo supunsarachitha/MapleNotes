@@ -171,7 +171,8 @@ there too). It opens without a connection too, as the next section explains.`,
     title: "Reading and writing offline",
     body: `If you signed in with **Keep me signed in**, Maple Notes keeps a copy of what you read on this device, so it opens
 and shows those notes when your phone or computer is offline, or your server cannot be reached. A note at the top says
-when you are reading saved copies.
+when you are reading saved copies, and a badge at the top right, in the title bar on a phone, shows **Online** or
+**Offline**. It shows Offline whenever the server cannot be reached, even if your device has a connection.
 
 - What you opened recently is there: your timeline, lists and pages you looked at, your tags and labels. Searches,
   pictures and other files need a connection.

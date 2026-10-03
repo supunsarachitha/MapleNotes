@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../lib/api";
@@ -97,6 +97,33 @@ describe("AppShell", () => {
     onLine.mockReturnValue(true);
     renderShell({});
     expect(screen.queryByText(/you are offline/i)).not.toBeInTheDocument();
+  });
+
+  it("shows whether it is online or offline in the title bar", () => {
+    const onLine = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const { unmount } = renderShell({});
+    expect(within(screen.getByRole("banner")).getByText("Online")).toBeInTheDocument();
+    expect(screen.queryByText("Offline")).not.toBeInTheDocument();
+    unmount();
+
+    onLine.mockReturnValue(false);
+    renderShell({});
+    expect(within(screen.getByRole("banner")).getByText("Offline")).toBeInTheDocument();
+    expect(screen.queryByText("Online")).not.toBeInTheDocument();
+  });
+
+  it("switches between online and offline as the connection changes", () => {
+    const onLine = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    renderShell({});
+    expect(within(screen.getByRole("banner")).getByText("Online")).toBeInTheDocument();
+
+    onLine.mockReturnValue(false);
+    act(() => void window.dispatchEvent(new Event("offline")));
+    expect(within(screen.getByRole("banner")).getByText("Offline")).toBeInTheDocument();
+
+    onLine.mockReturnValue(true);
+    act(() => void window.dispatchEvent(new Event("online")));
+    expect(within(screen.getByRole("banner")).getByText("Online")).toBeInTheDocument();
   });
 
   it("says that changes are kept when this device keeps notes, and how many are waiting", async () => {
