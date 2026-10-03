@@ -17,13 +17,13 @@ Features most note apps have.
 4. **Note history.** Earlier versions of a note cannot be seen or restored.
 5. **Sharing.** Nothing can be shared with another account or through a public link. End-to-end notes would need shared
    keys.
-6. **Two-factor sign-in.** Since 1.13, accounts can turn on authenticator-app codes with recovery codes. Passkeys are
+6. **Two-factor sign-in.** Since 1.15, accounts can turn on authenticator-app codes with recovery codes. Passkeys are
    not supported.
 7. **Selecting several notes at once.** Notes cannot be selected together to archive, delete, label or move them.
 
 ## Writing and organizing
 
-8. Note templates, such as a meeting template. Since 1.13 a note can be the daily-note template; other notes cannot
+8. Note templates, such as a meeting template. Since 1.15 a note can be the daily-note template; other notes cannot
    start from a template yet.
 9. Links between notes (`[[note]]`), with backlinks.
 10. Sort options: the timeline is newest first only; there is no oldest-first or last-edited order.

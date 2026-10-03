@@ -675,7 +675,7 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
-### From 1.12 to 1.13
+### From 1.12 to 1.15
 
 Nothing to do. On devices that keep notes for offline reading, new notes and edits made offline are now kept and saved
 later.
