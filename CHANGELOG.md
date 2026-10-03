@@ -7,10 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Write notes offline.
+## [1.15.0] - 2026-10-03
+
+Write notes offline, sign in with a second factor, and start daily notes from a template.
 
 ### Added
 
+- **Two-factor sign-in:** optional, per account, in Settings → Privacy & security. Scan a QR code with an
+  authenticator app, confirm with a code and the password, and save ten single-use recovery codes. Signing in then asks
+  for a code after the right password, and so does a password reset with the end-to-end recovery key. Wrong codes count
+  toward the sign-in lockout, each code works once, and turning it on signs out the account's other sessions. The
+  secret is stored encrypted with a key derived from the master key, and recovery codes only as HMACs. New recovery
+  codes and turning it off need the password and a code. Administrators can turn it off for an account that lost both
+  its phone and its recovery codes. The API gained `/api/v1/account/two-factor`, `twoFactorCode` on sign-in and on the
+  recovery reset, `twoFactorEnabled` on the account and in the admin account list, and `turnOffTwoFactor` on
+  `PATCH /api/v1/admin/users/{id}`.
+- **Daily-note template:** with daily notes on, any note can be chosen from its ⋯ menu as the template, and each new
+  day's note starts with its text (without its title). Only the note's ID is stored in the preferences
+  (`dailyNoteTemplate`), so the template is protected like any other note, also in end-to-end mode. Settings →
+  Features shows which note it is and can stop using it.
 - **Writing offline:** on a device that keeps notes for offline reading (a session started with "keep me signed in"),
   new notes, todo lists, quick notes and habits, and edits to notes (including ticking items and habit days), are kept on
   the device when the server cannot be reached, and saved once it can. The lists show them straight away, marked "Not
@@ -537,7 +552,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.15.0...HEAD
+[1.15.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.12.0...v1.15.0
 [1.12.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.0...v1.10.1

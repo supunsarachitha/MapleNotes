@@ -20,6 +20,7 @@ namespace MapleNotes.Server.Features.EndToEnd;
 /// <param name="encryption">Reports conversion progress.</param>
 /// <param name="cleanup">Deletes keys the account no longer needs.</param>
 /// <param name="signal">Wakes the background migration worker.</param>
+/// <param name="twoFactor">Checks two-factor codes for a reset that signs in.</param>
 /// <param name="time">Clock.</param>
 public sealed class EndToEndService(
     MapleDbContext db,
@@ -27,6 +28,7 @@ public sealed class EndToEndService(
     EncryptionSettingsService encryption,
     EncryptionKeyCleanup cleanup,
     EncryptionMigrationSignal signal,
+    TwoFactorService twoFactor,
     TimeProvider time)
 {
     /// <summary>Returns the account's wrapped end-to-end key.</summary>
@@ -181,6 +183,22 @@ public sealed class EndToEndService(
             return AccountResult.Fail(AccountError.Disabled);
         }
 
+        // The reset signs in, so it needs the second factor as well: a stolen recovery kit alone is not enough. Here a
+        // lockout does hold, or the reset would allow unlimited guesses at the code.
+        var now = time.GetUtcNow().UtcDateTime;
+        if (user.TwoFactorSecret is not null)
+        {
+            if (user.LockoutEndUtc > now)
+            {
+                return new AccountResult(null, AccountError.LockedOut, LockedUntilUtc: user.LockoutEndUtc);
+            }
+
+            if (await AccountService.CheckSecondFactorAsync(db, twoFactor, user, request.TwoFactorCode, now, cancellationToken) is { } refused)
+            {
+                return refused;
+            }
+        }
+
         user.KdfSalt = request.NewKdf.Salt;
         user.KdfMemoryKiB = request.NewKdf.MemoryKiB;
         user.KdfIterations = request.NewKdf.Iterations;
@@ -192,7 +210,7 @@ public sealed class EndToEndService(
         user.SecurityStamp = User.NewSecurityStamp();
         user.AccessFailedCount = 0;
         user.LockoutEndUtc = null;
-        user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
+        user.UpdatedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
         return AccountResult.Success(user);
     }

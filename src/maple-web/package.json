@@ -1,7 +1,7 @@
 {
   "name": "maple-web",
   "private": true,
-  "version": "1.12.0",
+  "version": "1.15.0",
   "description": "Maple Notes web client (React SPA served by MapleNotes.Server).",
   "license": "SEE LICENSE IN ../../LICENSE",
   "type": "module",
@@ -27,7 +27,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",
-    "remark-gfm": "4.0.1"
+    "remark-gfm": "4.0.1",
+    "uqr": "0.1.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

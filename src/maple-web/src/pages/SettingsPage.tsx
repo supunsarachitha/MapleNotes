@@ -23,6 +23,7 @@ import { LabelSettings } from "../components/LabelSettings";
 import { AppearanceSection, EditingSection, FeaturesSection, MenuSection, WritingSection } from "../components/PreferenceSections";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
+import { TwoFactorSection } from "../components/TwoFactorSection";
 import { VersionNote } from "../components/VersionNote";
 import { useToast } from "../components/Toaster";
 import { Button, cn, ErrorMessage, Section, Spinner, Switch, TextField } from "../components/ui";
@@ -666,6 +667,7 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
   const settings = useQuery({ queryKey: queryKeys.adminSettings, queryFn: api.admin.settings });
   const users = useQuery({ queryKey: queryKeys.adminUsers, queryFn: api.admin.users });
   const [toDelete, setToDelete] = useState<AdminUser | null>(null);
+  const [twoFactorOff, setTwoFactorOff] = useState<AdminUser | null>(null);
   const deleteUser = useMutation({
     mutationFn: (id: string) => api.admin.deleteUser(id),
     onSuccess: () => {
@@ -701,7 +703,7 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
   });
 
   const updateUser = useMutation({
-    mutationFn: ({ id, ...changes }: { id: string; isDisabled?: boolean; role?: AdminUser["role"] }) =>
+    mutationFn: ({ id, ...changes }: { id: string; isDisabled?: boolean; role?: AdminUser["role"]; turnOffTwoFactor?: boolean }) =>
       api.admin.updateUser(id, changes),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers }),
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Could not update the account."),
@@ -755,6 +757,7 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
                   </p>
                   <p className="text-xs text-stone-500 dark:text-stone-400">
                     {account.role === "Admin" ? "Administrator" : "Member"} · {account.noteCount} notes
+                    {account.twoFactorEnabled && <span className="ml-1">· Two-factor</span>}
                     {account.isDisabled && <span className="ml-1 font-medium text-red-700 dark:text-red-400">· Disabled</span>}
                   </p>
                 </div>
@@ -774,6 +777,11 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
                     >
                       {account.isDisabled ? "Enable" : "Disable"}
                     </Button>
+                    {account.twoFactorEnabled && (
+                      <Button variant="secondary" className="h-8 px-3 text-xs" onClick={() => setTwoFactorOff(account)}>
+                        Turn off two-factor
+                      </Button>
+                    )}
                     <Button variant="danger" className="h-8 px-3 text-xs" onClick={() => setToDelete(account)}>
                       Delete
                     </Button>
@@ -787,6 +795,26 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
         <p className="text-sm text-stone-500">Loading accounts…</p>
       )}
 
+      <ConfirmDialog
+        open={twoFactorOff !== null}
+        onOpenChange={(open) => !open && setTwoFactorOff(null)}
+        title={`Turn off two-factor sign-in for @${twoFactorOff?.username ?? ""}?`}
+        description="For someone who lost both their authenticator app and their recovery codes. Their password is still needed to sign in; make sure the request really comes from them."
+        confirmLabel="Turn off"
+        busy={updateUser.isPending}
+        onConfirm={() =>
+          twoFactorOff &&
+          updateUser.mutate(
+            { id: twoFactorOff.id, turnOffTwoFactor: true },
+            {
+              onSuccess: () => {
+                toast.info(`Two-factor sign-in is off for @${twoFactorOff.username}.`);
+                setTwoFactorOff(null);
+              },
+            },
+          )
+        }
+      />
       <ConfirmDialog
         open={toDelete !== null}
         onOpenChange={(open) => !open && setToDelete(null)}
@@ -818,7 +846,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "features", title: "Features", summary: "The pages and tools you use.", icon: ToggleRight },
   { id: "labels", title: "Labels", summary: "Coloured labels for your notes.", icon: Tag },
   { id: "data", title: "Backup & data", summary: "Export, restore, the trash and starting over.", icon: DatabaseBackup },
-  { id: "security", title: "Privacy & security", summary: "Your password, encryption, recovery key and sessions.", icon: ShieldCheck },
+  { id: "security", title: "Privacy & security", summary: "Your password, two-factor sign-in, encryption, recovery key and sessions.", icon: ShieldCheck },
   { id: "admin", title: "Administration", summary: "Accounts, sign-ups, storage and this server's name.", icon: Server, adminOnly: true },
 ];
 
@@ -851,6 +879,7 @@ function SectionContent({ id, user }: { id: string; user: User }) {
       return (
         <>
           <PasswordSection user={user} />
+          <TwoFactorSection user={user} />
           <EncryptionSection user={user} />
           {user.hasEndToEndKey && <RecoverySection user={user} />}
           <SessionsSection />

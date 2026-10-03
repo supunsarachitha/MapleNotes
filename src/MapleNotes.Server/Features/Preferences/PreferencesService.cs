@@ -22,8 +22,8 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
     /// <param name="preferences">The complete new preferences.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The saved preferences.</returns>
-    /// <exception cref="ApiValidationException">A choice is not one of those offered, or the menu order names an unknown
-    /// or repeated item.</exception>
+    /// <exception cref="ApiValidationException">A choice is not one of those offered, the menu order names an unknown
+    /// or repeated item, or the daily-note template is not a note ID.</exception>
     public async Task<UserPreferences> SetAsync(Guid userId, UserPreferences preferences, CancellationToken cancellationToken)
     {
         if (!UserPreferences.DateFormats.Contains(preferences.DateFormat, StringComparer.Ordinal))
@@ -65,7 +65,13 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
                 "menuOrder", $"List each of these at most once, separated by commas: {string.Join(",", UserPreferences.MenuItems)}.");
         }
 
-        preferences = preferences with { MenuOrder = menuOrder };
+        var template = preferences.DailyNoteTemplate ?? "";
+        if (template.Length > 0 && !Guid.TryParseExact(template, "D", out _))
+        {
+            throw new ApiValidationException("dailyNoteTemplate", "Give the ID of a note, or leave it empty for no template.");
+        }
+
+        preferences = preferences with { MenuOrder = menuOrder, DailyNoteTemplate = template.ToLowerInvariant() };
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
         user.Preferences = preferences;
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;

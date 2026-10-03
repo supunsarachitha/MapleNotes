@@ -30,6 +30,8 @@ import type {
   ProblemDetails,
   Tag,
   TagWire,
+  TwoFactorSetup,
+  TwoFactorStatus,
   User,
   UserRole,
 } from "./types";
@@ -238,7 +240,7 @@ export const api = {
 
   prelogin: (username: string) => request<Prelogin>("POST", "/api/v1/auth/prelogin", { username }),
 
-  async login(body: { username: string; authKey: string; rememberMe: boolean; password?: string }): Promise<User> {
+  async login(body: { username: string; authKey: string; rememberMe: boolean; password?: string; twoFactorCode?: string }): Promise<User> {
     const user = await request<User>("POST", "/api/v1/auth/login", body);
     await refreshAntiforgeryToken();
     return user;
@@ -333,6 +335,16 @@ export const api = {
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 409 || !readsEndToEnd()) throw error;
       return send(true);
+    }
+  },
+
+  /** One note, or null when it no longer exists. */
+  async note(id: string): Promise<Note | null> {
+    try {
+      return await decodeNote(await request<NoteWire>("GET", `/api/v1/notes/${id}`));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
     }
   },
 
@@ -446,11 +458,27 @@ export const api = {
       newWrappedKey: string;
       newRecoveryWrappedKey: string;
       newRecoveryAuthKey: string;
+      twoFactorCode?: string;
     }): Promise<User> {
       const user = await request<User>("POST", "/api/v1/auth/recovery/reset", body);
       await refreshAntiforgeryToken();
       return user;
     },
+  },
+
+  /** Optional two-factor sign-in with an authenticator app. */
+  twoFactor: {
+    status: () => request<TwoFactorStatus>("GET", "/api/v1/account/two-factor"),
+    setup: () => request<TwoFactorSetup>("POST", "/api/v1/account/two-factor/setup"),
+    /** Turns it on and returns the recovery codes. Other sessions end; this one is signed in again. */
+    async enable(body: { proof: CredentialProof; secret: string; code: string }): Promise<string[]> {
+      const { codes } = await request<{ codes: string[] }>("POST", "/api/v1/account/two-factor", body);
+      await refreshAntiforgeryToken();
+      return codes;
+    },
+    disable: (body: { proof: CredentialProof; code: string }) => request<void>("DELETE", "/api/v1/account/two-factor", body),
+    replaceRecoveryCodes: async (body: { proof: CredentialProof; code: string }) =>
+      (await request<{ codes: string[] }>("POST", "/api/v1/account/two-factor/recovery-codes", body)).codes,
   },
 
   /** Changes the name the app shows for this account; an empty name goes back to the username. */
@@ -474,7 +502,7 @@ export const api = {
     /** Replaces all the settings, so send every field. */
     updateSettings: (settings: InstanceSettings) => request<InstanceSettings>("PUT", "/api/v1/admin/settings", settings),
     users: () => request<AdminUser[]>("GET", "/api/v1/admin/users"),
-    updateUser: (id: string, changes: { isDisabled?: boolean; role?: UserRole }) =>
+    updateUser: (id: string, changes: { isDisabled?: boolean; role?: UserRole; turnOffTwoFactor?: boolean }) =>
       request<void>("PATCH", `/api/v1/admin/users/${id}`, changes),
     deleteUser: (id: string) => request<void>("DELETE", `/api/v1/admin/users/${id}`),
     /** The instance's totals on its data volume; never another account's usage. */

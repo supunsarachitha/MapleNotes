@@ -5,7 +5,7 @@ import { LabelDot } from "../components/Labels";
 import { NoteList } from "../components/NoteList";
 import { EmptyState } from "../components/ui";
 import { NoteCard } from "../components/NoteCard";
-import { useTodaysNote } from "../lib/daily";
+import { useDailyTemplate, useTodaysNote } from "../lib/daily";
 import { formatDate, parseDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
@@ -30,18 +30,22 @@ function FilterHeader({ icon: Icon, marker, label }: { icon: typeof Hash; marker
 
 const sectionHeading = "px-1 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400";
 
-/** With daily notes on: today's note, or a composer that starts it with the first words written. */
+/**
+ * With daily notes on: today's note, or a composer that starts it with the first words written. With a template, the
+ * composer starts with the template's text.
+ */
 function TodayCard({ today }: { today: ReturnType<typeof useTodaysNote> }) {
   const { date, title, query } = today;
+  const template = useDailyTemplate();
   return (
     <section aria-label="Today" className="flex flex-col gap-3">
       <h2 className={sectionHeading}>Today</h2>
-      {query.isPending ? (
+      {query.isPending || (!query.data && template.pending) ? (
         <div className="h-28 animate-pulse rounded-2xl bg-stone-200/70 dark:bg-stone-800/70" aria-busy="true" aria-label="Loading today's note" />
       ) : query.data ? (
         <NoteCard note={query.data} />
       ) : (
-        <Composer key={date} daily={{ date, title }} placeholder="Write about your day…" />
+        <Composer key={date} daily={{ date, title }} initialText={template.text} placeholder="Write about your day…" />
       )}
     </section>
   );

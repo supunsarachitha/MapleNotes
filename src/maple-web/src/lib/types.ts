@@ -17,6 +17,8 @@ export interface User {
   preferences: Preferences;
   /** For an account with an end-to-end key, the mode its owner chose, sealed by a browser (lib/modeRecord.ts). */
   endToEndModeRecord?: string | null;
+  /** Signing in needs a code from an authenticator app as well as the password. */
+  twoFactorEnabled?: boolean;
 }
 
 /** The date formats offered in Settings, as .NET-style patterns (formatted by lib/dates.ts). */
@@ -57,6 +59,8 @@ export interface Preferences {
   quickNotes: boolean;
   /** Show today's daily note at the top of Home. */
   dailyNotes: boolean;
+  /** The ID of the note whose text starts each new daily note, or "" for none. */
+  dailyNoteTemplate: string;
   /** Show a month calendar in the side menu. */
   calendar: boolean;
   /** Show the Habits tab. */
@@ -306,6 +310,22 @@ export interface AdminUser {
   isDisabled: boolean;
   noteCount: number;
   createdAtUtc: string;
+  /** The account signs in with an authenticator code as well as the password. */
+  twoFactorEnabled?: boolean;
+}
+
+/** Whether two-factor sign-in is on, and how many recovery codes are left. */
+export interface TwoFactorStatus {
+  enabled: boolean;
+  recoveryCodesLeft: number;
+}
+
+/** A new authenticator secret, not saved until a code from the app confirms it. */
+export interface TwoFactorSetup {
+  /** The secret in Base32, for typing into an app. */
+  secret: string;
+  /** The otpauth:// link, shown as a QR code. */
+  uri: string;
 }
 
 export interface EncryptionStatus {
@@ -333,4 +353,6 @@ export interface ProblemDetails {
   detail?: string;
   status?: number;
   errors?: Record<string, string[]>;
+  /** The password (or recovery key) was right, and a two-factor code is needed or was wrong. */
+  twoFactorRequired?: boolean;
 }

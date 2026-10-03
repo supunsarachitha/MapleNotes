@@ -62,6 +62,7 @@ export function Composer({
   kind = "Note",
   placeholder = "What's on your mind? Use #tags and **Markdown**.",
   daily,
+  initialText = "",
 }: {
   /** The note to edit; omit to write a new note. */
   note?: Note;
@@ -75,11 +76,13 @@ export function Composer({
   placeholder?: string;
   /** Starts a day's daily note: the title is the date and cannot be changed here. */
   daily?: { date: string; title: string };
+  /** The text a new note starts with, such as the daily-note template. */
+  initialText?: string;
 }) {
   const preferences = usePreferences();
   const withTitle = allowTitle && preferences.noteTitles && !daily;
   const suggestTitle = () => (!note && withTitle && preferences.dateInTitles ? formatDate(new Date(), preferences.dateFormat) : "");
-  const [initial] = useState(() => (note && withTitle ? splitTitle(note.content) : { title: "", body: note?.content ?? "" }));
+  const [initial] = useState(() => (note && withTitle ? splitTitle(note.content) : { title: "", body: note?.content ?? initialText }));
   const [suggested, setSuggested] = useState(suggestTitle);
   const [title, setTitle] = useState(() => initial.title || suggested);
   const [text, setText] = useState(initial.body);

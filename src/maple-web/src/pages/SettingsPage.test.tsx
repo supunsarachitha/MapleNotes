@@ -25,6 +25,7 @@ const user: User = {
 function renderSettings(status: EncryptionStatus, account: User = user, quotaBytes: number | null = null, path = "/settings") {
   window.history.replaceState(null, "", path);
   vi.spyOn(api, "encryption").mockResolvedValue(status);
+  vi.spyOn(api.twoFactor, "status").mockResolvedValue({ enabled: account.twoFactorEnabled ?? false, recoveryCodesLeft: account.twoFactorEnabled ? 10 : 0 });
   vi.spyOn(api, "storage").mockResolvedValue({
     notesBytes: 3 * 1024, noteCount: 12, filesBytes: 5 * 1024 * 1024, fileCount: 4, totalBytes: 5 * 1024 * 1024 + 3 * 1024, quotaBytes,
   });
@@ -68,7 +69,7 @@ describe("Settings", () => {
 
     expect(window.location.pathname).toBe("/settings/security");
     expect(screen.getByRole("heading", { level: 1, name: "Privacy & security" })).toBeInTheDocument();
-    for (const name of ["Password", "Encryption", "Sessions"]) {
+    for (const name of ["Password", "Two-factor sign-in", "Encryption", "Sessions"]) {
       expect(screen.getByRole("heading", { name })).toBeInTheDocument();
     }
     expect(sections.getByRole("link", { name: /^Privacy & security/ })).toHaveAttribute("aria-current", "page");
@@ -104,6 +105,48 @@ describe("Settings", () => {
     expect(remove).toHaveBeenCalledWith({ authKey: "derived-key" });
     expect(deleteAccount).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("turns on two-factor sign-in with a code from the app, then shows the recovery codes once", async () => {
+    vi.spyOn(auth, "proveIdentity").mockResolvedValue({ authKey: "derived-key" });
+    vi.spyOn(api.twoFactor, "setup").mockResolvedValue({
+      secret: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+      uri: "otpauth://totp/Maple%20Notes%3Amaple?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Maple%20Notes",
+    });
+    const codes = Array.from({ length: 10 }, (_, i) => `abcde-fgh${i + 2}k`);
+    const enable = vi.spyOn(api.twoFactor, "enable").mockResolvedValue(codes);
+    renderSettings(idle, user, null, "/settings/security");
+
+    await userEvent.click(screen.getByRole("button", { name: "Turn on two-factor sign-in…" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Turn on two-factor sign-in" }));
+    expect(await dialog.findByRole("img", { name: /QR code/ })).toBeInTheDocument();
+    expect(dialog.getByText("JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP")).toBeInTheDocument();
+    expect(dialog.getByRole("link", { name: "Open in authenticator app" })).toHaveAttribute("href", expect.stringMatching(/^otpauth:\/\/totp\//));
+    await userEvent.type(dialog.getByLabelText("Code from the app"), "123456");
+    await userEvent.type(dialog.getByLabelText("Your password"), "correct horse battery staple");
+    await userEvent.click(dialog.getByRole("button", { name: "Turn on" }));
+
+    const saved = within(await screen.findByRole("dialog", { name: "Save your recovery codes" }));
+    expect(enable).toHaveBeenCalledWith({ proof: { authKey: "derived-key" }, secret: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP", code: "123456" });
+    expect(within(saved.getByRole("list", { name: "Recovery codes" })).getAllByRole("listitem")).toHaveLength(10);
+    await userEvent.click(saved.getByRole("button", { name: "I saved them" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("turns two-factor sign-in off with the password and a code", async () => {
+    vi.spyOn(auth, "proveIdentity").mockResolvedValue({ authKey: "derived-key" });
+    const disable = vi.spyOn(api.twoFactor, "disable").mockResolvedValue();
+    renderSettings(idle, { ...user, twoFactorEnabled: true }, null, "/settings/security");
+
+    expect(await screen.findByText("10 recovery codes left.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Turn off…" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Turn off two-factor sign-in?" }));
+    await userEvent.type(dialog.getByLabelText("Code from your app, or a recovery code"), "abcde-fghjk");
+    await userEvent.type(dialog.getByLabelText("Your password"), "correct horse battery staple");
+    await userEvent.click(dialog.getByRole("button", { name: "Turn off" }));
+
+    await waitFor(() => expect(disable).toHaveBeenCalledWith({ proof: { authKey: "derived-key" }, code: "abcde-fghjk" }));
+    expect(await screen.findByText("Two-factor sign-in is off.")).toBeInTheDocument();
   });
 
   it("shows in the list of sections that notes are being converted", async () => {

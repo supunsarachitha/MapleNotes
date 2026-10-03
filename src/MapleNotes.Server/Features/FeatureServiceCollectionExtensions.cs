@@ -21,6 +21,7 @@ internal static class FeatureServiceCollectionExtensions
     public static IServiceCollection AddMapleFeatures(this IServiceCollection services)
     {
         services.AddScoped<AccountService>();
+        services.AddScoped<TwoFactorService>();
         services.AddScoped<AccountDeletionService>();
         services.AddScoped<InstanceSettingsService>();
         services.AddScoped<UserAdministrationService>();

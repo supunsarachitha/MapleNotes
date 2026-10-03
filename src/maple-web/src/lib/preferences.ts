@@ -14,6 +14,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   todoLists: true,
   quickNotes: true,
   dailyNotes: false,
+  dailyNoteTemplate: "",
   calendar: true,
   habitTracker: false,
   archive: true,

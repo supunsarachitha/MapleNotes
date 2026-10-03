@@ -134,13 +134,17 @@ public sealed class AuthController(
     }
 
     /// <summary>Signs in with a username and the authentication key derived from the password.</summary>
-    /// <remarks>After 5 consecutive failures the account is locked for 15 minutes.</remarks>
+    /// <remarks>
+    /// After 5 consecutive failures the account is locked for 15 minutes. For an account with two-factor sign-in, a right
+    /// password without <c>twoFactorCode</c> gets 401 with <c>twoFactorRequired: true</c>; a wrong code gets the same
+    /// answer with another title and counts as a failure.
+    /// </remarks>
     /// <param name="request">Credentials and whether to keep the session for 30 days.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The signed-in account.</returns>
     /// <response code="200">Signed in; the session cookie is set.</response>
     /// <response code="400">The authentication key is malformed.</response>
-    /// <response code="401">Unknown username or wrong password.</response>
+    /// <response code="401">Unknown username or wrong password, or a two-factor code is needed or wrong.</response>
     /// <response code="403">The account is disabled.</response>
     /// <response code="429">Locked out or rate-limited; see the Retry-After header.</response>
     [HttpPost("login")]
@@ -162,14 +166,11 @@ public sealed class AuthController(
             case AccountError.InvalidInput:
                 return ValidationProblem(new ValidationProblemDetails(result.ValidationErrors!.ToDictionary()));
             case AccountError.LockedOut:
-                var seconds = Math.Max(1, (int)Math.Ceiling((result.LockedUntilUtc!.Value - time.GetUtcNow().UtcDateTime).TotalSeconds));
-                Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
-                return Problem(
-                    statusCode: StatusCodes.Status429TooManyRequests,
-                    title: "Too many failed sign-in attempts.",
-                    detail: $"Try again in {Math.Ceiling(seconds / 60.0)} minute(s).");
+                return LockedOut(this, result, time);
             case AccountError.Disabled:
                 return Problem(statusCode: StatusCodes.Status403Forbidden, title: "This account has been disabled by an administrator.");
+            case AccountError.TwoFactorRequired or AccountError.InvalidTwoFactorCode:
+                return TwoFactorProblem(this, result.Error);
             default:
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Incorrect username or password.");
         }
@@ -264,6 +265,39 @@ public sealed class AuthController(
         await accounts.RevokeSessionsAsync(User.GetUserId(), cancellationToken);
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return NoContent();
+    }
+
+    /// <summary>The answer to a sign-in refused because of repeated failures, with a Retry-After header.</summary>
+    /// <param name="controller">The controller answering.</param>
+    /// <param name="result">The refusal, with the end of the lockout.</param>
+    /// <param name="time">Clock.</param>
+    /// <returns>A 429 problem.</returns>
+    internal static ObjectResult LockedOut(ControllerBase controller, AccountResult result, TimeProvider time)
+    {
+        var seconds = Math.Max(1, (int)Math.Ceiling((result.LockedUntilUtc!.Value - time.GetUtcNow().UtcDateTime).TotalSeconds));
+        controller.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+        return controller.Problem(
+            statusCode: StatusCodes.Status429TooManyRequests,
+            title: "Too many failed sign-in attempts.",
+            detail: $"Try again in {Math.Ceiling(seconds / 60.0)} minute(s).");
+    }
+
+    /// <summary>
+    /// The answer when a two-factor code is missing or wrong: 401 with <c>twoFactorRequired: true</c>, which tells the
+    /// browser to ask for the code and send the request again with it.
+    /// </summary>
+    /// <param name="controller">The controller answering.</param>
+    /// <param name="error"><see cref="AccountError.TwoFactorRequired"/> or <see cref="AccountError.InvalidTwoFactorCode"/>.</param>
+    /// <returns>A 401 problem.</returns>
+    internal static ObjectResult TwoFactorProblem(ControllerBase controller, AccountError error)
+    {
+        var result = (ObjectResult)controller.Problem(
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: error == AccountError.TwoFactorRequired
+                ? "Enter the code from your authenticator app."
+                : "That code is not correct.");
+        ((ProblemDetails)result.Value!).Extensions["twoFactorRequired"] = true;
+        return result;
     }
 
     private Task SignInAsync(User user, bool isPersistent) => SessionSignIn.SignInAsync(HttpContext, user, isPersistent);

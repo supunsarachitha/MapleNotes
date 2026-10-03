@@ -61,6 +61,13 @@ public sealed record UserPreferences
     /// <summary>Show today's daily note at the top of Home.</summary>
     public bool DailyNotes { get; init; }
 
+    /// <summary>
+    /// The ID of one of the account's notes whose text starts each new daily note, or empty (the default) for none. Only
+    /// the ID is kept here: the template is an ordinary note, so its text is protected like any other note, also in
+    /// end-to-end mode.
+    /// </summary>
+    public string DailyNoteTemplate { get; init; } = "";
+
     /// <summary>Show a month calendar in the side menu for finding notes by date.</summary>
     public bool Calendar { get; init; } = true;
 

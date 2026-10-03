@@ -168,3 +168,32 @@ describe("notes written offline", () => {
     expect(screen.queryByText("Not saved yet")).not.toBeInTheDocument();
   });
 });
+
+describe("Daily-note template", () => {
+  it("makes a note the template from its menu, and stops using it the same way", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderWith(<NoteCard note={note} />, { dailyNotes: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Note actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Use as daily-note template" }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ dailyNoteTemplate: "n1" })));
+    expect(await screen.findByText("New daily notes start with this note's text.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Note actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Stop using as daily template" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ dailyNoteTemplate: "" })));
+  });
+
+  it("is offered only with daily notes on, and not for daily notes themselves", async () => {
+    const { unmount } = renderWith(<NoteCard note={note} />, { dailyNotes: false });
+    await userEvent.click(screen.getByRole("button", { name: "Note actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Copy text" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /daily-note template/ })).not.toBeInTheDocument();
+    unmount();
+
+    renderWith(<NoteCard note={{ ...note, id: "d1", dailyDate: "2026-09-29" }} />, { dailyNotes: true });
+    await userEvent.click(screen.getByRole("button", { name: "Note actions" }));
+    expect(await screen.findByRole("menuitem", { name: "Copy text" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /daily-note template/ })).not.toBeInTheDocument();
+  });
+});

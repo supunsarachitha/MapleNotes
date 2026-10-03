@@ -78,12 +78,14 @@ public sealed class ApiClient : IDisposable
     }
 
     /// <summary>Signs in like the web app: prelogin, derive the keys, send the authentication key.</summary>
-    public async Task<HttpResponseMessage> LoginAsync(string username, string password = DefaultPassword, bool rememberMe = false)
+    public async Task<HttpResponseMessage> LoginAsync(
+        string username, string password = DefaultPassword, bool rememberMe = false, string? twoFactorCode = null)
     {
         await RefreshAntiforgeryTokenAsync();
         var prelogin = await PreloginAsync(username);
         var request = new LoginRequest(
-            username, DeriveKeys(password, prelogin.Kdf).AuthKey, rememberMe, Password: prelogin.Upgrade ? password : null);
+            username, DeriveKeys(password, prelogin.Kdf).AuthKey, rememberMe, Password: prelogin.Upgrade ? password : null,
+            TwoFactorCode: twoFactorCode);
         var response = await Http.PostAsJsonAsync("/api/v1/auth/login", request, Json, Ct);
         await AfterSignInAttemptAsync(response, username);
         return response;
@@ -169,6 +171,9 @@ public sealed class ApiClient : IDisposable
     public Task<HttpResponseMessage> PostAsync(string url) => Http.PostAsync(url, content: null, Ct);
 
     public Task<HttpResponseMessage> DeleteAsync(string url) => Http.DeleteAsync(url, Ct);
+
+    public Task<HttpResponseMessage> DeleteJsonAsync<T>(string url, T body) =>
+        Http.SendAsync(new HttpRequestMessage(HttpMethod.Delete, url) { Content = JsonContent.Create(body, options: Json) }, Ct);
 
     public void Dispose() => Http.Dispose();
 

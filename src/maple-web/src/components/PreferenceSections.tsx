@@ -1,10 +1,12 @@
 import { Monitor, Moon, Sun, TriangleAlert } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { ACCENT_COLORS } from "../lib/appearance";
+import { useDailyTemplate } from "../lib/daily";
 import { formatDate } from "../lib/dates";
 import { usePreferences, useUpdatePreferences } from "../lib/preferences";
 import { useAuthStatus } from "../lib/queries";
 import { PHOTO_PRESETS } from "../lib/shrinkPhoto";
+import { splitTitle } from "../lib/titles";
 import {
   ACCENTS,
   DATE_FORMATS,
@@ -230,6 +232,48 @@ function PhotoSizeChoice({ value, onChange }: { value: PhotoSize; onChange: (siz
 }
 
 /** Which pages and tools the app shows. Turning one off hides it but keeps its notes. */
+/** Which note new daily notes start with, if any; a note becomes the template from its ⋯ menu. */
+function DailyTemplateSetting({ onClear }: { onClear: () => void }) {
+  const template = useDailyTemplate();
+  const name = template.note ? splitTitle(template.note.content).title || firstLine(template.note.content) : "";
+  return (
+    <div className="flex items-start justify-between gap-4 py-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium">Daily-note template</p>
+        <p className="text-sm text-stone-600 dark:text-stone-300">
+          {template.id === "" ? (
+            <>New daily notes start empty. To start them with a note's text, choose “Use as daily-note template” from that note's ⋯ menu.</>
+          ) : template.note ? (
+            <>
+              New daily notes start with the text of <span className="font-medium">“{name || "an empty note"}”</span>.
+            </>
+          ) : template.pending ? (
+            "Loading…"
+          ) : template.failed ? (
+            "The template note could not be loaded."
+          ) : (
+            "The template note was deleted or is in the trash, so new daily notes start empty."
+          )}
+        </p>
+      </div>
+      {template.id !== "" && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="shrink-0 text-sm font-medium text-maple-700 underline-offset-2 hover:underline dark:text-maple-400"
+        >
+          Stop using
+        </button>
+      )}
+    </div>
+  );
+}
+
+const firstLine = (content: string) => {
+  const line = content.split("\n").find((candidate) => candidate.trim()) ?? "";
+  return line.length > 60 ? `${line.slice(0, 60)}…` : line.trim();
+};
+
 export function FeaturesSection() {
   const preferences = usePreferences();
   const save = useSavePreferences();
@@ -288,6 +332,7 @@ export function FeaturesSection() {
             checked={preferences.dailyNotes}
             onChange={(dailyNotes) => save({ dailyNotes })}
           />
+          {preferences.dailyNotes && <DailyTemplateSetting onClear={() => save({ dailyNoteTemplate: "" })} />}
           <PreferenceSwitch
             label="Calendar"
             description="A month calendar in the side menu. Days with notes are marked; choose one to see its notes."
