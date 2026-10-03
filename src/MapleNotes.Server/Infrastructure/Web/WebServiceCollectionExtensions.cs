@@ -94,7 +94,7 @@ internal static class WebServiceCollectionExtensions
             foreach (var policy in new[] { RateLimitPolicies.Authentication, RateLimitPolicies.Prelogin })
             {
                 limiter.AddPolicy(policy, context => RateLimitPartition.GetFixedWindowLimiter(
-                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    RateLimitPolicies.ClientPartition(context.Connection.RemoteIpAddress),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = options.AuthenticationRateLimit,
@@ -104,7 +104,7 @@ internal static class WebServiceCollectionExtensions
             }
 
             limiter.AddPolicy(RateLimitPolicies.LinkPreview, context => RateLimitPartition.GetFixedWindowLimiter(
-                context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? RateLimitPolicies.ClientPartition(context.Connection.RemoteIpAddress),
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
         });
 
