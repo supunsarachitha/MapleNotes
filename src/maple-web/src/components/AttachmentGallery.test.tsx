@@ -45,6 +45,15 @@ describe("AttachmentGallery", () => {
     expect(fetchDecrypted).toHaveBeenCalledWith(encrypted);
   });
 
+  it("names end-to-end files decrypted in the page when they are downloaded", async () => {
+    onScreen();
+    render(<AttachmentGallery attachments={[{ ...encrypted, isImage: false, contentType: "application/pdf", fileName: "a.pdf" }]} />);
+
+    const link = await screen.findByRole("link", { name: /a\.pdf/ }); // a link once its decrypted file is ready
+    expect(link.getAttribute("href")).toMatch(/^blob:/);
+    expect(link).toHaveAttribute("download", "a.pdf");
+  });
+
   it("decrypts nothing for notes far off screen", async () => {
     vi.mocked(fetchDecrypted).mockClear();
     const film: Attachment = { ...encrypted, id: "0192f3a3-1111-7222-8333-444455550000", fileName: "film.mp4", contentType: "video/mp4", isImage: false };
@@ -81,6 +90,7 @@ describe("AttachmentGallery", () => {
     await user.keyboard("{ArrowLeft}");
     expect(within(viewer).getByText("3 / 3")).toBeInTheDocument();
     expect(within(viewer).getByRole("link", { name: "Download photo-3.png" })).toHaveAttribute("href", "/a/3?download=true");
+    expect(within(viewer).getByRole("link", { name: "Download photo-3.png" })).not.toHaveAttribute("download"); // the server names it
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

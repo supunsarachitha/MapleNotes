@@ -1,7 +1,7 @@
 import { FileText, Play } from "lucide-react";
 import { useRef, useState } from "react";
 import { formatBytes } from "../lib/format";
-import { useAttachmentSrc } from "../lib/mediaWorker";
+import { downloadName, useAttachmentSrc } from "../lib/mediaWorker";
 import type { Attachment } from "../lib/types";
 import { useNearViewport } from "../lib/viewport";
 import { ImageViewer } from "./ImageViewer";
@@ -80,7 +80,7 @@ function FileLink({ file }: { file: Attachment }) {
     <a
       ref={link}
       href={href}
-      download={file.endToEnd ? file.fileName : undefined}
+      download={downloadName(file, href)}
       aria-disabled={!href}
       className="inline-flex max-w-full items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800"
     >

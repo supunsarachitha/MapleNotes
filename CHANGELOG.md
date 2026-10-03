@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-10-03
+
+### Fixed
+
+- With end-to-end encryption, downloading an image from the image viewer, or a file from its chip, failed in browsers
+  that use the app's media service worker (most of them). The links asked the browser to download directly, which
+  skips the service worker, so the request reached the server, which cannot decrypt the file and answered "not
+  found". They now go through the service worker, which decrypts the file and names it.
+
 ## [1.10.0] - 2026-10-02
 
 ### Added
@@ -450,7 +459,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.1...HEAD
+[1.10.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.0...v1.8.1

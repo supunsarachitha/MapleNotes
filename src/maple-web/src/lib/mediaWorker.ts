@@ -48,6 +48,16 @@ export function useMediaWorker(): boolean {
 }
 
 /**
+ * The `download` attribute for a link to an attachment: the file's name for a blob: URL, which has no name of its own,
+ * and nothing otherwise. The server's and the media worker's URLs name the file themselves (`Content-Disposition`), and
+ * browsers do not pass requests from links with a `download` attribute to service workers: such a link to the worker's
+ * /e2ee/… URL would reach the server instead, which answers it with 404, and the download would fail.
+ */
+export function downloadName(attachment: Pick<Attachment, "fileName">, href: string | undefined): string | undefined {
+  return href?.startsWith("blob:") ? attachment.fileName : undefined;
+}
+
+/**
  * Where to load an attachment from: its own URL for a plain file; for an end-to-end file the service worker's URL,
  * or, without the worker, the whole file decrypted into a blob: URL (undefined while that loads). With `load: false`
  * nothing is downloaded yet, for a file still far off screen; the decryption starts when it becomes true.
