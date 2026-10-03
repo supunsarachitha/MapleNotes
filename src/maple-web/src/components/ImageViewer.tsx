@@ -1,7 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
 import { useRef, type KeyboardEvent, type PointerEvent } from "react";
-import { useAttachmentSrc } from "../lib/mediaWorker";
+import { downloadName, useAttachmentSrc } from "../lib/mediaWorker";
 import type { Attachment } from "../lib/types";
 import { Spinner, cn } from "./ui";
 
@@ -20,7 +20,7 @@ function ViewerImage({ image }: { image: Attachment }) {
 function DownloadLink({ image }: { image: Attachment }) {
   const href = useAttachmentSrc(image, { download: true });
   return (
-    <a href={href} download={image.endToEnd ? image.fileName : undefined} aria-label={`Download ${image.fileName}`} className={control}>
+    <a href={href} download={downloadName(image, href)} aria-label={`Download ${image.fileName}`} className={control}>
       <Download className="size-5" />
     </a>
   );

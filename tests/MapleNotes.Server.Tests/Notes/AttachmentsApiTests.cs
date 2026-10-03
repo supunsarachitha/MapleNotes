@@ -77,6 +77,18 @@ public sealed class AttachmentsApiTests : IAsyncLifetime
         Assert.Contains("sandbox", Assert.Single(response.Headers.GetValues("Content-Security-Policy")), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Images_download_under_their_name_when_asked()
+    {
+        var attachment = await UploadAsync([.. PngHeader, .. new byte[100]], "beach day.png", "image/png");
+
+        var response = await _client.GetAsync($"{attachment.Url}&download=true"); // the web app's download links
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("attachment", response.Content.Headers.ContentDisposition!.DispositionType);
+        Assert.Equal("beach day.png", response.Content.Headers.ContentDisposition.FileNameStar ?? response.Content.Headers.ContentDisposition.FileName);
+    }
+
     [Theory]
     [InlineData("drawing.svg", "image/svg+xml")]
     [InlineData("page.html", "text/html")]
