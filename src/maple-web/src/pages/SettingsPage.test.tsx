@@ -22,14 +22,20 @@ const user: User = {
 };
 
 /** Renders Settings at an address: /settings, or one section such as /settings/features. */
-function renderSettings(status: EncryptionStatus, account: User = user, quotaBytes: number | null = null, path = "/settings") {
+function renderSettings(
+  status: EncryptionStatus,
+  account: User = user,
+  quotaBytes: number | null = null,
+  path = "/settings",
+  signIn: Partial<AuthStatus> = {},
+) {
   window.history.replaceState(null, "", path);
   vi.spyOn(api, "encryption").mockResolvedValue(status);
   vi.spyOn(api, "storage").mockResolvedValue({
     notesBytes: 3 * 1024, noteCount: 12, filesBytes: 5 * 1024 * 1024, fileCount: 4, totalBytes: 5 * 1024 * 1024 + 3 * 1024, quotaBytes,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData<AuthStatus>(queryKeys.status, { setupRequired: false, registrationOpen: false, user: account });
+  client.setQueryData<AuthStatus>(queryKeys.status, { setupRequired: false, registrationOpen: false, user: account, ...signIn });
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -228,14 +234,14 @@ describe("Settings", () => {
   });
 
   it("lets administrators rename the app", async () => {
-    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30 });
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30, deviceNotebooks: false });
     const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
     renderSettings(idle, { ...user, role: "Admin" }, null, "/settings/admin");
 
     await userEvent.type(await screen.findByLabelText("App name"), "Family Notes");
     await userEvent.click(screen.getByRole("button", { name: "Save name" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: null, appName: "Family Notes", sessionDays: 30 }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: null, appName: "Family Notes", sessionDays: 30, deviceNotebooks: false }));
     expect(await screen.findByText("The app is now called Family Notes.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose icon…" })).toBeInTheDocument();
   });
@@ -279,7 +285,7 @@ describe("Settings", () => {
   });
 
   it("lets administrators set a storage limit for every account", async () => {
-    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30 });
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30, deviceNotebooks: false });
     const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
     renderSettings(idle, { ...user, role: "Admin" }, null, "/settings/admin");
     const limit = await screen.findByRole("switch", { name: "Storage limit" });
@@ -299,13 +305,13 @@ describe("Settings", () => {
     await userEvent.type(amount, "1.5");
     await userEvent.click(screen.getByRole("button", { name: "Save limit" }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: 1536, appName: null, sessionDays: 30 }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: 1536, appName: null, sessionDays: 30, deviceNotebooks: false }));
     expect(await screen.findByText("Each account can now store up to 1.5 GB.")).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Storage limit" })).toHaveAttribute("aria-checked", "true");
   });
 
   it("keeps the storage limit when registration changes, and removes it with its switch", async () => {
-    mockAdmin({ allowRegistration: true, storageQuotaMb: 2048, appName: null, sessionDays: 30 });
+    mockAdmin({ allowRegistration: true, storageQuotaMb: 2048, appName: null, sessionDays: 30, deviceNotebooks: false });
     const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
     renderSettings(idle, { ...user, role: "Admin" }, null, "/settings/admin");
     const limit = await screen.findByRole("switch", { name: "Storage limit" });
@@ -313,16 +319,16 @@ describe("Settings", () => {
     expect(screen.getByLabelText("Per account")).toHaveValue(2);
 
     await userEvent.click(screen.getByRole("switch", { name: "Open registration" }));
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: 2048, appName: null, sessionDays: 30 }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: 2048, appName: null, sessionDays: 30, deviceNotebooks: false }));
 
     await userEvent.click(screen.getByRole("switch", { name: "Storage limit" }));
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30 }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30, deviceNotebooks: false }));
     expect(await screen.findByText("Storage limit removed.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Per account")).not.toBeInTheDocument();
   });
 
   it("lets administrators choose how long devices stay signed in", async () => {
-    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30 });
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30, deviceNotebooks: false });
     const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
     renderSettings(idle, { ...user, role: "Admin" }, null, "/settings/admin");
 
@@ -330,12 +336,12 @@ describe("Settings", () => {
     expect(length).toHaveValue("30");
     await userEvent.selectOptions(length, "400");
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 400 }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 400, deviceNotebooks: false }));
     expect(await screen.findByText(/stay signed in for 400 days/i)).toBeInTheDocument();
   });
 
   it("lets administrators compact the database", async () => {
-    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30 });
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30, deviceNotebooks: false });
     const compact = vi.spyOn(api.admin, "compactDatabase").mockResolvedValue({ bytesBefore: 12 * 1024 * 1024, bytesAfter: 3 * 1024 * 1024 });
     renderSettings(idle, { ...user, role: "Admin" }, null, "/settings/admin");
 
@@ -346,7 +352,7 @@ describe("Settings", () => {
   });
 
   it("shows administrators the server's totals", async () => {
-    vi.spyOn(api.admin, "settings").mockResolvedValue({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30 });
+    vi.spyOn(api.admin, "settings").mockResolvedValue({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30, deviceNotebooks: false });
     vi.spyOn(api.admin, "users").mockResolvedValue([]);
     vi.spyOn(api.admin, "storage").mockResolvedValue({
       databaseBytes: 2 * 1024 * 1024, filesBytes: 40 * 1024 * 1024, backupsBytes: 6 * 1024 * 1024, freeBytes: 20 * 1024 ** 3, totalBytes: 48 * 1024 * 1024,
@@ -436,9 +442,37 @@ describe("Settings", () => {
   });
 
   it("shows Administration to administrators only", () => {
-    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30 });
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30, deviceNotebooks: false });
     renderSettings(idle, { ...user, role: "Admin" });
 
     expect(screen.getByRole("link", { name: /^Administration/ })).toHaveAttribute("href", "/settings/admin");
+  });
+
+  it("lets administrators offer notebooks on devices", async () => {
+    mockAdmin({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30, deviceNotebooks: false });
+    const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
+    renderSettings(idle, { ...user, role: "Admin" }, null, "/settings/admin");
+    const offer = await screen.findByRole("switch", { name: "Notebooks on devices" });
+    expect(offer).toHaveAttribute("aria-checked", "false");
+
+    await userEvent.click(offer);
+
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith({ allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30, deviceNotebooks: true }),
+    );
+    expect(await screen.findByText("The installed app now offers a notebook on the device.")).toBeInTheDocument();
+  });
+
+  it("shows a notebook on the device its own settings: no password, encryption or sessions", async () => {
+    const notebook: User = { ...user, username: "", displayName: "Field notes", encryptionMode: "Off" };
+    renderSettings({ ...idle, mode: "Off" }, notebook, null, "/settings", { onDevice: true });
+    const sections = within(screen.getByRole("navigation", { name: "Settings sections" }));
+
+    expect(sections.queryByRole("link", { name: /^Privacy & security/ })).not.toBeInTheDocument();
+    expect(sections.getByRole("link", { name: /^Notebook/ })).toHaveAttribute("href", "/settings/account");
+    expect(screen.getByRole("heading", { name: "About this notebook" })).toBeInTheDocument();
+    expect(screen.getByText("Field notes")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete this notebook…" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete my account…" })).not.toBeInTheDocument();
   });
 });

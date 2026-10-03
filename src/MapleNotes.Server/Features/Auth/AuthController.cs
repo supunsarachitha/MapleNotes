@@ -64,7 +64,9 @@ public sealed class AuthController(
             await instanceSettings.GetAppNameAsync(cancellationToken) ?? InstanceSettingsService.DefaultAppName,
             iconVersion is null ? null : $"/api/v1/branding/icon?v={iconVersion}");
         var version = current is null ? null : typeof(AuthController).Assembly.GetName().Version?.ToString(3);
-        return new AuthStatusResponse(setupRequired, registrationOpen, current, options.LinkPreviews, branding, version, persistent);
+        var deviceNotebooks = await instanceSettings.AreDeviceNotebooksAllowedAsync(cancellationToken);
+        return new AuthStatusResponse(
+            setupRequired, registrationOpen, current, options.LinkPreviews, branding, version, persistent, deviceNotebooks);
     }
 
     /// <summary>Issues an antiforgery token for the current visitor and sets its companion cookie.</summary>

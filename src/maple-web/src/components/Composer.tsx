@@ -8,7 +8,7 @@ import { focusAtEnd } from "../lib/focus";
 import { formatBytes } from "../lib/format";
 import { usePreferences } from "../lib/preferences";
 import { shrinkPhoto } from "../lib/shrinkPhoto";
-import { useInvalidateNotes } from "../lib/queries";
+import { useAuthStatus, useInvalidateNotes } from "../lib/queries";
 import { saveDailyNote } from "../lib/daily";
 import { joinTitle, splitTitle } from "../lib/titles";
 import type { Attachment, Note, NoteKind } from "../lib/types";
@@ -92,6 +92,8 @@ export function Composer({
   const toast = useToast();
   const suggestions = useTagSuggestions(textarea, setText, preferences.tagSuggestions);
   const editing = note !== undefined;
+  // A notebook kept on this device holds text only (lib/deviceNotebook.ts).
+  const filesAllowed = useAuthStatus().data?.onDevice !== true;
 
   // Grow the text box with its content, up to a comfortable maximum.
   useLayoutEffect(() => {
@@ -132,6 +134,10 @@ export function Composer({
   }
 
   function addFiles(list: FileList | File[]) {
+    if (!filesAllowed) {
+      toast.error("A notebook kept on this device cannot hold files.");
+      return;
+    }
     for (const file of Array.from(list)) {
       const key = `new-${nextKey++}`;
       const isImage = file.type.startsWith("image/") && file.type !== "image/svg+xml";
@@ -349,9 +355,11 @@ export function Composer({
             event.target.value = "";
           }}
         />
-        <IconButton label="Attach files" onClick={() => fileInput.current?.click()}>
-          <Paperclip className="size-5" />
-        </IconButton>
+        {filesAllowed && (
+          <IconButton label="Attach files" onClick={() => fileInput.current?.click()}>
+            <Paperclip className="size-5" />
+          </IconButton>
+        )}
         {content.length > MAX_LENGTH * 0.9 && (
           <span className={cn("text-xs", content.length > MAX_LENGTH ? "text-red-700" : "text-stone-500")}>
             {content.length.toLocaleString()} / {MAX_LENGTH.toLocaleString()}

@@ -222,4 +222,22 @@ describe("running a restore", () => {
     expect(result).toMatchObject({ total: 4, done: 4, imported: 2, skipped: 1, files: 2, failed: [{ source: "bad.md", reason: "Write something or attach a file." }] });
     expect(updates).toEqual([0, 1, 2, 3, 4]);
   });
+
+  it("restores notes without their files into a notebook on the device, and says so", async () => {
+    const api = {
+      existingNotes: vi.fn(async () => []),
+      importNote: vi.fn(async (_note: { id: string | null }, _attachmentIds: string[]) => ({ imported: true, note: {} as Note })),
+      deleteAttachment: vi.fn(async () => undefined),
+      labels: { list: vi.fn(async () => []), create: vi.fn() },
+    };
+
+    const result = await runImport([item("0192f3a2-0000-7000-8000-000000000001", 2), item(null)], () => undefined, { api, upload: null });
+
+    expect(api.importNote.mock.calls.map(([, ids]) => ids)).toEqual([[], []]);
+    expect(result).toMatchObject({
+      imported: 2,
+      files: 0,
+      failed: [{ source: "0192f3a2-0000-7000-8000-000000000001.md", reason: "Restored without its files: a notebook on this device cannot hold files." }],
+    });
+  });
 });

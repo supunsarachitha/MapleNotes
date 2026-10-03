@@ -29,6 +29,7 @@ import { Button, cn, ErrorMessage, Section, Spinner, Switch, TextField } from ".
 import { api, ApiError } from "../lib/api";
 import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
 import { DEFAULT_APP_NAME, useBranding } from "../lib/branding";
+import { deleteNotebook } from "../lib/deviceNotebook";
 import { e2ee } from "../lib/e2ee";
 import { focusAtEndRef } from "../lib/focus";
 import { formatAbsolute, formatBytes } from "../lib/format";
@@ -165,6 +166,65 @@ function ProfileSection({ user }: { user: User }) {
         <dt className="text-stone-500 dark:text-stone-400">Member since</dt>
         <dd>{formatAbsolute(user.createdAtUtc)}</dd>
       </dl>
+    </Section>
+  );
+}
+
+/** The notebook kept on this device in place of an account: its name, and that it lives only here. */
+function NotebookProfileSection({ user }: { user: User }) {
+  return (
+    <Section title="About this notebook" description="These notes are kept only in this app on this device. They are not on any server.">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+        <dt className="text-stone-500 dark:text-stone-400">Name</dt>
+        <DisplayNameRow user={user} />
+        <dt className="text-stone-500 dark:text-stone-400">Created</dt>
+        <dd>{formatAbsolute(user.createdAtUtc)}</dd>
+      </dl>
+    </Section>
+  );
+}
+
+/** Deletes the notebook on this device, with every note in it: there is no copy anywhere else. */
+function DeleteNotebookSection() {
+  const queryClient = useQueryClient();
+  const signedOut = useSignedOut();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function remove() {
+    setBusy(true);
+    try {
+      await deleteNotebook();
+      queryClient.removeQueries({ queryKey: ["device-notebook"] });
+      setOpen(false);
+      signedOut();
+    } catch {
+      toast.error("Could not delete the notebook.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Section title="Delete notebook" description="Permanently delete this notebook and every note in it from this device.">
+      <Button variant="danger" onClick={() => setOpen(true)}>
+        Delete this notebook…
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Delete this notebook?"
+        description={
+          <>
+            <p>Every note, todo list, quick note, habit and label in it is deleted from this device. There is no other copy, so this cannot be undone.</p>
+            <p className="mt-2">Export your notes first if you might want them back.</p>
+          </>
+        }
+        confirmLabel="Delete forever"
+        busy={busy}
+        onConfirm={() => void remove()}
+      />
     </Section>
   );
 }
@@ -689,6 +749,13 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
       if (before && before.sessionDays !== saved.sessionDays) {
         toast.info(`Devices that sign in from now on stay signed in for ${saved.sessionDays} days after they were last used.`);
       }
+      if (before && before.deviceNotebooks !== saved.deviceNotebooks) {
+        toast.info(
+          saved.deviceNotebooks
+            ? "The installed app now offers a notebook on the device."
+            : "The app no longer offers new notebooks on devices. Notebooks already on devices keep working.",
+        );
+      }
       if (before && before.storageQuotaMb !== saved.storageQuotaMb) {
         toast.info(
           saved.storageQuotaMb === null
@@ -720,6 +787,21 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
           checked={settings.data?.allowRegistration ?? false}
           disabled={!settings.data || updateSettings.isPending}
           onCheckedChange={(checked) => settings.data && updateSettings.mutate({ ...settings.data, allowRegistration: checked })}
+        />
+      </div>
+      <div className="mt-5 flex items-center justify-between gap-4 border-t border-stone-100 pt-5 dark:border-stone-800">
+        <div>
+          <p className="text-sm font-medium">Notebooks on devices</p>
+          <p className="text-sm text-stone-600 dark:text-stone-300">
+            Let people use the installed app without an account, with notes kept only on their device. It works without
+            this server, which never sees those notes and cannot back them up.
+          </p>
+        </div>
+        <Switch
+          label="Notebooks on devices"
+          checked={settings.data?.deviceNotebooks ?? false}
+          disabled={!settings.data || updateSettings.isPending}
+          onCheckedChange={(checked) => settings.data && updateSettings.mutate({ ...settings.data, deviceNotebooks: checked })}
         />
       </div>
       {settings.data && (
@@ -807,6 +889,8 @@ interface SettingsSection {
   summary: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  /** Only for accounts on the server: a notebook kept on the device has no password, encryption or sessions. */
+  serverOnly?: boolean;
 }
 
 /** The sections of Settings, in the order of the list; each has its own address, /settings/{id}. */
@@ -818,11 +902,11 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "features", title: "Features", summary: "The pages and tools you use.", icon: ToggleRight },
   { id: "labels", title: "Labels", summary: "Coloured labels for your notes.", icon: Tag },
   { id: "data", title: "Backup & data", summary: "Export, restore, the trash and starting over.", icon: DatabaseBackup },
-  { id: "security", title: "Privacy & security", summary: "Your password, encryption, recovery key and sessions.", icon: ShieldCheck },
-  { id: "admin", title: "Administration", summary: "Accounts, sign-ups, storage and this server's name.", icon: Server, adminOnly: true },
+  { id: "security", title: "Privacy & security", summary: "Your password, encryption, recovery key and sessions.", icon: ShieldCheck, serverOnly: true },
+  { id: "admin", title: "Administration", summary: "Accounts, sign-ups, storage and this server's name.", icon: Server, adminOnly: true, serverOnly: true },
 ];
 
-function SectionContent({ id, user }: { id: string; user: User }) {
+function SectionContent({ id, user, onDevice }: { id: string; user: User; onDevice: boolean }) {
   switch (id) {
     case "appearance":
       return <AppearanceSection />;
@@ -844,7 +928,7 @@ function SectionContent({ id, user }: { id: string; user: User }) {
         <>
           <ExportSection user={user} />
           <TrashSection />
-          <DeleteContentSection username={user.username} />
+          {!onDevice && <DeleteContentSection username={user.username} />}
         </>
       );
     case "security":
@@ -859,7 +943,13 @@ function SectionContent({ id, user }: { id: string; user: User }) {
     case "admin":
       return <AdminSection currentUserId={user.id} />;
     default:
-      return (
+      return onDevice ? (
+        <>
+          <NotebookProfileSection user={user} />
+          <StorageSection />
+          <DeleteNotebookSection />
+        </>
+      ) : (
         <>
           <ProfileSection user={user} />
           <StorageSection />
@@ -876,7 +966,10 @@ function SectionContent({ id, user }: { id: string; user: User }) {
  */
 export function SettingsPage({ user }: { user: User }) {
   const { path } = useLocation();
-  const sections = SETTINGS_SECTIONS.filter((section) => !section.adminOnly || user.role === "Admin");
+  const onDevice = useAuthStatus().data?.onDevice === true;
+  const sections = SETTINGS_SECTIONS.filter(
+    (section) => (!section.adminOnly || user.role === "Admin") && (!section.serverOnly || !onDevice),
+  ).map((section) => (onDevice && section.id === "account" ? { ...section, title: "Notebook", summary: "Its name, how much it holds, and deleting it." } : section));
   const requested = path.startsWith("/settings/") ? path.slice("/settings/".length) : null;
   const current = sections.find((section) => section.id === requested) ?? null;
   const shown = current ?? sections[0]!;
@@ -937,7 +1030,7 @@ export function SettingsPage({ user }: { user: User }) {
           {current ? <h1 className="text-xl font-semibold">{shown.title}</h1> : <h2 className="text-xl font-semibold">{shown.title}</h2>}
           <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">{shown.summary}</p>
         </div>
-        <SectionContent key={shown.id} id={shown.id} user={user} />
+        <SectionContent key={shown.id} id={shown.id} user={user} onDevice={onDevice} />
       </div>
     </div>
   );

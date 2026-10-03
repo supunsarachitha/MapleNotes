@@ -139,6 +139,10 @@ export interface AuthStatus {
   version?: string | null;
   /** Whether this session was started with "keep me signed in"; only then are notes kept for offline reading. */
   sessionPersistent?: boolean;
+  /** Whether administrators let the installed app offer a notebook kept only on the device. */
+  deviceNotebooks?: boolean;
+  /** Set by the app, never the server: the user is the notebook on this device (lib/deviceNotebook.ts). */
+  onDevice?: boolean;
 }
 
 /** An attachment as components use it: an end-to-end file's name, type and size decrypted. */
@@ -287,6 +291,8 @@ export interface InstanceSettings {
   appName: string | null;
   /** How many days a session lasts after it was last used (1 to 400). */
   sessionDays: number;
+  /** Whether the installed app offers a notebook kept only on the device, which works without the server. */
+  deviceNotebooks: boolean;
 }
 
 /** What the instance stores on its data volume, for administrators (totals only). */

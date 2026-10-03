@@ -12,7 +12,8 @@ Features most note apps have.
    full app.
 2. **Offline use.** Since 1.12 the app opens offline and shows the notes read recently on a device that stays signed in,
    and new notes and edits made offline are saved once the server can be reached again. Searches, files, and other
-   changes (pinning, archiving, labels, the trash) still need a connection.
+   changes (pinning, archiving, labels, the trash) still need a connection. Where administrators allow it, the
+   installed app can instead keep a notebook on the device that needs no server at all, but does not sync.
 3. **Reminders and due dates.** Notes, todos and habits have no reminder, due date or notification.
 4. **Note history.** Earlier versions of a note cannot be seen or restored.
 5. **Sharing.** Nothing can be shared with another account or through a public link. End-to-end notes would need shared

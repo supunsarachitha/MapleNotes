@@ -62,6 +62,8 @@ sends to browsers. This includes an operator who is curious but not malicious.
   reports), or send the password itself (only a 1.0 account's first sign-in does, once). A browser that last saw the
   account end-to-end stops and asks if the server says its key is gone; a browser that has never seen the account
   cannot tell.
+- **Notebooks on the device:** protected. Their notes never leave the browser
+  ([architecture.md](architecture.md#notebooks-on-the-device)); the server only learns that the app was loaded.
 
 ### A server that is compromised and changes the app
 
@@ -73,6 +75,9 @@ password or the unlocked key elsewhere.
   captures the password at the next sign-in or unlock, or the unlocked key of an open session.
 - **What end-to-end encryption still gives:** content that was stored before the takeover, of users who do not sign
   in or unlock while it lasts, stays unreadable. So do accounts whose owners notice and stop using the instance.
+- **Notebooks on the device:** not protected either. The notebook lives in the same origin as the app, so a modified
+  app, once a device loads it (the service worker fetches each new version when the server can be reached), can read
+  every note in it and send them anywhere.
 - This is the main limit of end-to-end encryption in any web app. Maple Notes does not publish build hashes or offer
   a way to verify the code a browser receives. Guard the server itself (see [Recommendations](#recommendations)).
 
@@ -128,6 +133,9 @@ A lost or stolen phone or laptop, or a shared computer.
     ([architecture.md](architecture.md#writing-offline)): in plain text for accounts that are off or encrypted at
     rest, encrypted for the note for end-to-end accounts. Signing out deletes them too, after asking.
   - A session without "keep me signed in", the right choice on a shared computer, keeps nothing.
+- **A notebook on the device** has no password: whoever can open the installed app, or the browser's storage, reads
+  its notes in plain text. They are as safe as the device's own lock and disk encryption, and they are lost with the
+  device unless they were exported. Do not use one on a shared device.
 - **Left behind:**
   - Files viewed before an account switched to end-to-end encryption can remain in the browser's HTTP cache, in
     plain form, until the browser evicts them. After the switch, files arrive encrypted and are decrypted on demand

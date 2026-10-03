@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { BrandMark } from "./components/BrandMark";
+import { DeviceNotebookChoice } from "./components/DeviceNotebookChoice";
 import { Button, Spinner } from "./components/ui";
 import { api } from "./lib/api";
 import { useAppearance } from "./lib/appearance";
@@ -115,6 +116,10 @@ function CannotReachServer({ offline, onRetry }: { offline: boolean; onRetry: ()
       <Button variant="secondary" onClick={onRetry}>
         Try again
       </Button>
+      {/* A notebook kept on this device needs no server. */}
+      <div className="mt-4 text-sm text-stone-600 dark:text-stone-300">
+        <DeviceNotebookChoice allowed={false} appName={appName} />
+      </div>
     </>
   );
 }
@@ -203,7 +208,7 @@ export function App() {
 
   if (!user) {
     const mode = setupRequired ? "setup" : path === "/register" && registrationOpen ? "register" : "login";
-    return <AuthPage mode={mode} registrationOpen={registrationOpen} />;
+    return <AuthPage mode={mode} registrationOpen={registrationOpen} deviceNotebooks={status.data.deviceNotebooks === true} />;
   }
 
   if (keys.status === "checking") {
@@ -230,8 +235,9 @@ export function App() {
   }
 
   setContentSession({ userId: user.id, mode: trusted?.mode ?? user.encryptionMode, keys: keys.status === "unlocked" ? keys.keys : null });
-  // Only a device that keeps notes for offline reading keeps changes made offline, under the same rules.
-  setOutboxOwner({ userId: user.id, keepsNotes: status.data.sessionPersistent === true });
+  // Only a device that keeps notes for offline reading keeps changes made offline, under the same rules. A notebook on
+  // the device needs no outbox, and must not claim it: changes an account made offline wait there for its next sign-in.
+  setOutboxOwner(status.data.onDevice ? null : { userId: user.id, keepsNotes: status.data.sessionPersistent === true });
 
   return (
     <TrustedModeContext.Provider value={trusted}>

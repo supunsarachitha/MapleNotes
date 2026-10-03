@@ -126,6 +126,7 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
   const items = menuOrder(preferences.menuOrder).filter((item) => MENU_INFO[item].shown(preferences));
   const pending = usePendingCount();
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const onDevice = useAuthStatus().data?.onDevice === true;
 
   async function signOut() {
     setConfirmingSignOut(false);
@@ -134,7 +135,7 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
       navigate("/", { replace: true });
       signedOut();
     } catch {
-      toast.error("Could not sign out. Please try again.");
+      toast.error(onDevice ? "Could not close the notebook. Please try again." : "Could not sign out. Please try again.");
     }
   }
 
@@ -179,9 +180,9 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{user.displayName}</p>
-          <p className="truncate text-xs text-stone-500 dark:text-stone-400">@{user.username}</p>
+          <p className="truncate text-xs text-stone-500 dark:text-stone-400">{onDevice ? "On this device" : `@${user.username}`}</p>
         </div>
-        <IconButton label="Sign out" onClick={() => (pending > 0 ? setConfirmingSignOut(true) : void signOut())}>
+        <IconButton label={onDevice ? "Close notebook" : "Sign out"} onClick={() => (pending > 0 ? setConfirmingSignOut(true) : void signOut())}>
           <LogOut className="size-5" />
         </IconButton>
       </div>
@@ -205,8 +206,10 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
 function OfflineNotice() {
   const offline = useOffline();
   const pending = usePendingCount();
-  const keepsChanges = useAuthStatus().data?.sessionPersistent === true;
-  if (!offline && pending === 0) return null;
+  const status = useAuthStatus().data;
+  const keepsChanges = status?.sessionPersistent === true;
+  // A notebook kept on this device needs no server, so being offline changes nothing.
+  if (status?.onDevice || (!offline && pending === 0)) return null;
   const waiting = pending === 1 ? "1 note has changes waiting to be saved." : `${pending} notes have changes waiting to be saved.`;
   return (
     <p

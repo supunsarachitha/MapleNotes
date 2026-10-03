@@ -80,7 +80,7 @@ async function resolveLabels(
 export async function runImport(
   items: ImportItem[],
   onProgress: (progress: ImportProgress) => void,
-  deps: { api: ImportApi; upload: typeof uploadAttachment } = { api, upload: uploadAttachment },
+  deps: { api: ImportApi; upload: typeof uploadAttachment | null } = { api, upload: uploadAttachment },
   labelColors: ReadonlyMap<string, LabelColor> = new Map(),
 ): Promise<ImportProgress> {
   const progress: ImportProgress = { total: items.length, done: 0, imported: 0, skipped: 0, files: 0, labels: 0, failed: [] };
@@ -102,9 +102,13 @@ export async function runImport(
     } else {
       const uploaded: string[] = [];
       try {
-        for (const attachment of item.attachments) {
-          const file = new File([(await attachment.read()) as BlobPart], attachment.name, { type: attachment.type });
-          uploaded.push((await deps.upload(file, () => undefined)).id);
+        // No uploads: a notebook kept on the device holds no files, so its notes are restored without them.
+        const upload = deps.upload;
+        if (upload) {
+          for (const attachment of item.attachments) {
+            const file = new File([(await attachment.read()) as BlobPart], attachment.name, { type: attachment.type });
+            uploaded.push((await upload(file, () => undefined)).id);
+          }
         }
         const noteLabels = [...new Set(item.labels.flatMap((name) => labelIds.get(labelKey(name)) ?? []))];
         const result = await deps.api.importNote(item, uploaded, noteLabels.slice(0, MAX_LABELS_PER_NOTE));
@@ -116,6 +120,9 @@ export async function runImport(
           for (const id of uploaded) void deps.api.deleteAttachment(id).catch(() => undefined);
         }
         if (item.id) existing.add(item.id.toLowerCase());
+        if (!upload && item.attachments.length > 0) {
+          progress.failed.push({ source: item.source, reason: "Restored without its files: a notebook on this device cannot hold files." });
+        }
         if (item.missing.length > 0) {
           progress.failed.push({ source: item.source, reason: `Restored without ${item.missing.join(", ")}, which the archive does not contain.` });
         }

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Features.Auth;
@@ -44,6 +45,25 @@ public sealed class AdminTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, tooShort.StatusCode);
         Assert.Equal(365, (await _admin.GetJsonAsync<InstanceSettingsResponse>("/api/v1/admin/settings"))!.SessionDays);
+    }
+
+    [Fact]
+    public async Task Device_notebooks_are_off_until_an_administrator_offers_them()
+    {
+        using var visitor = new ApiClient(_app);
+        Assert.False((await _admin.GetJsonAsync<InstanceSettingsResponse>("/api/v1/admin/settings"))!.DeviceNotebooks);
+        Assert.False((await visitor.GetJsonAsync<AuthStatusResponse>("/api/v1/auth/status"))!.DeviceNotebooks);
+
+        var saved = await _admin.PutJsonAsync("/api/v1/admin/settings", new UpdateInstanceSettingsRequest(true, DeviceNotebooks: true));
+
+        Assert.True((await saved.Content.ReadFromJsonAsync<InstanceSettingsResponse>(ApiClient.Json, TestContext.Current.CancellationToken))!.DeviceNotebooks);
+        Assert.True((await _admin.GetJsonAsync<InstanceSettingsResponse>("/api/v1/admin/settings"))!.DeviceNotebooks);
+        // The sign-in page offers the notebook, so visitors are told too.
+        Assert.True((await visitor.GetJsonAsync<AuthStatusResponse>("/api/v1/auth/status"))!.DeviceNotebooks);
+
+        // The request replaces every setting: one that leaves it out turns the offer off again.
+        (await _admin.PutJsonAsync("/api/v1/admin/settings", new UpdateInstanceSettingsRequest(true))).EnsureSuccessStatusCode();
+        Assert.False((await visitor.GetJsonAsync<AuthStatusResponse>("/api/v1/auth/status"))!.DeviceNotebooks);
     }
 
     [Fact]

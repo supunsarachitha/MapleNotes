@@ -460,6 +460,34 @@ For an account whose browser holds the end-to-end key the text is kept encrypted
 envelope ([e2ee-spec.md §2](e2ee-spec.md#2-envelope-aes-256-gcm)), and decrypted only to be encrypted again for the request,
 according to the account's mode at that moment.
 
+## Notebooks on the device
+
+Where an administrator turns on **Notebooks on devices** (`deviceNotebooks` in the admin settings, also sent to
+visitors in `GET /api/v1/auth/status`), the sign-in page of the installed app offers to keep notes on the device
+instead of in an account. Only the installed app offers it (display mode `standalone`, `fullscreen`, `minimal-ui` or
+`window-controls-overlay`, or `navigator.standalone` on iOS): browsers evict a tab's storage more readily, and the app
+asks for persistent storage (`navigator.storage.persist()`) when the notebook is created. The setting only decides
+whether a new notebook is offered. A notebook already on a device opens from the sign-in page, and from the screen shown
+when the server cannot be reached, whatever the setting says now, since its notes exist nowhere else.
+
+The notebook is an IndexedDB database in the page's origin (`maple-notes-device`, `src/maple-web/src/lib/deviceNotebook.ts`)
+with three stores: the notebook itself (its name, preferences, the app's name as the server last gave it, and whether it
+is open), its notes and its labels. While it is open, `request` in `lib/api.ts` hands every API call to
+`deviceRequest`, which answers it from the database as the server would: the same lists, states, cursors (creation or
+trash time, then ID), tag extraction and nested tag filters, searches, labels and their counts, daily notes, the
+calendar by time zone, imports by ID, the same limits and the 30-day trash, so the pages and components run unchanged.
+Requests are answered one at a time, so one change never reads what another is about to overwrite. The status it
+returns carries `onDevice: true`, which the app uses to hide what needs a server: files (uploads are refused), the
+password, encryption and session settings, administration, deleting the account or its content (replaced by deleting
+the notebook) and link previews. Nothing goes to the server while the notebook is open; closing it ("Close notebook",
+in place of signing out) only marks it closed, and the next status comes from the server again.
+
+Nothing syncs. The browser builds exports with the same code as for end-to-end accounts (`src/export`), so an export
+restores into an account, and restoring into a notebook reads any export but leaves files out. The service worker
+keeps the app itself as for every visitor, so the notebook opens with no connection; it never sees the notebook's
+requests, which never leave the page. The notes are stored as plain text, protected as well as the device's own
+storage protects the browser's data.
+
 ## Storage usage
 
 `GET /api/v1/account/storage` sums the signed-in account's stored note bytes (ciphertext for encrypted notes) and file

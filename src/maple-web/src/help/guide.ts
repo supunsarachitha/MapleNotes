@@ -189,6 +189,21 @@ when you are reading saved copies.
   signed in** saves nothing, so use that on a shared computer.`,
   },
   {
+    id: "device-notebook",
+    title: "A notebook on this device",
+    body: `If your administrator turned on **Notebooks on devices** (Settings → Administration), the installed app can keep
+your notes on this device instead of in an account. Choose **Keep notes on this device** under the sign-in form. The
+notebook needs no account, no password and no server: it works the same with or without a connection.
+
+- Notes, todo lists, quick notes, daily notes, habits, tags, labels, the archive and the trash all work. Files and
+  pictures cannot be attached.
+- The notes exist only in this app on this device. Nothing is synced or backed up, and uninstalling the app or
+  clearing its data deletes them. Export them now and then from [Settings → Backup & data](/settings/data).
+- To move them to an account, export them, sign in to the account and restore the archive there.
+- **Close notebook** (at the bottom of the side menu) goes back to the sign-in page; the notebook stays and opens again
+  from there. To remove it, use **Delete this notebook** in Settings → Notebook.`,
+  },
+  {
     id: "features",
     title: "Choosing your features",
     body: `Everything beyond plain notes can be switched on or off in [Settings → Features](/settings/features): todo

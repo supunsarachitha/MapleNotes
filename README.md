@@ -81,7 +81,7 @@
 - **Help built in.** A user guide in the app explains every feature, and works offline.
 - **Accounts.** Multiple users with secure authentication, each with a display name of their choice. The first
   account becomes the administrator, who can give the app its own name and icon, open registration, limit each
-  account's storage, choose how long devices stay signed in (30 to 400 days), disable or remove accounts, and appoint other administrators. Administrators never see anyone's
+  account's storage, choose how long devices stay signed in (30 to 400 days), offer notebooks kept on devices, disable or remove accounts, and appoint other administrators. Administrators never see anyone's
   notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
@@ -90,6 +90,9 @@
   notes you read recently, still encrypted on the device for end-to-end accounts. New notes and edits made offline are
   kept on the device and saved when the server can be reached again; an edit never overwrites a newer one made
   elsewhere, it is saved as a separate note instead. Signing out deletes them.
+- **A notebook on the device.** Where an administrator allows it, the installed app can keep notes in a database on
+  the device instead of in an account, and works with no server at all. Nothing syncs and nothing reaches the server;
+  exporting is the backup, and an export restores into an account. Files cannot be attached there.
 - **Appearance.** Light or dark (or follow your device), seven accent colours, the side menu's order (drag or arrows)
   and text size, and the first day of the week, chosen in Settings and applied on every device.
 - **Small and hardened.** One container: non-root, read-only root filesystem, built-in health check.
@@ -679,7 +682,10 @@ later.
 For API clients: `PUT /api/v1/notes/{id}` takes an optional `expectedUpdatedAtUtc`, the note's `updatedAtUtc` as the
 client last saw it. When it is given and the note has been edited since, the request fails with 409 and changes
 nothing. Requests without it behave as before. `GET` and `PUT /api/v1/admin/settings` gained `sessionDays` (1 to 400;
-left out of a `PUT`, it goes back to 30).
+left out of a `PUT`, it goes back to 30) and `deviceNotebooks` (left out of a `PUT`, it is off), and `GET
+/api/v1/auth/status` gained `deviceNotebooks`.
+
+Notebooks on devices are off until an administrator turns them on in Settings → Administration.
 
 ### From 1.11 to 1.12
 

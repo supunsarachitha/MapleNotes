@@ -27,7 +27,8 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
             await instanceSettings.IsRegistrationOpenAsync(cancellationToken),
             await instanceSettings.GetStorageQuotaMbAsync(cancellationToken),
             await instanceSettings.GetAppNameAsync(cancellationToken),
-            await instanceSettings.GetSessionDaysAsync(cancellationToken));
+            await instanceSettings.GetSessionDaysAsync(cancellationToken),
+            await instanceSettings.AreDeviceNotebooksAllowedAsync(cancellationToken));
 
     /// <summary>Changes the instance settings.</summary>
     /// <param name="request">New values; they replace all the settings.</param>
@@ -57,8 +58,9 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
         }
 
         var sessionDays = request.SessionDays ?? InstanceSettingsService.DefaultSessionDays;
-        await instanceSettings.SaveAsync(request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays, cancellationToken);
-        return new InstanceSettingsResponse(request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays);
+        await instanceSettings.SaveAsync(
+            request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays, request.DeviceNotebooks, cancellationToken);
+        return new InstanceSettingsResponse(request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays, request.DeviceNotebooks);
     }
 
     /// <summary>Lists all accounts.</summary>

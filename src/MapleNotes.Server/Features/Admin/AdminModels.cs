@@ -8,7 +8,9 @@ namespace MapleNotes.Server.Features.Admin;
 /// there is no limit.</param>
 /// <param name="AppName">The name the app shows, if administrators chose one; null for "Maple Notes".</param>
 /// <param name="SessionDays">How many days a session lasts after it was last used.</param>
-public sealed record InstanceSettingsResponse(bool AllowRegistration, int? StorageQuotaMb, string? AppName = null, int SessionDays = 30);
+/// <param name="DeviceNotebooks">Whether the installed app offers notebooks kept only on the device.</param>
+public sealed record InstanceSettingsResponse(
+    bool AllowRegistration, int? StorageQuotaMb, string? AppName = null, int SessionDays = 30, bool DeviceNotebooks = false);
 
 /// <summary>Request to change instance settings. It replaces them all: a field left out takes its default.</summary>
 /// <param name="AllowRegistration">Whether visitors can create accounts.</param>
@@ -19,7 +21,11 @@ public sealed record InstanceSettingsResponse(bool AllowRegistration, int? Stora
 /// line), or null for "Maple Notes".</param>
 /// <param name="SessionDays">How many days a session lasts after it was last used, 1 to 400 (null for 30). Using the
 /// app renews it. New sign-ins get the new length; sessions already signed in keep theirs until they sign in again.</param>
-public sealed record UpdateInstanceSettingsRequest(bool AllowRegistration, int? StorageQuotaMb = null, string? AppName = null, int? SessionDays = null);
+/// <param name="DeviceNotebooks">Whether the installed app offers a notebook kept only on the device, which works without
+/// this server and never syncs with it. Turning it off stops the app offering new ones; notebooks already on devices keep
+/// opening there, since their notes exist nowhere else.</param>
+public sealed record UpdateInstanceSettingsRequest(
+    bool AllowRegistration, int? StorageQuotaMb = null, string? AppName = null, int? SessionDays = null, bool DeviceNotebooks = false);
 
 /// <summary>An account as seen by an administrator.</summary>
 /// <param name="Id">Account ID.</param>

@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
 import { useId, useState } from "react";
+import { useAuthStatus } from "../lib/queries";
 import type { User } from "../lib/types";
 import { RestorePanel } from "./RestorePanel";
 import { Button, Card, ErrorMessage, cn } from "./ui";
@@ -76,7 +77,9 @@ export function ExportSection({
   });
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
-  const inBrowser = user?.hasEndToEndKey === true;
+  // A notebook kept on this device has no server to build the export, so this browser builds it, as for end-to-end notes.
+  const onDevice = useAuthStatus().data?.onDevice === true;
+  const inBrowser = user?.hasEndToEndKey === true || onDevice;
 
   function update(changes: Partial<ExportOptions>) {
     setOptions((current) => ({ ...current, ...changes }));
@@ -121,7 +124,9 @@ export function ExportSection({
       <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">
         Download your notes as a ZIP archive, decrypted, with attachments in an <code>attachments</code> folder linked
         from each note. Todo lists and quick notes go in <code>todo</code> and <code>quick-notes</code> folders.
-        {inBrowser && " Your notes are end-to-end encrypted, so this browser decrypts them and builds the archive: keep this page open until the download finishes."}
+        {onDevice
+          ? " Your notes are kept only on this device, so exporting them is how you back them up, or move them to an account (restore the archive there)."
+          : inBrowser && " Your notes are end-to-end encrypted, so this browser decrypts them and builds the archive: keep this page open until the download finishes."}
       </p>
 
       <div className="mt-4 flex flex-col gap-5">
@@ -232,7 +237,7 @@ export function ExportSection({
           </span>
         </div>
       </div>
-      <RestorePanel endToEnd={inBrowser} />
+      <RestorePanel endToEnd={inBrowser && !onDevice} onDevice={onDevice} />
     </Card>
   );
 }

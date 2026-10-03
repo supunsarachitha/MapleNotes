@@ -113,7 +113,12 @@ async function deleteEntry(noteId: string): Promise<void> {
 export function setOutboxOwner(next: Owner | null): void {
   const previous = owner;
   owner = next;
-  if (!next || (previous?.userId === next.userId && previous.keepsNotes === next.keepsNotes)) return;
+  // Without an owner nothing is waiting as far as the app is concerned (the changes stay for the account's next sign-in).
+  if (!next) {
+    void refreshCount();
+    return;
+  }
+  if (previous?.userId === next.userId && previous.keepsNotes === next.keepsNotes) return;
   void withStore<OutboxEntry[]>("readonly", (store) => store.getAll())
     .then(async (all) => {
       for (const entry of all) if (entry.userId !== next.userId) await withStore("readwrite", (store) => store.delete(entry.noteId));

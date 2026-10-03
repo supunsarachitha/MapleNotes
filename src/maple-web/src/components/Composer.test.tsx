@@ -9,7 +9,7 @@ import type { AuthStatus, Note, Preferences } from "../lib/types";
 import { Composer } from "./Composer";
 import { ToastProvider } from "./Toaster";
 
-function renderComposer(props: Parameters<typeof Composer>[0] = {}, preferences: Partial<Preferences> = {}) {
+function renderComposer(props: Parameters<typeof Composer>[0] = {}, preferences: Partial<Preferences> = {}, onDevice = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   client.setQueryData<AuthStatus>(queryKeys.status, {
     setupRequired: false,
@@ -24,6 +24,7 @@ function renderComposer(props: Parameters<typeof Composer>[0] = {}, preferences:
       createdAtUtc: "2026-09-28T12:00:00Z",
       preferences: { ...DEFAULT_PREFERENCES, ...preferences },
     },
+    onDevice,
   });
   return render(
     <QueryClientProvider client={client}>
@@ -49,6 +50,16 @@ const savedNote: Note = {
 };
 
 describe("Composer", () => {
+  it("offers no files in a notebook kept on the device", async () => {
+    renderComposer({}, {}, true);
+    const box = screen.getByRole("textbox");
+
+    expect(screen.queryByRole("button", { name: "Attach files" })).not.toBeInTheDocument();
+    await userEvent.click(box);
+    await userEvent.paste({ files: [new File(["x"], "x.png", { type: "image/png" })] } as unknown as DataTransfer);
+    expect(await screen.findByText("A notebook kept on this device cannot hold files.")).toBeInTheDocument();
+  });
+
   it("starts editing with the caret after the text", () => {
     const content = "First line\nsecond line, where I carry on";
     renderComposer({ note: { ...savedNote, content }, autoFocus: true, onDone: () => undefined });

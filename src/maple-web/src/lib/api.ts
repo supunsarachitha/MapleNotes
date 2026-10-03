@@ -34,6 +34,7 @@ import type {
   UserRole,
 } from "./types";
 import { ApiError } from "./apiError";
+import { closeNotebook, deviceRequest, isNotebookOpen } from "./deviceNotebook";
 import { noteApiResponse } from "./offline";
 import {
   canKeepOffline,
@@ -93,6 +94,8 @@ async function readProblem(response: Response): Promise<ProblemDetails> {
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export async function request<T>(method: Method, path: string, body?: unknown, retry = true): Promise<T> {
+  // A notebook kept on this device answers everything itself; nothing goes to the server (lib/deviceNotebook.ts).
+  if (await isNotebookOpen()) return deviceRequest<T>(method, path, body);
   const headers: Record<string, string> = { Accept: "application/json" };
   const raw = body instanceof Blob; // sent as it is, with its own type (an image, for example)
   if (body !== undefined) headers["Content-Type"] = raw ? body.type : "application/json";
@@ -251,6 +254,8 @@ export const api = {
   },
 
   async logout(): Promise<void> {
+    // Closing the notebook on this device: it stays here, and the server, which never knew of it, is not asked.
+    if (await isNotebookOpen()) return closeNotebook();
     await request<void>("POST", "/api/v1/auth/logout");
     // Only once signed out: a sign-out that cannot reach the server leaves the session, and its changes, as they were.
     await forgetPendingChanges();
@@ -548,6 +553,7 @@ export async function uploadAttachment(
   onProgress: (fraction: number) => void,
   signal?: AbortSignal,
 ): Promise<Attachment> {
+  if (await isNotebookOpen()) throw new ApiError(400, { title: "A notebook kept on this device cannot hold files." });
   const headers = await antiforgeryHeaders();
   const encrypted = await encodeUpload(file);
   const wire = await new Promise<AttachmentWire>((resolve, reject) => {

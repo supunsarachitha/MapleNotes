@@ -2,6 +2,7 @@ import { Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { runImport, type ImportProgress } from "../import/importer";
 import { IMPORT_ACCEPT, readImport, type ImportPlan } from "../import/parse";
+import { api, uploadAttachment } from "../lib/api";
 import { useInvalidateNotes } from "../lib/queries";
 import { Button } from "./ui";
 
@@ -19,7 +20,7 @@ const plural = (count: number, one: string, many = `${one}s`) =>
  * dates, state and files; notes the account already has are skipped, so restoring twice is safe. Works for every
  * account: end-to-end accounts encrypt everything in this browser before it is sent.
  */
-export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
+export function RestorePanel({ endToEnd, onDevice = false }: { endToEnd: boolean; onDevice?: boolean }) {
   const [step, setStep] = useState<Step>({ name: "idle" });
   const input = useRef<HTMLInputElement>(null);
   const invalidate = useInvalidateNotes();
@@ -40,7 +41,7 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
     const final = await runImport(
       plan.items,
       (progress) => setStep({ name: "running", plan, progress }),
-      undefined,
+      { api, upload: onDevice ? null : uploadAttachment },
       plan.labelColors,
     );
     setStep({ name: "done", plan, progress: final });
@@ -67,6 +68,7 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
         <code>.json</code> files. Notes keep their dates, pins, archive state,
         labels and files. Notes you already have are skipped, so restoring the same
         export twice is safe.
+        {onDevice && " A notebook on this device keeps no files, so notes are restored without theirs."}
         {endToEnd &&
           " Your notes are end-to-end encrypted, so this browser encrypts each one before sending it: keep this page open until it finishes."}
       </p>

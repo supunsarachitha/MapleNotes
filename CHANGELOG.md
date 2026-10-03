@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Write notes offline.
+Write notes offline, or keep a notebook on the device with no server at all.
 
 ### Added
 
@@ -22,6 +22,13 @@ Write notes offline.
   30 days (the default) up to 400 days, the longest browsers keep a cookie, in Settings → Administration. A device
   can then stay offline that long and still be signed in when it is back. It applies from each device's next sign-in.
   The admin settings gained `sessionDays`.
+- **Notebooks on devices:** administrators can let the installed app keep notes in a database on the device instead of
+  in an account (Settings → Administration → Notebooks on devices, off by default). The sign-in page then offers
+  "Keep notes on this device". The notebook needs no account and no server and works the same offline; notes, todo
+  lists, quick notes, daily notes, habits, tags, labels, the archive and the trash all work, but files cannot be
+  attached. Nothing syncs or reaches the server: the browser builds exports, which restore into an account. "Close
+  notebook" goes back to the sign-in page, where the notebook opens again, also when the server cannot be reached or the
+  setting was turned off later. The admin settings and `GET /api/v1/auth/status` gained `deviceNotebooks`.
 - `PUT /api/v1/notes/{id}` takes an optional `expectedUpdatedAtUtc` and refuses, with 409, to replace a note edited
   after that version.
 

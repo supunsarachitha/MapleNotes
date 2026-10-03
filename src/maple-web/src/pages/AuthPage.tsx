@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { AuthLayout, linkClass } from "../components/AuthLayout";
+import { DeviceNotebookChoice } from "../components/DeviceNotebookChoice";
 import { Button, ErrorMessage, TextField } from "../components/ui";
 import { ApiError } from "../lib/api";
 import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
@@ -21,7 +22,16 @@ const titles: Record<AuthMode, { heading: string; intro: string; action: string 
 };
 
 /** First-run setup, sign-in and registration. */
-export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrationOpen: boolean }) {
+export function AuthPage({
+  mode,
+  registrationOpen,
+  deviceNotebooks = false,
+}: {
+  mode: AuthMode;
+  registrationOpen: boolean;
+  /** Administrators let the installed app offer a notebook kept only on the device. */
+  deviceNotebooks?: boolean;
+}) {
   const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -55,33 +65,39 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
 
   const generalError = error && !error.fieldError("username") && !error.fieldError("password") ? error.message : null;
 
+  const accountLinks =
+    mode === "login" ? (
+      <div className="flex flex-col gap-2">
+        <Link href="/recover" className={linkClass}>
+          Forgot your password?
+        </Link>
+        {registrationOpen && (
+          <p>
+            New here?{" "}
+            <Link href="/register" className={linkClass}>
+              Create an account
+            </Link>
+          </p>
+        )}
+      </div>
+    ) : mode === "register" ? (
+      <p>
+        Already have an account?{" "}
+        <Link href="/login" className={linkClass}>
+          Sign in
+        </Link>
+      </p>
+    ) : undefined;
+
   return (
     <AuthLayout
       heading={text.heading.replace("{app}", appName)}
       intro={text.intro.replace("{app}", appName)}
       footer={
-        mode === "login" ? (
-          <div className="flex flex-col gap-2">
-            <Link href="/recover" className={linkClass}>
-              Forgot your password?
-            </Link>
-            {registrationOpen && (
-              <p>
-                New here?{" "}
-                <Link href="/register" className={linkClass}>
-                  Create an account
-                </Link>
-              </p>
-            )}
-          </div>
-        ) : mode === "register" ? (
-          <p>
-            Already have an account?{" "}
-            <Link href="/login" className={linkClass}>
-              Sign in
-            </Link>
-          </p>
-        ) : undefined
+        <div className="flex flex-col gap-5">
+          {accountLinks}
+          <DeviceNotebookChoice allowed={deviceNotebooks && mode !== "setup"} appName={appName} />
+        </div>
       }
     >
       <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">

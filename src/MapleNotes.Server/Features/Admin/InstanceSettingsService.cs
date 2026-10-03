@@ -36,6 +36,9 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
     /// </summary>
     public const int MaxSessionDays = 400;
 
+    /// <summary>Database key of the "notebooks on the device" setting; absent when they are not offered.</summary>
+    public const string DeviceNotebooksKey = "DeviceNotebooks";
+
     /// <summary>The app's name when administrators have not chosen another.</summary>
     public const string DefaultAppName = "Maple Notes";
 
@@ -77,6 +80,15 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
         return setting is null ? DefaultSessionDays : int.Parse(setting.Value, CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// Returns whether the installed app offers people a notebook kept only on their device, which works without this
+    /// server. The server never sees those notes; the setting only decides whether the app offers to create one.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>True when the app offers device notebooks.</returns>
+    public async Task<bool> AreDeviceNotebooksAllowedAsync(CancellationToken cancellationToken) =>
+        (await FindAsync(DeviceNotebooksKey, cancellationToken))?.Value == bool.TrueString;
+
     /// <summary>Returns the name administrators gave the app.</summary>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The name, or null for the default (<see cref="DefaultAppName"/>).</returns>
@@ -99,10 +111,13 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
     /// <param name="storageQuotaMb">The storage limit per account in megabytes, or null for none.</param>
     /// <param name="appName">The app's name (see <see cref="TryNormalizeAppName"/>), or null for the default.</param>
     /// <param name="sessionDays">How many days a session lasts after it was last used (1 to <see cref="MaxSessionDays"/>).</param>
+    /// <param name="deviceNotebooks">True to let the installed app offer notebooks kept only on the device.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>A task that completes when the settings are saved.</returns>
-    public async Task SaveAsync(bool allowRegistration, int? storageQuotaMb, string? appName, int sessionDays, CancellationToken cancellationToken)
+    public async Task SaveAsync(
+        bool allowRegistration, int? storageQuotaMb, string? appName, int sessionDays, bool deviceNotebooks, CancellationToken cancellationToken)
     {
+        await SetAsync(DeviceNotebooksKey, deviceNotebooks ? bool.TrueString : null, cancellationToken);
         await SetAsync(SessionDaysKey, sessionDays == DefaultSessionDays ? null : sessionDays.ToString(CultureInfo.InvariantCulture), cancellationToken);
         await SetAsync(AllowRegistrationKey, allowRegistration.ToString(), cancellationToken);
         await SetAsync(StorageQuotaKey, storageQuotaMb?.ToString(CultureInfo.InvariantCulture), cancellationToken);
