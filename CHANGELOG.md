@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+Fixes from the October 2026 security audit ([docs/security-audit-2026-10.md](docs/security-audit-2026-10.md)):
+
+- The browser sends a password itself (to upgrade a 1.0 account) only at sign-in, and never for an account it has
+  already signed in to with a derived key; a server could otherwise ask for it and open the end-to-end key.
+- A crafted page could keep the link-preview parser busy for minutes per request; only the page's head is parsed now,
+  in linear time.
+- Wrong passwords sent at the same moment are all counted, so the five-attempt lockout holds.
+- Converting notes to or from end-to-end encryption can no longer store more than the notes themselves, past the
+  storage limit.
+- The service worker refuses encrypted files with chunks missing instead of serving them shortened.
+- The link-preview limit is per account as documented, IPv6 clients are limited per /64, and previews are cached per
+  account, without the URL fragment, in a bounded cache.
+- Decrypted attachments are no longer kept in the browser's disk cache.
+- Smaller fixes: unknown admin roles are refused; the trash purge keeps notes restored meanwhile; `//host` links open as
+  other sites; Markdown images show only the account's own attachments; restores refuse ZIP entries with impossible
+  sizes; upload names lose text-reordering characters; the database's write-ahead log is truncated after checkpoints.
+
 ## [1.10.1] - 2026-10-03
 
 ### Fixed

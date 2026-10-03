@@ -605,7 +605,8 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 - If you lose both your password and your recovery key, end-to-end encrypted notes cannot be recovered by anyone.
 
 Details: [docs/threat-model.md](docs/threat-model.md), [docs/architecture.md](docs/architecture.md#cryptography) and
-[docs/e2ee-spec.md](docs/e2ee-spec.md).
+[docs/e2ee-spec.md](docs/e2ee-spec.md). The latest security review, with its open findings, is
+[docs/security-audit-2026-10.md](docs/security-audit-2026-10.md).
 
 ### Forgotten passwords
 
