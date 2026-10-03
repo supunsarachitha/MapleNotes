@@ -24,6 +24,18 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
     /// <summary>The largest storage limit per account an administrator can set, in megabytes (16 TB).</summary>
     public const int MaxStorageQuotaMb = 16 * 1024 * 1024;
 
+    /// <summary>Database key of how many days a session lasts after it was last used; absent for the default.</summary>
+    public const string SessionDaysKey = "SessionDays";
+
+    /// <summary>How many days a session lasts after it was last used, unless administrators chose otherwise.</summary>
+    public const int DefaultSessionDays = 30;
+
+    /// <summary>
+    /// The longest session administrators can choose, in days. Browsers keep a cookie for at most 400 days (Chrome caps
+    /// its expiry there), so a longer session would end then anyway.
+    /// </summary>
+    public const int MaxSessionDays = 400;
+
     /// <summary>The app's name when administrators have not chosen another.</summary>
     public const string DefaultAppName = "Maple Notes";
 
@@ -56,6 +68,15 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
         return setting is null ? null : int.Parse(setting.Value, CultureInfo.InvariantCulture);
     }
 
+    /// <summary>Returns how long a session lasts after it was last used.</summary>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The number of days.</returns>
+    public async Task<int> GetSessionDaysAsync(CancellationToken cancellationToken)
+    {
+        var setting = await FindAsync(SessionDaysKey, cancellationToken);
+        return setting is null ? DefaultSessionDays : int.Parse(setting.Value, CultureInfo.InvariantCulture);
+    }
+
     /// <summary>Returns the name administrators gave the app.</summary>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The name, or null for the default (<see cref="DefaultAppName"/>).</returns>
@@ -77,10 +98,12 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
     /// <param name="allowRegistration">True to let visitors create accounts.</param>
     /// <param name="storageQuotaMb">The storage limit per account in megabytes, or null for none.</param>
     /// <param name="appName">The app's name (see <see cref="TryNormalizeAppName"/>), or null for the default.</param>
+    /// <param name="sessionDays">How many days a session lasts after it was last used (1 to <see cref="MaxSessionDays"/>).</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>A task that completes when the settings are saved.</returns>
-    public async Task SaveAsync(bool allowRegistration, int? storageQuotaMb, string? appName, CancellationToken cancellationToken)
+    public async Task SaveAsync(bool allowRegistration, int? storageQuotaMb, string? appName, int sessionDays, CancellationToken cancellationToken)
     {
+        await SetAsync(SessionDaysKey, sessionDays == DefaultSessionDays ? null : sessionDays.ToString(CultureInfo.InvariantCulture), cancellationToken);
         await SetAsync(AllowRegistrationKey, allowRegistration.ToString(), cancellationToken);
         await SetAsync(StorageQuotaKey, storageQuotaMb?.ToString(CultureInfo.InvariantCulture), cancellationToken);
         await SetAsync(AppNameKey, appName, cancellationToken);

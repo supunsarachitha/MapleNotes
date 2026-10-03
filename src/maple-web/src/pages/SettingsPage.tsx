@@ -607,6 +607,59 @@ function BrandingSetting({ settings, saving, onSave }: { settings: InstanceSetti
   );
 }
 
+/** The session lengths offered; browsers keep a cookie for at most 400 days, the server's maximum. */
+const SESSION_LENGTHS = [
+  { days: 30, label: "30 days" },
+  { days: 90, label: "90 days" },
+  { days: 180, label: "6 months" },
+  { days: 365, label: "1 year" },
+  { days: 400, label: "400 days (the longest browsers allow)" },
+];
+
+/**
+ * How long "keep me signed in" lasts after the app was last used. A device away from the server longer than that must
+ * sign in again, and its notes saved for offline reading are deleted then (changes made offline are kept).
+ */
+function SessionLengthSetting({
+  settings,
+  saving,
+  onSave,
+}: {
+  settings: InstanceSettings;
+  saving: boolean;
+  onSave: (settings: InstanceSettings) => void;
+}) {
+  const id = useId();
+  const options = SESSION_LENGTHS.some((length) => length.days === settings.sessionDays)
+    ? SESSION_LENGTHS
+    : [...SESSION_LENGTHS, { days: settings.sessionDays, label: `${settings.sessionDays} days` }].sort((a, b) => a.days - b.days);
+  return (
+    <div className="mt-5 border-t border-stone-100 pt-5 dark:border-stone-800">
+      <label htmlFor={id} className="text-sm font-medium">
+        Stay signed in for
+      </label>
+      <p id={`${id}-hint`} className="text-sm text-stone-600 dark:text-stone-300">
+        How long "Keep me signed in" lasts after a device last used the app. A device that stays away longer, offline for
+        example, signs in again. Applies from each device's next sign-in.
+      </p>
+      <select
+        id={id}
+        aria-describedby={`${id}-hint`}
+        value={settings.sessionDays}
+        disabled={saving}
+        onChange={(event) => onSave({ ...settings, sessionDays: Number(event.target.value) })}
+        className="mt-2 h-11 rounded-xl border border-stone-300 bg-white px-3 text-sm dark:border-stone-700 dark:bg-stone-950"
+      >
+        {options.map((length) => (
+          <option key={length.days} value={length.days}>
+            {length.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function AdminSection({ currentUserId }: { currentUserId: string }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -632,6 +685,9 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.storage });
       if (before && before.appName !== saved.appName) {
         toast.info(saved.appName ? `The app is now called ${saved.appName}.` : `The app is called ${DEFAULT_APP_NAME} again.`);
+      }
+      if (before && before.sessionDays !== saved.sessionDays) {
+        toast.info(`Devices that sign in from now on stay signed in for ${saved.sessionDays} days after they were last used.`);
       }
       if (before && before.storageQuotaMb !== saved.storageQuotaMb) {
         toast.info(
@@ -673,6 +729,9 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
           saving={updateSettings.isPending}
           onSave={(next) => updateSettings.mutate(next)}
         />
+      )}
+      {settings.data && (
+        <SessionLengthSetting settings={settings.data} saving={updateSettings.isPending} onSave={(next) => updateSettings.mutate(next)} />
       )}
       {settings.data && (
         <BrandingSetting

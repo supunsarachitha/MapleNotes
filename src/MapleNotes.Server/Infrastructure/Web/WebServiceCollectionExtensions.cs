@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Configuration;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -56,11 +57,20 @@ internal static class WebServiceCollectionExtensions
                 cookie.Cookie.HttpOnly = true;
                 cookie.Cookie.SameSite = SameSiteMode.Strict;
                 cookie.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Secure over HTTPS (incl. via a trusted proxy)
-                cookie.ExpireTimeSpan = TimeSpan.FromDays(30);
+                cookie.ExpireTimeSpan = TimeSpan.FromDays(InstanceSettingsService.DefaultSessionDays);
                 cookie.SlidingExpiration = true;
                 cookie.Events = new CookieAuthenticationEvents
                 {
                     OnValidatePrincipal = UserPrincipal.ValidateAsync,
+
+                    // The session's length is an administrator's setting. Sliding renewal keeps the length a session
+                    // was issued with, so it applies from each sign-in on.
+                    OnSigningIn = async context =>
+                    {
+                        var settings = context.HttpContext.RequestServices.GetRequiredService<InstanceSettingsService>();
+                        var days = await settings.GetSessionDaysAsync(context.HttpContext.RequestAborted);
+                        context.Properties.ExpiresUtc = (context.Properties.IssuedUtc ?? DateTimeOffset.UtcNow).AddDays(days);
+                    },
 
                     // An API answers with status codes; redirects to a login page are for server-rendered sites.
                     OnRedirectToLogin = context =>

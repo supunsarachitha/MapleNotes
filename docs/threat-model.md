@@ -108,8 +108,8 @@ Defences:
 
 A lost or stolen phone or laptop, or a shared computer.
 
-- **With a live session** (the browser was left signed in, or "keep me signed in" was used, which lasts 30 days),
-  the app opens and, for end-to-end accounts, unlocks by itself. Signing out everywhere from another device, or
+- **With a live session** (the browser was left signed in, or "keep me signed in" was used, which lasts 30 days after
+  the last use, or up to 400 if administrators chose so), the app opens and, for end-to-end accounts, unlocks by itself. Signing out everywhere from another device, or
   changing the password there, ends every other session at once, and the saved key becomes useless with it.
 - **Without a live session,** the browser holds nothing useful, unless the session was started with "keep me signed
   in" and ended without this browser noticing (see offline reading below). The key saved in IndexedDB is sealed with a

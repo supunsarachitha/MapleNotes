@@ -32,6 +32,21 @@ public sealed class AdminTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Session_length_is_kept_and_checked()
+    {
+        Assert.Equal(30, (await _admin.GetJsonAsync<InstanceSettingsResponse>("/api/v1/admin/settings"))!.SessionDays);
+
+        var saved = await _admin.PutJsonAsync("/api/v1/admin/settings", new UpdateInstanceSettingsRequest(true, SessionDays: 365));
+        var tooLong = await _admin.PutJsonAsync("/api/v1/admin/settings", new UpdateInstanceSettingsRequest(true, SessionDays: 401));
+        var tooShort = await _admin.PutJsonAsync("/api/v1/admin/settings", new UpdateInstanceSettingsRequest(true, SessionDays: 0));
+
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, tooShort.StatusCode);
+        Assert.Equal(365, (await _admin.GetJsonAsync<InstanceSettingsResponse>("/api/v1/admin/settings"))!.SessionDays);
+    }
+
+    [Fact]
     public async Task Lists_accounts_without_note_content()
     {
         var users = await _admin.GetJsonAsync<List<AdminUserResponse>>("/api/v1/admin/users");

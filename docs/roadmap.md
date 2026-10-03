@@ -53,7 +53,8 @@ Features most note apps have.
 ## Settings that are fixed today
 
 27. **Trash retention:** fixed at 30 days.
-28. **Session length:** sessions stay signed in for 30 days and renew whenever they are used.
+28. **Session length:** administrators can choose from 30 to 400 days since the session length setting; there is no
+    per-account choice.
 29. **Signed-in devices:** there is no list of devices to sign out one by one, and "Sign out" does not end the session on
     the server.
 30. **Photo sizes:** three presets; a custom size or quality cannot be set.

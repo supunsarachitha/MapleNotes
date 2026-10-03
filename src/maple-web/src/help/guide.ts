@@ -182,6 +182,9 @@ when you are reading saved copies.
   version is saved as a separate note, next to the other one, and the app tells you.
 - With end-to-end encryption, the saved copies stay encrypted. When the app opens offline, enter your password to unlock
   them; it is checked on this device.
+- A device that stays away from the server longer than the sign-in lasts (30 days after you last used the app, unless
+  an administrator chose up to 400 in Settings → Administration) must sign in again when it is back. The saved copies
+  are deleted then; changes not saved yet are kept and saved after you sign in.
 - Signing out deletes the saved copies, and any changes not saved yet (the app asks first). A session without **Keep me
   signed in** saves nothing, so use that on a shared computer.`,
   },
