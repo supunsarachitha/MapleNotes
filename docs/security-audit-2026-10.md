@@ -12,7 +12,7 @@ against the running app. Each fix on this branch comes with a test that fails wi
 
 | Severity | Found | Fixed here | Open |
 |---|---|---|---|
-| Critical | 1 | 0 | 1 |
+| Critical | 1 | 1 | 0 |
 | High | 2 | 2 | 0 |
 | Medium | 9 | 5 | 4 |
 | Low | 19 | 9 | 10 |
@@ -21,7 +21,7 @@ No finding lets one account read, change or delete another account's data: every
 query is scoped to the caller. No finding gives script execution in the app (no XSS), and the link-preview fetcher
 cannot be pointed at internal addresses. `dotnet list package --vulnerable` and `npm audit` report nothing.
 
-The one open critical finding, and two of the fixed high ones, share a cause: **the browser trusted flags the server
+The critical finding and one of the high ones share a cause: **the browser trusted flags the server
 sends** about the account's encryption mode and sign-in method. End-to-end mode promises to hold against "a server
 that is compromised but serves the genuine app", and that server controls those flags.
 
@@ -29,6 +29,7 @@ that is compromised but serves the genuine app", and that server controls those 
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
+| 0 | Critical | **The server could move an end-to-end account out of end-to-end encryption.** Which way the browser converted content, and whether it encrypted new content, was decided by the mode the server reported. A server answering `mode: "AtRest"` made every unlocked browser decrypt all notes, files and label names and send them back in plaintext, without a prompt, and send later edits in plaintext. (`conversion.ts`, `noteCrypto.ts`, `App.tsx`) | The owner's choice of mode is sealed with the end-to-end key (a "mode record", [e2ee-spec.md §3a](e2ee-spec.md#3a-the-mode-record)) whenever it changes; browsers decrypt and send plaintext only when the record confirms the server's mode, refuse records older than one they have seen, and otherwise keep encrypting and warn in Settings. A browser that last saw the account end-to-end stops and asks if the server says the key is gone. |
 | 1 | High | **Link-preview parser CPU exhaustion.** A previewed page with one large `<meta>` tag made the attribute regex backtrack quadratically: 64 KB took 89 s, 512 KB minutes of a core per request. Any signed-in user with previews on could pin every core. (`LinkPreviewParser.cs`) | Parse only the page's head, at most 64 KB; skip meta tags over 4 KB; run every pattern on the non-backtracking engine. |
 | 2 | High | **The server could ask for the password.** When prelogin answered `upgrade: true`, the browser sent the plaintext password with every sign-in and every password confirmation. With it, a server derives the wrapping key and opens the end-to-end key. (`credentials.ts`) | The password is sent only at sign-in, the one moment a 1.0 account upgrades, and never for an account this browser has already signed in to with a derived key. |
 | 3 | Medium | **Concurrent sign-ins bypassed the lockout.** Failed attempts were counted with read-increment-save, so overlapping attempts overwrote each other: 40 at once left the count at 3. (`AccountService.cs`) | One atomic `UPDATE … SET AccessFailedCount = AccessFailedCount + 1`, then lock. |
@@ -48,26 +49,11 @@ that is compromised but serves the genuine app", and that server controls those 
 
 Note on #11: plain images are now fetched again when a page is reloaded, instead of coming from the disk cache.
 
-## Open: needs a decision
+## Open findings
 
-### Critical: the server can move an end-to-end account out of end-to-end encryption
-
-Which way the browser converts content is decided by the `mode` the server reports (`conversion.ts`, `noteCrypto.ts`,
-`App.tsx`). A server that answers `mode: "AtRest"` makes every unlocked browser decrypt all notes, files and label
-names and send them back in plaintext, without a prompt, and send every later edit and upload in plaintext. The server's
-own check (a password proof for changing mode) does not help when the server is the attacker.
-
-**Recommended fix:** leaving end-to-end mode must be authorised by something the server cannot forge.
-
-1. When the user leaves end-to-end mode, the browser seals a record "mode = X, counter = n" with the account's metadata
-   key (a new context, e.g. `maple-notes/v2/e2ee/mode/{userId}`), and the server stores it.
-2. A browser decrypts outward only when that record says so; while it holds an unlocked key and the record does not, it
-   keeps encrypting and warns that the server reports another mode.
-
-A smaller step, if the sealed record is too much for now: decrypt outward only in the browser where the user chose to
-leave, after they confirm it there. Other devices then show a prompt instead of converting by themselves.
-
-This changes how leaving end-to-end mode works across devices, so it is left for you to choose.
+The critical finding is fixed above. What remains of it: a browser that has never seen the account (a new device,
+cleared storage) cannot tell a server that claims the account has no end-to-end key from one where the owner left
+end-to-end encryption, since the record's key is what is missing.
 
 ### Medium
 

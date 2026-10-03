@@ -21,7 +21,9 @@ public sealed record EncryptionStatusResponse(EncryptionMode Mode, bool InProgre
 /// to switch back while the account still has its end-to-end key (a first switch uses <c>POST /api/v1/account/e2ee</c>).
 /// </param>
 /// <param name="Proof">Proof of the account password, to confirm a security-relevant change.</param>
-public sealed record UpdateEncryptionRequest(EncryptionMode Mode, CredentialProof Proof);
+/// <param name="ModeRecord">For an account with an end-to-end key, required: the new mode sealed by the browser
+/// (docs/e2ee-spec.md §3a). Without it, the account's browsers keep encrypting whatever the server says.</param>
+public sealed record UpdateEncryptionRequest(EncryptionMode Mode, CredentialProof Proof, byte[]? ModeRecord = null);
 
 /// <summary>Reads and changes a user's encryption mode.</summary>
 /// <param name="db">Database context.</param>
@@ -90,6 +92,17 @@ public sealed class EncryptionSettingsService(
         {
             await db.SaveChangesAsync(cancellationToken); // keeps a legacy credential upgrade
             throw new ApiValidationException("mode", "End-to-end encryption is set up with its own steps in the app.");
+        }
+
+        if (user.E2eeWrappedKey is not null)
+        {
+            if (!EndToEndContent.IsEnvelope(request.ModeRecord, EndToEndContent.MaxModeRecordEnvelopeBytes))
+            {
+                await db.SaveChangesAsync(cancellationToken); // keeps a legacy credential upgrade
+                throw new ApiValidationException("modeRecord", "Send the new mode sealed with the end-to-end key.");
+            }
+
+            user.E2eeModeRecord = request.ModeRecord; // also when the mode stays: confirms it for the account's browsers
         }
 
         var changed = user.EncryptionMode != request.Mode;

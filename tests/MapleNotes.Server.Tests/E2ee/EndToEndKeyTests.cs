@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Features.Encryption;
@@ -67,11 +68,37 @@ public sealed class EndToEndKeyTests : IAsyncLifetime
         var wrongPassword = await _client.PostJsonAsync("/api/v1/account/e2ee", request with { Proof = await _client.ProofAsync("not my password") });
         var badKey = await _client.PostJsonAsync("/api/v1/account/e2ee", request with { WrappedKey = new byte[40] });
         var badRecovery = await _client.PostJsonAsync("/api/v1/account/e2ee", request with { RecoveryAuthKey = new byte[8] });
+        var noModeRecord = await _client.PostJsonAsync("/api/v1/account/e2ee", request with { ModeRecord = null });
 
         Assert.Contains("password", (await EndToEndAccount.ReadAsync<ValidationProblemDetails>(wrongPassword)).Errors.Keys);
         Assert.Contains("wrappedKey", (await EndToEndAccount.ReadAsync<ValidationProblemDetails>(badKey)).Errors.Keys);
         Assert.Contains("recoveryAuthKey", (await EndToEndAccount.ReadAsync<ValidationProblemDetails>(badRecovery)).Errors.Keys);
+        Assert.Contains("modeRecord", (await EndToEndAccount.ReadAsync<ValidationProblemDetails>(noModeRecord)).Errors.Keys);
         Assert.Equal(EncryptionMode.AtRest, (await StoredUserAsync()).EncryptionMode);
+    }
+
+    [Fact]
+    public async Task Every_change_of_mode_carries_the_mode_sealed_by_the_browser()
+    {
+        var account = await EndToEndAccount.EnableAsync(_client);
+        var noteId = Guid.CreateVersion7(); // an end-to-end note keeps the key, and so the record, after leaving
+        (await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest(Id: noteId, Encrypted: account.EncryptNote(noteId, "x")))).EnsureSuccessStatusCode();
+        var sealedOnEnable = (await _client.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.EndToEndModeRecord;
+
+        var unsealed = await _client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(EncryptionMode.AtRest, await _client.ProofAsync()));
+        var garbage = await _client.PutJsonAsync("/api/v1/account/encryption",
+            new UpdateEncryptionRequest(EncryptionMode.AtRest, await _client.ProofAsync(), new byte[2000]));
+        var leaving = account.ModeRecord(EncryptionMode.AtRest, epoch: 2);
+        var sealedLeave = await _client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(EncryptionMode.AtRest, await _client.ProofAsync(), leaving));
+
+        // The server cannot read the record; it keeps it for the account's browsers, which decrypt content for a mode
+        // without end-to-end encryption only when the record says so (docs/e2ee-spec.md §3a).
+        Assert.Equal("""{"mode":"EndToEnd","epoch":1}""",
+            Encoding.UTF8.GetString(E2eeCrypto.Open(E2eeCrypto.SubKeys(account.DataKey).Metadata, sealedOnEnable!, E2eeCrypto.ModeContext(account.UserId))));
+        Assert.Contains("modeRecord", (await EndToEndAccount.ReadAsync<ValidationProblemDetails>(unsealed)).Errors.Keys);
+        Assert.Contains("modeRecord", (await EndToEndAccount.ReadAsync<ValidationProblemDetails>(garbage)).Errors.Keys);
+        Assert.Equal(HttpStatusCode.OK, sealedLeave.StatusCode);
+        Assert.Equal(leaving, (await _client.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.EndToEndModeRecord);
     }
 
     [Fact]
@@ -128,15 +155,15 @@ public sealed class EndToEndKeyTests : IAsyncLifetime
     {
         var toEndToEnd = await _client.PutJsonAsync("/api/v1/account/encryption",
             new UpdateEncryptionRequest(EncryptionMode.EndToEnd, await _client.ProofAsync()));
-        await EndToEndAccount.EnableAsync(_client);
-        var leave = await _client.PutJsonAsync("/api/v1/account/encryption",
-            new UpdateEncryptionRequest(EncryptionMode.Off, await _client.ProofAsync()));
+        var account = await EndToEndAccount.EnableAsync(_client);
+        var leave = await account.SetModeAsync(_client, EncryptionMode.Off);
 
         Assert.Contains("mode", (await EndToEndAccount.ReadAsync<ValidationProblemDetails>(toEndToEnd)).Errors.Keys);
         Assert.Equal(HttpStatusCode.OK, leave.StatusCode);
         var user = await StoredUserAsync();
         Assert.Equal(EncryptionMode.Off, user.EncryptionMode);
         Assert.Null(user.E2eeWrappedKey); // nothing was encrypted end-to-end, so nothing needs the key
+        Assert.Null(user.E2eeModeRecord); // nor the record sealed with it
     }
 
     [Fact]

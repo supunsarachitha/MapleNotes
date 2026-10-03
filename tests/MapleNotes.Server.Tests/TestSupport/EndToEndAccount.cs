@@ -1,7 +1,9 @@
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
+using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Auth;
+using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Features.Notes;
 
@@ -38,7 +40,8 @@ internal sealed record EndToEndAccount(Guid UserId, byte[] DataKey, byte[] Recov
             await client.ProofAsync(password),
             E2eeCrypto.Seal(wrapKey, account.DataKey, E2eeCrypto.DataKeyContext(userId)),
             E2eeCrypto.Seal(recoveryWrap, account.DataKey, E2eeCrypto.RecoveryContext(userId)),
-            recoveryAuth);
+            recoveryAuth,
+            account.ModeRecord(EncryptionMode.EndToEnd));
         return (request, account);
     }
 
@@ -49,6 +52,13 @@ internal sealed record EndToEndAccount(Guid UserId, byte[] DataKey, byte[] Recov
         var wrapKey = ApiClient.DeriveKeys(password, (await client.PreloginAsync(client.Username!)).Kdf).WrapKey;
         return E2eeCrypto.Open(wrapKey, wrapped, E2eeCrypto.DataKeyContext(UserId));
     }
+
+    /// <summary>The mode sealed for this account, as the web app sends it with every change of mode.</summary>
+    public byte[] ModeRecord(EncryptionMode mode, int epoch = 1) => E2eeCrypto.SealModeRecord(DataKey, UserId, mode.ToString(), epoch);
+
+    /// <summary>Changes the mode as the web app does: with proof of the password and the sealed new mode.</summary>
+    public async Task<HttpResponseMessage> SetModeAsync(ApiClient client, EncryptionMode mode, int epoch = 2) =>
+        await client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(mode, await client.ProofAsync(), ModeRecord(mode, epoch)));
 
     /// <summary>Wraps the data key for a new password with the given parameters.</summary>
     public byte[] WrapFor(string password, KdfParameters kdf) =>

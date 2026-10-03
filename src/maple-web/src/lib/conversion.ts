@@ -8,7 +8,7 @@ import { api, ApiError, request } from "./api";
 import { DOWNLOAD_CONTENT_TYPE } from "./media";
 import { encryptForNote, unlockedSession } from "./noteCrypto";
 import { queryKeys } from "./queries";
-import type { ConversionBatch, User } from "./types";
+import type { ConversionBatch, EncryptionMode, User } from "./types";
 
 // Converts existing content after a change to or from end-to-end encryption (docs/e2ee-spec.md §3). Only this browser
 // holds the key, so it fetches batches from the server, converts each item and sends it back. Every item is converted
@@ -80,9 +80,14 @@ async function attempt(id: string, convert: () => Promise<void>): Promise<void> 
   }
 }
 
-/** Converts the next batch. Returns how many items were left before it, or 0 when there is nothing it can do. */
-export async function convertNextBatch(): Promise<number> {
+/**
+ * Converts the next batch. Returns how many items were left before it, or 0 when there is nothing it can do.
+ * `trusted` is the mode this browser trusts (lib/modeRecord.ts): content is decrypted for a mode without end-to-end
+ * encryption only when the owner's sealed record confirms that mode, never on the server's word alone.
+ */
+export async function convertNextBatch(trusted: EncryptionMode): Promise<number> {
   const batch = await api.conversion.batch(Math.min(50, BATCH_SIZE + unconvertible.size));
+  if (batch.mode !== "EndToEnd" && batch.mode !== trusted) return 0;
   let attempted = 0;
   for (const note of batch.notes.filter((n) => !unconvertible.has(n.id))) {
     attempted++;
@@ -108,9 +113,9 @@ export function mayNeedConversion(user: User | null, unlocked: boolean): boolean
  * Runs the conversion while the app is open: batch after batch until nothing is left, refreshing the progress shown
  * in Settings. Restarts whenever the mode changes; backs off after errors (offline, for example).
  */
-export function useConversionRunner(user: User | null, unlocked: boolean): void {
+export function useConversionRunner(user: User | null, unlocked: boolean, trusted: EncryptionMode | undefined): void {
   const queryClient = useQueryClient();
-  const active = mayNeedConversion(user, unlocked);
+  const active = mayNeedConversion(user, unlocked) && trusted !== undefined;
   const mode = user?.encryptionMode;
 
   useEffect(() => {
@@ -121,7 +126,7 @@ export function useConversionRunner(user: User | null, unlocked: boolean): void 
       let converted = false;
       while (!stopped) {
         try {
-          const remaining = await convertNextBatch();
+          const remaining = await convertNextBatch(trusted!);
           await queryClient.invalidateQueries({ queryKey: queryKeys.encryption });
           if (remaining === 0) break;
           converted = true;
@@ -142,5 +147,5 @@ export function useConversionRunner(user: User | null, unlocked: boolean): void 
     return () => {
       stopped = true;
     };
-  }, [active, mode, queryClient]);
+  }, [active, mode, trusted, queryClient]);
 }

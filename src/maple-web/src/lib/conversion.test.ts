@@ -58,7 +58,7 @@ describe("conversion to and from end-to-end encryption", () => {
       photo,
     );
 
-    expect(await convertNextBatch()).toBe(2);
+    expect(await convertNextBatch("EndToEnd")).toBe(2);
 
     const note = JSON.parse(sent[`/api/v1/account/conversion/notes/${noteId}`]!.body as string);
     expect(note.updatedAtUtc).toBe("2026-09-29T10:00:00.1234567Z");
@@ -104,7 +104,7 @@ describe("conversion to and from end-to-end encryption", () => {
       stored,
     );
 
-    await convertNextBatch();
+    await convertNextBatch("AtRest");
 
     expect(JSON.parse(sent[`/api/v1/account/conversion/notes/${noteId}`]!.body as string)).toEqual({
       updatedAtUtc: "2026-09-29T10:00:00Z",
@@ -113,6 +113,23 @@ describe("conversion to and from end-to-end encryption", () => {
     const file = (sent[`/api/v1/account/conversion/attachments/${fileId}`]!.body as FormData).get("file") as File;
     expect([file.name, file.type]).toEqual(["clip.webm", "video/webm"]);
     expect(new Uint8Array(await file.arrayBuffer())).toEqual(photo);
+  });
+
+  it("decrypts nothing when only the server says the account left end-to-end encryption", async () => {
+    setContentSession({ userId, mode: "EndToEnd", keys });
+    serve(
+      {
+        mode: "AtRest", // the server's word, which no record sealed by the owner confirms
+        remaining: 1,
+        notes: [{ id: noteId, content: null, encryptedContent: toBase64(await encryptNote(keys, userId, noteId, "Secret")), updatedAtUtc: "2026-09-29T10:00:00Z" }],
+        attachments: [],
+      },
+      new Uint8Array(),
+    );
+
+    expect(await convertNextBatch("EndToEnd")).toBe(0); // the mode this browser trusts (lib/modeRecord.ts)
+
+    expect(Object.keys(sent)).toEqual([]);
   });
 
   it("leaves damaged items alone and stops when nothing else can be converted", async () => {
@@ -129,8 +146,8 @@ describe("conversion to and from end-to-end encryption", () => {
       new Uint8Array(),
     );
 
-    expect(await convertNextBatch()).toBe(1); // tried once: nothing sent
-    expect(await convertNextBatch()).toBe(0); // now known as damaged: nothing it can do
+    expect(await convertNextBatch("AtRest")).toBe(1); // tried once: nothing sent
+    expect(await convertNextBatch("AtRest")).toBe(0); // now known as damaged: nothing it can do
     expect(sent[`/api/v1/account/conversion/notes/${noteId}`]).toBeUndefined();
   });
 
@@ -139,7 +156,7 @@ describe("conversion to and from end-to-end encryption", () => {
     setContentSession({ userId, mode: "EndToEnd", keys });
     serve({ mode: "EndToEnd", remaining: 1, notes: [], attachments: [], labels: [{ id: labelId, name: "Quokka plans", encryptedName: null }] }, new Uint8Array());
 
-    expect(await convertNextBatch()).toBe(1);
+    expect(await convertNextBatch("EndToEnd")).toBe(1);
     const entering = JSON.parse(sent[`/api/v1/labels/${labelId}`]!.body as string) as { encryptedName: string };
     expect(sent[`/api/v1/labels/${labelId}`]!.method).toBe("PUT");
     expect(await decryptLabelName(keys, userId, labelId, fromBase64(entering.encryptedName))).toBe("Quokka plans");
@@ -148,7 +165,7 @@ describe("conversion to and from end-to-end encryption", () => {
     const encryptedName = toBase64(await encryptLabelName(keys, userId, labelId, "Quokka plans"));
     serve({ mode: "AtRest", remaining: 1, notes: [], attachments: [], labels: [{ id: labelId, name: null, encryptedName }] }, new Uint8Array());
 
-    expect(await convertNextBatch()).toBe(1);
+    expect(await convertNextBatch("AtRest")).toBe(1);
     expect(JSON.parse(sent[`/api/v1/labels/${labelId}`]!.body as string)).toEqual({ name: "Quokka plans" });
   });
 });

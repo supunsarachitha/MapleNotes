@@ -11,8 +11,9 @@ public sealed record E2eeKeyResponse(byte[] WrappedKey);
 /// <param name="WrappedKey">The new data key wrapped with the password-derived wrapping key.</param>
 /// <param name="RecoveryWrappedKey">The same data key wrapped with the recovery key.</param>
 /// <param name="RecoveryAuthKey">The authentication key derived from the recovery key (32 bytes).</param>
+/// <param name="ModeRecord">End-to-end mode sealed with the new data key (docs/e2ee-spec.md §3a).</param>
 public sealed record EnableEndToEndRequest(
-    CredentialProof Proof, byte[] WrappedKey, byte[] RecoveryWrappedKey, byte[] RecoveryAuthKey);
+    CredentialProof Proof, byte[] WrappedKey, byte[] RecoveryWrappedKey, byte[] RecoveryAuthKey, byte[]? ModeRecord = null);
 
 /// <summary>Request to replace the recovery key of the signed-in account.</summary>
 /// <param name="Proof">Proof of the account password.</param>

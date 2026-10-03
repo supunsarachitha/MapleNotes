@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Fixes from the October 2026 security audit ([docs/security-audit-2026-10.md](docs/security-audit-2026-10.md)):
 
+- **The server can no longer turn end-to-end encryption off by itself.** Browsers decrypted an account and sent it
+  back in plain text whenever the server reported a mode without end-to-end encryption. Now the owner's choice is
+  sealed with the end-to-end key whenever the mode changes ([e2ee-spec.md §3a](docs/e2ee-spec.md#3a-the-mode-record)),
+  and browsers decrypt only when that record confirms the server's mode; otherwise they keep encrypting and say so in
+  Settings. A browser that last saw an account end-to-end asks before going on if the server says the key is gone.
+  End-to-end accounts need nothing; an account that was leaving end-to-end encryption when it was upgraded stops until
+  its owner chooses the new mode again in Settings. For API clients: `POST /api/v1/account/e2ee` and, for accounts with
+  an end-to-end key, `PUT /api/v1/account/encryption` take a sealed `modeRecord`, and the account gained
+  `endToEndModeRecord`.
 - The browser sends a password itself (to upgrade a 1.0 account) only at sign-in, and never for an account it has
   already signed in to with a derived key; a server could otherwise ask for it and open the end-to-end key.
 - A crafted page could keep the link-preview parser busy for minutes per request; only the page's head is parsed now,

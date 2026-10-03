@@ -26,6 +26,9 @@ public static class EndToEndContent
     /// <summary>Largest encrypted attachment metadata: a small JSON object with a file name of at most 255 characters.</summary>
     public const int MaxMetadataEnvelopeBytes = EnvelopeOverhead + 2048;
 
+    /// <summary>Largest sealed mode record (docs/e2ee-spec.md §3a): a short JSON object.</summary>
+    public const int MaxModeRecordEnvelopeBytes = EnvelopeOverhead + 128;
+
     /// <summary>Size of the header of an encrypted attachment (docs/e2ee-spec.md §5).</summary>
     public const int AttachmentHeaderBytes = 42;
 

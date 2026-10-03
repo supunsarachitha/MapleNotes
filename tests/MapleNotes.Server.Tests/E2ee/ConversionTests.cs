@@ -82,10 +82,10 @@ public sealed class ConversionTests : IAsyncLifetime
         Assert.Null((await StoredUserAsync()).WrappedDataKey);
 
         // Leave for encryption at rest, stop half-way, change one's mind, and go back.
-        (await laptop.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(EncryptionMode.AtRest, await laptop.ProofAsync()))).EnsureSuccessStatusCode();
+        (await account.SetModeAsync(laptop, EncryptionMode.AtRest, epoch: 2)).EnsureSuccessStatusCode();
         Assert.NotNull((await StoredUserAsync()).WrappedDataKey); // a new server key for the notes it will hold again
         Assert.Equal(2, await new BrowserConverter(laptop, account).RunAsync(maxItems: 2));
-        var back = await laptop.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(EncryptionMode.EndToEnd, await laptop.ProofAsync()));
+        var back = await account.SetModeAsync(laptop, EncryptionMode.EndToEnd, epoch: 3);
         Assert.Equal(HttpStatusCode.OK, back.StatusCode); // the existing key is reused: no new recovery key
         Assert.Equal(2, await new BrowserConverter(laptop, account).RunAsync());
         Assert.Equal(0, (await StatusAsync()).RemainingItems);
@@ -93,7 +93,7 @@ public sealed class ConversionTests : IAsyncLifetime
         await AssertReadableAsync(account);
 
         // Leave for good: once the last item is decrypted, the end-to-end key material is gone.
-        (await laptop.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(EncryptionMode.Off, await laptop.ProofAsync()))).EnsureSuccessStatusCode();
+        (await account.SetModeAsync(laptop, EncryptionMode.Off, epoch: 4)).EnsureSuccessStatusCode();
         Assert.True((await laptop.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.HasEndToEndKey); // still needed
         Assert.Equal(4, await new BrowserConverter(laptop, account).RunAsync());
         var user = await StoredUserAsync();

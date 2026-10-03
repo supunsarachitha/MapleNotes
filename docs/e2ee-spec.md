@@ -153,6 +153,35 @@ in any other mode it deletes the end-to-end key material (both wrapped keys and 
 end-to-end item is left, label names included. Until then each key stays, so an interrupted change never strands
 content.
 
+## 3a. The mode record
+
+Which way a browser converts, and whether it encrypts new content, must not depend on the server's word: a server that
+reported `AtRest` for an end-to-end account would otherwise make every unlocked browser decrypt the account and send it
+back in plain text. So the owner's choice of mode is sealed by the browser with the data key, and the account's
+browsers act on that.
+
+- **Record:** the UTF-8 JSON `{"mode":"<Off|AtRest|EndToEnd>","epoch":<n>}`, sealed as an envelope (§2) with
+  `metadataKey` under the context `maple-notes/v2/e2ee/mode/{userId:N}`. `epoch` is one more than the highest epoch the
+  browser has seen for the account, in the current record or remembered from earlier ones.
+- **Sending it:** turning end-to-end encryption on (`POST /api/v1/account/e2ee`, `modeRecord` with `EndToEnd`) and
+  every change of mode while the account has its end-to-end key (`PUT /api/v1/account/encryption`, `modeRecord` with
+  the new mode) carry a record; the server refuses them without one (400). The record may also repeat the current
+  mode, which confirms it. The server stores the record as it is, returns it with the account
+  (`endToEndModeRecord`), and deletes it with the end-to-end key material.
+- **Trusting it:** a browser holding the unlocked key trusts a mode without end-to-end encryption only when the record
+  opens under the account's key, its epoch is at least the highest this browser has seen (so an older record, from
+  before the owner switched back, is refused), and it names the mode the server reports. Otherwise the browser keeps
+  end-to-end mode: it converts nothing out of end-to-end encryption, encrypts new content, and Settings says that the
+  server reports a mode the owner has not confirmed, offering to confirm it or to keep end-to-end encryption. An
+  account without a record (from before records existed) stays end-to-end until its owner changes the mode.
+- **A vanished key:** each browser remembers the newest record it opened. If the server later says the account has no
+  end-to-end key while this browser last saw it in end-to-end mode, the app shows nothing and asks the owner first:
+  that is what leaving on another device looks like, and also what a server pretending the account was never
+  end-to-end would do.
+
+A browser that has never seen the account (a new device, cleared storage) has nothing to compare with when the server
+claims the account has no end-to-end key; the record cannot help there, since its key is the thing that is missing.
+
 ## 4. Tags
 
 - **Which words are tags:** the same rules as the server's tag parser. A `#` is not preceded by a letter, digit,
