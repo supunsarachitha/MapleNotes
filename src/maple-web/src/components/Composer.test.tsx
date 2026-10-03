@@ -144,7 +144,7 @@ describe("Composer", () => {
     await user.type(box, " again");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(update).toHaveBeenCalledWith("n1", "hello again", []));
+    await waitFor(() => expect(update).toHaveBeenCalledWith("n1", "hello again", [], expect.anything()));
     expect(onDone).toHaveBeenCalled();
   });
 
@@ -213,7 +213,7 @@ describe("Composer", () => {
     await user.type(title, "Weekend groceries");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(update).toHaveBeenCalledWith("n1", "# Weekend groceries\n\n- [ ] oats", []));
+    await waitFor(() => expect(update).toHaveBeenCalledWith("n1", "# Weekend groceries\n\n- [ ] oats", [], expect.anything()));
   });
 
   it("formats the selection from the toolbar and with shortcuts", async () => {

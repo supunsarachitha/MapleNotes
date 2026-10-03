@@ -364,14 +364,22 @@ public sealed class NoteService(
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The updated note, or null when it does not exist or belongs to someone else.</returns>
     /// <exception cref="ApiValidationException">The new content is invalid.</exception>
-    /// <exception cref="ApiProblemException">The change adds more than the account's storage limit leaves room for
-    /// (HTTP 507).</exception>
+    /// <exception cref="ApiProblemException">The note was edited after the version the request expects (HTTP 409), or
+    /// the change adds more than the account's storage limit leaves room for (HTTP 507).</exception>
     public async Task<NoteResponse?> UpdateAsync(Guid userId, Guid noteId, UpdateNoteRequest request, CancellationToken cancellationToken)
     {
         var note = await WithDetails(db.Notes).SingleOrDefaultAsync(n => n.Id == noteId && n.UserId == userId, cancellationToken);
         if (note is null)
         {
             return null;
+        }
+
+        // Compared to the tick, as the conversion does: clients send back the value they were given.
+        if (request.ExpectedUpdatedAtUtc is { } expected
+            && note.UpdatedAtUtc != (expected.Kind == DateTimeKind.Local ? expected.ToUniversalTime() : expected))
+        {
+            throw new ApiProblemException(
+                StatusCodes.Status409Conflict, "This note changed since it was opened.", "Fetch it again, or save the text as a new note.");
         }
 
         var bytesBefore = note.Content.Length;

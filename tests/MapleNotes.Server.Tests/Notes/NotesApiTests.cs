@@ -121,6 +121,43 @@ public sealed class NotesApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Editing_the_version_the_client_saw_succeeds()
+    {
+        var note = await CreateAsync("first");
+
+        var response = await _client.PutJsonAsync(
+            $"/api/v1/notes/{note.Id}", new UpdateNoteRequest("second", ExpectedUpdatedAtUtc: note.UpdatedAtUtc));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("second", (await _client.GetJsonAsync<NoteResponse>($"/api/v1/notes/{note.Id}"))!.Content);
+    }
+
+    [Fact]
+    public async Task Editing_an_older_version_is_refused_and_keeps_the_newer_text()
+    {
+        var note = await CreateAsync("first");
+        await _client.PutJsonAsync($"/api/v1/notes/{note.Id}", new UpdateNoteRequest("edited on another device"));
+
+        var response = await _client.PutJsonAsync(
+            $"/api/v1/notes/{note.Id}", new UpdateNoteRequest("edited offline", ExpectedUpdatedAtUtc: note.UpdatedAtUtc));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("edited on another device", (await _client.GetJsonAsync<NoteResponse>($"/api/v1/notes/{note.Id}"))!.Content);
+    }
+
+    [Fact]
+    public async Task The_expected_version_compares_the_instant_whatever_its_offset()
+    {
+        var note = await CreateAsync("first");
+        var sameInstant = note.UpdatedAtUtc.ToString("yyyy-MM-ddTHH:mm:ss.fffffff") + "+00:00";
+
+        var response = await _client.PutJsonAsync(
+            $"/api/v1/notes/{note.Id}", new { content = "second", expectedUpdatedAtUtc = sameInstant });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Tag_filter_includes_nested_tags()
     {
         var parent = await CreateAsync("#work planning");

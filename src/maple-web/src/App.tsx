@@ -12,6 +12,7 @@ import { onFirstWorkerControl, registerServiceWorker } from "./lib/mediaWorker";
 import { forgetMode, TrustedModeContext, useTrustedMode } from "./lib/modeRecord";
 import { setContentSession } from "./lib/noteCrypto";
 import { useOffline } from "./lib/offline";
+import { setOutboxOwner } from "./lib/outbox";
 import { hasWebCrypto } from "./lib/secureContext";
 import { queryKeys, useAuthStatus, useSignedOut } from "./lib/queries";
 import { useLocation } from "./lib/router";
@@ -145,6 +146,7 @@ export function App() {
   useEffect(() => {
     if (!signedOut) return;
     setContentSession(null);
+    setOutboxOwner(null);
     void e2ee.forget();
   }, [signedOut]);
 
@@ -228,6 +230,8 @@ export function App() {
   }
 
   setContentSession({ userId: user.id, mode: trusted?.mode ?? user.encryptionMode, keys: keys.status === "unlocked" ? keys.keys : null });
+  // Only a device that keeps notes for offline reading keeps changes made offline, under the same rules.
+  setOutboxOwner({ userId: user.id, keepsNotes: status.data.sessionPersistent === true });
 
   return (
     <TrustedModeContext.Provider value={trusted}>

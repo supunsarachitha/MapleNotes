@@ -102,9 +102,9 @@ describe("Habits", () => {
     await user.click(today);
 
     expect(today).toHaveAttribute("aria-pressed", "true");
-    await waitFor(() => expect(save).toHaveBeenCalledWith(read.id, "# Read 20 minutes\n\n- 2026-09-27\n- 2026-09-28\n- 2026-09-29", []));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(read.id, "# Read 20 minutes\n\n- 2026-09-27\n- 2026-09-28\n- 2026-09-29", [], expect.anything()));
     await user.click(screen.getByRole("button", { name: "Read 20 minutes, Sunday, September 27" }));
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith(read.id, "# Read 20 minutes\n\n- 2026-09-28\n- 2026-09-29", []));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith(read.id, "# Read 20 minutes\n\n- 2026-09-28\n- 2026-09-29", [], expect.anything()));
   });
 
   it("goes a week back and forward again, never past today", async () => {
@@ -150,7 +150,7 @@ describe("Habits", () => {
     expect(name).toHaveFocus();
     await user.clear(name);
     await user.type(name, "Read 30 minutes{Enter}");
-    await waitFor(() => expect(save).toHaveBeenCalledWith(read.id, "# Read 30 minutes\n\n- 2026-09-27\n- 2026-09-28", []));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(read.id, "# Read 30 minutes\n\n- 2026-09-27\n- 2026-09-28", [], expect.anything()));
 
     await user.click(screen.getByRole("button", { name: "Habit actions" }));
     await user.click(await screen.findByRole("menuitem", { name: "Archive" }));

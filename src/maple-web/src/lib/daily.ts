@@ -44,6 +44,6 @@ export async function saveDailyNote(date: string, title: string, body: string, a
     const existing = await api.dailyNote(date);
     if (!existing) throw error;
     const ids = [...existing.attachments.map((attachment) => attachment.id), ...attachmentIds];
-    return api.updateNote(existing.id, body.trim() ? `${existing.content.trimEnd()}\n\n${body}` : existing.content, ids);
+    return api.updateNote(existing.id, body.trim() ? `${existing.content.trimEnd()}\n\n${body}` : existing.content, ids, existing);
   }
 }

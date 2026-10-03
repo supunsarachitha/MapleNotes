@@ -206,7 +206,12 @@ public sealed record ImportExistingResponse(IReadOnlyList<Guid> Existing);
 /// The complete list of attachments the note should have. Files left out are deleted. Omit to keep them unchanged.
 /// </param>
 /// <param name="Encrypted">For an end-to-end account: the new text and tags, encrypted by the browser.</param>
-public sealed record UpdateNoteRequest(string? Content = null, IReadOnlyList<Guid>? AttachmentIds = null, EncryptedNote? Encrypted = null);
+/// <param name="ExpectedUpdatedAtUtc">
+/// The note's <c>updatedAtUtc</c> as the client last saw it, sent back unchanged. When it is given and the note has been
+/// edited since, nothing changes and the request fails with 409, so an edit made offline cannot overwrite a newer one.
+/// </param>
+public sealed record UpdateNoteRequest(
+    string? Content = null, IReadOnlyList<Guid>? AttachmentIds = null, EncryptedNote? Encrypted = null, DateTime? ExpectedUpdatedAtUtc = null);
 
 /// <summary>
 /// Request to pin, unpin, archive, restore, move, label or trash a note. Omitted fields are unchanged.

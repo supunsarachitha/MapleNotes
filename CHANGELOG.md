@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Write notes offline.
+
+### Added
+
+- **Writing offline:** on a device that keeps notes for offline reading (a session started with "keep me signed in"),
+  new notes, todo lists, quick notes and habits, and edits to notes (including ticking items and habit days), are kept on
+  the device when the server cannot be reached, and saved once it can. The lists show them straight away, marked "Not
+  saved yet", and the notice at the top says how many are waiting. An edit is saved only if the note was not edited
+  elsewhere meanwhile; otherwise the text written offline is saved as a separate note, and the app says so. End-to-end
+  accounts keep the text encrypted on the device. Signing out asks first while changes are waiting, then deletes them.
+  Files still need a connection.
+- `PUT /api/v1/notes/{id}` takes an optional `expectedUpdatedAtUtc` and refuses, with 409, to replace a note edited
+  after that version.
+
 ## [1.12.0] - 2026-10-03
 
 Read your notes offline.

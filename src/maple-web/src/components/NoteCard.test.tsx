@@ -152,3 +152,19 @@ describe("Deleting a note", () => {
     expect(patch).not.toHaveBeenCalled();
   });
 });
+
+describe("notes written offline", () => {
+  it("marks a note whose change has not reached the server yet", () => {
+    const { rerender } = renderWith(<NoteCard note={{ ...note, pending: true }} />);
+    expect(screen.getByText("Not saved yet")).toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <ToastProvider>
+          <NoteCard note={note} />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByText("Not saved yet")).not.toBeInTheDocument();
+  });
+});

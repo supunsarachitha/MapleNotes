@@ -168,18 +168,22 @@ there too). It opens without a connection too, as the next section explains.`,
   },
   {
     id: "offline",
-    title: "Reading offline",
+    title: "Reading and writing offline",
     body: `If you signed in with **Keep me signed in**, Maple Notes keeps a copy of what you read on this device, so it opens
 and shows those notes when your phone or computer is offline, or your server cannot be reached. A note at the top says
 when you are reading saved copies.
 
 - What you opened recently is there: your timeline, lists and pages you looked at, your tags and labels. Searches,
   pictures and other files need a connection.
-- Changes cannot be saved while you are offline. Write them once you are back online.
+- You can write new notes, todo lists and quick notes, edit notes, tick items and mark habits while offline. These
+  changes are kept on this device, marked **Not saved yet**, and saved by themselves once the server can be reached
+  again, while the app is open. Pinning, archiving, labels, the trash and adding files still need a connection.
+- If a note you edited offline was also changed on another device in the meantime, nothing is overwritten: your
+  version is saved as a separate note, next to the other one, and the app tells you.
 - With end-to-end encryption, the saved copies stay encrypted. When the app opens offline, enter your password to unlock
   them; it is checked on this device.
-- Signing out deletes the saved copies. A session without **Keep me signed in** saves nothing, so use that on a shared
-  computer.`,
+- Signing out deletes the saved copies, and any changes not saved yet (the app asks first). A session without **Keep me
+  signed in** saves nothing, so use that on a shared computer.`,
   },
   {
     id: "features",

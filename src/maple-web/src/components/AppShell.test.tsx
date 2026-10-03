@@ -1,7 +1,10 @@
+import "fake-indexeddb/auto";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "../lib/api";
+import { forgetPendingChanges, keepNewNote, setOutboxOwner } from "../lib/outbox";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
 import type { AuthStatus, Preferences, User } from "../lib/types";
@@ -19,7 +22,7 @@ const user: User = {
   preferences: DEFAULT_PREFERENCES,
 };
 
-function renderShell(preferences: Partial<Preferences>, branding?: AuthStatus["branding"]) {
+function renderShell(preferences: Partial<Preferences>, branding?: AuthStatus["branding"], sessionPersistent = false) {
   vi.spyOn(api, "listTags").mockResolvedValue([]);
   vi.spyOn(api.labels, "list").mockResolvedValue([
     { id: "l-work", name: "Work", color: "Blue", noteCount: 4 },
@@ -28,7 +31,7 @@ function renderShell(preferences: Partial<Preferences>, branding?: AuthStatus["b
   vi.spyOn(api, "calendar").mockResolvedValue([]);
   const account = { ...user, preferences: { ...DEFAULT_PREFERENCES, ...preferences } };
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
-  client.setQueryData<AuthStatus>(queryKeys.status, { setupRequired: false, registrationOpen: false, user: account, branding });
+  client.setQueryData<AuthStatus>(queryKeys.status, { setupRequired: false, registrationOpen: false, user: account, branding, sessionPersistent });
   return render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -94,5 +97,34 @@ describe("AppShell", () => {
     onLine.mockReturnValue(true);
     renderShell({});
     expect(screen.queryByText(/you are offline/i)).not.toBeInTheDocument();
+  });
+
+  it("says that changes are kept when this device keeps notes, and how many are waiting", async () => {
+    setOutboxOwner({ userId: user.id, keepsNotes: true });
+    await forgetPendingChanges();
+    await keepNewNote("Written offline", [], {});
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    vi.spyOn(api, "listNotes").mockRejectedValue(new Error("offline")); // nothing is sent while offline
+    renderShell({}, undefined, true);
+
+    expect(await screen.findByText(/new notes and edits are kept here.*1 note has changes waiting/i)).toBeInTheDocument();
+    setOutboxOwner(null);
+  });
+
+  it("asks before signing out while changes made offline are waiting", async () => {
+    setOutboxOwner({ userId: user.id, keepsNotes: true });
+    await forgetPendingChanges();
+    await keepNewNote("Written offline", [], {});
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    const logout = vi.spyOn(api, "logout").mockResolvedValue();
+    renderShell({}, undefined, true);
+    await screen.findByText(/1 note has changes waiting/i);
+
+    await userEvent.click(within(screen.getByRole("complementary")).getByRole("button", { name: "Sign out" }));
+    expect(await screen.findByRole("dialog", { name: "Sign out and lose unsaved changes?" })).toBeInTheDocument();
+    expect(logout).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Sign out anyway" }));
+    await waitFor(() => expect(logout).toHaveBeenCalled());
+    setOutboxOwner(null);
   });
 });

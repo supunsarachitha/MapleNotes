@@ -124,6 +124,9 @@ A lost or stolen phone or laptop, or a shared computer.
   - For end-to-end accounts they stay encrypted, but the device also holds the wrapped key and the Argon2id parameters,
     so whoever has it can guess the password offline, as someone with the server's data can. A strong password is the
     defence.
+  - Notes written or edited offline wait on the device under the same rules until they are sent
+    ([architecture.md](architecture.md#writing-offline)): in plain text for accounts that are off or encrypted at
+    rest, encrypted for the note for end-to-end accounts. Signing out deletes them too, after asking.
   - A session without "keep me signed in", the right choice on a shared computer, keeps nothing.
 - **Left behind:**
   - Files viewed before an account switched to end-to-end encryption can remain in the browser's HTTP cache, in

@@ -1,5 +1,5 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Archive, ArchiveRestore, Copy, Home, MoreHorizontal, Pencil, Pin, PinOff, Tag, Trash2, Zap, type LucideIcon } from "lucide-react";
+import { Archive, ArchiveRestore, CloudUpload, Copy, Home, MoreHorizontal, Pencil, Pin, PinOff, Tag, Trash2, Zap, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { saveErrorMessage } from "../lib/apiError";
 import { useDoubleTap } from "../lib/doubleTap";
@@ -113,6 +113,14 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
         {showKind && note.kind !== "Note" && (
           <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-300">
             {note.kind === "Todo" ? "Todo list" : "Quick note"}
+          </span>
+        )}
+        {note.pending && (
+          <span
+            className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400"
+            title="Kept on this device until the server can be reached."
+          >
+            <CloudUpload className="size-3.5" aria-hidden="true" /> Not saved yet
           </span>
         )}
         {note.isPinned && !note.isArchived && (

@@ -95,6 +95,23 @@ export async function encodeNoteUpdate(id: string, content: string): Promise<{ c
   return session?.mode === "EndToEnd" ? { encrypted: await encryptForNote(id, content) } : { content };
 }
 
+/**
+ * Note text as this device keeps it until it can be sent (lib/outbox.ts): encrypted for the note whenever this
+ * browser holds an end-to-end key, so text written offline is never left on the device in plain text for such an
+ * account, and as it is otherwise, like the copies offline reading keeps.
+ */
+export async function sealForDevice(noteId: string, content: string): Promise<{ content: string | null; encryptedContent: string | null }> {
+  if (!session?.keys) return { content, encryptedContent: null };
+  return { content: null, encryptedContent: toBase64(await encryptNote(session.keys, session.userId, noteId, content)) };
+}
+
+/** The text `sealForDevice` kept; throws when it cannot be opened in this browser now. */
+export async function openFromDevice(noteId: string, sealed: { content: string | null; encryptedContent: string | null }): Promise<string> {
+  if (sealed.encryptedContent === null) return sealed.content ?? "";
+  const { userId, keys } = unlocked();
+  return decryptNote(keys, userId, noteId, fromBase64(sealed.encryptedContent));
+}
+
 /** A note as components see it: decrypted, with its tags read from the text. */
 export async function decodeNote(note: NoteWire): Promise<Note> {
   const { encryptedContent, ...rest } = note;

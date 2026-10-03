@@ -6,11 +6,14 @@ import { useBranding } from "../lib/branding";
 import { useEnabledKinds } from "../lib/kinds";
 import { MENU_INFO, menuOrder, type MenuItemId } from "../lib/menu";
 import { useOffline } from "../lib/offline";
+import { usePendingCount } from "../lib/outbox";
+import { useOutboxSync } from "../lib/outboxSync";
 import { usePreferences } from "../lib/preferences";
-import { useLabels, useSignedOut, useTags } from "../lib/queries";
+import { useAuthStatus, useLabels, useSignedOut, useTags } from "../lib/queries";
 import { Link, navigate, useLocation, type Location } from "../lib/router";
 import type { User } from "../lib/types";
 import { Calendar } from "./Calendar";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { BrandMark } from "./BrandMark";
 import { LabelDot } from "./Labels";
 import { useToast } from "./Toaster";
@@ -121,8 +124,11 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
   const { appName } = useBranding();
   const toast = useToast();
   const items = menuOrder(preferences.menuOrder).filter((item) => MENU_INFO[item].shown(preferences));
+  const pending = usePendingCount();
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
 
   async function signOut() {
+    setConfirmingSignOut(false);
     try {
       await api.logout();
       navigate("/", { replace: true });
@@ -175,24 +181,46 @@ function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => void }) 
           <p className="truncate text-sm font-medium">{user.displayName}</p>
           <p className="truncate text-xs text-stone-500 dark:text-stone-400">@{user.username}</p>
         </div>
-        <IconButton label="Sign out" onClick={() => void signOut()}>
+        <IconButton label="Sign out" onClick={() => (pending > 0 ? setConfirmingSignOut(true) : void signOut())}>
           <LogOut className="size-5" />
         </IconButton>
       </div>
+      <ConfirmDialog
+        open={confirmingSignOut}
+        onOpenChange={setConfirmingSignOut}
+        title="Sign out and lose unsaved changes?"
+        description={`Changes to ${pending === 1 ? "1 note" : `${pending} notes`} made offline have not reached the server yet. Signing out deletes them from this device. To keep them, stay signed in until you are back online.`}
+        confirmLabel="Sign out anyway"
+        onConfirm={() => void signOut()}
+      />
     </div>
   );
 }
 
-/** Says that the notes shown are copies saved on this device, and that changes need a connection. */
+/**
+ * Says that the notes shown are copies saved on this device, and what happens to changes: kept here and saved later
+ * on a device that keeps notes (lib/outbox.ts), otherwise they need a connection. Also says when changes made offline
+ * are still waiting.
+ */
 function OfflineNotice() {
-  if (!useOffline()) return null;
+  const offline = useOffline();
+  const pending = usePendingCount();
+  const keepsChanges = useAuthStatus().data?.sessionPersistent === true;
+  if (!offline && pending === 0) return null;
+  const waiting = pending === 1 ? "1 note has changes waiting to be saved." : `${pending} notes have changes waiting to be saved.`;
   return (
     <p
       role="status"
       className="mb-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200"
     >
       <CloudOff className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      <span>You are offline. You can read notes you opened recently on this device; changes cannot be saved until you are back online.</span>
+      <span>
+        {!offline
+          ? `Saving changes made offline. ${waiting}`
+          : keepsChanges
+            ? `You are offline. You can read notes you opened recently on this device. New notes and edits are kept here and saved when you are back online.${pending > 0 ? ` ${waiting}` : ""}`
+            : "You are offline. You can read notes you opened recently on this device; changes cannot be saved until you are back online."}
+      </span>
     </p>
   );
 }
@@ -202,6 +230,8 @@ function OfflineNotice() {
  * sidebar next to a centred reading column.
  */
 export function AppShell({ user, children }: { user: User; children: ReactNode }) {
+  // The shell shows only once the account's notes can be read and written, which sending changes made offline needs.
+  useOutboxSync(true);
   const { appName } = useBranding();
   const { path } = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
