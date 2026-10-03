@@ -76,10 +76,20 @@ function Input({ node: _node, ...props }: ComponentProps<"input"> & ExtraProps) 
   return <input type="checkbox" checked={props.checked ?? false} aria-label={props["aria-label"]} onChange={() => toggle(offset)} />;
 }
 
+/** An address in the app itself: a path, but not `//host/…` or `/\host`, which browsers read as another site. */
+const isAppPath = (href: string) => href.startsWith("/") && !/^\/[/\\]/.test(href);
+
+/** The account's own attachments, the only images a note shows: no other request is made just by viewing a note. */
+const ATTACHMENT_IMAGE = /^\/(?:api\/v1|e2ee)\/attachments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\?[\w=&.-]*)?$/i;
+
 const components: Components = {
   input: Input,
+  img({ src, alt }) {
+    if (typeof src === "string" && ATTACHMENT_IMAGE.test(src)) return <img src={src} alt={alt ?? ""} loading="lazy" />;
+    return alt ? <span>{alt}</span> : null;
+  },
   a({ href = "", children, className }) {
-    if (href.startsWith("/")) {
+    if (isAppPath(href)) {
       return (
         <Link href={href} className={className}>
           {children}

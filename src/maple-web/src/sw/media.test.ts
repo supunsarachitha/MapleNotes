@@ -146,4 +146,22 @@ describe("media service worker", () => {
 
     expect((await serveAttachment(get(url, "bytes=0-10"), deps(server))).status).toBe(502);
   });
+
+  it("fails rather than serve a file with chunks left out", async () => {
+    const server = await fakeServer(pattern(200_000), { name: "clip.mp4", type: "video/mp4" });
+    const truncating = {
+      // A server that answers each multi-chunk range with its first chunk only: every chunk it sends is authentic.
+      fetch: async (input: string, init?: RequestInit) => {
+        const response = await server.fetch(input, init);
+        const body = new Uint8Array(await response.arrayBuffer());
+        return new Response(body.length > 70_000 ? body.slice(0, 65_552) : body, { status: response.status, headers: response.headers });
+      },
+    };
+
+    const whole = await serveAttachment(get(url), deps(truncating));
+    const range = await serveAttachment(get(url, "bytes=0-199999"), deps(truncating));
+
+    await expect(whole.arrayBuffer()).rejects.toThrow();
+    expect(range.status).toBe(502);
+  });
 });

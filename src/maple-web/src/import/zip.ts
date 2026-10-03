@@ -27,6 +27,9 @@ const u64 = (view: DataView, at: number) => Number(view.getBigUint64(at, true));
 /** The largest entry this reader extracts; bigger ones are refused rather than exhausting memory. */
 export const MAX_ENTRY_BYTES = 2 * 1024 ** 3;
 
+/** Deflate shrinks data at most about 1032 to 1, so an entry claiming more is damaged or hostile (a "zip bomb"). */
+const MAX_DEFLATE_RATIO = 1032;
+
 /** Lists a ZIP archive's files (not its folders). */
 export async function readZip(blob: Blob): Promise<ZipEntry[]> {
   // The end-of-central-directory record is in the last 22 bytes, or before a comment of up to 64 KiB.
@@ -91,6 +94,9 @@ export async function readZip(blob: Blob): Promise<ZipEntry[]> {
       size: uncompressed,
       async read() {
         if (uncompressed > MAX_ENTRY_BYTES) throw new Error(`"${name}" is too large to restore.`);
+        // The output buffer is allocated at the size the archive claims, so that size must be possible.
+        const possible = method === 0 ? storedSize : storedSize * MAX_DEFLATE_RATIO + 1024;
+        if (uncompressed > possible) throw new Error(`"${name}" is damaged.`);
         const header = await bytes(blob, start, start + 30);
         if (header.getUint32(0, true) !== LOCAL) throw new Error(`"${name}" is damaged.`);
         const dataAt = start + 30 + header.getUint16(26, true) + header.getUint16(28, true);
