@@ -1,6 +1,6 @@
 import { toBase64 } from "../crypto/encoding";
 import { api } from "./api";
-import { deriveForAccount, deriveForNewPassword } from "./credentials";
+import { deriveForAccount, deriveForNewPassword, rememberKeyDerived } from "./credentials";
 import { e2ee } from "./e2ee";
 import type { CredentialProof, User } from "./types";
 
@@ -13,8 +13,9 @@ export { MIN_PASSWORD_LENGTH, validateNewPassword } from "./credentials";
 /** Sign-in, registration and password confirmation. Methods live on an object so tests can replace them. */
 export const auth = {
   async signIn(username: string, password: string, rememberMe: boolean): Promise<User> {
-    const { proof, keys } = await deriveForAccount(username, password);
+    const { proof, keys } = await deriveForAccount(username, password, { signingIn: true });
     const user = await api.login({ username, rememberMe, ...proof });
+    await rememberKeyDerived(username);
     if (user.hasEndToEndKey) {
       // Unlock with the key already derived for signing in, so the password is asked only once. If this fails, the
       // unlock screen asks again.
@@ -25,7 +26,9 @@ export const auth = {
 
   async register(username: string, password: string, displayName?: string): Promise<User> {
     const { kdf, keys } = await deriveForNewPassword(password);
-    return api.register({ username, displayName, kdf, authKey: toBase64(keys.authKey) });
+    const user = await api.register({ username, displayName, kdf, authKey: toBase64(keys.authKey) });
+    await rememberKeyDerived(username);
+    return user;
   },
 
   /** Proof of the password for a security-relevant change (encryption settings, deleting the account). */

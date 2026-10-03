@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+Fixes from the October 2026 security audit ([docs/security-audit-2026-10.md](docs/security-audit-2026-10.md)):
+
+- **The server can no longer turn end-to-end encryption off by itself.** Browsers decrypted an account and sent it
+  back in plain text whenever the server reported a mode without end-to-end encryption. Now the owner's choice is
+  sealed with the end-to-end key whenever the mode changes ([e2ee-spec.md §3a](docs/e2ee-spec.md#3a-the-mode-record)),
+  and browsers decrypt only when that record confirms the server's mode; otherwise they keep encrypting and say so in
+  Settings. A browser that last saw an account end-to-end asks before going on if the server says the key is gone.
+  End-to-end accounts need nothing; an account that was leaving end-to-end encryption when it was upgraded stops until
+  its owner chooses the new mode again in Settings. For API clients: `POST /api/v1/account/e2ee` and, for accounts with
+  an end-to-end key, `PUT /api/v1/account/encryption` take a sealed `modeRecord`, and the account gained
+  `endToEndModeRecord`.
+- The browser sends a password itself (to upgrade a 1.0 account) only at sign-in, and never for an account it has
+  already signed in to with a derived key; a server could otherwise ask for it and open the end-to-end key.
+- A crafted page could keep the link-preview parser busy for minutes per request; only the page's head is parsed now,
+  in linear time.
+- Wrong passwords sent at the same moment are all counted, so the five-attempt lockout holds.
+- Converting notes to or from end-to-end encryption can no longer store more than the notes themselves, past the
+  storage limit.
+- The service worker refuses encrypted files with chunks missing instead of serving them shortened.
+- The link-preview limit is per account as documented, IPv6 clients are limited per /64, and previews are cached per
+  account, without the URL fragment, in a bounded cache.
+- Decrypted attachments are no longer kept in the browser's disk cache.
+- Smaller fixes: unknown admin roles are refused; the trash purge keeps notes restored meanwhile; `//host` links open as
+  other sites; Markdown images show only the account's own attachments; restores refuse ZIP entries with impossible
+  sizes; upload names lose text-reordering characters; the database's write-ahead log is truncated after checkpoints.
+
 ## [1.10.1] - 2026-10-03
 
 ### Fixed

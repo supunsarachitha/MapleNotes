@@ -15,6 +15,8 @@ export interface User {
   hasEndToEndKey: boolean;
   createdAtUtc: string;
   preferences: Preferences;
+  /** For an account with an end-to-end key, the mode its owner chose, sealed by a browser (lib/modeRecord.ts). */
+  endToEndModeRecord?: string | null;
 }
 
 /** The date formats offered in Settings, as .NET-style patterns (formatted by lib/dates.ts). */

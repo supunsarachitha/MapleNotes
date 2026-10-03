@@ -82,7 +82,10 @@ async function fetchChunks(opened: Opened, first: number, last: number, deps: Me
   const range = opened.decryptor.cipherRange(first, last);
   const response = await deps.fetch(opened.url, { headers: { Range: `bytes=${range.start}-${range.end - 1}` } });
   if (response.status !== 206) throw new HttpStatus(response.ok ? 502 : response.status);
-  return opened.decryptor.decryptChunks(first, new Uint8Array(await response.arrayBuffer()));
+  const ciphertext = new Uint8Array(await response.arrayBuffer());
+  // Every chunk that arrives is authentic, so a shorter answer would decrypt into a file with pieces silently missing.
+  if (ciphertext.length !== range.end - range.start) throw new HttpStatus(502);
+  return opened.decryptor.decryptChunks(first, ciphertext);
 }
 
 function streamWhole(opened: Opened, deps: MediaDeps): ReadableStream<Uint8Array> {

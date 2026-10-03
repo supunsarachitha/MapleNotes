@@ -84,6 +84,20 @@ public sealed class LinkPreviewTests
         Assert.EndsWith("…", LinkPreviewParser.Parse($"<title>{new string('a', 400)}</title>", new Uri("https://x.example/"))!.Title);
     }
 
+    [Theory]
+    [InlineData("<meta ", "a")] // one huge attribute-less tag: the attribute pattern used to backtrack quadratically
+    [InlineData("<meta ", "<meta ")]
+    [InlineData("", "<title>")]
+    public void Hostile_pages_are_parsed_quickly(string prefix, string repeated)
+    {
+        var page = prefix + string.Concat(Enumerable.Repeat(repeated, (LinkPreviewService.MaxBytes - 1) / repeated.Length)) + ">";
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        LinkPreviewParser.Parse(page, new Uri("https://evil.example/"));
+
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(2), $"Parsing took {watch.Elapsed}.");
+    }
+
     private static (string, string?, string) Summary(LinkPreviewResponse? preview) => (preview!.Title, preview.Description, preview.SiteName);
 
     [Fact]
@@ -109,6 +123,32 @@ public sealed class LinkPreviewTests
         Assert.Equal(first, second);
         Assert.Equal(1, pages.Requests.Count(r => r == "https://news.example/story")); // cached
         Assert.Equal(HttpStatusCode.NoContent, image.StatusCode);
+    }
+
+    [Fact]
+    public async Task Previews_are_cached_per_account_without_the_fragment_and_limited_per_account()
+    {
+        var pages = new FakePages { ["https://news.example/story"] = FakePages.Html("<title>A story</title>") };
+        await using var app = App(pages);
+        app.Settings[MapleOptions.AllowRegistrationKey] = "true";
+        using var reader = new ApiClient(app);
+        using var other = new ApiClient(app); // the same address as the reader
+        await reader.SignUpAsync("reader");
+        await other.SignUpAsync("other");
+        await TurnOnAsync(reader);
+        await TurnOnAsync(other);
+
+        for (var i = 0; i < 60; i++)
+        {
+            (await reader.GetAsync($"/api/v1/link-preview?url=https://news.example/story%23part-{i}")).EnsureSuccessStatusCode();
+        }
+
+        var limited = await reader.GetAsync("/api/v1/link-preview?url=https://news.example/story");
+        var others = await other.GetAsync("/api/v1/link-preview?url=https://news.example/story");
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode); // 60 a minute for each account
+        Assert.Equal(HttpStatusCode.OK, others.StatusCode); // its own budget, although it shares the reader's address
+        Assert.Equal(2, pages.Requests.Count(r => r == "https://news.example/story")); // once for each account
     }
 
     [Fact]

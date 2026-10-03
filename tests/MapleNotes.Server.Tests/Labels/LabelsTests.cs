@@ -223,7 +223,7 @@ public sealed class LabelsTests : IAsyncLifetime
         Assert.Empty(await DatabaseScanner.ScanAsync(app, "Quokka"));
 
         // And out again: the end-to-end key stays while the label's name still needs it.
-        (await client.PutJsonAsync("/api/v1/account/encryption", new UpdateEncryptionRequest(EncryptionMode.AtRest, await client.ProofAsync()))).EnsureSuccessStatusCode();
+        (await account.SetModeAsync(client, EncryptionMode.AtRest)).EnsureSuccessStatusCode();
         Assert.NotNull((await StoredUserAsync(app)).E2eeWrappedKey);
         Assert.Equal(1, await new BrowserConverter(client, account).RunAsync());
         var plain = (await client.GetJsonAsync<List<LabelResponse>>("/api/v1/labels"))!.Single();

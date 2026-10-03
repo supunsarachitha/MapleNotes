@@ -69,6 +69,13 @@ public sealed class User
     /// <summary>The end-to-end data key wrapped with the recovery key (docs/e2ee-spec.md §6).</summary>
     public byte[]? E2eeRecoveryWrappedKey { get; set; }
 
+    /// <summary>
+    /// The account's mode as its owner chose it, sealed by the browser with the end-to-end key (docs/e2ee-spec.md §3a).
+    /// Browsers holding the key decrypt content for a mode without end-to-end encryption only when this record says so,
+    /// so the server cannot make them give up end-to-end encryption. Null when the account has no end-to-end key.
+    /// </summary>
+    public byte[]? E2eeModeRecord { get; set; }
+
     /// <summary>PBKDF2 hash of the authentication key derived from the recovery key; proves it for a password reset.</summary>
     public string? RecoveryKeyHash { get; set; }
 

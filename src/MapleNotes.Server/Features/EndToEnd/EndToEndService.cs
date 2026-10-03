@@ -55,6 +55,11 @@ public sealed class EndToEndService(
         }
 
         EndToEndKeys.ValidateRecovery(errors, "recoveryWrappedKey", request.RecoveryWrappedKey, "recoveryAuthKey", request.RecoveryAuthKey);
+        if (!EndToEndContent.IsEnvelope(request.ModeRecord, EndToEndContent.MaxModeRecordEnvelopeBytes))
+        {
+            errors["modeRecord"] = ["Send end-to-end mode sealed with the new key."];
+        }
+
         ThrowIfAny(errors);
 
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
@@ -71,6 +76,7 @@ public sealed class EndToEndService(
         user.EncryptionMode = EncryptionMode.EndToEnd;
         user.E2eeWrappedKey = request.WrappedKey;
         user.E2eeRecoveryWrappedKey = request.RecoveryWrappedKey;
+        user.E2eeModeRecord = request.ModeRecord;
         user.RecoveryKeyHash = credentials.HashRecoveryKey(user, request.RecoveryAuthKey);
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);

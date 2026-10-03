@@ -63,4 +63,22 @@ describe("Markdown", () => {
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
+
+  it("treats //host links as other sites, not as pages of the app", () => {
+    render(<Markdown content="[trash](//phish.example/login) [tags](/tags)" />);
+
+    expect(screen.getByRole("link", { name: "trash" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "tags" })).not.toHaveAttribute("target");
+  });
+
+  it("shows only the account's own attachments as images", () => {
+    const id = "0192f3a3-1111-7222-8333-444455556666";
+    const { container } = render(
+      <Markdown content={`![photo](/api/v1/attachments/${id}?v=2) ![export](/api/v1/export?format=json) ![pixel](https://tracker.example/p.gif)`} />,
+    );
+
+    expect(Array.from(container.querySelectorAll("img")).map((img) => img.getAttribute("src"))).toEqual([`/api/v1/attachments/${id}?v=2`]);
+    expect(container).toHaveTextContent("export"); // the others show their description instead
+    expect(container).toHaveTextContent("pixel");
+  });
 });

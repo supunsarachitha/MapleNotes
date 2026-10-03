@@ -16,6 +16,7 @@ import { deriveRecoveryKeys, formatRecoveryKey, generateRecoveryKey, parseRecove
 import { api, ApiError } from "./api";
 import { deriveForAccount, deriveForNewPassword, validateNewPassword, wrongPassword } from "./credentials";
 import { shareKeysWithMediaWorker } from "./mediaWorker";
+import { sealFirstMode } from "./modeRecord";
 import type { EncryptionStatus, User } from "./types";
 
 // End-to-end key management in the browser (docs/e2ee-spec.md §3, §6, §7). The data key is created here and reaches
@@ -134,6 +135,7 @@ export const e2ee = {
         wrappedKey: toBase64(await wrapChecked(keys.wrapKey, raw, dataKeyContext(user.id))),
         recoveryWrappedKey: toBase64(await wrapChecked(recovery.wrapKey, raw, recoveryContext(user.id))),
         recoveryAuthKey: toBase64(recovery.authKey),
+        modeRecord: await sealFirstMode(user, await importDataKey(raw)),
       });
       const formatted = formatRecoveryKey(recoveryKey);
       await adopt(user.id, raw, DATA_KEY_VERSION);

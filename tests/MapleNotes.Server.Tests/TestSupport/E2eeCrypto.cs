@@ -80,6 +80,12 @@ internal static class E2eeCrypto
     public static string MetadataContext(Guid userId, Guid attachmentId) =>
         $"maple-notes/v2/e2ee/attachment-meta/{N(userId)}/{N(attachmentId)}";
 
+    public static string ModeContext(Guid userId) => $"maple-notes/v2/e2ee/mode/{N(userId)}";
+
+    /// <summary>The account's mode as its owner chose it, sealed as the web app does (docs/e2ee-spec.md §3a).</summary>
+    public static byte[] SealModeRecord(byte[] dataKey, Guid userId, string mode, int epoch) =>
+        Seal(SubKeys(dataKey).Metadata, Encoding.UTF8.GetBytes($$"""{"mode":"{{mode}}","epoch":{{epoch}}}"""), ModeContext(userId));
+
     // ----------------------------------------------------------------------------------------------- data key
 
     public static (byte[] Note, byte[] Metadata, byte[] TagIndex) SubKeys(byte[] dataKey) =>

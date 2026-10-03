@@ -2,14 +2,16 @@ import { useEffect, type ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { BrandMark } from "./components/BrandMark";
 import { Button, Spinner } from "./components/ui";
+import { api } from "./lib/api";
 import { useAppearance } from "./lib/appearance";
 import { applyBranding, useBranding } from "./lib/branding";
 import { useConversionRunner } from "./lib/conversion";
 import { e2ee, useEndToEndKeys } from "./lib/e2ee";
 import { registerMediaWorker } from "./lib/mediaWorker";
+import { forgetMode, TrustedModeContext, useTrustedMode } from "./lib/modeRecord";
 import { setContentSession } from "./lib/noteCrypto";
 import { hasWebCrypto } from "./lib/secureContext";
-import { useAuthStatus } from "./lib/queries";
+import { useAuthStatus, useSignedOut } from "./lib/queries";
 import { useLocation } from "./lib/router";
 import { AuthPage } from "./pages/AuthPage";
 import { ArchivePage, HomePage } from "./pages/HomePage";
@@ -29,6 +31,44 @@ function FullScreen({ children }: { children: ReactNode }) {
       <BrandMark className="size-12" />
       {children}
     </main>
+  );
+}
+
+/**
+ * Shown instead of the app when the server says an account has no end-to-end key although this browser last saw it in
+ * end-to-end mode. That is what turning end-to-end encryption off on another device looks like, but also what a
+ * compromised server would do to make the app send new notes unencrypted, so the owner confirms before writing anything.
+ */
+function EndToEndGone({ userId }: { userId: string }) {
+  const { appName } = useBranding();
+  const signedOut = useSignedOut();
+  return (
+    <div role="alertdialog" aria-labelledby="e2ee-gone-title" className="flex max-w-md flex-col gap-3 text-left">
+      <h1 id="e2ee-gone-title" className="text-center text-xl font-semibold">
+        End-to-end encryption is off
+      </h1>
+      <p className="text-sm text-stone-600 dark:text-stone-300">
+        The server says this account no longer uses end-to-end encryption, so from now on {appName} would send what you
+        write without encrypting it in your browser. This browser last saw the account end-to-end encrypted.
+      </p>
+      <p className="text-sm text-stone-600 dark:text-stone-300">
+        If you turned it off on another device, continue. If you did not, do not write anything: your server may have
+        been tampered with. Sign out and tell its administrator.
+      </p>
+      <div className="flex justify-center gap-2">
+        <Button
+          onClick={() => {
+            forgetMode(userId);
+            window.location.reload();
+          }}
+        >
+          I turned it off
+        </Button>
+        <Button variant="secondary" onClick={() => void api.logout().finally(signedOut)}>
+          Sign out
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -73,8 +113,11 @@ export function App() {
   const signedOut = status.data !== undefined && !status.data.user;
   const needsMediaWorker = user?.hasEndToEndKey === true;
 
+  // The mode this browser encrypts for: the server's word is not enough to leave end-to-end mode (lib/modeRecord.ts).
+  const trusted = useTrustedMode(user, keys);
+
   // Converts existing content to or from end-to-end encryption while the app is open (lib/conversion.ts).
-  useConversionRunner(user, keys.status === "unlocked");
+  useConversionRunner(user, keys.status === "unlocked", trusted?.mode);
 
   // A key saved during a session that has ended cannot be opened any more; remove it.
   useEffect(() => {
@@ -140,29 +183,40 @@ export function App() {
 
   // Set while rendering, not in an effect: the note lists below start loading in their own effects, which run
   // before this component's, and must already encrypt and decrypt for this account. The assignment is idempotent.
-  setContentSession({ userId: user.id, mode: user.encryptionMode, keys: keys.status === "unlocked" ? keys.keys : null });
+  if (trusted?.warning === "key-missing") {
+    setContentSession(null); // nothing is written until the owner confirms
+    return (
+      <FullScreen>
+        <EndToEndGone userId={user.id} />
+      </FullScreen>
+    );
+  }
+
+  setContentSession({ userId: user.id, mode: trusted?.mode ?? user.encryptionMode, keys: keys.status === "unlocked" ? keys.keys : null });
 
   return (
-    <AppShell user={user}>
-      {path === "/archive" ? (
-        <ArchivePage />
-      ) : path === "/settings" || path.startsWith("/settings/") ? (
-        <SettingsPage user={user} />
-      ) : path === "/trash" ? (
-        <TrashPage />
-      ) : path === "/todo" ? (
-        <TodoPage />
-      ) : path === "/quick" ? (
-        <QuickNotesPage />
-      ) : path === "/habits" ? (
-        <HabitsPage />
-      ) : path === "/tags" ? (
-        <TagsPage />
-      ) : path === "/help" ? (
-        <HelpPage />
-      ) : (
-        <HomePage />
-      )}
-    </AppShell>
+    <TrustedModeContext.Provider value={trusted}>
+      <AppShell user={user}>
+        {path === "/archive" ? (
+          <ArchivePage />
+        ) : path === "/settings" || path.startsWith("/settings/") ? (
+          <SettingsPage user={user} />
+        ) : path === "/trash" ? (
+          <TrashPage />
+        ) : path === "/todo" ? (
+          <TodoPage />
+        ) : path === "/quick" ? (
+          <QuickNotesPage />
+        ) : path === "/habits" ? (
+          <HabitsPage />
+        ) : path === "/tags" ? (
+          <TagsPage />
+        ) : path === "/help" ? (
+          <HelpPage />
+        ) : (
+          <HomePage />
+        )}
+      </AppShell>
+    </TrustedModeContext.Provider>
   );
 }

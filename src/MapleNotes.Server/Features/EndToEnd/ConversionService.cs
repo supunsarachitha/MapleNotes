@@ -1,3 +1,4 @@
+using System.Text;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Attachments;
 using MapleNotes.Server.Features.Notes;
@@ -96,9 +97,20 @@ public sealed class ConversionService(MapleDbContext db, NoteService notes, Atta
                 StatusCodes.Status409Conflict, "This note changed while it was being converted.", "Fetch it again and convert its new text.");
         }
 
+        // A conversion stores the same text in another form, so it is not counted against the storage limit, but it may
+        // not be larger than that text: an envelope is the text's UTF-8 bytes plus a fixed overhead (AES-GCM does not
+        // pad), and decrypting gives those bytes back. Anything bigger is not this note, and would grow the account past
+        // its limit unchecked.
         if (entering)
         {
-            await notes.ApplyEncryptedAsync(note, request.Encrypted ?? throw new ApiValidationException("encrypted", "Send the encrypted text."), cancellationToken);
+            var encrypted = request.Encrypted ?? throw new ApiValidationException("encrypted", "Send the encrypted text.");
+            var plainBytes = Encoding.UTF8.GetByteCount(await notes.ReadContentAsync(note, cancellationToken));
+            if (encrypted.Content is { } envelope && envelope.Length > EndToEndContent.EnvelopeOverhead + plainBytes)
+            {
+                throw new ApiValidationException("encrypted", "The encrypted text is larger than the note.");
+            }
+
+            await notes.ApplyEncryptedAsync(note, encrypted, cancellationToken);
         }
         else
         {
@@ -106,6 +118,11 @@ public sealed class ConversionService(MapleDbContext db, NoteService notes, Atta
             if (content.Length > NoteService.MaxContentLength)
             {
                 throw new ApiValidationException("content", $"A note can be at most {NoteService.MaxContentLength:N0} characters long.");
+            }
+
+            if (Encoding.UTF8.GetByteCount(content) > note.Content.Length - EndToEndContent.EnvelopeOverhead)
+            {
+                throw new ApiValidationException("content", "The decrypted text is larger than the note.");
             }
 
             await notes.ApplyPlainTextAsync(note, content, cancellationToken);

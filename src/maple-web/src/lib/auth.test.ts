@@ -30,6 +30,11 @@ describe("key-derived sign-in", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
+    const stored = new Map<string, string>(); // this file runs in Node, which has no localStorage
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => void stored.set(key, value),
+    });
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValueOnce(json({ token: "token-1", headerName: "X-XSRF-TOKEN" }));
@@ -70,6 +75,28 @@ describe("key-derived sign-in", () => {
     await auth.signIn("maple", v.kdf.password, false);
 
     expect(body(1)).toEqual({ username: "maple", rememberMe: false, authKey: v.kdf.authKeyB64, password: v.kdf.password });
+  });
+
+  it("never sends the password for an account this browser signed in to with a derived key", async () => {
+    fetchMock
+      .mockResolvedValueOnce(json({ kdf: vectorKdf, upgrade: false }))
+      .mockResolvedValueOnce(json(user))
+      .mockResolvedValueOnce(json({ token: "token-2", headerName: "X-XSRF-TOKEN" }));
+    await auth.signIn("maple", v.kdf.password, false);
+    fetchMock.mockClear().mockResolvedValueOnce(json({ kdf: vectorKdf, upgrade: true })); // a server asking for it
+
+    await expect(auth.signIn("Maple", v.kdf.password, false)).rejects.toThrow(/asked for your password itself/);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1); // only prelogin
+    expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("correct horse");
+  }, 30_000);
+
+  it("never sends the password while signed in, whatever the server asks", async () => {
+    fetchMock.mockResolvedValueOnce(json({ kdf: vectorKdf, upgrade: true }));
+
+    await expect(auth.proveIdentity("maple", v.kdf.password)).rejects.toThrow(/asked for your password itself/);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("refuses weak parameters from the server without sending anything", async () => {

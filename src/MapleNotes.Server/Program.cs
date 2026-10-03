@@ -80,8 +80,8 @@ app.UseDefaultFiles();
 app.UseStaticFiles(SecurityHeaders.SpaStaticFiles);
 
 app.UseRouting();
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseRateLimiter(); // after authentication, so that per-user policies see the signed-in user
 app.UseAuthorization();
 
 app.MapControllers();

@@ -125,7 +125,10 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
 
         Response.Headers.ContentDisposition = disposition.ToString();
         Response.Headers.ContentSecurityPolicy = SecurityHeaders.AttachmentContentSecurityPolicy;
-        Response.Headers.CacheControl = "private, max-age=31536000, immutable"; // an attachment's content never changes
+        // A decrypted file is never stored by the browser, so it is not left on the device after signing out or deleting
+        // it. End-to-end files arrive as ciphertext, which only an unlocked browser can read: those may be cached, and the
+        // stored version in the URL (?v=) keeps the cache right when a conversion replaces them.
+        Response.Headers.CacheControl = endToEnd ? "private, max-age=31536000, immutable" : "private, no-store";
         return File(opened.Content, inline ? attachment.ContentType : UploadPolicy.DownloadContentType, enableRangeProcessing: true);
     }
 

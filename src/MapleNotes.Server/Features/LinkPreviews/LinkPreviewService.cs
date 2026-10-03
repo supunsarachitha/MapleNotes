@@ -31,15 +31,24 @@ public sealed class LinkPreviewService(IHttpClientFactory http, IMemoryCache cac
 
     private const int MaxRedirects = 3;
 
+    /// <summary>The most previews kept in memory, across all accounts.</summary>
+    public const int CacheEntries = 10_000;
+
     /// <summary>Returns the preview of a link.</summary>
+    /// <remarks>
+    /// Previews are cached per account, so how fast an answer comes back never tells one account which links another
+    /// has looked at. The fragment (<c>#…</c>) is not sent to the site, so it is left out of the cache key.
+    /// </remarks>
+    /// <param name="userId">Who asks.</param>
     /// <param name="url">The link.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The preview, or null when the page cannot be previewed.</returns>
     /// <exception cref="ApiValidationException">The link is not one that may be fetched.</exception>
-    public async Task<LinkPreviewResponse?> GetAsync(string url, CancellationToken cancellationToken)
+    public async Task<LinkPreviewResponse?> GetAsync(Guid userId, string url, CancellationToken cancellationToken)
     {
         var uri = Validate(url) is { } error ? throw new ApiValidationException("url", error) : new Uri(url);
-        var key = $"link-preview:{uri.AbsoluteUri}";
+        uri = new UriBuilder(uri) { Fragment = string.Empty }.Uri;
+        var key = $"link-preview:{userId:N}:{uri.AbsoluteUri}";
         if (cache.TryGetValue(key, out LinkPreviewResponse? cached))
         {
             return cached;
@@ -58,7 +67,11 @@ public sealed class LinkPreviewService(IHttpClientFactory http, IMemoryCache cac
             logger.LogDebug(ex, "No preview for {Host}.", uri.Host);
         }
 
-        cache.Set(key, preview, preview is null ? TimeSpan.FromMinutes(10) : TimeSpan.FromDays(1));
+        cache.Set(key, preview, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = preview is null ? TimeSpan.FromMinutes(10) : TimeSpan.FromDays(1),
+            Size = 1,
+        });
         return preview;
     }
 

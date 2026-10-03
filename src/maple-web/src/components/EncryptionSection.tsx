@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Lock, LockOpen, ShieldCheck } from "lucide-react";
+import { Lock, LockOpen, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { auth } from "../lib/auth";
+import { sealNextMode, useTrustedModeContext } from "../lib/modeRecord";
+import { unlockedSession } from "../lib/noteCrypto";
 import { queryKeys } from "../lib/queries";
 import type { EncryptionMode, EncryptionStatus, User } from "../lib/types";
 import { EndToEndSetupDialog } from "./EndToEndSetupDialog";
@@ -31,6 +33,13 @@ const MODES: Array<{ mode: EncryptionMode; title: string; description: string }>
 
 /** What confirming a change from `from` to `to` says. */
 function transition(from: EncryptionMode, to: EncryptionMode, user: User): { title: string; confirm: string; body: ReactNode } {
+  if (from === "EndToEnd" && to === "EndToEnd") {
+    return {
+      title: "Keep end-to-end encryption?",
+      confirm: "Keep it",
+      body: <p>This confirms end-to-end encryption to the server and to your other devices. Nothing is decrypted.</p>,
+    };
+  }
   if (from === "EndToEnd") {
     return {
       title: "Turn off end-to-end encryption?",
@@ -85,9 +94,12 @@ export function EncryptionSection({ user }: { user: User }) {
     refetchInterval: (query) => (query.state.data?.inProgress ? 1000 : false),
   });
   const [target, setTarget] = useState<EncryptionMode | null>(null);
+  const trusted = useTrustedModeContext();
+  // A mode without end-to-end encryption that no record of the owner's confirms is not this browser's mode.
+  const unconfirmed = trusted?.warning === "unconfirmed";
 
   const data = status.data;
-  const current = data?.mode;
+  const current = unconfirmed ? "EndToEnd" : data?.mode;
   const settingUp = target === "EndToEnd" && !user.hasEndToEndKey;
   const change = current && target && !settingUp ? transition(current, target, user) : null;
 
@@ -98,7 +110,11 @@ export function EncryptionSection({ user }: { user: User }) {
 
   async function confirm(password: string) {
     if (!target) return;
-    const updated = await api.setEncryption(target, await auth.proveIdentity(user.username, password));
+    const proof = await auth.proveIdentity(user.username, password);
+    // With an end-to-end key, the new mode is sealed with it: the account's browsers act on that, not on the server.
+    const session = unlockedSession();
+    const modeRecord = user.hasEndToEndKey && session ? await sealNextMode(user, session.keys, target) : undefined;
+    const updated = await api.setEncryption(target, proof, modeRecord);
     queryClient.setQueryData<EncryptionStatus>(queryKeys.encryption, updated); // the answer is the new status
     setTarget(null);
     await queryClient.invalidateQueries({ queryKey: queryKeys.status });
@@ -123,6 +139,23 @@ export function EncryptionSection({ user }: { user: User }) {
         </div>
         {!data && <Spinner className="mt-1 size-5 text-stone-400" />}
       </div>
+
+      {data && unconfirmed && (
+        <div role="alert" className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+          <p className="flex items-start gap-2 font-medium">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            The server says end-to-end encryption is off, but you have not confirmed that.
+          </p>
+          <p className="mt-1">
+            So this browser keeps encrypting your notes and does not decrypt them. If you turned end-to-end encryption off,
+            choose the new mode below to confirm it. If you did not, keep end-to-end encryption, and tell the server&apos;s
+            administrator: the server may have been tampered with.
+          </p>
+          <button type="button" className="mt-2 font-medium underline" onClick={() => setTarget("EndToEnd")}>
+            Keep end-to-end encryption
+          </button>
+        </div>
+      )}
 
       {data && (
         <fieldset className="mt-4 flex flex-col gap-2">
@@ -154,7 +187,7 @@ export function EncryptionSection({ user }: { user: User }) {
         </fieldset>
       )}
 
-      {data?.inProgress && (
+      {data?.inProgress && !unconfirmed && (
         <div className="mt-5" aria-live="polite">
           <div className="mb-1.5 flex justify-between gap-3 text-sm">
             <span>

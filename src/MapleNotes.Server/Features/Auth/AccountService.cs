@@ -199,6 +199,26 @@ public sealed class AccountService(
     }
 
     /// <summary>
+    /// Counts a failed sign-in, locking the account once there have been <see cref="MaxFailedAttempts"/>. The count is
+    /// raised in the database in one statement, so attempts made at the same time cannot overwrite each other's count and
+    /// slip past the lockout.
+    /// </summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="now">The current time.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>Whether this attempt locked the account (or found it locked by one made at the same time).</returns>
+    private async Task<bool> RecordFailedAttemptAsync(Guid userId, DateTime now, CancellationToken cancellationToken)
+    {
+        await db.Users.Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(set => set.SetProperty(u => u.AccessFailedCount, u => u.AccessFailedCount + 1), cancellationToken);
+        var lockoutEnd = now + LockoutDuration;
+        var locked = await db.Users.Where(u => u.Id == userId && u.AccessFailedCount >= MaxFailedAttempts)
+            .ExecuteUpdateAsync(set => set.SetProperty(u => u.AccessFailedCount, 0).SetProperty(u => u.LockoutEndUtc, lockoutEnd), cancellationToken);
+        return locked > 0
+            || await db.Users.AnyAsync(u => u.Id == userId && u.LockoutEndUtc > now, cancellationToken);
+    }
+
+    /// <summary>
     /// Checks sign-in credentials, applying lockout after repeated failures. A legacy account is upgraded to
     /// key-derived sign-in when the request also carries its correct password.
     /// </summary>
@@ -229,16 +249,8 @@ public sealed class AccountService(
 
         if (!credentials.Verify(user, request.AuthKey, request.Password))
         {
-            user.AccessFailedCount++;
-            if (user.AccessFailedCount >= MaxFailedAttempts)
-            {
-                user.AccessFailedCount = 0;
-                user.LockoutEndUtc = now + LockoutDuration;
-            }
-
-            await db.SaveChangesAsync(cancellationToken);
-            return user.LockoutEndUtc > now
-                ? new AccountResult(null, AccountError.LockedOut, LockedUntilUtc: user.LockoutEndUtc)
+            return await RecordFailedAttemptAsync(user.Id, now, cancellationToken)
+                ? new AccountResult(null, AccountError.LockedOut, LockedUntilUtc: now + LockoutDuration)
                 : AccountResult.Fail(AccountError.InvalidCredentials);
         }
 

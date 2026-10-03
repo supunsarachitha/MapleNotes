@@ -57,6 +57,11 @@ sends to browsers. This includes an operator who is curious but not malicious.
 - **End-to-end:** protected. Requests carry ciphertext, tag tokens and the sign-in key. The sign-in key is derived
   separately from the key that wraps the data key, so seeing it does not help to decrypt anything; it is only a
   credential for this server. Search runs in the browser and never sends the search text.
+- **What such a server cannot make the browser do:** leave end-to-end mode (the owner's choice is sealed with the data
+  key, [e2ee-spec.md §3a](e2ee-spec.md#3a-the-mode-record), and browsers act on that, not on the mode the server
+  reports), or send the password itself (only a 1.0 account's first sign-in does, once). A browser that last saw the
+  account end-to-end stops and asks if the server says its key is gone; a browser that has never seen the account
+  cannot tell.
 
 ### A server that is compromised and changes the app
 

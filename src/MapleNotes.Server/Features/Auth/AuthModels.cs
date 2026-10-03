@@ -72,16 +72,18 @@ public sealed record ChangePasswordRequest(
 /// </param>
 /// <param name="CreatedAtUtc">When the account was created.</param>
 /// <param name="Preferences">Writing and feature preferences.</param>
+/// <param name="EndToEndModeRecord">For an account with an end-to-end key, the mode its owner chose, sealed by the
+/// browser (docs/e2ee-spec.md §3a); the server cannot read or forge it.</param>
 public sealed record UserResponse(
     Guid Id, string Username, string DisplayName, UserRole Role, EncryptionMode EncryptionMode, bool HasEndToEndKey,
-    DateTime CreatedAtUtc, UserPreferences Preferences)
+    DateTime CreatedAtUtc, UserPreferences Preferences, byte[]? EndToEndModeRecord = null)
 {
     /// <summary>Maps an account entity to its API representation.</summary>
     /// <param name="user">The account.</param>
     /// <returns>The API representation.</returns>
     public static UserResponse From(User user) =>
         new(user.Id, user.Username, user.DisplayName, user.Role, user.EncryptionMode, user.E2eeWrappedKey is not null,
-            user.CreatedAtUtc, user.Preferences);
+            user.CreatedAtUtc, user.Preferences, user.E2eeModeRecord);
 }
 
 /// <summary>Sign-in state of the current visitor and what the instance allows.</summary>

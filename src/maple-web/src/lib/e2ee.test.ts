@@ -1,7 +1,7 @@
 // @vitest-environment node
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { decryptNote, encryptNote } from "../crypto/content";
+import { decryptNote, encryptNote, openModeRecord } from "../crypto/content";
 import { dataKeyContext, recoveryContext, unwrapRawDataKey } from "../crypto/datakey";
 import { fromBase64, randomBytes, toBase64 } from "../crypto/encoding";
 import { hkdfBytes, importAesKey } from "../crypto/kdf";
@@ -47,6 +47,7 @@ function createServer() {
     wrappedKey: null as string | null,
     recoveryWrappedKey: null as string | null,
     recoveryAuthKey: null as string | null,
+    modeRecord: null as string | null,
     sessionKey: toBase64(randomBytes(32)),
   };
   const wrong = (field: string) => json({ errors: { [field]: ["The password is not correct."] } }, 400);
@@ -63,7 +64,12 @@ function createServer() {
         return state.wrappedKey ? json({ wrappedKey: state.wrappedKey }) : json({}, 404);
       case "POST /api/v1/account/e2ee":
         if (body.proof.authKey !== state.authKey) return wrong("password");
-        Object.assign(state, { wrappedKey: body.wrappedKey, recoveryWrappedKey: body.recoveryWrappedKey, recoveryAuthKey: body.recoveryAuthKey });
+        Object.assign(state, {
+          wrappedKey: body.wrappedKey,
+          recoveryWrappedKey: body.recoveryWrappedKey,
+          recoveryAuthKey: body.recoveryAuthKey,
+          modeRecord: body.modeRecord,
+        });
         return json({ mode: "EndToEnd", inProgress: false, totalItems: 0, remainingItems: 0 });
       case "PUT /api/v1/account/e2ee/recovery":
         if (body.proof.authKey !== state.authKey) return wrong("password");
@@ -120,6 +126,8 @@ describe("end-to-end key management", () => {
 
     expect(fromRecovery.raw).toEqual(fromPassword.raw);
     expect(server.state.recoveryAuthKey).toBe(toBase64(recovery.authKey));
+    // End-to-end mode, sealed with the new key, so the server cannot later claim the owner left it (lib/modeRecord.ts).
+    expect(await openModeRecord(keys, userId, fromBase64(server.state.modeRecord!))).toEqual({ mode: "EndToEnd", epoch: 1 });
     expect(JSON.stringify(server.fetch.mock.calls)).not.toContain(v.kdf.password);
     expect(await decryptNote(keys, userId, noteId, note)).toBe("secret");
   });

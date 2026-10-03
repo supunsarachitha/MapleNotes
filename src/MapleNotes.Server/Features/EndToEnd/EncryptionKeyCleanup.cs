@@ -34,6 +34,7 @@ public sealed class EncryptionKeyCleanup(MapleDbContext db)
         {
             user.E2eeWrappedKey = null;
             user.E2eeRecoveryWrappedKey = null;
+            user.E2eeModeRecord = null;
             user.RecoveryKeyHash = null;
         }
 

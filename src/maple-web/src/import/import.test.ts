@@ -38,6 +38,19 @@ describe("reading ZIP archives", () => {
     expect([...(await entries[1]!.read())]).toEqual([1, 2, 3]);
   });
 
+  it("refuses entries claiming a size their compressed data cannot hold, before allocating it", async () => {
+    const zip = zipSync({ "note.md": strToU8("tiny") });
+    const view = new DataView(zip.buffer);
+    for (let at = zip.length - 22; at >= 0; at--) {
+      if (view.getUint32(at, true) === 0x02014b50) view.setUint32(at + 24, 1_500_000_000, true); // the central record's size
+    }
+
+    const [entry] = await readZip(new File([zip], "bomb.zip"));
+
+    expect(entry!.size).toBe(1_500_000_000);
+    await expect(entry!.read()).rejects.toThrow('"note.md" is damaged.');
+  });
+
   it("refuses files that are not archives", async () => {
     await expect(readZip(new File(["not a zip"], "x.zip"))).rejects.toThrow("This is not a ZIP archive.");
   });

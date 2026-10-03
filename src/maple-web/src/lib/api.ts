@@ -346,9 +346,12 @@ export const api = {
 
   encryption: () => request<EncryptionStatus>("GET", "/api/v1/account/encryption"),
 
-  /** Off or at rest; or back to end-to-end while the account still has its key (the first time uses e2ee.enable). */
-  setEncryption: (mode: EncryptionMode, proof: CredentialProof) =>
-    request<EncryptionStatus>("PUT", "/api/v1/account/encryption", { mode, proof }),
+  /**
+   * Off or at rest; or back to end-to-end while the account still has its key (the first time uses e2ee.enable). An
+   * account with an end-to-end key also sends the new mode sealed with it (lib/modeRecord.ts).
+   */
+  setEncryption: (mode: EncryptionMode, proof: CredentialProof, modeRecord?: string) =>
+    request<EncryptionStatus>("PUT", "/api/v1/account/encryption", { mode, proof, ...(modeRecord ? { modeRecord } : {}) }),
 
   /** The browser's conversion of existing content after a change to or from end-to-end encryption. */
   conversion: {
@@ -361,7 +364,7 @@ export const api = {
   /** End-to-end key material; the server stores it wrapped and cannot open it (docs/e2ee-spec.md §3, §6). */
   e2ee: {
     key: () => request<{ wrappedKey: string }>("GET", "/api/v1/account/e2ee"),
-    enable: (body: { proof: CredentialProof; wrappedKey: string; recoveryWrappedKey: string; recoveryAuthKey: string }) =>
+    enable: (body: { proof: CredentialProof; wrappedKey: string; recoveryWrappedKey: string; recoveryAuthKey: string; modeRecord: string }) =>
       request<EncryptionStatus>("POST", "/api/v1/account/e2ee", body),
     replaceRecoveryKey: (body: { proof: CredentialProof; recoveryWrappedKey: string; recoveryAuthKey: string }) =>
       request<void>("PUT", "/api/v1/account/e2ee/recovery", body),

@@ -49,6 +49,6 @@ public sealed class LinkPreviewController(LinkPreviewService previews, Preferenc
             return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Link previews are turned off for this account.");
         }
 
-        return await previews.GetAsync(url, cancellationToken) is { } preview ? Ok(preview) : NoContent();
+        return await previews.GetAsync(User.GetUserId(), url, cancellationToken) is { } preview ? Ok(preview) : NoContent();
     }
 }

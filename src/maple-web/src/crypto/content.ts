@@ -9,6 +9,7 @@ export const tagContext = (userId: string, token: string) => `maple-notes/v2/e2e
 export const attachmentMetaContext = (userId: string, attachmentId: string) =>
   `maple-notes/v2/e2ee/attachment-meta/${uuidN(userId)}/${uuidN(attachmentId)}`;
 export const labelContext = (userId: string, labelId: string) => `maple-notes/v2/e2ee/label/${uuidN(userId)}/${uuidN(labelId)}`;
+export const modeContext = (userId: string) => `maple-notes/v2/e2ee/mode/${uuidN(userId)}`;
 
 export function encryptNote(keys: DataKeys, userId: string, noteId: string, text: string, nonce?: Uint8Array): Promise<Bytes> {
   return seal(keys.note, utf8(text), noteContext(userId, noteId), { keyVersion: keys.version, nonce });
@@ -74,6 +75,30 @@ export function encryptLabelName(keys: DataKeys, userId: string, labelId: string
 
 export async function decryptLabelName(keys: DataKeys, userId: string, labelId: string, envelope: Uint8Array): Promise<string> {
   return fromUtf8(await open(keys.metadata, envelope, labelContext(userId, labelId)));
+}
+
+// ------------------------------------------------------------------------------------------------------ mode record
+
+/** The account's mode as its owner chose it, and a counter that grows with every change (docs/e2ee-spec.md §3a). */
+export interface ModeRecord {
+  mode: "Off" | "AtRest" | "EndToEnd";
+  epoch: number;
+}
+
+export function sealModeRecord(keys: DataKeys, userId: string, record: ModeRecord, nonce?: Uint8Array): Promise<Bytes> {
+  return seal(keys.metadata, utf8(JSON.stringify({ mode: record.mode, epoch: record.epoch })), modeContext(userId), {
+    keyVersion: keys.version,
+    nonce,
+  });
+}
+
+/** Opens a mode record; throws when it does not decrypt for this account or is not a mode record. */
+export async function openModeRecord(keys: DataKeys, userId: string, envelope: Uint8Array): Promise<ModeRecord> {
+  const parsed = JSON.parse(fromUtf8(await open(keys.metadata, envelope, modeContext(userId)))) as Partial<ModeRecord>;
+  if (!(parsed.mode === "Off" || parsed.mode === "AtRest" || parsed.mode === "EndToEnd") || !Number.isSafeInteger(parsed.epoch)) {
+    throw new Error("This is not a mode record.");
+  }
+  return { mode: parsed.mode, epoch: parsed.epoch! };
 }
 
 // ---------------------------------------------------------------------------------------------------- attachments

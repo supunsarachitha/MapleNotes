@@ -1,10 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { openModeRecord } from "../crypto/content";
+import { importDataKey } from "../crypto/datakey";
+import { fromBase64 } from "../crypto/encoding";
+import v from "../crypto/test-vectors.json";
 import { api, ApiError } from "../lib/api";
 import { auth } from "../lib/auth";
 import { e2ee } from "../lib/e2ee";
+import { TrustedModeContext, type TrustedMode } from "../lib/modeRecord";
+import { setContentSession } from "../lib/noteCrypto";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import type { EncryptionStatus, User } from "../lib/types";
 import { EncryptionSection } from "./EncryptionSection";
@@ -27,14 +33,28 @@ const status = (mode: EncryptionStatus["mode"], remainingItems = 0, totalItems =
   remainingItems,
 });
 
-function renderSection(account: User = user) {
+function renderSection(account: User = user, trusted: TrustedMode | null = null) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <EncryptionSection user={account} />
+      <TrustedModeContext.Provider value={trusted}>
+        <EncryptionSection user={account} />
+      </TrustedModeContext.Provider>
     </QueryClientProvider>,
   );
 }
+
+/** Unlocks the account's end-to-end key in this "browser", as the app does after sign-in. */
+async function unlock(account: User) {
+  const keys = await importDataKey(fromBase64(v.dataKeyB64));
+  setContentSession({ userId: account.id, mode: account.encryptionMode, keys });
+  return keys;
+}
+
+afterEach(() => {
+  setContentSession(null);
+  localStorage.clear();
+});
 
 describe("EncryptionSection", () => {
   it("asks for the password before switching, then shows conversion progress", async () => {
@@ -51,7 +71,7 @@ describe("EncryptionSection", () => {
     await person.type(screen.getByLabelText("Your password"), "correct horse battery staple");
     await person.click(screen.getByRole("button", { name: "Turn off" }));
 
-    await waitFor(() => expect(setEncryption).toHaveBeenCalledWith("Off", proof));
+    await waitFor(() => expect(setEncryption).toHaveBeenCalledWith("Off", proof, undefined)); // no end-to-end key: no record
     expect(proveIdentity).toHaveBeenCalledWith("maple", "correct horse battery staple");
     expect(await screen.findByRole("progressbar", { name: "Conversion progress" })).toHaveAttribute("aria-valuenow", "30");
     expect(screen.getByText("3 of 10")).toBeInTheDocument();
@@ -99,13 +119,38 @@ describe("EncryptionSection", () => {
     vi.spyOn(api, "encryption").mockResolvedValue(status("EndToEnd"));
     const setEncryption = vi.spyOn(api, "setEncryption").mockResolvedValue(status("AtRest", 10));
     const person = userEvent.setup();
-    renderSection({ ...user, encryptionMode: "EndToEnd", hasEndToEndKey: true });
+    const account: User = { ...user, encryptionMode: "EndToEnd", hasEndToEndKey: true };
+    const keys = await unlock(account);
+    renderSection(account);
 
     await person.click(await screen.findByRole("radio", { name: /^Encrypted at rest/ }));
     expect(await screen.findByText(/The server will be able to read them again/)).toBeInTheDocument();
     await person.type(screen.getByLabelText("Your password"), "correct horse battery staple");
     await person.click(screen.getByRole("button", { name: "Turn off" }));
 
-    await waitFor(() => expect(setEncryption).toHaveBeenCalledWith("AtRest", { authKey: "derived-key" }));
+    await waitFor(() => expect(setEncryption).toHaveBeenCalledWith("AtRest", { authKey: "derived-key" }, expect.any(String)));
+    // The new mode, sealed with the account's key: what the account's browsers act on (lib/modeRecord.ts).
+    const record = setEncryption.mock.calls[0]![2]!;
+    expect(await openModeRecord(keys, account.id, fromBase64(record))).toEqual({ mode: "AtRest", epoch: 1 });
+  });
+
+  it("keeps end-to-end encryption when the server reports a mode the owner never confirmed", async () => {
+    vi.spyOn(auth, "proveIdentity").mockResolvedValue({ authKey: "derived-key" });
+    vi.spyOn(api, "encryption").mockResolvedValue(status("AtRest", 5)); // what the server says
+    const setEncryption = vi.spyOn(api, "setEncryption").mockResolvedValue(status("EndToEnd"));
+    const person = userEvent.setup();
+    const account: User = { ...user, encryptionMode: "AtRest", hasEndToEndKey: true };
+    const keys = await unlock(account);
+    renderSection(account, { mode: "EndToEnd", warning: "unconfirmed" });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("you have not confirmed that");
+    expect(screen.getByRole("radio", { name: /^End-to-end/ })).toBeChecked(); // what this browser still encrypts for
+    expect(screen.queryByText(/Decrypting your notes/)).not.toBeInTheDocument();
+    await person.click(screen.getByRole("button", { name: "Keep end-to-end encryption" }));
+    await person.type(await screen.findByLabelText("Your password"), "correct horse battery staple");
+    await person.click(screen.getByRole("button", { name: "Keep it" }));
+
+    await waitFor(() => expect(setEncryption).toHaveBeenCalledWith("EndToEnd", { authKey: "derived-key" }, expect.any(String)));
+    expect(await openModeRecord(keys, account.id, fromBase64(setEncryption.mock.calls[0]![2]!))).toMatchObject({ mode: "EndToEnd" });
   });
 });

@@ -45,9 +45,52 @@ async function derive(password: string, kdf: KdfParams): Promise<AccountKeys> {
   }
 }
 
-/** The keys of an existing account, derived with its parameters from prelogin, and the proof to send. */
-export async function deriveForAccount(username: string, password: string): Promise<{ proof: CredentialProof; keys: AccountKeys }> {
+// The accounts this browser has signed in to with a derived key, as hashes of their usernames. A 1.0 account sends
+// its password once, at its first sign-in, so that the server can switch it to key-derived sign-in; after that the
+// server never needs the password again, and a request for it (prelogin's `upgrade`) is refused.
+const KEY_DERIVED = "maple-notes:key-derived-accounts";
+
+async function usernameHash(username: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(username.trim().toUpperCase()));
+  return toBase64(new Uint8Array(digest));
+}
+
+function keyDerivedAccounts(): string[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(KEY_DERIVED) ?? "[]");
+    return Array.isArray(stored) ? stored.filter((hash): hash is string => typeof hash === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Remembers that an account signs in with a derived key, after a sign-in or registration that proved it. */
+export async function rememberKeyDerived(username: string): Promise<void> {
+  const hash = await usernameHash(username);
+  const known = keyDerivedAccounts().filter((known) => known !== hash);
+  try {
+    localStorage.setItem(KEY_DERIVED, JSON.stringify([hash, ...known].slice(0, 50)));
+  } catch {
+    // storage unavailable: the check falls back to signed-in proofs only
+  }
+}
+
+const refusedUpgrade = () =>
+  new ApiError(0, { title: "The server asked for your password itself, which it does not need for this account, so nothing was sent." });
+
+/**
+ * The keys of an existing account, derived with its parameters from prelogin, and the proof to send. The password
+ * itself is sent only to upgrade a 1.0 account at sign-in (`signingIn`), never while signed in, since signing in
+ * upgrades the account, and never for an account this browser has signed in to with a derived key. Otherwise a server
+ * could ask for the password at any time, and with it open an end-to-end key.
+ */
+export async function deriveForAccount(
+  username: string,
+  password: string,
+  { signingIn = false }: { signingIn?: boolean } = {},
+): Promise<{ proof: CredentialProof; keys: AccountKeys }> {
   const prelogin = await api.prelogin(username);
+  if (prelogin.upgrade && (!signingIn || keyDerivedAccounts().includes(await usernameHash(username)))) throw refusedUpgrade();
   const keys = await derive(password, fromWire(prelogin.kdf));
   const authKey = toBase64(keys.authKey);
   // An account from before key-derived sign-in holds a hash of the password: send it once so the server can switch.

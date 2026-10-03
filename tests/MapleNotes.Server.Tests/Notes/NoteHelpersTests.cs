@@ -81,6 +81,9 @@ public sealed class UploadPolicyTests
     [InlineData("", "file")]
     [InlineData(null, "file")]
     [InlineData("日本語のファイル.txt", "日本語のファイル.txt")]
+    [InlineData("invoice\u202Efdp.exe", "invoicefdp.exe")] // shown as invoiceexe.pdf with the override
+    [InlineData("a\u2066b\u2069\u200F\u2028c.txt", "abc.txt")]
+    [InlineData("family \U0001F468\u200D\U0001F469.png", "family \U0001F468\u200D\U0001F469.png")] // emoji keep their joiner
     public void Sanitizes_file_names(string? input, string expected)
     {
         Assert.Equal(expected, UploadPolicy.SanitizeFileName(input));

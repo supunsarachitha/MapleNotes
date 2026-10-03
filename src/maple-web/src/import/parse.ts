@@ -74,6 +74,17 @@ const KINDS: Record<string, NoteKind> = { note: "Note", todo: "Todo", quick: "Qu
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const isNoteFile = (name: string) => ["md", "markdown", "txt", "json"].includes(extensionOf(name));
+/** The largest note file read: a note is at most 100,000 characters, which is at most 400 KB of UTF-8 plus its header. */
+const MAX_NOTE_FILE_BYTES = 4 * 1024 * 1024;
+/** The largest manifest read: a few hundred bytes for each note of even a very large account. */
+const MAX_MANIFEST_BYTES = 64 * 1024 * 1024;
+
+/** Reads a text entry, refusing one larger than `max` before anything is extracted. */
+async function readText(entry: ZipEntry, max: number): Promise<string> {
+  if (entry.size > max) throw new Error("This file is too large to be a Maple Notes note or manifest.");
+  return fromUtf8(await entry.read());
+}
+
 const withoutBom = (text: string) => (text.startsWith("﻿") ? text.slice(1) : text);
 
 /** What a note file says about itself, before its attachments are found. */
@@ -297,7 +308,7 @@ async function readArchive(file: File, plan: ImportPlan): Promise<void> {
   let listed: ManifestNote[] | null = null;
   if (manifestEntry) {
     try {
-      const manifest = JSON.parse(fromUtf8(await manifestEntry.read())) as { application?: string; notes?: ManifestNote[]; labels?: unknown };
+      const manifest = JSON.parse(await readText(manifestEntry, MAX_MANIFEST_BYTES)) as { application?: string; notes?: ManifestNote[]; labels?: unknown };
       if (manifest.application === "Maple Notes" && Array.isArray(manifest.notes)) listed = manifest.notes;
       for (const label of Array.isArray(manifest.labels) ? (manifest.labels as Array<{ name?: unknown; color?: unknown }>) : []) {
         const color = LABEL_COLORS.find((known) => known === label?.color);
@@ -320,7 +331,7 @@ async function readArchive(file: File, plan: ImportPlan): Promise<void> {
       continue;
     }
     try {
-      plan.items.push(toItem(path, parseNote(path, fromUtf8(await entry.read()), modified), modified, entries, manifest));
+      plan.items.push(toItem(path, parseNote(path, await readText(entry, MAX_NOTE_FILE_BYTES), modified), modified, entries, manifest));
     } catch (error) {
       plan.problems.push(`${file.name}: ${path}: ${error instanceof Error ? error.message : String(error)}`);
     }

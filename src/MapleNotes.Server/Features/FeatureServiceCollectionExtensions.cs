@@ -39,7 +39,7 @@ internal static class FeatureServiceCollectionExtensions
         services.AddScoped<NoteExporter>();
 
         // Link previews: a client that connects only to public addresses and never follows redirects by itself.
-        services.AddMemoryCache();
+        services.AddMemoryCache(cache => cache.SizeLimit = LinkPreviewService.CacheEntries); // every entry has size 1
         services.AddSingleton<LinkPreviewService>();
         services.AddHttpClient(LinkPreviewService.ClientName, client =>
             {
