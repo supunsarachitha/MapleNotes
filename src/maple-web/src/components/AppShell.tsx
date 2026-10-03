@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { CloudOff, Home, LogOut, Menu, Search, X } from "lucide-react";
+import { Cloud, CloudOff, Home, LogOut, Menu, Search, X } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { useBranding } from "../lib/branding";
@@ -226,6 +226,32 @@ function OfflineNotice() {
 }
 
 /**
+ * A small badge saying whether the app can reach the server, at the right of the title bar on phones and at the top
+ * right of the page on wide screens. It follows the same signal as the notice below it, so a server that cannot be
+ * reached counts as offline even while the browser has a connection.
+ */
+function ConnectionStatus({ className }: { className?: string }) {
+  const offline = useOffline();
+  const Icon = offline ? CloudOff : Cloud;
+  return (
+    <span
+      data-connection={offline ? "offline" : "online"}
+      title={offline ? "Offline: showing notes saved on this device" : "Online: connected to the server"}
+      className={cn(
+        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium",
+        offline
+          ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200"
+          : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300",
+        className,
+      )}
+    >
+      <Icon className="size-3.5" aria-hidden="true" />
+      {offline ? "Offline" : "Online"}
+    </span>
+  );
+}
+
+/**
  * The signed-in layout. Phones: a top bar with a slide-in navigation drawer. Wide screens (≥1024 px): a fixed
  * sidebar next to a centred reading column.
  */
@@ -252,13 +278,18 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
           <BrandMark className="size-7 shrink-0" />
           <span className="truncate font-semibold">{appName}</span>
         </Link>
+        <ConnectionStatus className="ml-auto mr-1" />
       </header>
 
       <div className="mx-auto flex max-w-6xl">
         <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 border-r border-stone-200 bg-white lg:block dark:border-stone-800 dark:bg-stone-900">
           <Sidebar user={user} />
         </aside>
-        <main id="main" className="min-w-0 flex-1 px-4 pb-24 pt-4 lg:px-10 lg:pt-8">
+        <main id="main" className="relative min-w-0 flex-1 px-4 pb-24 pt-4 lg:px-10 lg:pt-8">
+          {/* Sits in the top padding, above the page's own heading and buttons; phones show it in the title bar. */}
+          <div className="absolute right-10 top-0.5 hidden lg:block">
+            <ConnectionStatus />
+          </div>
           <div className={cn("mx-auto", wide ? "max-w-4xl" : "max-w-2xl")}>
             <OfflineNotice />
             {children}
