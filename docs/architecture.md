@@ -383,6 +383,13 @@ could run). It lives in the database, is served at `GET /api/v1/branding/icon` w
 Content-Security-Policy, and is linked with a version taken from its hash, so browsers can cache it for good. The
 server's version comes with the status only for signed-in users.
 
+The web app manifest (`GET /manifest.webmanifest`, which lets browsers install the app) is built from the same
+settings: the app's name, and the custom icon when it is at least 144 pixels on its shorter side (the server reads the
+size from the image's header). Otherwise it lists the app's own icons: PNGs at 192 and 512 pixels and a maskable one
+for Android, rendered from `favicon.svg` and kept in `public/icons`. On iPhone, the home-screen icon and title come from
+`apple-touch-icon` and `apple-mobile-web-app-title` in the page, which the web app points at the custom icon and name.
+Installing needs no service worker, so the media service worker is still registered only for end-to-end accounts.
+
 ## Storage usage
 
 `GET /api/v1/account/storage` sums the signed-in account's stored note bytes (ciphertext for encrypted notes) and file

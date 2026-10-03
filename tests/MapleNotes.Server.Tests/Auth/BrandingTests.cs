@@ -131,6 +131,57 @@ public sealed class BrandingTests : IAsyncLifetime
     public void Icons_are_recognised_by_their_first_bytes(byte[] content, string? type) =>
         Assert.Equal(type, InstanceSettingsService.DetectIconType(content));
 
+    // The start of real files (300 × 200 pixels) from a browser's encoders; the size is in the first bytes, or, for
+    // JPEG, in the frame header after the other segments.
+    [Theory]
+    [InlineData("iVBORw0KGgoAAAANSUhEUgAAASwAAADICAYAAABS39xVAAAH40lEQQ==")] // png
+    [InlineData("/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCADIASwDASI=")] // jpeg
+    [InlineData("UklGRmYDAABXRUJQVlA4WAoAAAAgAAAAKwEAxwAASUNDUMgBAAAAAA==")] // webp-lossy
+    [InlineData("UklGRoQBAABXRUJQVlA4IHgBAACQFwCdASosAcgAPm02mUkkIyKhIg==")] // webp-lossy-simple
+    [InlineData("UklGRiACAABXRUJQVlA4WAoAAAAgAAAAKwEAxwAASUNDUMgBAAAAAA==")] // webp-lossless
+    [InlineData("UklGRj4AAABXRUJQVlA4TDIAAAAvK8ExAA/wM+bPZM7M/EcL1LSNJA==")] // webp-lossless-simple
+    public void Icon_sizes_are_read_from_the_image_header(string start) =>
+        Assert.Equal((300, 200), InstanceSettingsService.ReadImageSize(Convert.FromBase64String(start)));
+
+    [Fact]
+    public async Task The_manifest_lets_browsers_install_the_app_with_its_own_icons()
+    {
+        var response = await _visitor.GetAsync("/manifest.webmanifest");
+
+        Assert.Equal("application/manifest+json", response.Content.Headers.ContentType!.MediaType);
+        var manifest = await Manifest(response);
+        Assert.Equal(("Maple Notes", "/", "standalone"), (manifest.GetProperty("name").GetString(), manifest.GetProperty("start_url").GetString(), manifest.GetProperty("display").GetString()));
+        Assert.Equal(
+            ["/icons/icon-192.png any", "/icons/icon-512.png any", "/icons/maskable-512.png maskable"],
+            manifest.GetProperty("icons").EnumerateArray().Select(i => $"{i.GetProperty("src").GetString()} {i.GetProperty("purpose").GetString()}"));
+    }
+
+    [Fact]
+    public async Task The_manifest_follows_the_apps_name_and_a_large_enough_custom_icon()
+    {
+        (await _admin.PutJsonAsync("/api/v1/admin/settings", new UpdateInstanceSettingsRequest(true, null, "Family Notes"))).EnsureSuccessStatusCode();
+        await PutIconAsync(_admin, PngOfSize(512, 512), "image/png");
+        var large = await Manifest(await _visitor.GetAsync("/manifest.webmanifest"));
+        await PutIconAsync(_admin, PngOfSize(64, 64), "image/png");
+        var small = await Manifest(await _visitor.GetAsync("/manifest.webmanifest"));
+
+        Assert.Equal("Family Notes", large.GetProperty("name").GetString());
+        var icon = Assert.Single(large.GetProperty("icons").EnumerateArray());
+        Assert.Equal("512x512", icon.GetProperty("sizes").GetString());
+        Assert.StartsWith("/api/v1/branding/icon?v=", icon.GetProperty("src").GetString(), StringComparison.Ordinal);
+        // Too small for an installed app: the app's own icons instead.
+        Assert.Equal(3, small.GetProperty("icons").GetArrayLength());
+    }
+
+    private static async Task<System.Text.Json.JsonElement> Manifest(HttpResponseMessage response) =>
+        System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).RootElement;
+
+    /// <summary>The start of a PNG file of the given size: its signature and header chunk.</summary>
+    private static byte[] PngOfSize(int width, int height) =>
+        [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, .. "IHDR"u8,
+            (byte)(width >> 24), (byte)(width >> 16), (byte)(width >> 8), (byte)width,
+            (byte)(height >> 24), (byte)(height >> 16), (byte)(height >> 8), (byte)height, 8, 6, 0, 0, 0];
+
     private static async Task<BrandingResponse> BrandingAsync(ApiClient client) =>
         (await client.GetJsonAsync<AuthStatusResponse>("/api/v1/auth/status"))!.Branding!;
 

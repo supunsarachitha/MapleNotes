@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-03
+
+Install Maple Notes as an app, and the fixes from the October 2026 security audit.
+
+### Added
+
+- **Install as an app:** browsers can now add Maple Notes to a phone's home screen or install it on a computer, where it
+  opens in its own window. The web app manifest (`/manifest.webmanifest`) follows the app's name and its custom icon, or
+  uses the app's own icons, including one Android can mask to its icon shape. The guide explains how to install it on
+  each device.
+
 ### Security
 
 Fixes from the October 2026 security audit ([docs/security-audit-2026-10.md](docs/security-audit-2026-10.md)):
@@ -487,7 +498,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.1...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.8.1...v1.9.0

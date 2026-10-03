@@ -84,6 +84,8 @@
   account's storage, disable or remove accounts, and appoint other administrators. Administrators never see anyone's
   notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
+- **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
+  in its own window, with the app's name and icon (or the ones an administrator chose).
 - **Appearance.** Light or dark (or follow your device), seven accent colours, the side menu's order (drag or arrows)
   and text size, and the first day of the week, chosen in Settings and applied on every device.
 - **Small and hardened.** One container: non-root, read-only root filesystem, built-in health check.
@@ -664,6 +666,15 @@ deploy. With `docker run`, pull `ghcr.io/supunsarachitha/maplenotes:latest`, rem
 with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
+
+### From 1.10 to 1.11
+
+Nothing to do. The migration adds the sealed mode record of end-to-end accounts. End-to-end accounts need nothing; an
+account that was leaving end-to-end encryption when it was upgraded stops until its owner chooses the new mode again in
+Settings. The app can now be installed from the browser.
+
+For API clients: `POST /api/v1/account/e2ee` and, for accounts with an end-to-end key, `PUT /api/v1/account/encryption`
+take a sealed `modeRecord`, the account gained `endToEndModeRecord`, and `GET /manifest.webmanifest` is new.
 
 ### From 1.9 to 1.10
 
