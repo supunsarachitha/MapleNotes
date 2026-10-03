@@ -111,8 +111,20 @@ A lost or stolen phone or laptop, or a shared computer.
 - **With a live session** (the browser was left signed in, or "keep me signed in" was used, which lasts 30 days),
   the app opens and, for end-to-end accounts, unlocks by itself. Signing out everywhere from another device, or
   changing the password there, ends every other session at once, and the saved key becomes useless with it.
-- **Without a live session,** the browser holds nothing useful. The key saved in IndexedDB is sealed with a secret
-  that exists only in the session, and API responses are sent with `Cache-Control: no-store`.
+- **Without a live session,** the browser holds nothing useful, unless the session was started with "keep me signed
+  in" and ended without this browser noticing (see offline reading below). The key saved in IndexedDB is sealed with a
+  secret that exists only in the session, and API responses are sent with `Cache-Control: no-store`.
+- **Offline reading:** on a device whose session was started with "keep me signed in", the service worker keeps the
+  notes read recently, as the server sent them, so they open without a connection
+  ([architecture.md](architecture.md#offline-reading)). Signing out on the device, or the device seeing that the session
+  ended, deletes them; a session ended elsewhere (expiry, "sign out everywhere", a password change) is only seen once
+  the device reaches the server again. Until then:
+  - For accounts that are off or encrypted at rest, those notes are readable in plain text by whoever opens the
+    browser's storage.
+  - For end-to-end accounts they stay encrypted, but the device also holds the wrapped key and the Argon2id parameters,
+    so whoever has it can guess the password offline, as someone with the server's data can. A strong password is the
+    defence.
+  - A session without "keep me signed in", the right choice on a shared computer, keeps nothing.
 - **Left behind:**
   - Files viewed before an account switched to end-to-end encryption can remain in the browser's HTTP cache, in
     plain form, until the browser evicts them. After the switch, files arrive encrypted and are decrypted on demand

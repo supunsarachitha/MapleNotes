@@ -86,6 +86,8 @@
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
   in its own window, with the app's name and icon (or the ones an administrator chose).
+- **Read offline.** On a device where you stay signed in, the app opens without a connection and shows the notes you
+  read recently, still encrypted on the device for end-to-end accounts. Signing out deletes them.
 - **Appearance.** Light or dark (or follow your device), seven accent colours, the side menu's order (drag or arrows)
   and text size, and the first day of the week, chosen in Settings and applied on every device.
 - **Small and hardened.** One container: non-root, read-only root filesystem, built-in health check.
@@ -667,6 +669,14 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.11 to 1.12
+
+Nothing to do. Every account's browser now registers the service worker (`/sw.js`), which keeps the app and the notes
+read recently for offline reading, but only for sessions started with "keep me signed in". Behind a proxy or CDN, make
+sure `/sw.js` is not cached for long, as with `index.html`.
+
+For API clients: `GET /api/v1/auth/status` gained `sessionPersistent`.
+
 ### From 1.10 to 1.11
 
 Nothing to do. The migration adds the sealed mode record of end-to-end accounts. End-to-end accounts need nothing; an
@@ -841,7 +851,7 @@ In Development, the interactive API reference is at <http://localhost:5051/scala
 | Server | ASP.NET Core 10 (LTS), controllers, built-in OpenAPI with XML docs |
 | Data | Entity Framework Core 10, SQLite with [SQLite3 Multiple Ciphers](https://utelle.github.io/SQLite3MultipleCiphers/) (SQLCipher v4 format) |
 | Crypto | .NET `AesGcm` and `HKDF`, ASP.NET Core Data Protection, Identity password hasher; in the browser, WebCrypto and Argon2id from `hash-wasm` |
-| Web | React 19, TypeScript, Vite, Tailwind CSS 4, TanStack Query, Radix UI, react-markdown, fflate (ZIP export in the browser), a service worker for encrypted media |
+| Web | React 19, TypeScript, Vite, Tailwind CSS 4, TanStack Query, Radix UI, react-markdown, fflate (ZIP export in the browser), a service worker for offline reading and encrypted media |
 | Tests | xUnit v3, `WebApplicationFactory`, Vitest, Testing Library |
 | Container | Multi-stage, multi-architecture build; chiseled Ubuntu runtime image |
 

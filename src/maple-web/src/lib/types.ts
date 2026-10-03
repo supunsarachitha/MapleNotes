@@ -137,6 +137,8 @@ export interface AuthStatus {
   branding?: { appName: string; iconUrl: string | null };
   /** The server's version; only sent to signed-in users. */
   version?: string | null;
+  /** Whether this session was started with "keep me signed in"; only then are notes kept for offline reading. */
+  sessionPersistent?: boolean;
 }
 
 /** An attachment as components use it: an end-to-end file's name, type and size decrypted. */

@@ -164,7 +164,22 @@ every device you sign in on.`,
 - **Computer (Chrome, Edge):** choose the install icon at the right of the address bar.
 
 The installed app keeps its own sign-in: sign in once inside it (and, with end-to-end encryption, unlock your notes
-there too). It still needs a connection to your server.`,
+there too). It opens without a connection too, as the next section explains.`,
+  },
+  {
+    id: "offline",
+    title: "Reading offline",
+    body: `If you signed in with **Keep me signed in**, Maple Notes keeps a copy of what you read on this device, so it opens
+and shows those notes when your phone or computer is offline, or your server cannot be reached. A note at the top says
+when you are reading saved copies.
+
+- What you opened recently is there: your timeline, lists and pages you looked at, your tags and labels. Searches,
+  pictures and other files need a connection.
+- Changes cannot be saved while you are offline. Write them once you are back online.
+- With end-to-end encryption, the saved copies stay encrypted. When the app opens offline, enter your password to unlock
+  them; it is checked on this device.
+- Signing out deletes the saved copies. A session without **Keep me signed in** saves nothing, so use that on a shared
+  computer.`,
   },
   {
     id: "features",

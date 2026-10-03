@@ -94,9 +94,11 @@ public sealed record UserResponse(
 /// <param name="Branding">The app's name and icon.</param>
 /// <param name="Version">The server's version (for example 1.6.0), for signed-in users only: visitors are not told
 /// which version a server runs.</param>
+/// <param name="SessionPersistent">Whether this session was started with "keep me signed in", so it outlives the browser.
+/// The web app keeps notes on the device for offline reading only then.</param>
 public sealed record AuthStatusResponse(
     bool SetupRequired, bool RegistrationOpen, UserResponse? User, bool LinkPreviewsAvailable = false, BrandingResponse? Branding = null,
-    string? Version = null);
+    string? Version = null, bool SessionPersistent = false);
 
 /// <summary>How the app presents itself, as administrators set it; shown before anyone signs in.</summary>
 /// <param name="AppName">The app's name.</param>

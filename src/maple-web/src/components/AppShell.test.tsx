@@ -84,4 +84,15 @@ describe("AppShell", () => {
     renderShell({});
     expect(screen.queryByRole("navigation", { name: "Labels" })).not.toBeInTheDocument();
   });
+
+  it("says when it is offline and changes cannot be saved", () => {
+    const onLine = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    const { unmount } = renderShell({});
+    expect(screen.getByText(/you are offline.*changes cannot be saved/i)).toBeInTheDocument();
+    unmount();
+
+    onLine.mockReturnValue(true);
+    renderShell({});
+    expect(screen.queryByText(/you are offline/i)).not.toBeInTheDocument();
+  });
 });

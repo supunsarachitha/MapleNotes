@@ -34,6 +34,7 @@ import type {
   UserRole,
 } from "./types";
 import { ApiError } from "./apiError";
+import { noteApiResponse } from "./offline";
 import {
   decodeAttachment,
   decodeLabels,
@@ -84,7 +85,15 @@ export async function request<T>(method: Method, path: string, body?: unknown, r
   const headers: Record<string, string> = { Accept: "application/json" };
   const raw = body instanceof Blob; // sent as it is, with its own type (an image, for example)
   if (body !== undefined) headers["Content-Type"] = raw ? body.type : "application/json";
-  if (method !== "GET") Object.assign(headers, await antiforgeryHeaders());
+  if (method !== "GET") {
+    try {
+      Object.assign(headers, await antiforgeryHeaders());
+    } catch (error) {
+      // Offline, the token cannot be fetched, but the service worker may still answer from a saved copy (the password
+      // settings for unlocking). A server that is reached refuses the request without one, and the retry below fetches it.
+      if (!(error instanceof TypeError)) throw error;
+    }
+  }
 
   let response: Response;
   try {
@@ -97,6 +106,7 @@ export async function request<T>(method: Method, path: string, body?: unknown, r
   } catch {
     throw new ApiError(0, { title: "Cannot reach the server. Check your connection and try again." });
   }
+  noteApiResponse(response);
 
   if (!response.ok) {
     const problem = await readProblem(response);

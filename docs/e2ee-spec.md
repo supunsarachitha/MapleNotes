@@ -250,8 +250,10 @@ Attachment URLs in API responses carry the stored version (`?v={revision}`): cip
 change of mode replaces the stored bytes behind the same ID, so a changed file always gets a new URL. The media
 service worker uses the URL from the info, and the conversion bypasses the cache.
 
-**Media service worker:** accounts with an end-to-end key register `/sw.js`, which answers requests for
-`/e2ee/attachments/{id}` (and nothing else):
+**Media service worker:** every account registers `/sw.js`, which also keeps recently read API responses for offline
+reading, as the server sent them, so end-to-end content stays encrypted there
+([architecture.md](architecture.md#offline-reading)). For end-to-end files it answers requests for
+`/e2ee/attachments/{id}`:
 
 1. It fetches the info and the 42-byte header (`Range: bytes=0-41`), decrypts the metadata, and remembers both for
    the file's next requests.
@@ -310,7 +312,12 @@ saved       = envelope(sessionKey, dataKey, context "maple-notes/v2/local/{userI
 copy is therefore useless once the session ends (sign-out, expiry, "sign out everywhere", a password change or reset
 elsewhere, a disabled account), and the server alone has nothing to open either. A copy that no longer opens is
 deleted; the browser then asks for the password (the unlock screen). Signing out, or finding the session gone, deletes
-all saved copies. Re-issuing the cookie for the same session (a password change on this device, a role change) keeps
+all saved copies.
+
+Offline, `sessionKey` cannot be fetched and is never kept, so the app opens on the unlock screen. When the session was
+started with "keep me signed in", the service worker keeps the account's prelogin answer and wrapped key, and the
+password unlocks with them as online (§1, §3). Nothing is sealed under a new key for this: the key stays unlocked for
+that page only. Re-issuing the cookie for the same session (a password change on this device, a role change) keeps
 `sessionKey`; a session created before version 1.1 gets one on its first request for it.
 
 ## 8. Test vectors
