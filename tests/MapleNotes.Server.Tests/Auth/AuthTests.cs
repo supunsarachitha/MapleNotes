@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using MapleNotes.Server.Domain;
@@ -125,6 +126,30 @@ public sealed class AuthTests
 
         var cookie = Assert.Single(response.Headers.GetValues("Set-Cookie"), c => c.StartsWith("maple.session=", StringComparison.Ordinal));
         Assert.Contains("expires", cookie, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Sessions_last_as_long_as_the_administrator_chose()
+    {
+        await using var app = new MapleAppFactory();
+        using var admin = new ApiClient(app);
+        await admin.SignUpAsync("maple"); // the first account is the administrator
+
+        using var before = new ApiClient(app);
+        var defaultLength = await before.LoginAsync("maple", rememberMe: true);
+        (await admin.PutJsonAsync("/api/v1/admin/settings", new UpdateInstanceSettingsRequest(false, SessionDays: 400))).EnsureSuccessStatusCode();
+        using var after = new ApiClient(app);
+        var longer = await after.LoginAsync("maple", rememberMe: true);
+
+        Assert.InRange(CookieLifetime(defaultLength).TotalDays, 29.9, 30.1);
+        Assert.InRange(CookieLifetime(longer).TotalDays, 399.9, 400.1);
+    }
+
+    private static TimeSpan CookieLifetime(HttpResponseMessage response)
+    {
+        var cookie = Assert.Single(response.Headers.GetValues("Set-Cookie"), c => c.StartsWith("maple.session=", StringComparison.Ordinal));
+        var expires = cookie.Split(';').Select(part => part.Trim()).Single(part => part.StartsWith("expires=", StringComparison.OrdinalIgnoreCase));
+        return DateTimeOffset.Parse(expires["expires=".Length..], CultureInfo.InvariantCulture) - DateTimeOffset.UtcNow;
     }
 
     [Fact]

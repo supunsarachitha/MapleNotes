@@ -132,7 +132,7 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
               onChange={(event) => setRememberMe(event.target.checked)}
               className="size-4 accent-maple-600"
             />
-            Keep me signed in for 30 days
+            Keep me signed in
           </label>
         )}
         <Button type="submit" busy={busy} className="mt-1 h-11">

@@ -285,6 +285,8 @@ export interface InstanceSettings {
   storageQuotaMb: number | null;
   /** The app's name, or null for Maple Notes. */
   appName: string | null;
+  /** How many days a session lasts after it was last used (1 to 400). */
+  sessionDays: number;
 }
 
 /** What the instance stores on its data volume, for administrators (totals only). */

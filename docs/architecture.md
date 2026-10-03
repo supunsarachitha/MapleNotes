@@ -275,8 +275,10 @@ note transaction, and a concurrent edit.
   get the default parameters with a stable pseudo-salt derived from the prelogin key, and are checked against a dummy
   hash. Five consecutive failures lock the account for 15 minutes, and prelogin and the authentication endpoints are
   rate-limited per client IP (`MAPLE_AUTH_RATE_LIMIT`, a separate budget for each).
-- Session cookie: `HttpOnly`, `SameSite=Strict`, `Secure` over HTTPS, 30-day sliding expiry with "keep me signed
-  in", otherwise a browser-session cookie. It is validated against the database on **every** request, so a
+- Session cookie: `HttpOnly`, `SameSite=Strict`, `Secure` over HTTPS, sliding expiry with "keep me signed in",
+  otherwise a browser-session cookie. The expiry is 30 days unless administrators chose another length, up to 400 days
+  (`SessionDays` in `InstanceSettings`); it is set when the session signs in, and renewal keeps it, so a new length
+  applies from each device's next sign-in. It is validated against the database on **every** request, so a
   password change, "sign out everywhere", disabling or deleting an account takes effect immediately.
 - CSRF: `SameSite=Strict`, plus an antiforgery token in the `X-XSRF-TOKEN` header on every state-changing
   request. The export download is a GET that changes nothing, and a cross-site request never carries the
