@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The README and the website point to [Falcon Notes](https://supunsarachitha.github.io/FalconNotes/), the offline
+  Android app, and explain how notes move between the two.
+
 ## [1.15.0] - 2026-10-03
 
 Write notes offline, sign in with a second factor, and start daily notes from a template.
