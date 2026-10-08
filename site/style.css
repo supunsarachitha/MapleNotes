@@ -628,7 +628,7 @@ figcaption {
   color: var(--text);
 }
 
-/* Demo and license */
+/* Demo, Falcon Notes and license */
 
 .demo {
   display: flex;
@@ -653,7 +653,8 @@ figcaption {
   margin-top: 16px;
 }
 
-#demo {
+#demo,
+#falcon {
   padding-block: 24px;
 }
 

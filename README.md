@@ -18,6 +18,7 @@
 <p align="center">
   <a href="https://supunsarachitha.github.io/MapleNotes/"><b>Website</b></a> ·
   <a href="https://maplenotes.onrender.com/"><b>Live demo</b></a> ·
+  <a href="https://supunsarachitha.github.io/FalconNotes/"><b>Falcon Notes for Android</b></a> ·
   <a href="https://buymeacoffee.com/jkhy9gtjs"><b>Buy me a coffee</b></a>
 </p>
 
@@ -71,7 +72,8 @@
 - **Export and restore.** Download everything, decrypted, as a ZIP of Markdown, plain text or JSON files, in flat or
   year/month/day folders, with attachments linked by relative path. Restore such an export into any account, even on
   another server: notes keep their dates, pins, archive state, kind, labels and files, and notes you already have are
-  skipped.
+  skipped. The same exports restore in [Falcon Notes](#falcon-notes-the-offline-android-app), the offline Android
+  app, and its backups restore here.
   Single Markdown, text and JSON files can be added too. With end-to-end encryption, your browser does both. To
   start over, an account can delete all of its notes and files at once and keep its sign-in and settings.
 - **Storage at a glance.** Settings shows how much your notes and files take; administrators see the server's totals
@@ -571,6 +573,18 @@ lists, quick notes, daily notes, habits, nested tags, archived notes, photos, a 
 file. Create an account, then restore either file in **Settings → Backup & data**. Settings are not part of a
 backup, so to see everything, turn on note titles (under **Writing**) and daily notes, the habit tracker and link
 previews (under **Features**) in Settings.
+
+## Falcon Notes: the offline Android app
+
+[Falcon Notes](https://supunsarachitha.github.io/FalconNotes/) is the offline companion of Maple Notes: an Android app
+([source](https://github.com/supunsarachitha/FalconNotes)) with the same timeline, todo lists, quick notes, daily notes
+and habit tracker, based on Maple Notes 1.8.0. It needs no server, no account and no internet permission, and keeps
+everything on the device, always encrypted. It runs on Android 8.0 and later, on phones and tablets.
+
+The two do not sync, but each restores the other's backups. Export in one, under **Settings → Backup & data**, and
+restore the ZIP in the other: notes keep their dates, pins, archive state, kind and files, and notes that are already
+there are skipped. Labels do not move between the two yet: Falcon Notes' backups do not carry them, and it leaves out
+the labels in a Maple Notes backup.
 
 ## Configuration
 
