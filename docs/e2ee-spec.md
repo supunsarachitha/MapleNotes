@@ -209,9 +209,10 @@ text, so they have their own records.
 - **Name:** the name as written (trimmed; at most 40 characters), as UTF-8, sealed as an envelope (§2) with
   `metadataKey` under the context `maple-notes/v2/e2ee/label/{userId:N}/{labelId:N}`. Binding the label's ID means a
   name moved to another label does not open. Renaming seals the new name again for the same ID.
-- **What stays readable:** the colour (one of ten), when the label was created, and which notes carry it. The
+- **What stays readable:** the colour (one of ten), whether the label hides its notes from Home and Quick notes (the
+  server leaves those out of the lists), when the label was created, and which notes carry it. The
   note–label links are what lets the server list a label's notes (`GET /api/v1/notes?label={id}`) and count them, as
-  tag tokens do for tags. `GET /api/v1/labels` returns `{ id, name: null, encryptedName, color, noteCount }` for such
+  tag tokens do for tags. `GET /api/v1/labels` returns `{ id, name: null, encryptedName, color, noteCount, hideNotes }` for such
   labels; the browser decrypts the names.
 - **Exports and restores:** exports carry label names, decrypted by the browser, never label IDs or ciphertext. An
   account with any end-to-end label name is exported by the browser (the server answers 409); a label whose name does

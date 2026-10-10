@@ -48,7 +48,7 @@ public sealed class LabelService(MapleDbContext db, UserContentKeys keys, Encryp
             .GroupBy(id => id)
             .Select(g => new { LabelId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.LabelId, g => g.Count, cancellationToken);
-        return labels.Select(l => new LabelResponse(l.Id, l.Name, l.EncryptedName, l.Color, counts.GetValueOrDefault(l.Id))).ToList();
+        return labels.Select(l => new LabelResponse(l.Id, l.Name, l.EncryptedName, l.Color, counts.GetValueOrDefault(l.Id), l.HideNotes)).ToList();
     }
 
     /// <summary>Creates a label.</summary>
@@ -91,10 +91,13 @@ public sealed class LabelService(MapleDbContext db, UserContentKeys keys, Encryp
                 : throw new ApiValidationException("id", "Only end-to-end encrypted labels bring their own ID.");
         }
 
-        var label = new Label { Id = id, UserId = userId, Name = name, EncryptedName = encryptedName, Color = color, CreatedAtUtc = now };
+        var label = new Label
+        {
+            Id = id, UserId = userId, Name = name, EncryptedName = encryptedName, Color = color, HideNotes = request.HideNotes, CreatedAtUtc = now,
+        };
         db.Labels.Add(label);
         await db.SaveChangesAsync(cancellationToken);
-        return new LabelResponse(label.Id, label.Name, label.EncryptedName, label.Color, 0);
+        return new LabelResponse(label.Id, label.Name, label.EncryptedName, label.Color, 0, label.HideNotes);
     }
 
     /// <summary>Renames or recolours a label.</summary>
@@ -118,6 +121,11 @@ public sealed class LabelService(MapleDbContext db, UserContentKeys keys, Encryp
             label.Color = ValidateColor(color);
         }
 
+        if (request.HideNotes is { } hide)
+        {
+            label.HideNotes = hide;
+        }
+
         var wasEndToEnd = label.EncryptedName is not null;
         if (request.Name is not null || request.EncryptedName is not null)
         {
@@ -136,7 +144,7 @@ public sealed class LabelService(MapleDbContext db, UserContentKeys keys, Encryp
             .Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null && n.Kind != NoteKind.Habit)
             .SelectMany(n => n.Labels.Where(l => l.Id == labelId))
             .CountAsync(cancellationToken);
-        return new LabelResponse(label.Id, label.Name, label.EncryptedName, label.Color, count);
+        return new LabelResponse(label.Id, label.Name, label.EncryptedName, label.Color, count, label.HideNotes);
     }
 
     /// <summary>Deletes a label; the notes that carried it keep everything else.</summary>

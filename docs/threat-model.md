@@ -190,7 +190,7 @@ the password to the server one last time.
 | The browser's time zone, when the calendar asks for a month | |
 | With link previews turned on (off by default): each link in the notes the browser shows, and the linked pages themselves | |
 | Which notes share a tag, and how many notes each tag has (tag tokens are deterministic per account) | The password, the data key, the recovery key |
-| How many labels there are, each one's colour, and which notes carry it | |
+| How many labels there are, each one's colour, whether it hides its notes from Home, and which notes carry it | |
 | Which notes and files the browser loads, and which tag token a filter uses | |
 
 Tag tokens are the same for every note with the same tag, which is what lets the server filter and count by tag. The

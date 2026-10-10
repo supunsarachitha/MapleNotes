@@ -432,6 +432,28 @@ describe("Settings", () => {
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, tagSuggestions: true, labels: true }));
   });
 
+  it("hides a label's notes from Home and Quick notes, and shows them again", async () => {
+    let labels: Label[] = [{ id: "l-private", name: "Private", color: "Purple", noteCount: 2 }];
+    vi.spyOn(api.labels, "list").mockImplementation(async () => labels);
+    const update = vi.spyOn(api.labels, "update").mockImplementation(async (id, changes) => {
+      labels = labels.map((label) => (label.id === id ? { ...label, ...changes } : label));
+      return labels.find((label) => label.id === id)!;
+    });
+    renderSettings(idle, { ...user, preferences: { ...DEFAULT_PREFERENCES, labels: true } }, null, "/settings/labels");
+
+    const hide = await screen.findByRole("button", { name: "Hide notes labelled Private from Home and Quick notes" });
+    expect(hide).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(hide);
+    await waitFor(() => expect(update).toHaveBeenCalledWith("l-private", { hideNotes: true }));
+    expect(await screen.findByText("Notes hidden")).toBeInTheDocument();
+    const show = screen.getByRole("button", { name: "Show notes labelled Private on Home and in Quick notes" });
+    expect(show).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(show);
+
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("l-private", { hideNotes: false }));
+    await waitFor(() => expect(screen.queryByText("Notes hidden")).not.toBeInTheDocument());
+  });
+
   it("creates, recolours, renames and deletes labels", async () => {
     let labels: Label[] = [{ id: "l-work", name: "Work", color: "Blue", noteCount: 3 }];
     vi.spyOn(api.labels, "list").mockImplementation(async () => labels);

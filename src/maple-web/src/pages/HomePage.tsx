@@ -60,6 +60,14 @@ function LabelNotes({ id }: { id: string }) {
   return (
     <>
       <FilterHeader icon={Tag} marker={label && <LabelDot color={label.color} className="size-3.5" />} label={name} />
+      {label?.hideNotes && (
+        <p className="-mt-2 mb-4 text-sm text-stone-600 dark:text-stone-300">
+          These notes are hidden from Home and Quick notes and show only here.{" "}
+          <Link href="/settings/labels" className="font-medium text-maple-700 underline dark:text-maple-400">
+            Change in Settings
+          </Link>
+        </p>
+      )}
       <NoteList
         key={id}
         state="active"

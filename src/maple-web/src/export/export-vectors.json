@@ -286,28 +286,32 @@
       "name": "Work",
       "encryptedName": null,
       "color": "Blue",
-      "noteCount": 2
+      "noteCount": 2,
+      "hideNotes": false
     },
     {
       "id": "0192f3a4-0000-7000-8000-000000000002",
       "name": "\u00E9t\u00E9 \u2600\uFE0F",
       "encryptedName": null,
       "color": "Orange",
-      "noteCount": 1
+      "noteCount": 1,
+      "hideNotes": false
     },
     {
       "id": "0192f3a4-0000-7000-8000-000000000003",
       "name": "Zebra, \u0022quoted\u0022 #1",
       "encryptedName": null,
       "color": "Pink",
-      "noteCount": 1
+      "noteCount": 1,
+      "hideNotes": false
     },
     {
       "id": "0192f3a4-0000-7000-8000-000000000004",
       "name": "Unused",
       "encryptedName": null,
       "color": "Grey",
-      "noteCount": 0
+      "noteCount": 0,
+      "hideNotes": false
     }
   ],
   "files": {

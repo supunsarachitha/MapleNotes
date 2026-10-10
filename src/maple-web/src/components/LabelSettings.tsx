@@ -1,5 +1,5 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Check, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import { focusAtEndRef } from "../lib/focus";
@@ -118,7 +118,10 @@ function LabelRow({ label, labels }: { label: Label; labels: Label[] }) {
           className="h-9 min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-2 text-sm outline-none focus:border-maple-500 dark:border-stone-700 dark:bg-stone-950"
         />
       ) : (
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{label.name}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{label.name}</span>
+          {label.hideNotes && <span className="block text-xs text-stone-500 dark:text-stone-400">Notes hidden</span>}
+        </span>
       )}
       <Link
         href={`/?label=${encodeURIComponent(label.id)}`}
@@ -126,6 +129,14 @@ function LabelRow({ label, labels }: { label: Label; labels: Label[] }) {
       >
         {label.noteCount === 1 ? "1 note" : `${label.noteCount} notes`}
       </Link>
+      <IconButton
+        label={label.hideNotes ? `Show notes labelled ${label.name} on Home and in Quick notes` : `Hide notes labelled ${label.name} from Home and Quick notes`}
+        aria-pressed={label.hideNotes === true}
+        className={cn("size-9", label.hideNotes && "text-maple-700 dark:text-maple-400")}
+        onClick={() => void run(() => api.labels.update(label.id, { hideNotes: !label.hideNotes }), "Could not change where the label's notes show.")}
+      >
+        {label.hideNotes ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </IconButton>
       <IconButton
         label={`Rename ${label.name}`}
         className="size-9"
@@ -257,7 +268,9 @@ export function LabelSettings() {
           </ul>
         )}
         <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">
-          Up to 100 labels, 40 characters each, and 20 on a note. Exports keep each note's labels, and restoring one brings them back.
+          The eye hides a label's notes from Home and Quick notes; they stay on the label's page, and come back when the
+          label is taken off or the eye is turned off. Up to 100 labels, 40 characters each, and 20 on a note. Exports keep
+          each note's labels, and restoring one brings them back.
         </p>
       </Section>
     </>

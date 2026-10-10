@@ -134,5 +134,17 @@ describe("Labels on notes", () => {
     expect(await screen.findByRole("heading", { name: "Work" })).toBeInTheDocument();
     expect(await screen.findByText("Quarterly report")).toBeInTheDocument();
     expect(listNotes).toHaveBeenCalledWith(expect.objectContaining({ state: "active", label: "l-work" }));
+    expect(screen.queryByText(/hidden from Home and Quick notes/)).not.toBeInTheDocument();
+  });
+
+  it("says on a label's page when its notes are hidden from Home and Quick notes", async () => {
+    vi.spyOn(api.labels, "list").mockResolvedValue([{ ...work, hideNotes: true }]);
+    vi.spyOn(api, "listNotes").mockResolvedValue({ items: [note], nextCursor: null });
+    window.history.replaceState(null, "", "/?label=l-work");
+    renderWith(<HomePage />);
+
+    expect(await screen.findByText(/These notes are hidden from Home and Quick notes and show only here/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Change in Settings" })).toHaveAttribute("href", "/settings/labels");
+    expect(await screen.findByText("Quarterly report")).toBeInTheDocument(); // still listed here
   });
 });

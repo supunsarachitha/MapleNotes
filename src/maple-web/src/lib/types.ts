@@ -242,6 +242,8 @@ export interface Label {
   noteCount: number;
   /** An end-to-end label whose name could not be decrypted in this browser (`name` is then a placeholder). */
   unreadable?: boolean;
+  /** Notes with the label are left out of Home and Quick notes, and shown on the label's page. */
+  hideNotes?: boolean;
 }
 
 /** A label as the API returns it: end-to-end labels carry `encryptedName` instead of a name. */
@@ -251,6 +253,7 @@ export interface LabelWire {
   encryptedName?: string | null;
   color: LabelColor;
   noteCount: number;
+  hideNotes?: boolean;
 }
 
 /** What emptying the trash deleted. */

@@ -401,9 +401,9 @@ export const api = {
       const wire = await request<LabelWire>("POST", "/api/v1/labels", { ...(await encodeNewLabel(name)), color });
       return (await decodeLabels([wire]))[0]!;
     },
-    async update(id: string, changes: { name?: string; color?: LabelColor }): Promise<Label> {
+    async update(id: string, changes: { name?: string; color?: LabelColor; hideNotes?: boolean }): Promise<Label> {
       const name = changes.name === undefined ? {} : await encodeLabelName(id, changes.name);
-      const wire = await request<LabelWire>("PUT", `/api/v1/labels/${id}`, { ...name, color: changes.color });
+      const wire = await request<LabelWire>("PUT", `/api/v1/labels/${id}`, { ...name, color: changes.color, hideNotes: changes.hideNotes });
       return (await decodeLabels([wire]))[0]!;
     },
     remove: (id: string) => request<void>("DELETE", `/api/v1/labels/${id}`),

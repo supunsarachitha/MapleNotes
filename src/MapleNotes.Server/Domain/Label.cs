@@ -35,6 +35,13 @@ public sealed class Label
     /// <summary>One of <see cref="Colors"/>.</summary>
     public string Color { get; set; } = "Grey";
 
+    /// <summary>
+    /// Whether notes and quick notes with this label are left out of Home and the Quick notes tab, and shown only on the
+    /// label's own page. A layout choice like the colour, so it stays readable for end-to-end labels too. Removing the
+    /// label from a note, or turning this off, brings the note back.
+    /// </summary>
+    public bool HideNotes { get; set; }
+
     /// <summary>When the label was created (UTC).</summary>
     public DateTime CreatedAtUtc { get; init; }
 }

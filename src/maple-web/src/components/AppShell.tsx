@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Cloud, CloudOff, Home, LogOut, Menu, Search, X } from "lucide-react";
+import { Cloud, CloudOff, EyeOff, Home, LogOut, Menu, Search, X } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { useBranding } from "../lib/branding";
@@ -83,6 +83,7 @@ function LabelLinks({ onNavigate }: { onNavigate?: () => void }) {
         >
           <LabelDot color={label.color} className="ml-1 size-3" />
           <span className="min-w-0 flex-1 truncate">{label.name}</span>
+          {label.hideNotes && <EyeOff className="size-3.5 shrink-0 text-stone-400" aria-label="hidden from Home and Quick notes" />}
           {label.noteCount > 0 && <span className="text-xs text-stone-400">{label.noteCount}</span>}
         </Link>
       ))}
