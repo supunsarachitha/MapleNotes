@@ -6,7 +6,8 @@ namespace MapleNotes.Server.Features.Labels;
 /// <param name="EncryptedName">The name of an end-to-end label, encrypted by the browser (base64).</param>
 /// <param name="Color">The colour, one of Grey, Red, Orange, Amber, Green, Teal, Blue, Indigo, Purple and Pink.</param>
 /// <param name="NoteCount">Active notes (neither archived nor in the trash) of the requested kinds with the label.</param>
-public sealed record LabelResponse(Guid Id, string? Name, byte[]? EncryptedName, string Color, int NoteCount);
+/// <param name="HideNotes">Whether notes with the label are left out of Home and Quick notes (shown on the label's page).</param>
+public sealed record LabelResponse(Guid Id, string? Name, byte[]? EncryptedName, string Color, int NoteCount, bool HideNotes = false);
 
 /// <summary>Request to create a label.</summary>
 /// <remarks>
@@ -17,10 +18,13 @@ public sealed record LabelResponse(Guid Id, string? Name, byte[]? EncryptedName,
 /// <param name="Color">The colour; default Grey.</param>
 /// <param name="Id">For an end-to-end label: the ID the browser chose and bound into the encrypted name (UUID version 7).</param>
 /// <param name="EncryptedName">For an end-to-end label: the name, encrypted by the browser.</param>
-public sealed record CreateLabelRequest(string? Name = null, string? Color = null, Guid? Id = null, byte[]? EncryptedName = null);
+/// <param name="HideNotes">Leave notes with the label out of Home and Quick notes; default false.</param>
+public sealed record CreateLabelRequest(
+    string? Name = null, string? Color = null, Guid? Id = null, byte[]? EncryptedName = null, bool HideNotes = false);
 
-/// <summary>Request to rename or recolour a label. Omitted fields are unchanged.</summary>
+/// <summary>Request to rename, recolour or hide a label's notes. Omitted fields are unchanged.</summary>
 /// <param name="Name">The new name (accounts without end-to-end encryption).</param>
 /// <param name="EncryptedName">The new name, encrypted by the browser (end-to-end accounts).</param>
 /// <param name="Color">The new colour.</param>
-public sealed record UpdateLabelRequest(string? Name = null, byte[]? EncryptedName = null, string? Color = null);
+/// <param name="HideNotes">Whether notes with the label are left out of Home and Quick notes.</param>
+public sealed record UpdateLabelRequest(string? Name = null, byte[]? EncryptedName = null, string? Color = null, bool? HideNotes = null);

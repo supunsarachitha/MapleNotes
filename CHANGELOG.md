@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-10-10
+
+Labels can keep their notes out of Home and Quick notes.
+
 ### Added
 
+- **Hide a label's notes:** in Settings → Labels, the eye next to a label keeps notes and quick notes with that label out
+  of Home and the Quick notes tab; they show on the label's page (where a line says they are hidden) and in searches,
+  and todo lists keep their tab. Taking the label off a note, or turning the eye off, brings the note back, and nothing
+  is hidden while labels are turned off. The side menu marks such labels. Labels gained `hideNotes` in the API.
 - The README and the website point to [Falcon Notes](https://supunsarachitha.github.io/FalconNotes/), the offline
   Android app, and explain how notes move between the two.
 
@@ -557,7 +565,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.15.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.16.0...HEAD
+[1.16.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.12.0...v1.15.0
 [1.12.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.10.1...v1.11.0

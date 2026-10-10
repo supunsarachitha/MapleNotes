@@ -244,6 +244,47 @@ public sealed class LabelsTests : IAsyncLifetime
         Assert.Empty(await ListAsync());
     }
 
+    [Fact]
+    public async Task A_label_can_hide_its_notes_from_home_and_quick_notes_but_not_from_its_own_page()
+    {
+        await LabelsOnAsync(true);
+        var hidden = await CreateAsync("Private");
+        (await _client.PutJsonAsync($"/api/v1/labels/{hidden.Id}", new UpdateLabelRequest(HideNotes: true))).EnsureSuccessStatusCode();
+        var other = await CreateAsync("Work");
+        var secret = await CreateNoteAsync("Surprise party plans");
+        var plain = await CreateNoteAsync("Groceries");
+        var pinned = await CreateNoteAsync("Gift list");
+        var quick = await CreateNoteAsync("Call the florist", NoteKind.Quick);
+        var todo = await CreateNoteAsync("# Party\n\n- [ ] cake", NoteKind.Todo);
+        await PatchAsync(secret.Id, new PatchNoteRequest(LabelIds: [hidden.Id, other.Id]));
+        await PatchAsync(pinned.Id, new PatchNoteRequest(IsPinned: true, LabelIds: [hidden.Id]));
+        await PatchAsync(quick.Id, new PatchNoteRequest(LabelIds: [hidden.Id]));
+        await PatchAsync(todo.Id, new PatchNoteRequest(LabelIds: [hidden.Id]));
+
+        Assert.Equal([plain.Id], await IdsAsync("/api/v1/notes?state=feed"));
+        Assert.Empty(await IdsAsync("/api/v1/notes?state=pinned"));
+        Assert.Empty(await IdsAsync("/api/v1/notes?state=feed&kind=quick"));
+        Assert.Equal([todo.Id], await IdsAsync("/api/v1/notes?state=feed&kind=todo")); // todo lists keep their tab
+        Assert.Equal([secret.Id], await IdsAsync($"/api/v1/notes?state=active&label={other.Id}"));
+        Assert.Equal(
+            [quick.Id, pinned.Id, secret.Id],
+            await IdsAsync($"/api/v1/notes?state=active&kind=note&kind=quick&label={hidden.Id}")); // the label's page
+        Assert.Equal([secret.Id], await IdsAsync("/api/v1/notes?state=active&q=party%20plans")); // search still finds it
+        Assert.True((await ListAsync()).Single(l => l.Id == hidden.Id).HideNotes);
+
+        // Taking the label off a note brings it back; so does turning the option off, or labels altogether.
+        await PatchAsync(secret.Id, new PatchNoteRequest(LabelIds: [other.Id]));
+        Assert.Equal([plain.Id, secret.Id], await IdsAsync("/api/v1/notes?state=feed"));
+        (await _client.PutJsonAsync($"/api/v1/labels/{hidden.Id}", new UpdateLabelRequest(HideNotes: false))).EnsureSuccessStatusCode();
+        Assert.Equal([quick.Id], await IdsAsync("/api/v1/notes?state=feed&kind=quick"));
+        (await _client.PutJsonAsync($"/api/v1/labels/{hidden.Id}", new UpdateLabelRequest(HideNotes: true))).EnsureSuccessStatusCode();
+        await LabelsOnAsync(false);
+        Assert.Equal([pinned.Id], await IdsAsync("/api/v1/notes?state=pinned"));
+    }
+
+    private async Task LabelsOnAsync(bool on) =>
+        (await _client.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { Labels = on })).EnsureSuccessStatusCode();
+
     private async Task<LabelResponse> CreateAsync(string name, string? color = null)
     {
         var response = await _client.PostJsonAsync("/api/v1/labels", new CreateLabelRequest(name, color));
@@ -253,9 +294,9 @@ public sealed class LabelsTests : IAsyncLifetime
 
     private async Task<List<LabelResponse>> ListAsync() => (await _client.GetJsonAsync<List<LabelResponse>>("/api/v1/labels"))!;
 
-    private async Task<NoteResponse> CreateNoteAsync(string content)
+    private async Task<NoteResponse> CreateNoteAsync(string content, NoteKind kind = NoteKind.Note)
     {
-        var response = await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest(content));
+        var response = await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest(content, Kind: kind));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<NoteResponse>(ApiClient.Json, Ct))!;
     }

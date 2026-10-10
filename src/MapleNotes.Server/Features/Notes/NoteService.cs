@@ -81,7 +81,11 @@ public sealed class NoteService(
             throw new ApiValidationException("createdBefore", "The end must be after the start.");
         }
 
-        var filter = new TagFilter(tag, tagTokens, Utc(query.CreatedFrom), Utc(query.CreatedBefore), query.Label);
+        // Notes with a label set to hide them stay out of Home and Quick notes (the feed and pinned lists), but not out of
+        // the label's own page, and not while the account has labels turned off, where they could not be found again.
+        var hideLabelled = query.State is NoteState.Feed or NoteState.Pinned && query.Label is null
+            && (await db.Users.AsNoTracking().Where(u => u.Id == userId).Select(u => u.Preferences).SingleAsync(cancellationToken)).Labels;
+        var filter = new TagFilter(tag, tagTokens, Utc(query.CreatedFrom), Utc(query.CreatedBefore), query.Label, hideLabelled);
         var kinds = ValidateKinds(query.Kinds) ?? [NoteKind.Note];
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
 
@@ -784,6 +788,12 @@ public sealed class NoteService(
             notes = notes.Where(n => n.Labels.Any(l => l.Id == labelId));
         }
 
+        if (filter.HideLabelled)
+        {
+            // Only timeline notes and quick notes: todo lists and habits keep their own tabs.
+            notes = notes.Where(n => (n.Kind != NoteKind.Note && n.Kind != NoteKind.Quick) || !n.Labels.Any(l => l.HideNotes));
+        }
+
         if (state == NoteState.Trash)
         {
             if (cursor is { } deletedAt)
@@ -1004,7 +1014,7 @@ public sealed class NoteService(
     /// creation-time range and an optional label.
     /// </summary>
     private readonly record struct TagFilter(
-        string? Name, string[] Tokens, DateTime? CreatedFrom = null, DateTime? CreatedBefore = null, Guid? Label = null)
+        string? Name, string[] Tokens, DateTime? CreatedFrom = null, DateTime? CreatedBefore = null, Guid? Label = null, bool HideLabelled = false)
     {
         public bool IsActive => Name is not null || Tokens.Length > 0;
     }

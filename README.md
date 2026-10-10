@@ -55,7 +55,8 @@
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
   Optionally, your existing tags are suggested while you type one.
 - **Labels.** Optionally, coloured labels you put on notes and todo lists by hand, in ten colours, listed in the side
-  menu with their notes. With end-to-end encryption their names are encrypted too.
+  menu with their notes. A label can keep its notes out of Home and Quick notes, so they show only on the label's page.
+  With end-to-end encryption their names are encrypted too.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
   upload progress. Images keep their shape on any screen and open in a full-screen viewer; audio and video play
   inline, and video seeking works on iOS. Optionally, photos are shrunk in the browser before they upload (at most
@@ -688,6 +689,13 @@ deploy. With `docker run`, pull `ghcr.io/supunsarachitha/maplenotes:latest`, rem
 with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
+
+### From 1.15 to 1.16
+
+Nothing to do. The migration adds a setting to each label, off for every existing label, so no note moves until its
+owner chooses to hide a label's notes. For API clients: labels gained `hideNotes`, which `POST` and
+`PUT /api/v1/labels` accept, and the feed and pinned lists leave out notes and quick notes with such a label while the
+account has labels turned on.
 
 ### From 1.12 to 1.15
 
