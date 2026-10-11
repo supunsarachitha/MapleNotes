@@ -10,7 +10,7 @@ describe("the service worker taking over", () => {
     const listener = vi.fn();
     onFirstWorkerControl(listener);
 
-    container.controller = {};
+    container.controller = { postMessage: vi.fn() }; // the app sends the worker its keys as soon as it takes over
     container.dispatchEvent(new Event("controllerchange"));
     container.dispatchEvent(new Event("controllerchange")); // a later version taking over: the first one saved already
 
