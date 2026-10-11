@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.16.1] - 2026-10-11
+
+Dependency updates. Nothing changes in how Maple Notes behaves.
+
+### Security
+
+- source-map-js 1.2.1 → 1.2.2, which fixes a denial of service when a crafted source map is parsed
+  ([GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)). It is used only by the build tools and
+  was never part of the app or the container image.
+
+### Changed
+
+- Server: Scalar.AspNetCore 2.17.10 → 2.17.14. Building needs the .NET SDK 10.0.401 or newer (`global.json`).
+- Web app: @radix-ui/react-dialog 1.1.23 → 1.2.0, @radix-ui/react-dropdown-menu 2.1.24 → 2.1.25,
+  @tanstack/react-query 5.104.0 → 5.104.1, lucide-react 1.48.0 → 1.53.0 and mdast-util-find-and-replace 3.0.2 → 3.0.3.
+- Build and test tools: vite 8.3.1 → 8.3.4, @vitejs/plugin-react 6.1.1 → 6.1.2, vitest 5.0.2 → 5.0.3, jsdom 29.1.1 →
+  30.1.2, @types/node 22.20.4 → 26.6.4 and xunit.v3 4.0.1 → 4.0.2.
+
 ## [1.16.0] - 2026-10-10
 
 Labels can keep their notes out of Home and Quick notes.
@@ -565,7 +583,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.16.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.16.1...HEAD
+[1.16.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.16.0...v1.16.1
 [1.16.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.12.0...v1.15.0
 [1.12.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.11.0...v1.12.0
