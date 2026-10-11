@@ -17,34 +17,34 @@ notices (MIT) and the licenses of its Ubuntu packages inside the image.
 | @floating-ui/react-dom (npm) | 2.1.9 | MIT | <https://github.com/floating-ui/floating-ui> |
 | @floating-ui/utils (npm) | 0.2.12 | MIT | <https://github.com/floating-ui/floating-ui> |
 | @radix-ui/primitive (npm) | 1.1.7 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-arrow (npm) | 1.1.15 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-collection (npm) | 1.1.15 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-arrow (npm) | 1.1.16 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-collection (npm) | 1.1.16 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/react-compose-refs (npm) | 1.1.5 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/react-context (npm) | 1.2.2 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-dialog (npm) | 1.1.23 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-direction (npm) | 1.1.4 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-dismissable-layer (npm) | 1.1.19 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-dropdown-menu (npm) | 2.1.24 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-dialog (npm) | 1.2.0 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-direction (npm) | 1.1.5 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-dismissable-layer (npm) | 1.1.20 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-dropdown-menu (npm) | 2.1.25 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/react-focus-guards (npm) | 1.1.6 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-focus-scope (npm) | 1.1.16 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-focus-scope (npm) | 1.2.0 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/react-id (npm) | 1.1.4 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-menu (npm) | 2.1.24 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-popper (npm) | 1.3.7 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-portal (npm) | 1.1.17 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-presence (npm) | 1.1.10 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-primitive (npm) | 2.1.10 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-roving-focus (npm) | 1.1.19 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-slot (npm) | 1.3.3 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-menu (npm) | 2.1.25 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-popper (npm) | 1.3.8 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-portal (npm) | 1.1.18 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-presence (npm) | 1.1.11 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-primitive (npm) | 2.1.11 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-roving-focus (npm) | 1.1.20 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-slot (npm) | 1.4.0 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/react-use-callback-ref (npm) | 1.1.4 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/react-use-controllable-state (npm) | 1.2.6 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/react-use-effect-event (npm) | 0.0.5 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/react-use-is-hydrated (npm) | 0.1.3 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/react-use-layout-effect (npm) | 1.1.4 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/react-use-rect (npm) | 1.1.4 | MIT | <https://github.com/radix-ui/primitives> |
-| @radix-ui/react-use-size (npm) | 1.1.4 | MIT | <https://github.com/radix-ui/primitives> |
+| @radix-ui/react-use-size (npm) | 1.1.5 | MIT | <https://github.com/radix-ui/primitives> |
 | @radix-ui/rect (npm) | 1.1.3 | MIT | <https://github.com/radix-ui/primitives> |
-| @tanstack/query-core (npm) | 5.104.0 | MIT | <https://github.com/TanStack/query> |
-| @tanstack/react-query (npm) | 5.104.0 | MIT | <https://github.com/TanStack/query> |
+| @tanstack/query-core (npm) | 5.104.1 | MIT | <https://github.com/TanStack/query> |
+| @tanstack/react-query (npm) | 5.104.1 | MIT | <https://github.com/TanStack/query> |
 | @types/debug (npm) | 4.1.13 | MIT | <https://github.com/DefinitelyTyped/DefinitelyTyped> |
 | @types/estree (npm) | 1.0.9 | MIT | <https://github.com/DefinitelyTyped/DefinitelyTyped> |
 | @types/estree-jsx (npm) | 1.0.5 | MIT | <https://github.com/DefinitelyTyped/DefinitelyTyped> |
@@ -85,9 +85,9 @@ notices (MIT) and the licenses of its Ubuntu packages inside the image.
 | is-hexadecimal (npm) | 2.0.1 | MIT |  |
 | is-plain-obj (npm) | 4.1.0 | MIT |  |
 | longest-streak (npm) | 3.1.0 | MIT |  |
-| lucide-react (npm) | 1.48.0 | ISC | <https://github.com/lucide-icons/lucide> |
+| lucide-react (npm) | 1.53.0 | ISC | <https://github.com/lucide-icons/lucide> |
 | markdown-table (npm) | 3.0.4 | MIT |  |
-| mdast-util-find-and-replace (npm) | 3.0.2 | MIT |  |
+| mdast-util-find-and-replace (npm) | 3.0.3 | MIT |  |
 | mdast-util-from-markdown (npm) | 2.0.3 | MIT |  |
 | mdast-util-gfm (npm) | 3.1.0 | MIT |  |
 | mdast-util-gfm-autolink-literal (npm) | 2.0.1 | MIT |  |
@@ -172,7 +172,7 @@ notices (MIT) and the licenses of its Ubuntu packages inside the image.
 | Microsoft.EntityFrameworkCore.Sqlite.Core (nuget) | 10.0.12 | MIT | <https://docs.microsoft.com/ef/core/> |
 | Microsoft.Extensions.DependencyModel (nuget) | 10.0.12 | MIT | <https://dot.net/> |
 | Microsoft.OpenApi (nuget) | 2.12.0 | MIT | <https://github.com/Microsoft/OpenAPI.NET> |
-| Scalar.AspNetCore (nuget) | 2.17.10 | MIT | <https://scalar.com/> |
+| Scalar.AspNetCore (nuget) | 2.17.14 | MIT | <https://scalar.com/> |
 | SQLite3MC.PCLRaw.bundle (nuget) | 2.4.0 | MIT | <https://utelle.github.io/SQLite3MultipleCiphers/> |
 | SQLite3MC.PCLRaw.lib (nuget) | 2.4.0 | MIT | <https://utelle.github.io/SQLite3MultipleCiphers/> |
 | SQLite3MC.PCLRaw.provider (nuget) | 2.4.0 | MIT | <https://utelle.github.io/SQLite3MultipleCiphers/> |
@@ -205,7 +205,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### @radix-ui/primitive 1.1.7, @radix-ui/react-arrow 1.1.15, @radix-ui/react-collection 1.1.15, @radix-ui/react-compose-refs 1.1.5, @radix-ui/react-context 1.2.2, @radix-ui/react-dialog 1.1.23, @radix-ui/react-direction 1.1.4, @radix-ui/react-dismissable-layer 1.1.19, @radix-ui/react-dropdown-menu 2.1.24, @radix-ui/react-focus-guards 1.1.6, @radix-ui/react-focus-scope 1.1.16, @radix-ui/react-id 1.1.4, @radix-ui/react-menu 2.1.24, @radix-ui/react-popper 1.3.7, @radix-ui/react-portal 1.1.17, @radix-ui/react-presence 1.1.10, @radix-ui/react-primitive 2.1.10, @radix-ui/react-roving-focus 1.1.19, @radix-ui/react-slot 1.3.3, @radix-ui/react-use-callback-ref 1.1.4, @radix-ui/react-use-controllable-state 1.2.6, @radix-ui/react-use-effect-event 0.0.5, @radix-ui/react-use-is-hydrated 0.1.3, @radix-ui/react-use-layout-effect 1.1.4, @radix-ui/react-use-rect 1.1.4, @radix-ui/react-use-size 1.1.4, @radix-ui/rect 1.1.3
+### @radix-ui/primitive 1.1.7, @radix-ui/react-arrow 1.1.16, @radix-ui/react-collection 1.1.16, @radix-ui/react-compose-refs 1.1.5, @radix-ui/react-context 1.2.2, @radix-ui/react-dialog 1.2.0, @radix-ui/react-direction 1.1.5, @radix-ui/react-dismissable-layer 1.1.20, @radix-ui/react-dropdown-menu 2.1.25, @radix-ui/react-focus-guards 1.1.6, @radix-ui/react-focus-scope 1.2.0, @radix-ui/react-id 1.1.4, @radix-ui/react-menu 2.1.25, @radix-ui/react-popper 1.3.8, @radix-ui/react-portal 1.1.18, @radix-ui/react-presence 1.1.11, @radix-ui/react-primitive 2.1.11, @radix-ui/react-roving-focus 1.1.20, @radix-ui/react-slot 1.4.0, @radix-ui/react-use-callback-ref 1.1.4, @radix-ui/react-use-controllable-state 1.2.6, @radix-ui/react-use-effect-event 0.0.5, @radix-ui/react-use-is-hydrated 0.1.3, @radix-ui/react-use-layout-effect 1.1.4, @radix-ui/react-use-rect 1.1.4, @radix-ui/react-use-size 1.1.5, @radix-ui/rect 1.1.3
 
 ```text
 MIT License
@@ -231,7 +231,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### @tanstack/query-core 5.104.0, @tanstack/react-query 5.104.0
+### @tanstack/query-core 5.104.1, @tanstack/react-query 5.104.1
 
 ```text
 MIT License
@@ -431,7 +431,7 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### decode-named-character-reference 1.3.0, hast-util-to-jsx-runtime 2.3.6, markdown-table 3.0.4, mdast-util-find-and-replace 3.0.2, mdast-util-from-markdown 2.0.3, mdast-util-gfm 3.1.0, mdast-util-gfm-footnote 2.1.0, mdast-util-gfm-strikethrough 2.0.1, mdast-util-to-markdown 2.1.3, micromark 4.0.3, micromark-core-commonmark 2.0.4, micromark-extension-gfm-table 2.1.2, micromark-factory-destination 2.0.1, micromark-factory-label 2.0.1, micromark-factory-space 2.1.0, micromark-factory-title 2.0.1, micromark-factory-whitespace 2.0.1, micromark-util-character 2.1.1, micromark-util-chunked 2.0.1, micromark-util-classify-character 2.0.1, micromark-util-combine-extensions 2.0.1, micromark-util-decode-numeric-character-reference 2.0.2, micromark-util-decode-string 2.0.1, micromark-util-edit-map 1.0.0, micromark-util-encode 2.0.1, micromark-util-html-tag-name 2.0.1, micromark-util-normalize-identifier 2.0.1, micromark-util-resolve-all 2.0.1, micromark-util-sanitize-uri 2.0.1, micromark-util-subtokenize 2.1.0, micromark-util-symbol 2.0.1, micromark-util-types 2.0.3, remark-gfm 4.0.1, remark-rehype 11.1.2, vfile-message 4.0.3
+### decode-named-character-reference 1.3.0, hast-util-to-jsx-runtime 2.3.6, markdown-table 3.0.4, mdast-util-find-and-replace 3.0.3, mdast-util-from-markdown 2.0.3, mdast-util-gfm 3.1.0, mdast-util-gfm-footnote 2.1.0, mdast-util-gfm-strikethrough 2.0.1, mdast-util-to-markdown 2.1.3, micromark 4.0.3, micromark-core-commonmark 2.0.4, micromark-extension-gfm-table 2.1.2, micromark-factory-destination 2.0.1, micromark-factory-label 2.0.1, micromark-factory-space 2.1.0, micromark-factory-title 2.0.1, micromark-factory-whitespace 2.0.1, micromark-util-character 2.1.1, micromark-util-chunked 2.0.1, micromark-util-classify-character 2.0.1, micromark-util-combine-extensions 2.0.1, micromark-util-decode-numeric-character-reference 2.0.2, micromark-util-decode-string 2.0.1, micromark-util-edit-map 1.0.0, micromark-util-encode 2.0.1, micromark-util-html-tag-name 2.0.1, micromark-util-normalize-identifier 2.0.1, micromark-util-resolve-all 2.0.1, micromark-util-sanitize-uri 2.0.1, micromark-util-subtokenize 2.1.0, micromark-util-symbol 2.0.1, micromark-util-types 2.0.3, remark-gfm 4.0.1, remark-rehype 11.1.2, vfile-message 4.0.3
 
 ```text
 (The MIT License)
@@ -767,7 +767,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### lucide-react 1.48.0
+### lucide-react 1.53.0
 
 ```text
 ISC License
@@ -1053,7 +1053,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### Scalar.AspNetCore 2.17.10
+### Scalar.AspNetCore 2.17.14
 
 ```text
 MIT License
