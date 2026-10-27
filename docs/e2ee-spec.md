@@ -73,6 +73,7 @@ AAD = bytes [0..1] ‖ UTF-8(context)
 | Note text (UTF-8 Markdown) | `noteKey` | `maple-notes/v2/e2ee/note/{userId}/{noteId}` |
 | Tag name (UTF-8) | `metadataKey` | `maple-notes/v2/e2ee/tag/{userId}/{token}` |
 | Attachment metadata (JSON) | `metadataKey` | `maple-notes/v2/e2ee/attachment-meta/{userId}/{attachmentId}` |
+| Note mood (padded name, §2a) | `metadataKey` | `maple-notes/v2/e2ee/mood/{userId:N}/{noteId:N}` |
 
 The plaintext of a wrapped data key is exactly its 32 bytes.
 
@@ -95,6 +96,28 @@ encrypted with it. Ticking a day rewrites the habit's note, so its update time s
 original ID. That ID must be a UUID version 7 but, unlike a new note's, may be old (not more than 24 hours in the
 future). If another account on the server uses the ID, the answer is 409, and the browser encrypts the note again for
 a new ID (the context binds the ID, so the ciphertext cannot simply be reused).
+
+## 2a. Moods
+
+A note or quick note can carry a mood (version 1.17, the same five as Falcon Notes): Awful, Bad, Okay, Good or Great.
+In end-to-end mode the mood is sealed like the note's text, so the server never learns how someone felt.
+
+- **Plaintext:** the mood's name in lower case (`awful`, `bad`, `okay`, `good`, `great`), or `none` for no mood, as
+  UTF-8 padded with spaces to 8 bytes. The padding makes every mood envelope the same size (38 bytes), so the length
+  does not tell the moods apart.
+- **Envelope:** sealed (§2) with `metadataKey` under the context `maple-notes/v2/e2ee/mood/{userId:N}/{noteId:N}`.
+  Binding the note's ID means a mood moved to another note does not open. A plaintext that is not one of the six names,
+  once the trailing spaces are removed, is not a mood, and the browser shows none.
+- **In the API:** `encrypted.mood` (base64) next to `encrypted.content` when a note is created, updated, restored or
+  converted; left out, the server keeps the note's mood. The browser **always** sends it for notes and quick notes,
+  `none` included, so the requests do not show which notes have a mood or when one was taken off. Notes come back
+  with `mood: null` and `encryptedMood` set. The server checks only that it is an envelope of at most 46 bytes. Todo
+  lists and habits cannot have a mood: the server drops one sent for them.
+- **What stays readable:** nothing about the mood itself. The note's update time still shows that the note was saved.
+- **Exports and restores:** exports carry the mood decrypted (`mood:` in Markdown, `Mood:` in text, `mood` in JSON, as
+  Falcon Notes writes them); a mood that does not open is left out. A restore seals it again for the note's ID.
+- **Changing mode:** the conversion (§3) lists each note's mood with its text (plain, or as `encryptedMood`), and the
+  browser sends it back in the form the account is changing to.
 
 ## 3. The E2EE data key and its subkeys
 
@@ -235,8 +258,11 @@ AAD of every chunk = header ‖ UTF-8("maple-notes/v2/e2ee/attachment/{userId}/{
 Every chunk except the last holds exactly 65,536 bytes of plaintext. An empty file is one final chunk of 16 bytes (the
 tag alone).
 
-**Metadata:** `{"name": "...", "type": "...", "size": 123}` as UTF-8 JSON, sealed with `metadataKey` (§2). The
-server stores the file as `application/octet-stream` with a placeholder name and knows only its encrypted size.
+**Metadata:** `{"name": "...", "type": "...", "size": 123, "sticker": 0}` as UTF-8 JSON, sealed with `metadataKey`
+(§2). `sticker` (since 1.17) is 1 for a sticker from a sticker pack and 0 for any other file; every upload writes it, so
+its presence tells nothing, and metadata written before 1.17 has none (not a sticker). The browser shows a file as a
+sticker only when it is also a picture it shows inline. The server stores the file as `application/octet-stream` with
+a placeholder name and knows only its encrypted size; its own sticker flag stays false for end-to-end files.
 
 **Upload** (`POST /api/v1/attachments`, multipart): the browser picks the attachment's ID (UUID version 7), encrypts
 the file and the metadata, and sends the form fields `id` and `metadata` (base64) before the file part. The server

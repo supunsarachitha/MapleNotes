@@ -67,8 +67,8 @@ must carry a valid antiforgery token. Both are enforced globally, so a new endpo
 | Entity | Notes |
 |---|---|
 | `User` | Username (unique, case-insensitive), PBKDF2 hash of the key derived from the password with its Argon2id salt and parameters, role, encryption mode (`Off`, `AtRest`, `EndToEnd`), server-held wrapped data key (absent once an end-to-end account needs none), end-to-end key material (the browser's data key wrapped by the password and by the recovery key, and a hash of the recovery authentication key), security stamp, lockout state, and `Preferences` (titles, date format, which features are on, theme, accent colour and the side menu's order; one JSON column, plain in every mode). |
-| `Note` | Owner, content bytes, `Scheme` (`None`, `Server`, `EndToEnd`), `Kind` (`Note` for the timeline, `Todo`, `Quick`, `Habit`), `DailyDate` (a daily note's day; unique per owner, given up when the note goes to the trash), pinned, `ArchivedAtUtc` (archive = soft delete), `TrashedAtUtc` (in the trash; deleted for good 30 days later by the trash cleanup worker), timestamps, `Revision` (concurrency token). A title is not a column: it is the text's first line written as a `# heading`, a todo list is a Markdown task list, and a habit is a `# name` followed by one `- yyyy-MM-dd` line per day done, so all of them are encrypted and exported like any text. A habit never changes kind. |
-| `Attachment` | Owner, optional note, sanitized file name, content type, size, storage key, `Scheme`, `Revision`. End-to-end files store a placeholder name and type, and their real ones encrypted in `EncryptedMetadata`. |
+| `Note` | Owner, content bytes, `Scheme` (`None`, `Server`, `EndToEnd`), `Kind` (`Note` for the timeline, `Todo`, `Quick`, `Habit`), `DailyDate` (a daily note's day; unique per owner, given up when the note goes to the trash), pinned, `ArchivedAtUtc` (archive = soft delete), `TrashedAtUtc` (in the trash; deleted for good 30 days later by the trash cleanup worker), timestamps, `Revision` (concurrency token), `Mood` (0 for none, 1 to 5 for Awful to Great; notes and quick notes only) or, for end-to-end notes, `EncryptedMood`. A title is not a column: it is the text's first line written as a `# heading`, a todo list is a Markdown task list, and a habit is a `# name` followed by one `- yyyy-MM-dd` line per day done, so all of them are encrypted and exported like any text. A habit never changes kind. |
+| `Attachment` | Owner, optional note, sanitized file name, content type, size, storage key, `Scheme`, `Revision`, `IsSticker` (a picture from a sticker pack). End-to-end files store a placeholder name and type, and their real ones (and the sticker flag) encrypted in `EncryptedMetadata`. |
 | `Tag` / `NoteTags` | Per-user tags parsed from `#tags` in note text. Tags of end-to-end notes have no name: a blind token (HMAC) and the name encrypted by the browser. |
 | `Label` / `NoteLabels` | Per-user coloured labels put on notes by hand: a name (or, for end-to-end accounts, the name encrypted by the browser for the label's ID) and one of ten colours. At most 100 per account and 20 per note. |
 | `InstanceSetting` | Runtime settings changed by administrators (open registration). |
@@ -310,6 +310,17 @@ service worker (`src/maple-web/src/sw`) decrypts them for the page at `/e2ee/att
 chunks a request needs, so video seeks without a full download; it applies the same inline rules and headers. Without
 the worker, the page decrypts whole files into `blob:` URLs ([e2ee-spec.md §5](e2ee-spec.md#5-attachments)).
 
+### Stickers
+
+Sticker packs are ZIP files of pictures that the user adds in Settings → Features (`src/maple-web/src/lib/stickers.ts`,
+a port of Falcon Notes' `StickerPackService`). The browser reads each pack, keeps only PNG, JPEG, GIF and WebP pictures
+recognised by their first bytes (at most 2 MB each and 300 per pack, from a ZIP of at most 200 MB), and stores them in
+its IndexedDB (`maple-notes-stickers`), in one transaction so a pack is there whole or not at all. Packs never reach
+the server and are not in exports: they are not the user's writing. Putting a sticker on a note uploads a copy of the
+picture as an ordinary attachment marked as a sticker (the form field `sticker=true`, or `"sticker":1` in the
+encrypted metadata, [e2ee-spec.md §5](e2ee-spec.md#5-attachments)), so the note keeps it when the pack is removed and
+on every device. The server accepts the flag only for images.
+
 ## Export
 
 `GET /api/v1/export` streams a ZIP archive. Notes are read in batches of 200 in chronological order and decrypted in
@@ -317,7 +328,8 @@ memory, and attachments are decrypted chunk by chunk. File names derive from the
 line (`2026-09-28_1430_buy-maple-syrup.md`). They are safe on Windows, macOS and Linux, and made unique
 case-insensitively. Folders follow the chosen layout; todo lists, quick notes and habits go under `todo/`,
 `quick-notes/` and `habits/`. Attachments go to `attachments/` and are linked from notes by relative path. Every
-format records each note's ID (the manifest does for plain text), kind, daily date and labels. Labels are written by
+format records each note's ID (the manifest does for plain text), kind, daily date, labels, mood and stickers, the last
+two in the lines Falcon Notes writes, so backups move between the two apps. Labels are written by
 name, in ordinal order, since label IDs belong to one account: as a JSON array in Markdown front matter (`labels:`),
 plain text (`Labels:`, only when there are any) and JSON. `manifest.json` (version 3) describes the export, lists every
 note, lists any damaged files, and lists the labels the exported notes carry with their colours. An account with
