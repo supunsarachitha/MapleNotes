@@ -148,6 +148,19 @@ suits photos you mostly look at on a phone. The full-size original is not kept, 
 they are.`,
   },
   {
+    id: "moods",
+    title: "Moods and stickers",
+    body: `Turn on **Mood tracker** in [Settings → Features](/settings/features) to give notes and quick notes a mood: Awful,
+Bad, Okay, Good or Great. Pick one in the composer's mood button, shown as a smiley on the note card after the time.
+Todo lists and habits cannot have a mood.
+
+**Stickers** add pictures from sticker packs to your notes. Turn on **Stickers** in [Settings → Features](/settings/features),
+then add a pack from a ZIP file. Stickers are kept in this browser and synced to your other devices as picture attachments,
+so they stay on a note even if you remove the pack. A sticker shows above the note's gallery, not in it, and comes
+through in exports and backups, where it is compatible with Falcon Notes. With end-to-end encryption, a mood is
+encrypted with the note and a sticker's flag is encrypted with the file; the server never learns which notes have them.`,
+  },
+  {
     id: "links",
     title: "Link previews",
     body: `With **Link previews** on in [Settings → Features](/settings/features), notes show the title and description of the pages they link

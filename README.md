@@ -98,6 +98,12 @@
   elsewhere, it is saved as a separate note instead. Signing out deletes them.
 - **Appearance.** Light or dark (or follow your device), seven accent colours, the side menu's order (drag or arrows)
   and text size, and the first day of the week, chosen in Settings and applied on every device.
+- **Moods.** Notes and quick notes can carry a mood — Awful, Bad, Okay, Good or Great — shown as a smiley on the card.
+  Turn on **Mood tracker** in Settings → Features, then pick one in the composer. In end-to-end mode the mood is
+  encrypted with the note. Exports and backups carry it.
+- **Stickers.** Add sticker packs in Settings → Features: ZIP files of pictures kept on this device. Put a sticker on a
+  note from the sticker picker in the composer; it uploads as a picture attachment, so it stays on the note and across
+  devices. Exports and restores carry stickers, and are compatible with Falcon Notes.
 - **Small and hardened.** One container: non-root, read-only root filesystem, built-in health check.
 
 | Mobile | Todo lists | Settings |

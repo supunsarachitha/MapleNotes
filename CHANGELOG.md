@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-10-26
+
+### Added
+
+- **Moods.** Notes and quick notes can carry a mood: Awful, Bad, Okay, Good or Great, shown as a smiley on the note card
+  after the time. The mood picker is in the composer, and the **Mood tracker** switch in Settings → Features turns it on.
+  In end-to-end mode the mood is encrypted with the note, so the server only sees ciphertext. Moods travel in exports and
+  backups. Todo lists and habits cannot have a mood.
+- **Stickers.** Add sticker packs in Settings → Features: ZIP files of PNG, JPEG, GIF and WebP pictures that the browser
+  keeps in this device's IndexedDB. Put a sticker on a note from the sticker picker in the composer; it uploads as a
+  picture attachment marked as a sticker, so it stays on the note across devices. Stickers show as a row above the
+  gallery, not in it, and come through in exports and restores. They are compatible with Falcon Notes backups.
+
+### Changed
+
+- Server, web app and end-to-end encryption formats now handle moods and stickers. See [docs/e2ee-spec.md §2a and §5](docs/e2ee-spec.md).
+- Dependency updates.
+
 ## [1.16.1] - 2026-10-11
 
 Dependency updates. Nothing changes in how Maple Notes behaves.
