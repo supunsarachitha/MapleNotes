@@ -1,14 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { decryptAttachment, encryptAttachment } from "../crypto/attachments";
-import { decryptLabelName, decryptMetadata, decryptNote, encryptLabelName, encryptMetadata } from "../crypto/content";
+import { decryptLabelName, decryptMetadata, decryptMood, decryptNote, encryptLabelName, encryptMetadata } from "../crypto/content";
 import { fromBase64, toBase64 } from "../crypto/encoding";
 import { DecryptionError } from "../crypto/envelope";
 import { api, ApiError, request } from "./api";
 import { DOWNLOAD_CONTENT_TYPE } from "./media";
 import { encryptForNote, unlockedSession } from "./noteCrypto";
 import { queryKeys } from "./queries";
-import type { ConversionBatch, EncryptionMode, User } from "./types";
+import { parseMood, type ConversionBatch, type EncryptionMode, type User } from "./types";
 
 // Converts existing content after a change to or from end-to-end encryption (docs/e2ee-spec.md §3). Only this browser
 // holds the key, so it fetches batches from the server, converts each item and sends it back. Every item is converted
@@ -36,10 +36,14 @@ async function convertNote(batch: ConversionBatch, note: ConversionBatch["notes"
   const { userId, keys } = unlockedSession() ?? {};
   if (!userId || !keys) throw new ApiError(0, { title: "Unlock your notes first." });
   if (batch.mode === "EndToEnd") {
-    await api.conversion.note(note.id, { updatedAtUtc: note.updatedAtUtc, encrypted: await encryptForNote(note.id, note.content ?? "") });
+    // The mood is sealed whether or not there is one ("none"), as for every end-to-end note that can have one; the
+    // server drops it for kinds without moods.
+    const encrypted = await encryptForNote(note.id, note.content ?? "", parseMood(note.mood));
+    await api.conversion.note(note.id, { updatedAtUtc: note.updatedAtUtc, encrypted });
   } else {
     const content = await decryptNote(keys, userId, note.id, fromBase64(note.encryptedContent ?? ""));
-    await api.conversion.note(note.id, { updatedAtUtc: note.updatedAtUtc, content });
+    const mood = note.encryptedMood ? parseMood(await decryptMood(keys, userId, note.id, fromBase64(note.encryptedMood))) : null;
+    await api.conversion.note(note.id, { updatedAtUtc: note.updatedAtUtc, content, ...(mood ? { mood } : {}) });
   }
 }
 
@@ -49,12 +53,13 @@ async function convertAttachment(batch: ConversionBatch, file: ConversionBatch["
   const stored = await fetchStored(file.id);
   const form = new FormData();
   if (batch.mode === "EndToEnd") {
-    const metadata = { name: file.fileName ?? "file", type: file.contentType ?? DOWNLOAD_CONTENT_TYPE, size: stored.size };
+    const metadata = { name: file.fileName ?? "file", type: file.contentType ?? DOWNLOAD_CONTENT_TYPE, size: stored.size, sticker: file.isSticker === true };
     form.append("metadata", toBase64(await encryptMetadata(keys, userId, file.id, metadata)));
     form.append("file", await encryptAttachment(keys, userId, file.id, stored), "encrypted.bin");
   } else {
     const metadata = await decryptMetadata(keys, userId, file.id, fromBase64(file.encryptedMetadata ?? ""));
     const plain = await decryptAttachment(keys, userId, file.id, stored, metadata.type);
+    if (metadata.sticker) form.append("sticker", "true"); // a form field ahead of the file part
     form.append("file", new File([plain], metadata.name, { type: metadata.type }));
   }
   await api.conversion.attachment(file.id, form);

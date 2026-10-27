@@ -62,7 +62,7 @@ public sealed class ExportVectorTests
             var userId = (await db.Users.SingleAsync(Ct)).Id;
             var sequence = 0;
 
-            async Task<Attachment> File(string name, string type, byte[] content, string createdAtUtc)
+            async Task<Attachment> File(string name, string type, byte[] content, string createdAtUtc, bool sticker = false)
             {
                 var id = Guid.Parse($"0192f3a3-0000-7000-8000-{++sequence:D12}");
                 var storageKey = AttachmentStore.CreateStorageKey(id);
@@ -71,7 +71,7 @@ public sealed class ExportVectorTests
                 return new Attachment
                 {
                     Id = id, UserId = userId, FileName = name, ContentType = type, SizeBytes = content.Length,
-                    StorageKey = storageKey, Scheme = ContentScheme.None, CreatedAtUtc = Utc(createdAtUtc),
+                    StorageKey = storageKey, Scheme = ContentScheme.None, CreatedAtUtc = Utc(createdAtUtc), IsSticker = sticker,
                 };
             }
 
@@ -88,7 +88,8 @@ public sealed class ExportVectorTests
 
             async Task Note(
                 string text, string createdAtUtc, string? updatedAtUtc = null, bool pinned = false, bool archived = false,
-                NoteKind kind = NoteKind.Note, string? daily = null, Label[]? labels = null, params Attachment[] attachments)
+                NoteKind kind = NoteKind.Note, string? daily = null, Label[]? labels = null, NoteMood mood = NoteMood.None,
+                params Attachment[] attachments)
             {
                 var note = new Note
                 {
@@ -101,7 +102,7 @@ public sealed class ExportVectorTests
                     CreatedAtUtc = Utc(createdAtUtc),
                     UpdatedAtUtc = Utc(updatedAtUtc ?? createdAtUtc),
                 };
-                await notes.ApplyPlainTextAsync(note, text, Ct); // text and tags, as the app stores them
+                await notes.ApplyPlainTextAsync(note, text, Ct, mood); // text, tags and mood, as the app stores them
                 note.Attachments.AddRange(attachments);
                 note.Labels.AddRange(labels ?? []);
                 db.Notes.Add(note);
@@ -138,6 +139,13 @@ public sealed class ExportVectorTests
             await Note("# Tuesday, 15 July 2025\n\nA quiet day", "2025-07-14T22:30:00Z", daily: "2025-07-15");
             // Added in 1.3: a habit, ticked on three days, the last after it was created.
             await Note("# Stretch 🧘\n\n- 2025-07-12\n- 2025-07-13\n- 2025-07-15", "2025-07-13T06:45:00Z", "2025-07-15T06:50:00Z", kind: NoteKind.Habit, labels: [quoted]);
+            // Added in 1.17: moods on a note and a quick note, and a sticker next to an ordinary picture.
+            await Note("Sunny walk by the lake", "2025-07-16T10:00:00Z", mood: NoteMood.Great, attachments:
+            [
+                await File("lake.png", "image/png", Encoding.ASCII.GetBytes("\u0089PNG fake lake"), "2025-07-16T10:00:01Z"),
+                await File("sun.webp", "image/webp", Encoding.ASCII.GetBytes("RIFF fake sticker"), "2025-07-16T10:00:02Z", sticker: true),
+            ]);
+            await Note("Tired today", "2025-07-16T18:00:00Z", kind: NoteKind.Quick, mood: NoteMood.Bad);
         }
 
         var exports = new JsonArray();

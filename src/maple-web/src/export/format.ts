@@ -14,6 +14,8 @@ export interface ExportedAttachment {
   isImage: boolean;
   archivePath: string;
   relativePath: string;
+  /** A sticker, listed once more under stickers. */
+  isSticker: boolean;
 }
 
 export interface ExportedNote {
@@ -32,7 +34,12 @@ export interface ExportedNote {
   kind: NoteKind;
   /** For a daily note, its day (yyyy-MM-dd). */
   dailyDate: string | null;
+  /** The mood's name in lower case (awful … great), or null for none: then nothing about it is written. */
+  mood: string | null;
 }
+
+/** The stickers among a note's files; none for most notes, which are then written exactly as before stickers. */
+const stickersOf = (note: ExportedNote) => note.attachments.filter((a) => a.isSticker);
 
 /** The kind as written in exports: note, todo or quick. */
 export const kindName = (kind: NoteKind) => kind.toLowerCase();
@@ -59,9 +66,16 @@ export function markdown(note: ExportedNote): string {
   text += `labels: [${note.labels.map(jsonString).join(", ")}]\n`;
   text += `pinned: ${note.pinned}\n`;
   text += `archived: ${note.archived}\n`;
+  if (note.mood) text += `mood: ${note.mood}\n`;
   if (note.attachments.length > 0) {
     text += "attachments:\n";
     for (const attachment of note.attachments) text += `  - ${jsonString(attachment.relativePath)}\n`;
+  }
+  const stickers = stickersOf(note);
+  if (stickers.length > 0) {
+    // Which of the files above are stickers; readers from before stickers read the first list only.
+    text += "stickers:\n";
+    for (const sticker of stickers) text += `  - ${jsonString(sticker.relativePath)}\n`;
   }
   text += "---\n\n";
   text += `${trimEnd(note.content)}\n`;
@@ -87,11 +101,15 @@ export function plainText(note: ExportedNote): string {
   if (note.pinned || note.archived) {
     text += `State: ${[note.pinned ? "pinned" : null, note.archived ? "archived" : null].filter(Boolean).join(", ")}\n`;
   }
+  if (note.mood) text += `Mood: ${note.mood}\n`;
   for (const attachment of note.attachments) text += `Attachment: ${attachment.relativePath}\n`;
+  for (const sticker of stickersOf(note)) text += `Sticker: ${sticker.relativePath}\n`;
   return `${text}\n${trimEnd(note.content)}\n`;
 }
 
 export function json(note: ExportedNote): string {
+  // As Falcon Notes 1.7.0 defined them: the mood after "archived", the stickers' paths last; both only when present.
+  const stickers = stickersOf(note);
   return `${serializeJson({
     id: note.id,
     kind: kindName(note.kind),
@@ -102,8 +120,10 @@ export function json(note: ExportedNote): string {
     labels: note.labels,
     pinned: note.pinned,
     archived: note.archived,
+    ...(note.mood ? { mood: note.mood } : {}),
     content: note.content,
     attachments: note.attachments.map((a) => ({ fileName: a.fileName, contentType: a.contentType, sizeBytes: a.sizeBytes, path: a.relativePath })),
+    ...(stickers.length > 0 ? { stickers: stickers.map((s) => s.relativePath) } : {}),
   })}\n`;
 }
 

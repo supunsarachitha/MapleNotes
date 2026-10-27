@@ -1,7 +1,7 @@
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import { utf8, uuidN } from "../crypto/encoding";
 import { isInlineImage } from "../lib/media";
-import type { Attachment, Label, Note } from "../lib/types";
+import { moodAllowed, type Attachment, type Label, type Note } from "../lib/types";
 import { compareOrdinal, type JsonValue } from "./dotnet";
 import { extension, kindName, manifestJson, render, type ExportedAttachment, type ExportFormat } from "./format";
 import { folder, relativePath, safeFileName, slug, unique, type ExportLayout } from "./naming";
@@ -140,6 +140,7 @@ export async function* buildExport(source: ExportSource, options: ExportOptions,
           isImage: isInlineImage(attachment.contentType),
           archivePath,
           relativePath: relativePath(notePath, archivePath),
+          isSticker: attachment.isSticker === true,
         });
       }
     }
@@ -171,6 +172,7 @@ export async function* buildExport(source: ExportSource, options: ExportOptions,
         attachments,
         kind: note.kind,
         dailyDate: note.dailyDate ?? null,
+        mood: note.mood && moodAllowed(note.kind) ? note.mood.toLowerCase() : null,
       },
       options.format,
     );

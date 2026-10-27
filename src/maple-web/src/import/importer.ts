@@ -104,7 +104,7 @@ export async function runImport(
       try {
         for (const attachment of item.attachments) {
           const file = new File([(await attachment.read()) as BlobPart], attachment.name, { type: attachment.type });
-          uploaded.push((await deps.upload(file, () => undefined)).id);
+          uploaded.push((await deps.upload(file, () => undefined, undefined, { sticker: attachment.sticker })).id);
         }
         const noteLabels = [...new Set(item.labels.flatMap((name) => labelIds.get(labelKey(name)) ?? []))];
         const result = await deps.api.importNote(item, uploaded, noteLabels.slice(0, MAX_LABELS_PER_NOTE));

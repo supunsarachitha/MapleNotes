@@ -18,6 +18,7 @@ import type {
   LinkPreview,
   Note,
   NoteKind,
+  NoteMood,
   NotePage,
   NotePageWire,
   NoteState,
@@ -35,6 +36,7 @@ import type {
   User,
   UserRole,
 } from "./types";
+import { moodAllowed } from "./types";
 import { ApiError } from "./apiError";
 import { noteApiResponse } from "./offline";
 import {
@@ -61,6 +63,7 @@ import {
   encodeNoteUpdate,
   matchesSearch,
   needsTagList,
+  openMoodFromDevice,
   readsEndToEnd,
   tagFilterParams,
 } from "./noteCrypto";
@@ -277,10 +280,10 @@ export const api = {
   async createNote(
     content: string,
     attachmentIds: string[],
-    options: { isPinned?: boolean; kind?: NoteKind; dailyDate?: string } = {},
+    options: { isPinned?: boolean; kind?: NoteKind; dailyDate?: string; mood?: NoteMood | null } = {},
   ): Promise<Note> {
-    const fields = await encodeNewNote(content);
-    const { isPinned = false, kind = "Note", dailyDate } = options;
+    const { isPinned = false, kind = "Note", dailyDate, mood } = options;
+    const fields = await encodeNewNote(content, kind, mood);
     try {
       return await decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind, dailyDate }));
     } catch (error) {
@@ -305,11 +308,21 @@ export const api = {
   },
 
   /**
-   * Restores one note with its original ID, dates, state, kind, daily date and labels (the account's own, at most 20).
+   * Restores one note with its original ID, dates, state, kind, daily date, mood and labels (the account's own, at most 20).
    * A note the account already has is left as it is (`imported: false`). An end-to-end note whose ID another account uses is encrypted again for a new ID.
    */
   async importNote(
-    note: { id: string | null; content: string; createdAt: Date; updatedAt: Date; pinned: boolean; archived: boolean; kind: NoteKind; dailyDate: string | null },
+    note: {
+      id: string | null;
+      content: string;
+      createdAt: Date;
+      updatedAt: Date;
+      pinned: boolean;
+      archived: boolean;
+      kind: NoteKind;
+      dailyDate: string | null;
+      mood?: NoteMood | null;
+    },
     attachmentIds: string[],
     labelIds: string[] = [],
   ): Promise<{ imported: boolean; note: Note }> {
@@ -326,7 +339,7 @@ export const api = {
     const send = async (fresh: boolean) => {
       const result = await request<{ imported: boolean; note: NoteWire }>("POST", "/api/v1/notes/import", {
         ...body,
-        ...(await encodeImport(note.id, note.content, fresh)),
+        ...(await encodeImport(note.id, note.content, fresh, note.kind, note.mood)),
       });
       return { imported: result.imported, note: await decodeNote(result.note) };
     };
@@ -363,21 +376,24 @@ export const api = {
   },
 
   /**
-   * Replaces a note's text. `seen` is the note as it was shown: with it, an edit that cannot reach the server is kept on
-   * this device and sent later, and only if the note has not been edited elsewhere meanwhile (lib/outbox.ts).
+   * Replaces a note's text, and its mood unless `mood` is undefined (null takes it off). `seen` is the note as it was
+   * shown: with it, an edit that cannot reach the server is kept on this device and sent later, and only if the note
+   * has not been edited elsewhere meanwhile (lib/outbox.ts).
    */
-  async updateNote(id: string, content: string, attachmentIds: string[], seen?: Note): Promise<Note> {
+  async updateNote(id: string, content: string, attachmentIds: string[], seen?: Note, mood?: NoteMood | null): Promise<Note> {
     // A note with a change still waiting here gets this one queued behind it, so they reach the server in order.
     if (seen && (await hasPendingChange(id))) {
-      const kept = await keepEdit(seen, content, attachmentIds);
+      const kept = await keepEdit(seen, content, attachmentIds, mood);
       void syncNow();
       return kept;
     }
-    const fields = await encodeNoteUpdate(id, content);
+    // End-to-end notes that can have a mood always send one, so requests do not show which notes have one.
+    const sent = mood === undefined && readsEndToEnd() && seen && moodAllowed(seen.kind) ? (seen.mood ?? null) : mood;
+    const fields = await encodeNoteUpdate(id, content, sent);
     try {
       return await decodeNote(await request<NoteWire>("PUT", `/api/v1/notes/${id}`, { ...fields, attachmentIds }));
     } catch (error) {
-      if (seen && error instanceof ApiError && canKeepOffline(error.status)) return keepEdit(seen, content, attachmentIds);
+      if (seen && error instanceof ApiError && canKeepOffline(error.status)) return keepEdit(seen, content, attachmentIds, mood);
       throw error;
     }
   },
@@ -432,7 +448,7 @@ export const api = {
   /** The browser's conversion of existing content after a change to or from end-to-end encryption. */
   conversion: {
     batch: (limit = 10) => request<ConversionBatch>("GET", `/api/v1/account/conversion${query({ limit })}`),
-    note: (id: string, body: { updatedAtUtc: string; content?: string; encrypted?: EncryptedNoteWire }) =>
+    note: (id: string, body: { updatedAtUtc: string; content?: string; encrypted?: EncryptedNoteWire; mood?: NoteMood }) =>
       request<void>("PUT", `/api/v1/account/conversion/notes/${id}`, body),
     attachment: (id: string, form: FormData) => sendForm("PUT", `/api/v1/account/conversion/attachments/${id}`, form),
   },
@@ -519,6 +535,7 @@ export const api = {
 /** Sends the changes kept on this device (lib/outbox.ts) through the API. */
 export const outboxSender: Sender = {
   async create(entry: OutboxEntry, content: string): Promise<Note> {
+    const mood = await openMoodFromDevice(entry.noteId, entry);
     // Restoring is idempotent by ID, so a note whose first send got through without an answer is not added twice, and it
     // keeps the time it was written. A daily note keeps its day unless another device started that day's note meanwhile.
     const { note } = await api.importNote(
@@ -531,13 +548,15 @@ export const outboxSender: Sender = {
         archived: false,
         kind: entry.kind,
         dailyDate: entry.dailyDate,
+        mood,
       },
       entry.attachmentIds,
     );
     return note;
   },
   async update(entry: OutboxEntry, content: string): Promise<Note> {
-    const fields = await encodeNoteUpdate(entry.noteId, content);
+    const mood = await openMoodFromDevice(entry.noteId, entry);
+    const fields = await encodeNoteUpdate(entry.noteId, content, mood);
     const body = { ...fields, attachmentIds: entry.attachmentIds, expectedUpdatedAtUtc: entry.baseUpdatedAtUtc };
     return decodeNote(await request<NoteWire>("PUT", `/api/v1/notes/${entry.noteId}`, body));
   },
@@ -551,7 +570,8 @@ export const outboxSender: Sender = {
   },
   async saveCopy(entry: OutboxEntry, content: string): Promise<void> {
     // Habits keep their kind; a copy of a daily note is an ordinary note, since the day already has one.
-    await request<NoteWire>("POST", "/api/v1/notes", { ...(await encodeNewNote(content)), attachmentIds: [], kind: entry.kind });
+    const mood = await openMoodFromDevice(entry.noteId, entry);
+    await request<NoteWire>("POST", "/api/v1/notes", { ...(await encodeNewNote(content, entry.kind, mood)), attachmentIds: [], kind: entry.kind });
   },
 };
 
@@ -569,15 +589,18 @@ export function onSyncRequest(listener: (() => void) | null): void {
 /**
  * Uploads a file with progress reporting (fetch cannot report upload progress, so this uses XMLHttpRequest).
  * The server streams the file straight to encrypted storage. In end-to-end mode the file is encrypted here first, and
- * the ID and encrypted metadata travel as form fields ahead of it.
+ * the ID and encrypted metadata travel as form fields ahead of it. A sticker is marked as one: with a form field, or in
+ * the encrypted metadata in end-to-end mode.
  */
 export async function uploadAttachment(
   file: File,
   onProgress: (fraction: number) => void,
   signal?: AbortSignal,
+  options: { sticker?: boolean } = {},
 ): Promise<Attachment> {
   const headers = await antiforgeryHeaders();
-  const encrypted = await encodeUpload(file);
+  const sticker = options.sticker === true;
+  const encrypted = await encodeUpload(file, sticker);
   const wire = await new Promise<AttachmentWire>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/v1/attachments");
@@ -601,6 +624,7 @@ export async function uploadAttachment(
       form.append("metadata", encrypted.metadata);
       form.append("file", encrypted.body, "encrypted.bin");
     } else {
+      if (sticker) form.append("sticker", "true");
       form.append("file", file, file.name);
     }
     xhr.send(form);

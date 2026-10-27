@@ -1,7 +1,7 @@
 // @vitest-environment node
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { encryptNote } from "../crypto/content";
+import { decryptMood, encryptNote } from "../crypto/content";
 import { importDataKey, type DataKeys } from "../crypto/datakey";
 import { fromBase64, toBase64 } from "../crypto/encoding";
 import v from "../crypto/test-vectors.json";
@@ -151,6 +151,24 @@ describe("writing offline", () => {
     expect(await pendingChanges()).toEqual([]);
   });
 
+  it("keeps a mood with a note written or edited offline, and sends it", async () => {
+    fetchMock.mockImplementationOnce(offline);
+    const created = await api.createNote("Feeling fine", [], { kind: "Quick", mood: "Good" });
+    expect(created).toMatchObject({ mood: "Good", pending: true });
+    fetchMock.mockImplementationOnce(async () => json({ imported: true, note: { ...wire(created.id, "Feeling fine"), mood: "Good" } }, 201));
+    await sendPendingChanges(outboxSender);
+    expect(body(fetchMock.mock.calls[1]!)).toMatchObject({ id: created.id, mood: "Good" });
+
+    const seen = { ...(await import("./noteCrypto").then(({ decodeNote }) => decodeNote(wire("0192f3a2-0000-7abc-8def-000000000006", "Before")))), mood: "Bad" as const };
+    const kept = await keepEdit(seen, "After", [], null);
+    expect(kept.mood).toBeNull();
+    const textOnly = await keepEdit(seen, "After again", []);
+    expect(textOnly.mood).toBeNull(); // the mood kept before stays
+    fetchMock.mockResolvedValueOnce(json(wire(seen.id, "After again", "2026-10-02T10:00:00Z")));
+    await sendPendingChanges(outboxSender);
+    expect(body(fetchMock.mock.calls[2]!)).toMatchObject({ content: "After again", mood: "None" });
+  });
+
   it("keeps the changes while the server still cannot be reached", async () => {
     fetchMock.mockImplementationOnce(offline);
     await api.createNote("Still waiting", []);
@@ -235,5 +253,22 @@ describe("writing offline with end-to-end encryption", () => {
     expect(sent).toMatchObject({ id: created.id });
     expect(sent).not.toHaveProperty("content");
     expect(JSON.stringify(sent)).not.toContain("Secret");
+  });
+
+  it("keeps the mood encrypted on the device and sends it encrypted", async () => {
+    fetchMock.mockImplementationOnce(offline);
+    const created = await api.createNote("Quiet day", [], { mood: "Great" });
+    expect(created.mood).toBe("Great");
+    expect(await rawOutbox()).not.toMatch(/great/i);
+
+    fetchMock.mockImplementationOnce(async (_url: string, init: RequestInit) => {
+      const sent = JSON.parse(init.body as string) as { id: string };
+      const note = { ...wire(sent.id, ""), content: null, encryptedContent: toBase64(await encryptNote(keys, userId, sent.id, "Quiet day")) };
+      return json({ imported: true, note }, 201);
+    });
+    await sendPendingChanges(outboxSender);
+    const sent = body(fetchMock.mock.calls[1]!) as { id: string; mood?: unknown; encrypted: { mood: string } };
+    expect(sent.mood).toBeUndefined();
+    expect(await decryptMood(keys, userId, sent.id, fromBase64(sent.encrypted.mood))).toBe("great");
   });
 });

@@ -2,7 +2,17 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { decryptAttachment, encryptAttachment } from "../crypto/attachments";
-import { decryptLabelName, decryptMetadata, decryptNote, encryptLabelName, encryptMetadata, encryptNote, tagToken } from "../crypto/content";
+import {
+  decryptLabelName,
+  decryptMetadata,
+  decryptMood,
+  decryptNote,
+  encryptLabelName,
+  encryptMetadata,
+  encryptMood,
+  encryptNote,
+  tagToken,
+} from "../crypto/content";
 import { importDataKey, type DataKeys } from "../crypto/datakey";
 import { fromBase64, toBase64, type Bytes } from "../crypto/encoding";
 import v from "../crypto/test-vectors.json";
@@ -70,9 +80,54 @@ describe("conversion to and from end-to-end encryption", () => {
       name: "photo.png",
       type: "image/png",
       size: 5,
+      sticker: false,
     });
+    expect(await decryptMood(keys, userId, noteId, fromBase64(note.encrypted.mood))).toBeNull(); // sealed even without one
     const encrypted = form.get("file") as File;
     expect(new Uint8Array(await (await decryptAttachment(keys, userId, fileId, encrypted)).arrayBuffer())).toEqual(photo);
+  });
+
+  it("carries moods and stickers both ways", async () => {
+    setContentSession({ userId, mode: "EndToEnd", keys });
+    const sticker = new Uint8Array([1, 2]);
+    const note = { id: noteId, encryptedContent: null, updatedAtUtc: "2026-09-29T10:00:00Z" };
+    const file = { id: fileId, fileName: "sun.webp", contentType: "image/webp", sizeBytes: 2, encryptedMetadata: null };
+    serve({ mode: "EndToEnd", remaining: 2, notes: [{ ...note, content: "sunny", mood: "Great" }], attachments: [{ ...file, isSticker: true }] }, sticker);
+
+    await convertNextBatch("EndToEnd");
+
+    const entered = JSON.parse(sent[`/api/v1/account/conversion/notes/${noteId}`]!.body as string);
+    expect(await decryptMood(keys, userId, noteId, fromBase64(entered.encrypted.mood))).toBe("great");
+    const form = sent[`/api/v1/account/conversion/attachments/${fileId}`]!.body as FormData;
+    expect((await decryptMetadata(keys, userId, fileId, fromBase64(form.get("metadata") as string))).sticker).toBe(true);
+    expect(form.has("sticker")).toBe(false); // only inside the encrypted metadata
+
+    setContentSession({ userId, mode: "AtRest", keys });
+    const stored = new Uint8Array(await (await encryptAttachment(keys, userId, fileId, new Blob([sticker]))).arrayBuffer());
+    const metadata = toBase64(await encryptMetadata(keys, userId, fileId, { name: "sun.webp", type: "image/webp", size: 2, sticker: true }));
+    serve(
+      {
+        mode: "AtRest",
+        remaining: 2,
+        notes: [
+          {
+            ...note,
+            content: null,
+            encryptedContent: toBase64(await encryptNote(keys, userId, noteId, "sunny")),
+            encryptedMood: toBase64(await encryptMood(keys, userId, noteId, "Okay")),
+          },
+        ],
+        attachments: [{ ...file, fileName: null, contentType: null, sizeBytes: stored.length, encryptedMetadata: metadata }],
+      },
+      stored,
+    );
+
+    await convertNextBatch("AtRest");
+
+    expect(JSON.parse(sent[`/api/v1/account/conversion/notes/${noteId}`]!.body as string)).toEqual({ updatedAtUtc: note.updatedAtUtc, content: "sunny", mood: "Okay" });
+    const left = sent[`/api/v1/account/conversion/attachments/${fileId}`]!.body as FormData;
+    expect(left.get("sticker")).toBe("true");
+    expect([...left.keys()]).toEqual(["sticker", "file"]); // the field comes before the file part
   });
 
   it("decrypts end-to-end notes and files when leaving", async () => {

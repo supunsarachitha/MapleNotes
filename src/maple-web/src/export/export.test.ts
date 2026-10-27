@@ -73,7 +73,7 @@ describe("browser export", () => {
     const manifest = JSON.parse(fromUtf8(unzipSync(concat(...chunks))["manifest.json"]!)) as { problems: string[]; attachmentCount: number };
 
     expect(manifest.problems).toEqual([expect.stringMatching(/_con\.txt: the stored file could not be read, so it was left out\.$/)]);
-    expect(manifest.attachmentCount).toBe(4);
+    expect(manifest.attachmentCount).toBe(6);
   });
 
   it("leaves out labels it could not decrypt, and says so", async () => {
