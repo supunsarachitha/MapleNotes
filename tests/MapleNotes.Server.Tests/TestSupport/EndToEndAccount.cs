@@ -65,8 +65,12 @@ internal sealed record EndToEndAccount(Guid UserId, byte[] DataKey, byte[] Recov
         E2eeCrypto.Seal(ApiClient.DeriveKeys(password, kdf).WrapKey, DataKey, E2eeCrypto.DataKeyContext(UserId));
 
     /// <summary>Encrypts note text and its tags as the web app does (docs/e2ee-spec.md §2, §4).</summary>
-    public EncryptedNote EncryptNote(Guid noteId, string text) =>
-        new(E2eeCrypto.EncryptNote(DataKey, UserId, noteId, text), TagParser.Extract(text).Select(EncryptTag).ToList());
+    public EncryptedNote EncryptNote(Guid noteId, string text, string? mood = null) =>
+        new(E2eeCrypto.EncryptNote(DataKey, UserId, noteId, text), TagParser.Extract(text).Select(EncryptTag).ToList(),
+            mood is null ? null : E2eeCrypto.SealMood(DataKey, UserId, noteId, mood));
+
+    /// <summary>Opens the encrypted mood of a note returned by the API.</summary>
+    public string DecryptMood(NoteResponse note) => E2eeCrypto.OpenMood(DataKey, UserId, note.Id, note.EncryptedMood!);
 
     /// <summary>A tag's blind token and encrypted name.</summary>
     public EncryptedTag EncryptTag(string name)
@@ -100,9 +104,10 @@ internal sealed record EndToEndAccount(Guid UserId, byte[] DataKey, byte[] Recov
     public byte[] DecryptFile(Guid attachmentId, byte[] encrypted) => E2eeCrypto.DecryptAttachment(DataKey, UserId, attachmentId, encrypted);
 
     /// <summary>Encrypts a file's metadata as the web app does.</summary>
-    public byte[] SealMetadata(Guid attachmentId, string name, string type, long size) =>
-        E2eeCrypto.SealMetadata(DataKey, UserId, attachmentId,
-            System.Text.Json.JsonSerializer.Serialize(new { name, type, size }));
+    public byte[] SealMetadata(Guid attachmentId, string name, string type, long size, bool? sticker = null) =>
+        E2eeCrypto.SealMetadata(DataKey, UserId, attachmentId, sticker is { } flag
+            ? System.Text.Json.JsonSerializer.Serialize(new { name, type, size, sticker = flag ? 1 : 0 })
+            : System.Text.Json.JsonSerializer.Serialize(new { name, type, size }));
 
     /// <summary>Decrypts a file's metadata returned by the API.</summary>
     public string OpenMetadata(Guid attachmentId, byte[] envelope) =>

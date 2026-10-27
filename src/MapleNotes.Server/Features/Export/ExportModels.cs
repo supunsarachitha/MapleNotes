@@ -62,8 +62,9 @@ public sealed record ExportRequest
 /// <param name="IsImage">Whether it is an image (embedded rather than linked in Markdown).</param>
 /// <param name="ArchivePath">Path inside the archive, e.g. <c>attachments/5d1e0a7c_sunset.png</c>.</param>
 /// <param name="RelativePath">Path relative to the note file that references it, e.g. <c>../attachments/…</c>.</param>
+/// <param name="IsSticker">A sticker, listed once more under <c>stickers</c>.</param>
 public sealed record ExportedAttachment(
-    string FileName, string ContentType, long SizeBytes, bool IsImage, string ArchivePath, string RelativePath);
+    string FileName, string ContentType, long SizeBytes, bool IsImage, string ArchivePath, string RelativePath, bool IsSticker = false);
 
 /// <summary>A note as written into an export (always decrypted).</summary>
 /// <param name="Id">Note ID.</param>
@@ -77,6 +78,7 @@ public sealed record ExportedAttachment(
 /// <param name="Kind">A timeline note, a todo list, a quick note or a habit.</param>
 /// <param name="DailyDate">For a daily note, its day.</param>
 /// <param name="Labels">The names of the note's labels, in ordinal order; null is read as none.</param>
+/// <param name="Mood">The note's mood, if it has one.</param>
 public sealed record ExportedNote(
     Guid Id,
     string Content,
@@ -88,11 +90,24 @@ public sealed record ExportedNote(
     IReadOnlyList<ExportedAttachment> Attachments,
     NoteKind Kind = NoteKind.Note,
     DateOnly? DailyDate = null,
-    IReadOnlyList<string>? Labels = null)
+    IReadOnlyList<string>? Labels = null,
+    NoteMood Mood = NoteMood.None)
 {
     /// <summary>The names of the note's labels; empty when it has none.</summary>
     public IReadOnlyList<string> LabelNames => Labels ?? [];
 
     /// <summary>The kind as written in exports: <c>note</c>, <c>todo</c>, <c>quick</c> or <c>habit</c>.</summary>
     public string KindName => Kind.ToString().ToLowerInvariant();
+
+    /// <summary>
+    /// The mood as written in exports: <c>awful</c>, <c>bad</c>, <c>okay</c>, <c>good</c> or <c>great</c>; null for a
+    /// note without one, which is written exactly as it was before moods.
+    /// </summary>
+    public string? MoodName => NoteMoods.Name(Mood);
+
+    /// <summary>
+    /// The attachments that are stickers; empty for a note without any, which is written exactly as it was before
+    /// stickers.
+    /// </summary>
+    public IReadOnlyList<ExportedAttachment> Stickers => Attachments.Where(a => a.IsSticker).ToList();
 }

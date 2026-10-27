@@ -27,6 +27,19 @@ public sealed class Note : IRevisioned
     /// </summary>
     public DateOnly? DailyDate { get; set; }
 
+    /// <summary>
+    /// How the writer felt (timeline notes and quick notes only), for a note whose text is plain or encrypted by the
+    /// server. Like the kind and the pinned flag it is stored in plain form; an end-to-end note keeps
+    /// <see cref="NoteMood.None"/> here and its mood in <see cref="EncryptedMood"/>.
+    /// </summary>
+    public NoteMood Mood { get; set; }
+
+    /// <summary>
+    /// For an end-to-end note: its mood, encrypted by the browser (docs/e2ee-spec.md §2a), so the server cannot read it.
+    /// Null for other notes, and for end-to-end notes saved by a browser from before moods.
+    /// </summary>
+    public byte[]? EncryptedMood { get; set; }
+
     /// <summary>Pinned notes are listed above the feed.</summary>
     public bool IsPinned { get; set; }
 

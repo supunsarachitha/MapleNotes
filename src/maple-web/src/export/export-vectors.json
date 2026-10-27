@@ -19,14 +19,17 @@
             "isImage": false,
             "url": "/api/v1/attachments/0192f3a3-0000-7000-8000-000000000016?v=0",
             "createdAtUtc": "2025-08-01T09:00:01Z",
-            "encryptedMetadata": null
+            "encryptedMetadata": null,
+            "isSticker": false
           }
         ],
         "encryptedContent": null,
         "kind": "Note",
         "dailyDate": null,
         "labelIds": [],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000021",
@@ -41,7 +44,9 @@
         "kind": "Note",
         "dailyDate": "2025-07-15",
         "labelIds": [],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000015",
@@ -62,7 +67,8 @@
             "isImage": true,
             "url": "/api/v1/attachments/0192f3a3-0000-7000-8000-000000000011?v=0",
             "createdAtUtc": "2025-07-14T12:00:01Z",
-            "encryptedMetadata": null
+            "encryptedMetadata": null,
+            "isSticker": false
           },
           {
             "id": "0192f3a3-0000-7000-8000-000000000012",
@@ -72,7 +78,8 @@
             "isImage": false,
             "url": "/api/v1/attachments/0192f3a3-0000-7000-8000-000000000012?v=0",
             "createdAtUtc": "2025-07-14T12:00:02Z",
-            "encryptedMetadata": null
+            "encryptedMetadata": null,
+            "isSticker": false
           },
           {
             "id": "0192f3a3-0000-7000-8000-000000000013",
@@ -82,7 +89,8 @@
             "isImage": false,
             "url": "/api/v1/attachments/0192f3a3-0000-7000-8000-000000000013?v=0",
             "createdAtUtc": "2025-07-14T12:00:03Z",
-            "encryptedMetadata": null
+            "encryptedMetadata": null,
+            "isSticker": false
           },
           {
             "id": "0192f3a3-0000-7000-8000-000000000014",
@@ -92,7 +100,8 @@
             "isImage": false,
             "url": "/api/v1/attachments/0192f3a3-0000-7000-8000-000000000014?v=0",
             "createdAtUtc": "2025-07-14T12:00:04Z",
-            "encryptedMetadata": null
+            "encryptedMetadata": null,
+            "isSticker": false
           }
         ],
         "encryptedContent": null,
@@ -103,7 +112,9 @@
           "0192f3a4-0000-7000-8000-000000000002",
           "0192f3a4-0000-7000-8000-000000000003"
         ],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000019",
@@ -120,7 +131,9 @@
         "kind": "Todo",
         "dailyDate": null,
         "labelIds": [],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000022",
@@ -137,7 +150,9 @@
         "labelIds": [
           "0192f3a4-0000-7000-8000-000000000003"
         ],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000010",
@@ -152,7 +167,9 @@
         "kind": "Note",
         "dailyDate": null,
         "labelIds": [],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000009",
@@ -170,7 +187,9 @@
         "kind": "Note",
         "dailyDate": null,
         "labelIds": [],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000008",
@@ -185,7 +204,9 @@
         "kind": "Note",
         "dailyDate": null,
         "labelIds": [],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000007",
@@ -200,7 +221,9 @@
         "kind": "Note",
         "dailyDate": null,
         "labelIds": [],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000006",
@@ -217,7 +240,9 @@
         "kind": "Note",
         "dailyDate": null,
         "labelIds": [],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000005",
@@ -236,7 +261,9 @@
         "labelIds": [
           "0192f3a4-0000-7000-8000-000000000001"
         ],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       }
     ],
     "nextCursor": null
@@ -256,7 +283,9 @@
         "kind": "Quick",
         "dailyDate": null,
         "labelIds": [],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       },
       {
         "id": "0192f3a2-0000-7000-8000-000000000018",
@@ -275,7 +304,9 @@
         "labelIds": [
           "0192f3a4-0000-7000-8000-000000000002"
         ],
-        "trashedAtUtc": null
+        "trashedAtUtc": null,
+        "mood": null,
+        "encryptedMood": null
       }
     ],
     "nextCursor": null

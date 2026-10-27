@@ -82,6 +82,16 @@ internal static class E2eeCrypto
 
     public static string ModeContext(Guid userId) => $"maple-notes/v2/e2ee/mode/{N(userId)}";
 
+    public static string MoodContext(Guid userId, Guid noteId) => $"maple-notes/v2/e2ee/mood/{N(userId)}/{N(noteId)}";
+
+    /// <summary>A note's mood as the web app seals it (docs/e2ee-spec.md §2a): its name, "none" included, padded to 8 bytes.</summary>
+    public static byte[] SealMood(byte[] dataKey, Guid userId, Guid noteId, string name) =>
+        Seal(SubKeys(dataKey).Metadata, Encoding.UTF8.GetBytes(name.PadRight(8)), MoodContext(userId, noteId));
+
+    /// <summary>Opens a sealed mood, giving its name.</summary>
+    public static string OpenMood(byte[] dataKey, Guid userId, Guid noteId, byte[] envelope) =>
+        Encoding.UTF8.GetString(Open(SubKeys(dataKey).Metadata, envelope, MoodContext(userId, noteId))).TrimEnd();
+
     /// <summary>The account's mode as its owner chose it, sealed as the web app does (docs/e2ee-spec.md §3a).</summary>
     public static byte[] SealModeRecord(byte[] dataKey, Guid userId, string mode, int epoch) =>
         Seal(SubKeys(dataKey).Metadata, Encoding.UTF8.GetBytes($$"""{"mode":"{{mode}}","epoch":{{epoch}}}"""), ModeContext(userId));

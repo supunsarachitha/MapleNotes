@@ -33,13 +33,16 @@ public sealed class AttachmentService(
     /// <param name="content">The file content; read once, never buffered whole.</param>
     /// <param name="encrypted">For an end-to-end account: the browser's ID and encrypted metadata for the file.</param>
     /// <param name="cancellationToken">Cancels the upload; nothing is kept.</param>
+    /// <param name="sticker">A plain upload that is a sticker; ignored unless the file is an image. End-to-end files
+    /// carry the flag in their encrypted metadata instead.</param>
     /// <returns>The stored attachment.</returns>
     /// <exception cref="UploadTooLargeException">The file is larger than <c>MAPLE_MAX_UPLOAD_MB</c>.</exception>
     /// <exception cref="Infrastructure.Web.ApiProblemException">The upload does not match the account's mode, the
     /// chosen ID is taken, or the file does not fit in the account's storage limit (HTTP 507).</exception>
     /// <exception cref="Infrastructure.Web.ApiValidationException">An end-to-end upload is malformed.</exception>
     public async Task<Attachment> UploadAsync(
-        Guid userId, string? fileName, string? contentType, Stream content, EncryptedUpload? encrypted, CancellationToken cancellationToken)
+        Guid userId, string? fileName, string? contentType, Stream content, EncryptedUpload? encrypted, CancellationToken cancellationToken,
+        bool sticker = false)
     {
         var mode = await keys.GetModeAsync(userId, cancellationToken);
         if (encrypted is not null)
@@ -66,12 +69,14 @@ public sealed class AttachmentService(
         }
 
         var safeName = UploadPolicy.SanitizeFileName(fileName);
+        var resolvedType = UploadPolicy.ResolveContentType(contentType, safeName);
         var attachment = new Attachment
         {
             Id = id,
             UserId = userId,
             FileName = safeName,
-            ContentType = UploadPolicy.ResolveContentType(contentType, safeName),
+            ContentType = resolvedType,
+            IsSticker = sticker && UploadPolicy.IsImage(resolvedType),
             SizeBytes = limited.BytesRead,
             StorageKey = storageKey,
             Scheme = scheme,
@@ -178,10 +183,12 @@ public sealed class AttachmentService(
     /// <param name="contentType">Leaving: the decrypted content type.</param>
     /// <param name="encryptedMetadata">Entering: the encrypted metadata; its presence selects the direction.</param>
     /// <param name="cancellationToken">Cancels the operation; nothing changes.</param>
+    /// <param name="sticker">Leaving: whether the decrypted metadata says the file is a sticker.</param>
     /// <returns>A task that completes when the attachment uses the new file.</returns>
     /// <exception cref="Infrastructure.Web.ApiProblemException">The attachment does not need this conversion.</exception>
     internal async Task ReplaceContentAsync(
-        Attachment attachment, Stream content, string? fileName, string? contentType, byte[]? encryptedMetadata, CancellationToken cancellationToken)
+        Attachment attachment, Stream content, string? fileName, string? contentType, byte[]? encryptedMetadata, CancellationToken cancellationToken,
+        bool sticker = false)
     {
         var mode = await keys.GetModeAsync(attachment.UserId, cancellationToken);
         var entering = encryptedMetadata is not null;
@@ -205,6 +212,7 @@ public sealed class AttachmentService(
             attachment.EncryptedMetadata = encryptedMetadata;
             attachment.FileName = string.Empty;
             attachment.ContentType = UploadPolicy.DownloadContentType;
+            attachment.IsSticker = false; // now in the encrypted metadata
         }
         else
         {
@@ -220,6 +228,7 @@ public sealed class AttachmentService(
             attachment.EncryptedMetadata = null;
             attachment.FileName = safeName;
             attachment.ContentType = UploadPolicy.ResolveContentType(contentType, safeName);
+            attachment.IsSticker = sticker && UploadPolicy.IsImage(attachment.ContentType);
         }
 
         var oldStorageKey = attachment.StorageKey;

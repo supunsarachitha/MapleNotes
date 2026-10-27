@@ -29,6 +29,12 @@ public static class EndToEndContent
     /// <summary>Largest sealed mode record (docs/e2ee-spec.md §3a): a short JSON object.</summary>
     public const int MaxModeRecordEnvelopeBytes = EnvelopeOverhead + 128;
 
+    /// <summary>
+    /// The largest encrypted mood accepted. The browser pads a mood's name to 8 bytes before encrypting it
+    /// (docs/e2ee-spec.md §2a), so every mood, and "none", has the same length.
+    /// </summary>
+    public const int MaxMoodEnvelopeBytes = EnvelopeOverhead + 16;
+
     /// <summary>Size of the header of an encrypted attachment (docs/e2ee-spec.md §5).</summary>
     public const int AttachmentHeaderBytes = 42;
 

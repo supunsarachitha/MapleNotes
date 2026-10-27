@@ -39,6 +39,9 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsSticker")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid?>("NoteId")
                         .HasColumnType("TEXT");
 
@@ -140,6 +143,9 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly?>("DailyDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<byte[]>("EncryptedMood")
+                        .HasColumnType("BLOB");
+
                     b.Property<bool>("IsPinned")
                         .HasColumnType("INTEGER");
 
@@ -147,6 +153,9 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Mood")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Revision")
                         .IsConcurrencyToken()

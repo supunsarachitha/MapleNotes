@@ -120,6 +120,18 @@ public sealed record UserPreferences
     public bool Labels { get; init; }
 
     /// <summary>
+    /// Offer five smilies where a note or quick note is written, and show the one chosen on the note. Turning it off
+    /// hides the smilies but keeps the moods; off by default.
+    /// </summary>
+    public bool MoodTracker { get; init; }
+
+    /// <summary>
+    /// Offer a sticker button where a note or quick note is written, with the sticker packs added in this browser.
+    /// Turning it off hides the button; stickers already on notes still show. Off by default.
+    /// </summary>
+    public bool Stickers { get; init; }
+
+    /// <summary>
     /// Deleting moves notes to the trash, where they can be restored for 30 days; on by default. Off, deleting is
     /// immediate and permanent.
     /// </summary>

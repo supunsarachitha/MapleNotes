@@ -114,9 +114,14 @@ public sealed class ApiClient : IDisposable
         return await PutJsonAsync("/api/v1/auth/password", request);
     }
 
-    public async Task<HttpResponseMessage> UploadAsync(byte[] content, string fileName, string contentType = "application/octet-stream")
+    public async Task<HttpResponseMessage> UploadAsync(byte[] content, string fileName, string contentType = "application/octet-stream", bool sticker = false)
     {
         using var form = new MultipartFormDataContent();
+        if (sticker)
+        {
+            form.Add(new StringContent("true"), "sticker");
+        }
+
         var file = new ByteArrayContent(content);
         file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
         form.Add(file, "file", fileName);
