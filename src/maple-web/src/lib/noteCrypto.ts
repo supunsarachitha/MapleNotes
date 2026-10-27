@@ -2,10 +2,12 @@ import { decryptAttachment, encryptAttachment } from "../crypto/attachments";
 import {
   decryptLabelName,
   decryptMetadata,
+  decryptMood,
   decryptNote,
   decryptTagName,
   encryptLabelName,
   encryptMetadata,
+  encryptMood,
   encryptNote,
   encryptTags,
   extractTags,
@@ -16,7 +18,22 @@ import type { DataKeys } from "../crypto/datakey";
 import { fromBase64, toBase64, uuidv7 } from "../crypto/encoding";
 import { ApiError } from "./apiError";
 import { DOWNLOAD_CONTENT_TYPE, isInlineImage } from "./media";
-import type { Attachment, AttachmentWire, EncryptedNoteWire, EncryptionMode, Label, LabelWire, Note, NoteWire, Tag, TagWire } from "./types";
+import {
+  moodAllowed,
+  parseMood,
+  type Attachment,
+  type AttachmentWire,
+  type EncryptedNoteWire,
+  type EncryptionMode,
+  type Label,
+  type LabelWire,
+  type Note,
+  type NoteKind,
+  type NoteMood,
+  type NoteWire,
+  type Tag,
+  type TagWire,
+} from "./types";
 
 // End-to-end encryption of notes and tags at the API boundary (docs/e2ee-spec.md §2, §4). Components always work with
 // plain notes: api.ts passes what it sends and receives through here, and this module encrypts, decrypts and turns tag
@@ -62,18 +79,43 @@ function unlocked(): { userId: string; keys: DataKeys } {
   return { userId: session.userId, keys: session.keys };
 }
 
-/** Encrypts note text and its tags for the note with this ID (also used to convert existing notes). */
-export async function encryptForNote(noteId: string, content: string): Promise<EncryptedNoteWire> {
+/**
+ * Encrypts note text and its tags for the note with this ID (also used to convert existing notes), and the mood
+ * unless it is undefined (the server then keeps the note's mood). A null mood is sealed as "none".
+ */
+export async function encryptForNote(noteId: string, content: string, mood?: NoteMood | null): Promise<EncryptedNoteWire> {
   const { userId, keys } = unlocked();
-  const [envelope, tags] = await Promise.all([encryptNote(keys, userId, noteId, content), encryptTags(keys, userId, content)]);
-  return { content: toBase64(envelope), tags: tags.map((tag) => ({ token: tag.token, name: toBase64(tag.encryptedName) })) };
+  const [envelope, tags, sealedMood] = await Promise.all([
+    encryptNote(keys, userId, noteId, content),
+    encryptTags(keys, userId, content),
+    mood === undefined ? null : encryptMood(keys, userId, noteId, mood),
+  ]);
+  return {
+    content: toBase64(envelope),
+    tags: tags.map((tag) => ({ token: tag.token, name: toBase64(tag.encryptedName) })),
+    ...(sealedMood ? { mood: toBase64(sealedMood) } : {}),
+  };
 }
 
-/** Request fields for a new note: plain text, or an ID chosen here with the encrypted text and tags. */
-export async function encodeNewNote(content: string): Promise<{ content?: string; id?: string; encrypted?: EncryptedNoteWire }> {
-  if (session?.mode !== "EndToEnd") return { content };
+/**
+ * The mood to send for a note of this kind. End-to-end notes that can have a mood always send one, "none" included,
+ * so the server cannot tell from the request whether a note has a mood; other kinds never send one.
+ */
+function moodFor(kind: NoteKind, mood: NoteMood | null | undefined): NoteMood | null | undefined {
+  if (!moodAllowed(kind)) return undefined;
+  return session?.mode === "EndToEnd" ? (mood ?? null) : (mood ?? undefined);
+}
+
+/** Request fields for a new note: plain text, or an ID chosen here with the encrypted text, tags and mood. */
+export async function encodeNewNote(
+  content: string,
+  kind: NoteKind = "Note",
+  mood?: NoteMood | null,
+): Promise<{ content?: string; id?: string; encrypted?: EncryptedNoteWire; mood?: NoteMood }> {
+  const wanted = moodFor(kind, mood);
+  if (session?.mode !== "EndToEnd") return wanted ? { content, mood: wanted } : { content };
   const id = uuidv7();
-  return { id, encrypted: await encryptForNote(id, content) };
+  return { id, encrypted: await encryptForNote(id, content, wanted) };
 }
 
 /**
@@ -84,15 +126,29 @@ export async function encodeImport(
   originalId: string | null,
   content: string,
   fresh = false,
-): Promise<{ id?: string; content?: string; encrypted?: EncryptedNoteWire }> {
-  if (session?.mode !== "EndToEnd") return originalId ? { id: originalId, content } : { content };
+  kind: NoteKind = "Note",
+  mood?: NoteMood | null,
+): Promise<{ id?: string; content?: string; encrypted?: EncryptedNoteWire; mood?: NoteMood }> {
+  const wanted = moodFor(kind, mood);
+  if (session?.mode !== "EndToEnd") {
+    const plain = originalId ? { id: originalId, content } : { content };
+    return wanted ? { ...plain, mood: wanted } : plain;
+  }
   const id = !fresh && originalId && /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(originalId) ? originalId : uuidv7();
-  return { id, encrypted: await encryptForNote(id, content) };
+  return { id, encrypted: await encryptForNote(id, content, wanted) };
 }
 
-/** Request fields for new text of an existing note. Saving any note in end-to-end mode also converts it. */
-export async function encodeNoteUpdate(id: string, content: string): Promise<{ content?: string; encrypted?: EncryptedNoteWire }> {
-  return session?.mode === "EndToEnd" ? { encrypted: await encryptForNote(id, content) } : { content };
+/**
+ * Request fields for new text of an existing note, and its mood unless that is undefined (kept as it is; null takes it
+ * off). Saving any note in end-to-end mode also converts it.
+ */
+export async function encodeNoteUpdate(
+  id: string,
+  content: string,
+  mood?: NoteMood | null,
+): Promise<{ content?: string; encrypted?: EncryptedNoteWire; mood?: NoteMood | "None" }> {
+  if (session?.mode === "EndToEnd") return { encrypted: await encryptForNote(id, content, mood) };
+  return mood === undefined ? { content } : { content, mood: mood ?? "None" };
 }
 
 /**
@@ -105,6 +161,23 @@ export async function sealForDevice(noteId: string, content: string): Promise<{ 
   return { content: null, encryptedContent: toBase64(await encryptNote(session.keys, session.userId, noteId, content)) };
 }
 
+/**
+ * A mood as this device keeps it with a change (lib/outbox.ts), like the text: encrypted whenever this browser holds an
+ * end-to-end key. Undefined (no change to the mood) keeps nothing.
+ */
+export async function sealMoodForDevice(noteId: string, mood: NoteMood | null | undefined): Promise<{ mood?: NoteMood | null; encryptedMood?: string }> {
+  if (mood === undefined) return {};
+  if (!session?.keys) return { mood };
+  return { encryptedMood: toBase64(await encryptMood(session.keys, session.userId, noteId, mood)) };
+}
+
+/** The mood `sealMoodForDevice` kept: undefined for none kept, or when it cannot be opened in this browser now. */
+export async function openMoodFromDevice(noteId: string, sealed: { mood?: NoteMood | null; encryptedMood?: string }): Promise<NoteMood | null | undefined> {
+  if (sealed.encryptedMood === undefined) return sealed.mood;
+  if (!session?.keys) return undefined;
+  return decryptMood(session.keys, session.userId, noteId, fromBase64(sealed.encryptedMood)).then(parseMood, () => undefined);
+}
+
 /** The text `sealForDevice` kept; throws when it cannot be opened in this browser now. */
 export async function openFromDevice(noteId: string, sealed: { content: string | null; encryptedContent: string | null }): Promise<string> {
   if (sealed.encryptedContent === null) return sealed.content ?? "";
@@ -114,8 +187,13 @@ export async function openFromDevice(noteId: string, sealed: { content: string |
 
 /** A note as components see it: decrypted, with its tags read from the text. */
 export async function decodeNote(note: NoteWire): Promise<Note> {
-  const { encryptedContent, ...rest } = note;
+  const { encryptedContent, encryptedMood, ...wire } = note;
   const attachments = await Promise.all(note.attachments.map(decodeAttachment));
+  const rest = { ...wire, mood: parseMood(note.mood) };
+  if (encryptedMood && session?.keys) {
+    // A mood that does not open is shown as none; the note's text may still be readable.
+    rest.mood = await decryptMood(session.keys, session.userId, note.id, fromBase64(encryptedMood)).then(parseMood, () => null);
+  }
   if (!encryptedContent) return { ...rest, attachments, content: note.content ?? "" };
   try {
     const { userId, keys } = unlocked();
@@ -130,7 +208,12 @@ export async function decodeNote(note: NoteWire): Promise<Note> {
 export async function decodeAttachment(attachment: AttachmentWire): Promise<Attachment> {
   const { encryptedMetadata, ...rest } = attachment;
   if (!encryptedMetadata) {
-    return { ...rest, fileName: attachment.fileName ?? "file", contentType: attachment.contentType ?? DOWNLOAD_CONTENT_TYPE };
+    return {
+      ...rest,
+      fileName: attachment.fileName ?? "file",
+      contentType: attachment.contentType ?? DOWNLOAD_CONTENT_TYPE,
+      isSticker: attachment.isSticker === true,
+    };
   }
   try {
     const { userId, keys } = unlocked();
@@ -142,23 +225,25 @@ export async function decodeAttachment(attachment: AttachmentWire): Promise<Atta
       sizeBytes: metadata.size,
       isImage: isInlineImage(metadata.type),
       endToEnd: true,
+      // A sticker shows as one only when it is a picture this browser shows inline.
+      isSticker: metadata.sticker === true && isInlineImage(metadata.type),
     };
   } catch {
-    return { ...rest, fileName: "encrypted file", contentType: DOWNLOAD_CONTENT_TYPE, isImage: false, endToEnd: true };
+    return { ...rest, fileName: "encrypted file", contentType: DOWNLOAD_CONTENT_TYPE, isImage: false, endToEnd: true, isSticker: false };
   }
 }
 
 /**
  * For an account in end-to-end mode: the file encrypted under an ID chosen here, with its encrypted name, type and
- * size, ready to upload (docs/e2ee-spec.md §5). Null for other accounts, which upload files as they are.
+ * size and sticker flag, ready to upload (docs/e2ee-spec.md §5). Null for other accounts, which upload files as they are.
  */
-export async function encodeUpload(file: File): Promise<{ id: string; metadata: string; body: Blob } | null> {
+export async function encodeUpload(file: File, sticker = false): Promise<{ id: string; metadata: string; body: Blob } | null> {
   if (session?.mode !== "EndToEnd") return null;
   const { userId, keys } = unlocked();
   const id = uuidv7();
   const [body, metadata] = await Promise.all([
     encryptAttachment(keys, userId, id, file),
-    encryptMetadata(keys, userId, id, { name: file.name, type: file.type || DOWNLOAD_CONTENT_TYPE, size: file.size }),
+    encryptMetadata(keys, userId, id, { name: file.name, type: file.type || DOWNLOAD_CONTENT_TYPE, size: file.size, sticker }),
   ]);
   return { id, metadata: toBase64(metadata), body };
 }

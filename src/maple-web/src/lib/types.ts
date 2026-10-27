@@ -93,6 +93,10 @@ export interface Preferences {
   weekStart: WeekStart;
   /** The side menu's items in the chosen order, separated by commas; empty for the default order (see lib/menu.ts). */
   menuOrder: string;
+  /** Offer five smilies where a note or quick note is written; turning it off hides them but keeps the moods. */
+  moodTracker: boolean;
+  /** Offer a sticker button where a note or quick note is written, with the sticker packs added in this browser. */
+  stickers: boolean;
 }
 
 export const PHOTO_SIZES = ["Large", "Medium", "Small"] as const;
@@ -157,6 +161,8 @@ export interface Attachment {
   createdAtUtc: string;
   /** Encrypted in the browser: the page decrypts it, through the media service worker when available. */
   endToEnd?: boolean;
+  /** A sticker from a sticker pack, shown small above the note's other files. */
+  isSticker?: boolean;
 }
 
 /** An attachment as the API returns it: end-to-end files carry `encryptedMetadata` instead of a name and type. */
@@ -168,6 +174,19 @@ export interface AttachmentWire extends Omit<Attachment, "fileName" | "contentTy
 
 /** Where a note belongs: the Home timeline, the Todo tab, the Quick notes tab or the Habits page. */
 export type NoteKind = "Note" | "Todo" | "Quick" | "Habit";
+
+/** How the writer felt, from awful to great; only timeline notes and quick notes have one. */
+export const NOTE_MOODS = ["Awful", "Bad", "Okay", "Good", "Great"] as const;
+export type NoteMood = (typeof NOTE_MOODS)[number];
+
+/** Whether notes of this kind can have a mood (the server keeps none for todo lists and habits). */
+export const moodAllowed = (kind: NoteKind) => kind === "Note" || kind === "Quick";
+
+/** A mood as an export or a decrypted envelope writes it, in any case; null for none or anything else. */
+export function parseMood(value: unknown): NoteMood | null {
+  if (typeof value !== "string") return null;
+  return NOTE_MOODS.find((mood) => mood.toLowerCase() === value.trim().toLowerCase()) ?? null;
+}
 
 /** A note as components use it: plain text, decrypted if it was end-to-end encrypted. */
 export interface Note {
@@ -188,6 +207,8 @@ export interface Note {
   trashedAtUtc?: string | null;
   /** Written or edited offline and kept on this device until the server has it (lib/outbox.ts). */
   pending?: boolean;
+  /** How the writer felt; null or absent for none. */
+  mood?: NoteMood | null;
 }
 
 export interface NotePage {
@@ -199,6 +220,8 @@ export interface NotePage {
 export interface NoteWire extends Omit<Note, "content" | "attachments"> {
   content: string | null;
   encryptedContent?: string | null;
+  /** An end-to-end note's mood, encrypted and padded (docs/e2ee-spec.md §2a). */
+  encryptedMood?: string | null;
   attachments: AttachmentWire[];
 }
 
@@ -211,6 +234,8 @@ export interface NotePageWire {
 export interface EncryptedNoteWire {
   content: string;
   tags: Array<{ token: string; name: string }>;
+  /** The mood, encrypted and padded, "none" included; left out to keep the note's mood. */
+  mood?: string;
 }
 
 /** feed: active unpinned notes; pinned; active: all active notes (search/tags); archived; trash. */
@@ -344,8 +369,25 @@ export interface ConversionBatch {
   /** End-to-end: encrypt these items; any other mode: decrypt them. */
   mode: EncryptionMode;
   remaining: number;
-  notes: Array<{ id: string; content: string | null; encryptedContent: string | null; updatedAtUtc: string }>;
-  attachments: Array<{ id: string; fileName: string | null; contentType: string | null; sizeBytes: number; encryptedMetadata: string | null }>;
+  notes: Array<{
+    id: string;
+    content: string | null;
+    encryptedContent: string | null;
+    updatedAtUtc: string;
+    /** Entering end-to-end mode: the mood to encrypt. */
+    mood?: NoteMood | null;
+    /** Leaving it: the encrypted mood to decrypt, if the note has one. */
+    encryptedMood?: string | null;
+  }>;
+  attachments: Array<{
+    id: string;
+    fileName: string | null;
+    contentType: string | null;
+    sizeBytes: number;
+    encryptedMetadata: string | null;
+    /** Entering end-to-end mode: whether the file is a sticker. */
+    isSticker?: boolean;
+  }>;
   /** Labels whose names to encrypt or decrypt; they are saved again with PUT /api/v1/labels/{id}. */
   labels?: Array<{ id: string; name: string | null; encryptedName: string | null }>;
 }

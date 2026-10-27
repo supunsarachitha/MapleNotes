@@ -14,6 +14,9 @@ internal sealed record UploadedFile(string? FileName, string? ContentType, Strea
     /// <summary>A field parsed as a GUID, or null.</summary>
     public Guid? Guid(string name) => Fields.TryGetValue(name, out var value) && System.Guid.TryParse(value, out var id) ? id : null;
 
+    /// <summary>Whether a field says <c>true</c> (any case); false when it is absent or says anything else.</summary>
+    public bool Flag(string name) => Fields.TryGetValue(name, out var value) && string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>A field decoded from base64, or null when absent, malformed or longer than <paramref name="maxBytes"/>.</summary>
     public byte[]? Base64(string name, int maxBytes)
     {

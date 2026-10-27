@@ -2,6 +2,7 @@ import { FileText, Play } from "lucide-react";
 import { useRef, useState } from "react";
 import { formatBytes } from "../lib/format";
 import { downloadName, useAttachmentSrc } from "../lib/mediaWorker";
+import { stickerName } from "../lib/stickers";
 import type { Attachment } from "../lib/types";
 import { useNearViewport } from "../lib/viewport";
 import { ImageViewer } from "./ImageViewer";
@@ -91,27 +92,54 @@ function FileLink({ file }: { file: Attachment }) {
   );
 }
 
+function StickerImage({ sticker }: { sticker: Attachment }) {
+  const box = useRef<HTMLLIElement>(null);
+  const src = useAttachmentSrc(sticker, { load: useNearViewport(box) });
+  const name = stickerName(sticker.fileName);
+  return (
+    <li ref={box} className="flex size-20 items-center justify-center sm:size-24">
+      {src ? (
+        <img src={src} alt={name} title={name} loading="lazy" decoding="async" className="block size-full object-contain" />
+      ) : (
+        <Spinner className="size-4 text-stone-400" />
+      )}
+    </li>
+  );
+}
+
 /** A thumbnail of an attachment already stored (the composer's list when editing a note). */
 export function AttachmentThumbnail({ attachment }: { attachment: Attachment }) {
   const src = useAttachmentSrc(attachment);
-  return src ? <img src={src} alt={attachment.fileName} className="size-full object-cover" /> : <Spinner className="size-4 text-stone-400" />;
+  return src ? (
+    <img src={src} alt={attachment.fileName} className={attachment.isSticker ? "size-full object-contain p-1" : "size-full object-cover"} />
+  ) : (
+    <Spinner className="size-4 text-stone-400" />
+  );
 }
 
 /**
- * Images (one at its own shape, several as a grid of thumbnails, each opening the image viewer), audio and video with native players, other files as download chips. End-to-end files are
+ * Stickers first, small and whole in a row of their own (not in the grid or the viewer), then images (one at its own shape, several as a grid of thumbnails, each opening the image viewer), audio and video with native players, other files as download chips. End-to-end files are
  * decrypted in the browser (see useAttachmentSrc).
  */
 export function AttachmentGallery({ attachments }: { attachments: Attachment[] }) {
   const [viewing, setViewing] = useState<number | null>(null);
   if (attachments.length === 0) return null;
 
-  const images = attachments.filter((a) => a.isImage);
+  const stickers = attachments.filter((a) => a.isSticker && a.isImage);
+  const images = attachments.filter((a) => a.isImage && !stickers.includes(a));
   const videos = attachments.filter((a) => a.contentType.startsWith("video/") && !a.isImage);
   const audio = attachments.filter((a) => a.contentType.startsWith("audio/"));
-  const files = attachments.filter((a) => !images.includes(a) && !videos.includes(a) && !audio.includes(a));
+  const files = attachments.filter((a) => !stickers.includes(a) && !images.includes(a) && !videos.includes(a) && !audio.includes(a));
 
   return (
     <div className="mt-3 flex flex-col gap-2">
+      {stickers.length > 0 && (
+        <ul className="flex flex-wrap gap-1" aria-label="Stickers">
+          {stickers.map((sticker) => (
+            <StickerImage key={sticker.id} sticker={sticker} />
+          ))}
+        </ul>
+      )}
       {images.length > 0 && (
         <div className={cn("gap-2", images.length === 1 ? "flex" : "grid grid-cols-2", images.length >= 3 && "sm:grid-cols-3")}>
           {images.map((image, index) => (

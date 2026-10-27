@@ -105,4 +105,21 @@ describe("AttachmentGallery", () => {
 
     expect(screen.queryByRole("button", { name: "Next image" })).not.toBeInTheDocument();
   });
+
+  it("shows stickers first, whole and named, and keeps them out of the picture grid", () => {
+    const plain = { ...encrypted, endToEnd: undefined };
+    render(
+      <AttachmentGallery
+        attachments={[
+          { ...plain, id: "p1", fileName: "photo.jpg" },
+          { ...plain, id: "s1", fileName: "Waving cat.png", isSticker: true },
+          { ...plain, id: "p2", fileName: "beach.jpg" },
+        ]}
+      />,
+    );
+
+    const stickers = screen.getByRole("list", { name: "Stickers" });
+    expect(within(stickers).getByRole("img", { name: "Waving cat" })).toHaveClass("object-contain");
+    expect(screen.getAllByRole("button", { name: /^View / }).map((b) => b.getAttribute("aria-label"))).toEqual(["View photo.jpg", "View beach.jpg"]);
+  });
 });

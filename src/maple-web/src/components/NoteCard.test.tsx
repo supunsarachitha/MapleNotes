@@ -197,3 +197,36 @@ describe("Daily-note template", () => {
     expect(screen.queryByRole("menuitem", { name: /daily-note template/ })).not.toBeInTheDocument();
   });
 });
+
+describe("Moods and stickers", () => {
+  it("shows the note's mood after its time while the mood tracker is on", () => {
+    const { unmount } = renderWith(<NoteCard note={{ ...note, mood: "Good" }} />, { moodTracker: true });
+    expect(screen.getByRole("img", { name: "Mood: Good" })).toHaveTextContent("🙂");
+    unmount();
+
+    renderWith(<NoteCard note={{ ...note, mood: "Good" }} />, { moodTracker: false });
+    expect(screen.queryByRole("img", { name: /Mood/ })).not.toBeInTheDocument();
+  });
+
+  it("edits a note's mood with the smilies, and takes it off by choosing it again", async () => {
+    const update = vi.spyOn(api, "updateNote").mockResolvedValue({ ...note, mood: "Great" });
+    const user = userEvent.setup();
+    renderWith(<NoteCard note={{ ...note, mood: "Bad" }} />, { moodTracker: true });
+    await user.click(screen.getByRole("button", { name: "Note actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
+
+    const button = screen.getByRole("button", { name: "Mood: Bad" });
+    await user.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    const smilies = screen.getByRole("group", { name: "Mood" });
+    expect(within(smilies).getByRole("button", { name: "Bad" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(smilies).getByRole("button", { name: "Bad" }));
+    expect(screen.queryByRole("group", { name: "Mood" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mood" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Mood" }));
+    await user.click(screen.getByRole("button", { name: "Great" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith("n1", note.content, [], expect.anything(), "Great"));
+  });
+});

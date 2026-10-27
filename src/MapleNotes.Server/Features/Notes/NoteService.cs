@@ -211,6 +211,7 @@ public sealed class NoteService(
                 UpdatedAtUtc = now,
             };
             SetEncryptedContent(note, encrypted);
+            SetEncryptedMood(note, encrypted.Mood);
             await AttachAsync(note, attachmentIds, cancellationToken);
             await SetEncryptedTagsAsync(note, encrypted.Tags, cancellationToken);
         }
@@ -227,6 +228,7 @@ public sealed class NoteService(
                 UserId = userId, Kind = request.Kind, DailyDate = request.DailyDate, IsPinned = request.IsPinned, CreatedAtUtc = now, UpdatedAtUtc = now,
             };
             await SetContentAsync(note, content, cancellationToken);
+            SetPlainMood(note, request.Mood);
             await AttachAsync(note, attachmentIds, cancellationToken);
             await SetTagsAsync(note, content, cancellationToken);
         }
@@ -339,6 +341,15 @@ public sealed class NoteService(
         }
 
         note.Kind = request.Kind;
+        if (request.Encrypted is { } sealedNote)
+        {
+            SetEncryptedMood(note, sealedNote.Mood);
+        }
+        else
+        {
+            SetPlainMood(note, request.Mood, lenient: true);
+        }
+
         note.IsPinned = request.IsPinned;
         note.ArchivedAtUtc = request.IsArchived ? updated : null;
         note.CreatedAtUtc = created;
@@ -393,11 +404,13 @@ public sealed class NoteService(
         {
             await RequireEndToEndAsync(userId, cancellationToken);
             SetEncryptedContent(note, encrypted);
+            SetEncryptedMood(note, encrypted.Mood);
         }
         else
         {
             content = ValidateContent(request.Content, wantedIds.Count);
             await SetContentAsync(note, content, cancellationToken);
+            SetPlainMood(note, request.Mood);
         }
 
         var removedFiles = new List<string>();
@@ -492,6 +505,13 @@ public sealed class NoteService(
             // A daily note moved out of the timeline, or to the trash, no longer holds its day, so the day can have a
             // new one; restored, it is an ordinary note.
             note.DailyDate = null;
+        }
+
+        if (!NoteMoods.Allowed(note.Kind))
+        {
+            // A note that becomes a todo list leaves its mood behind, as it could not show or change it there.
+            note.Mood = NoteMood.None;
+            note.EncryptedMood = null;
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -671,7 +691,9 @@ public sealed class NoteService(
             note.Kind,
             note.DailyDate,
             note.Labels.Select(l => l.Id).Order().ToList(),
-            note.TrashedAtUtc);
+            note.TrashedAtUtc,
+            endToEnd || note.Mood == NoteMood.None ? null : note.Mood,
+            endToEnd ? note.EncryptedMood : null);
     }
 
     /// <summary>Returns a note's text, decrypting it when necessary.</summary>
@@ -706,9 +728,11 @@ public sealed class NoteService(
     /// <param name="content">The Markdown text.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>A task that completes when the note is updated in memory (the caller saves).</returns>
-    internal async Task ApplyPlainTextAsync(Note note, string content, CancellationToken cancellationToken)
+    /// <param name="mood">The decrypted mood, when the browser sends one.</param>
+    internal async Task ApplyPlainTextAsync(Note note, string content, CancellationToken cancellationToken, NoteMood? mood = null)
     {
         await SetContentAsync(note, content, cancellationToken);
+        SetPlainMood(note, mood ?? NoteMood.None, lenient: true);
         await SetTagsAsync(note, content, cancellationToken);
     }
 
@@ -720,6 +744,7 @@ public sealed class NoteService(
     internal async Task ApplyEncryptedAsync(Note note, EncryptedNote encrypted, CancellationToken cancellationToken)
     {
         SetEncryptedContent(note, encrypted);
+        SetEncryptedMood(note, encrypted.Mood);
         await SetEncryptedTagsAsync(note, encrypted.Tags, cancellationToken);
     }
 
@@ -928,6 +953,65 @@ public sealed class NoteService(
 
         note.Content = encrypted.Content;
         note.Scheme = ContentScheme.EndToEnd;
+    }
+
+    /// <summary>
+    /// Sets the mood of a note whose text is plain (or encrypted by the server): the given one, or, when the request
+    /// leaves it out, the one it had. An end-to-end mood the note had cannot be read here, so it is dropped.
+    /// </summary>
+    /// <param name="note">The note, with its kind set.</param>
+    /// <param name="mood">The mood, or null to keep it.</param>
+    /// <param name="lenient">For restores and conversions: a mood a note of its kind cannot have is dropped rather than refused.</param>
+    /// <exception cref="ApiValidationException">An unknown mood, or a mood on a todo list or habit.</exception>
+    private static void SetPlainMood(Note note, NoteMood? mood, bool lenient = false)
+    {
+        if (mood is { } wanted)
+        {
+            if (!Enum.IsDefined(wanted))
+            {
+                throw new ApiValidationException("mood", "This is not a mood.");
+            }
+
+            if (wanted != NoteMood.None && !NoteMoods.Allowed(note.Kind) && !lenient)
+            {
+                throw new ApiValidationException("mood", "Only notes and quick notes can have a mood.");
+            }
+
+            note.Mood = wanted;
+        }
+
+        note.EncryptedMood = null;
+        if (!NoteMoods.Allowed(note.Kind))
+        {
+            note.Mood = NoteMood.None;
+        }
+    }
+
+    /// <summary>
+    /// Sets the mood of an end-to-end note: the browser's envelope, or, when it sends none (a browser from before
+    /// moods), the one the note had. The plain mood is cleared, so the server keeps no readable copy.
+    /// </summary>
+    /// <param name="note">The note, with its kind set.</param>
+    /// <param name="envelope">The encrypted mood, or null to keep it.</param>
+    /// <exception cref="ApiValidationException">The envelope is malformed.</exception>
+    /// <remarks>The server cannot see which mood it is, so a todo list or habit simply keeps none.</remarks>
+    private static void SetEncryptedMood(Note note, byte[]? envelope)
+    {
+        if (envelope is not null)
+        {
+            if (!EndToEndContent.IsEnvelope(envelope, EndToEndContent.MaxMoodEnvelopeBytes))
+            {
+                throw new ApiValidationException("encrypted.mood", "This is not an encrypted mood.");
+            }
+
+            note.EncryptedMood = envelope;
+        }
+
+        note.Mood = NoteMood.None;
+        if (!NoteMoods.Allowed(note.Kind))
+        {
+            note.EncryptedMood = null;
+        }
     }
 
     private async Task SetEncryptedTagsAsync(Note note, IReadOnlyList<EncryptedTag>? tags, CancellationToken cancellationToken)

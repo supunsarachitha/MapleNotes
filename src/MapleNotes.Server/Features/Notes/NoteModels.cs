@@ -108,6 +108,8 @@ public sealed record CalendarDayResponse(DateOnly Date, int Count);
 /// <param name="DailyDate">For a daily note, the day it belongs to.</param>
 /// <param name="LabelIds">The IDs of the labels on the note.</param>
 /// <param name="TrashedAtUtc">When the note was moved to the trash; null when it is not in the trash.</param>
+/// <param name="Mood">How the writer felt; null for none, and for an end-to-end note.</param>
+/// <param name="EncryptedMood">An end-to-end note's mood, encrypted by the browser (base64), for it to decrypt.</param>
 public sealed record NoteResponse(
     Guid Id,
     string? Content,
@@ -121,7 +123,9 @@ public sealed record NoteResponse(
     NoteKind Kind = NoteKind.Note,
     DateOnly? DailyDate = null,
     IReadOnlyList<Guid>? LabelIds = null,
-    DateTime? TrashedAtUtc = null);
+    DateTime? TrashedAtUtc = null,
+    NoteMood? Mood = null,
+    byte[]? EncryptedMood = null);
 
 /// <summary>One page of notes, newest first.</summary>
 /// <param name="Items">The notes.</param>
@@ -133,10 +137,12 @@ public sealed record NotePageResponse(IReadOnlyList<NoteResponse> Items, string?
 /// <param name="Name">The normalized name, encrypted by the browser (base64).</param>
 public sealed record EncryptedTag(string Token, byte[] Name);
 
-/// <summary>Note text encrypted by the browser (docs/e2ee-spec.md §2), with the note's tags.</summary>
+/// <summary>Note text encrypted by the browser (docs/e2ee-spec.md §2), with the note's tags and mood.</summary>
 /// <param name="Content">The envelope (base64), bound to the account and the note's ID.</param>
 /// <param name="Tags">The tags in the text.</param>
-public sealed record EncryptedNote(byte[] Content, IReadOnlyList<EncryptedTag>? Tags = null);
+/// <param name="Mood">The note's mood, encrypted and padded (docs/e2ee-spec.md §2a), "none" included. Omit to keep the
+/// mood the note has; browsers from before moods omit it.</param>
+public sealed record EncryptedNote(byte[] Content, IReadOnlyList<EncryptedTag>? Tags = null, byte[]? Mood = null);
 
 /// <summary>Request to create a note.</summary>
 /// <remarks>
@@ -150,6 +156,8 @@ public sealed record EncryptedNote(byte[] Content, IReadOnlyList<EncryptedTag>? 
 /// <param name="Encrypted">For an end-to-end note: the encrypted text and tags.</param>
 /// <param name="Kind">A timeline note (the default), a todo list, a quick note or a habit.</param>
 /// <param name="DailyDate">Makes a timeline note the daily note of this day; each day has at most one.</param>
+/// <param name="Mood">How the writer felt (timeline notes and quick notes only); end-to-end notes send it encrypted in
+/// <paramref name="Encrypted"/> instead.</param>
 public sealed record CreateNoteRequest(
     string? Content = null,
     IReadOnlyList<Guid>? AttachmentIds = null,
@@ -157,7 +165,8 @@ public sealed record CreateNoteRequest(
     Guid? Id = null,
     EncryptedNote? Encrypted = null,
     NoteKind Kind = NoteKind.Note,
-    DateOnly? DailyDate = null);
+    DateOnly? DailyDate = null,
+    NoteMood? Mood = null);
 
 /// <summary>A note restored from an export, with its original ID, dates, state, kind and daily date.</summary>
 /// <remarks>Like a new note, it is plain text for most accounts and encrypted by the browser for end-to-end ones.</remarks>
@@ -174,6 +183,8 @@ public sealed record CreateNoteRequest(
 /// <param name="DailyDate">Its day, for a daily note. Dropped if the account already has a daily note for that day.</param>
 /// <param name="LabelIds">The account's labels to put on it (at most 20), found or created by the browser from the
 /// label names in the export.</param>
+/// <param name="Mood">Its mood (plain accounts; end-to-end ones send it in <paramref name="Encrypted"/>). Dropped for todo
+/// lists and habits.</param>
 public sealed record ImportNoteRequest(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
@@ -185,7 +196,8 @@ public sealed record ImportNoteRequest(
     bool IsArchived = false,
     NoteKind Kind = NoteKind.Note,
     DateOnly? DailyDate = null,
-    IReadOnlyList<Guid>? LabelIds = null);
+    IReadOnlyList<Guid>? LabelIds = null,
+    NoteMood? Mood = null);
 
 /// <summary>The result of restoring one note.</summary>
 /// <param name="Imported">False when the account already had the note (same ID), which was left unchanged.</param>
@@ -210,8 +222,14 @@ public sealed record ImportExistingResponse(IReadOnlyList<Guid> Existing);
 /// The note's <c>updatedAtUtc</c> as the client last saw it, sent back unchanged. When it is given and the note has been
 /// edited since, nothing changes and the request fails with 409, so an edit made offline cannot overwrite a newer one.
 /// </param>
+/// <param name="Mood">The note's mood (<c>None</c> takes it off). Omit to keep it; end-to-end accounts send it in
+/// <paramref name="Encrypted"/>.</param>
 public sealed record UpdateNoteRequest(
-    string? Content = null, IReadOnlyList<Guid>? AttachmentIds = null, EncryptedNote? Encrypted = null, DateTime? ExpectedUpdatedAtUtc = null);
+    string? Content = null,
+    IReadOnlyList<Guid>? AttachmentIds = null,
+    EncryptedNote? Encrypted = null,
+    DateTime? ExpectedUpdatedAtUtc = null,
+    NoteMood? Mood = null);
 
 /// <summary>
 /// Request to pin, unpin, archive, restore, move, label or trash a note. Omitted fields are unchanged.

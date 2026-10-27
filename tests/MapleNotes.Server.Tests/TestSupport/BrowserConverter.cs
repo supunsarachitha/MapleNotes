@@ -35,8 +35,9 @@ internal sealed class BrowserConverter(ApiClient client, EndToEndAccount account
                 }
 
                 var request = entering
-                    ? new ConvertNoteRequest(note.UpdatedAtUtc, Encrypted: account.EncryptNote(note.Id, note.Content!))
-                    : new ConvertNoteRequest(note.UpdatedAtUtc, Content: E2eeCrypto.DecryptNote(account.DataKey, account.UserId, note.Id, note.EncryptedContent!));
+                    ? new ConvertNoteRequest(note.UpdatedAtUtc, Encrypted: account.EncryptNote(note.Id, note.Content!, note.Mood?.ToString().ToLowerInvariant() ?? "none"))
+                    : new ConvertNoteRequest(note.UpdatedAtUtc, Content: E2eeCrypto.DecryptNote(account.DataKey, account.UserId, note.Id, note.EncryptedContent!),
+                        Mood: note.EncryptedMood is { } mood ? Enum.Parse<NoteMood>(E2eeCrypto.OpenMood(account.DataKey, account.UserId, note.Id, mood), ignoreCase: true) : null);
                 (await client.PutJsonAsync($"/api/v1/account/conversion/notes/{note.Id}", request)).EnsureSuccessStatusCode();
                 converted++;
             }
@@ -52,15 +53,17 @@ internal sealed class BrowserConverter(ApiClient client, EndToEndAccount account
                 HttpResponseMessage response;
                 if (entering)
                 {
-                    var metadata = account.SealMetadata(file.Id, file.FileName!, file.ContentType!, stored.Length);
+                    var metadata = account.SealMetadata(file.Id, file.FileName!, file.ContentType!, stored.Length, file.IsSticker);
                     response = await client.PutFileAsync($"/api/v1/account/conversion/attachments/{file.Id}", account.EncryptFile(file.Id, stored),
                         "encrypted.bin", "application/octet-stream", new Dictionary<string, string> { ["metadata"] = Convert.ToBase64String(metadata) });
                 }
                 else
                 {
                     using var metadata = JsonDocument.Parse(account.OpenMetadata(file.Id, file.EncryptedMetadata!));
+                    var sticker = metadata.RootElement.TryGetProperty("sticker", out var flag) && flag.ValueKind == JsonValueKind.Number && flag.GetInt32() == 1;
                     response = await client.PutFileAsync($"/api/v1/account/conversion/attachments/{file.Id}", account.DecryptFile(file.Id, stored),
-                        metadata.RootElement.GetProperty("name").GetString()!, metadata.RootElement.GetProperty("type").GetString()!);
+                        metadata.RootElement.GetProperty("name").GetString()!, metadata.RootElement.GetProperty("type").GetString()!,
+                        sticker ? new Dictionary<string, string> { ["sticker"] = "true" } : null);
                 }
 
                 response.EnsureSuccessStatusCode();

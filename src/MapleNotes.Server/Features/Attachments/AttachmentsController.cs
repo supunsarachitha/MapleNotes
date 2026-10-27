@@ -20,7 +20,7 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
 {
     private const long MultipartOverheadBytes = 64 * 1024;
 
-    private static readonly HashSet<string> EncryptedUploadFields = new(StringComparer.OrdinalIgnoreCase) { "id", "metadata" };
+    private static readonly HashSet<string> EncryptedUploadFields = new(StringComparer.OrdinalIgnoreCase) { "id", "metadata", "sticker" };
 
     /// <summary>Uploads a file.</summary>
     /// <remarks>
@@ -32,7 +32,11 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
     /// <para>
     /// An account in end-to-end mode uploads the file encrypted by the browser (docs/e2ee-spec.md §5) and sends two
     /// form fields before the file part: <c>id</c>, the UUID version 7 the browser chose and bound into the ciphertext,
-    /// and <c>metadata</c>, the base64 of the encrypted name, type and size.
+    /// and <c>metadata</c>, the base64 of the encrypted name, type, size and sticker flag.
+    /// </para>
+    /// <para>
+    /// A sticker (a picture from a sticker pack) adds the form field <c>sticker</c> = <c>true</c> before the file part.
+    /// End-to-end uploads never send it: their flag is in the encrypted metadata, so the server does not learn it.
     /// </para>
     /// </remarks>
     /// <param name="cancellationToken">Cancels the upload.</param>
@@ -65,8 +69,11 @@ public sealed class AttachmentsController(AttachmentService attachments, MapleOp
                 file.FileName,
                 file.ContentType,
                 file.Body,
-                file.Fields.Count > 0 ? new EncryptedUpload(file.Guid("id"), file.Base64("metadata", EndToEndContent.MaxMetadataEnvelopeBytes)) : null,
-                cancellationToken), cancellationToken);
+                file.Fields.ContainsKey("id") || file.Fields.ContainsKey("metadata")
+                    ? new EncryptedUpload(file.Guid("id"), file.Base64("metadata", EndToEndContent.MaxMetadataEnvelopeBytes))
+                    : null,
+                cancellationToken,
+                file.Flag("sticker")), cancellationToken);
             return CreatedAtAction(nameof(Download), new { id = attachment.Id }, AttachmentResponse.From(attachment));
         }
         catch (UploadTooLargeException tooLarge)

@@ -21,6 +21,7 @@ import {
 } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MenuOrderEditor } from "./MenuOrderEditor";
+import { StickerPacksSetting } from "./StickerPacksSetting";
 import { useToast } from "./Toaster";
 import { Section, Switch, cn } from "./ui";
 
@@ -345,6 +346,19 @@ export function FeaturesSection() {
             checked={preferences.labels}
             onChange={(labels) => save({ labels })}
           />
+          <PreferenceSwitch
+            label="Mood tracker"
+            description="A smiley button where you write a note or quick note: choose one of five smilies for how you feel, and it shows on the note. Turning it off hides the smilies; the moods you chose are kept."
+            checked={preferences.moodTracker}
+            onChange={(moodTracker) => save({ moodTracker })}
+          />
+          <PreferenceSwitch
+            label="Stickers"
+            description="A sticker button where you write a note or quick note: add stickers from the sticker packs in this browser. Turning it off hides the button; stickers already on your notes stay."
+            checked={preferences.stickers}
+            onChange={(stickers) => save({ stickers })}
+          />
+          {preferences.stickers && <StickerPacksSetting />}
         </div>
       </Section>
 

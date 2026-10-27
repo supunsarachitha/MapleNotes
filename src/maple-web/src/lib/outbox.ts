@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { extractTags } from "../crypto/content";
 import { uuidv7 } from "../crypto/encoding";
-import { matchesSearch, openFromDevice, sealForDevice } from "./noteCrypto";
-import type { Note, NoteKind, NotePage } from "./types";
+import { matchesSearch, openFromDevice, openMoodFromDevice, sealForDevice, sealMoodForDevice } from "./noteCrypto";
+import type { Note, NoteKind, NoteMood, NotePage } from "./types";
 
 // Writing offline (docs/architecture.md, "Writing offline"). When a new note or an edit cannot reach the server, and
 // this device keeps notes for offline reading (a session started with "keep me signed in"), the change is kept here,
@@ -32,6 +32,12 @@ export interface OutboxEntry {
   attachmentIds: string[];
   content: string | null;
   encryptedContent: string | null;
+  /**
+   * The note's mood, as chosen on this device (null for none), kept like the text: `encryptedMood` instead whenever
+   * this browser holds an end-to-end key. Both absent: the mood was not changed here.
+   */
+  mood?: NoteMood | null;
+  encryptedMood?: string;
   /** Grows with every change, so a send that raced with a new edit does not drop that edit. */
   revision: number;
   /** The order changes were made in, which is the order they are sent in. */
@@ -141,7 +147,14 @@ export async function hasPendingChange(noteId: string): Promise<boolean> {
 
 const nowUtc = () => new Date().toISOString();
 
-function asNote(entry: OutboxEntry, content: string, base?: Note): Note {
+/** The text and mood a change kept here, opened; null when the text cannot be opened in this browser now. */
+async function openEntry(entry: OutboxEntry): Promise<{ content: string; mood: NoteMood | null | undefined } | null> {
+  const content = await openFromDevice(entry.noteId, entry).catch(() => null);
+  if (content === null) return null;
+  return { content, mood: await openMoodFromDevice(entry.noteId, entry) };
+}
+
+function asNote(entry: OutboxEntry, content: string, base?: Note, mood?: NoteMood | null): Note {
   return {
     ...(base ?? { labelIds: [], isArchived: false, trashedAtUtc: null }),
     id: entry.noteId,
@@ -154,6 +167,7 @@ function asNote(entry: OutboxEntry, content: string, base?: Note): Note {
     content,
     tags: extractTags(content).sort(),
     attachments: base?.attachments ?? [],
+    mood: mood !== undefined ? mood : (base?.mood ?? null),
     pending: true,
   };
 }
@@ -162,7 +176,7 @@ function asNote(entry: OutboxEntry, content: string, base?: Note): Note {
 export async function keepNewNote(
   content: string,
   attachmentIds: string[],
-  options: { isPinned?: boolean; kind?: NoteKind; dailyDate?: string },
+  options: { isPinned?: boolean; kind?: NoteKind; dailyDate?: string; mood?: NoteMood | null },
 ): Promise<Note> {
   if (!owner) throw new Error("Not signed in.");
   const noteId = uuidv7();
@@ -179,15 +193,19 @@ export async function keepNewNote(
     baseUpdatedAtUtc: null,
     attachmentIds,
     ...(await sealForDevice(noteId, content)),
+    ...(await sealMoodForDevice(noteId, options.mood ?? undefined)),
     revision: 1,
     queuedAt: Date.now(),
   };
   await putEntry(entry);
-  return asNote(entry, content);
+  return asNote(entry, content, undefined, options.mood ?? null);
 }
 
-/** Keeps new text for a note: one written offline, or one the server has, as `seen` showed it. */
-export async function keepEdit(seen: Note, content: string, attachmentIds: string[]): Promise<Note> {
+/**
+ * Keeps new text for a note: one written offline, or one the server has, as `seen` showed it. A mood (null for none)
+ * replaces the one kept before; undefined leaves it.
+ */
+export async function keepEdit(seen: Note, content: string, attachmentIds: string[], mood?: NoteMood | null): Promise<Note> {
   if (!owner) throw new Error("Not signed in.");
   const existing = await getEntry(seen.id);
   const entry: OutboxEntry = existing ?? {
@@ -211,10 +229,11 @@ export async function keepEdit(seen: Note, content: string, attachmentIds: strin
     changedAtUtc: nowUtc(),
     attachmentIds,
     ...(await sealForDevice(seen.id, content)),
+    ...(await sealMoodForDevice(seen.id, mood)),
     revision: entry.revision + 1,
   };
   await putEntry(next);
-  return asNote(next, content, seen);
+  return asNote(next, content, seen, mood === undefined ? await openMoodFromDevice(seen.id, next) : mood);
 }
 
 /** Shows the changes kept here in a page of notes from the server (or from the copies offline reading saved). */
@@ -230,8 +249,8 @@ export async function withPendingChanges(
       const entry = byId.get(note.id);
       if (!entry) return note;
       byId.delete(note.id);
-      const content = await openFromDevice(note.id, entry).catch(() => null);
-      return content === null ? note : asNote(entry, content, note);
+      const kept = await openEntry(entry);
+      return kept === null ? note : asNote(entry, kept.content, note, kept.mood);
     }),
   );
   if (!filter.firstPage || !["active", "feed", "pinned"].includes(filter.state) || filter.label) return { ...page, items };
@@ -243,9 +262,9 @@ export async function withPendingChanges(
     if ((filter.state === "feed" && entry.isPinned) || (filter.state === "pinned" && !entry.isPinned)) continue;
     if (filter.createdFrom && entry.createdAtUtc < new Date(filter.createdFrom).toISOString()) continue;
     if (filter.createdBefore && entry.createdAtUtc >= new Date(filter.createdBefore).toISOString()) continue;
-    const content = await openFromDevice(entry.noteId, entry).catch(() => null);
-    if (content === null) continue;
-    const note = asNote(entry, content);
+    const kept = await openEntry(entry);
+    if (kept === null) continue;
+    const note = asNote(entry, kept.content, undefined, kept.mood);
     if (filter.q && !matchesSearch(note, filter.q)) continue;
     if (filter.tag && !note.tags.some((tag) => tag === filter.tag!.toLowerCase() || tag.startsWith(`${filter.tag!.toLowerCase()}/`))) continue;
     added.push(note);
@@ -258,8 +277,8 @@ export async function withPendingChanges(
 export async function pendingDailyNote(date: string): Promise<Note | null> {
   const entry = (await pendingChanges().catch(() => [])).find((change) => change.type === "create" && change.dailyDate === date);
   if (!entry) return null;
-  const content = await openFromDevice(entry.noteId, entry).catch(() => null);
-  return content === null ? null : asNote(entry, content);
+  const kept = await openEntry(entry);
+  return kept === null ? null : asNote(entry, kept.content, undefined, kept.mood);
 }
 
 /** What sending a change needs from the API client (lib/api.ts), kept apart so tests can drive it. */

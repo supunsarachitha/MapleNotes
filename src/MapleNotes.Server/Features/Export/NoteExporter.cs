@@ -284,7 +284,7 @@ public sealed class NoteExporter(
                 {
                     exportedAttachments.Add(new ExportedAttachment(
                         attachment.FileName, attachment.ContentType, attachment.SizeBytes, UploadPolicy.IsImage(attachment.ContentType),
-                        archivePath, ExportNaming.RelativePath(notePath, archivePath)));
+                        archivePath, ExportNaming.RelativePath(notePath, archivePath), attachment.IsSticker));
                 }
             }
         }
@@ -293,7 +293,8 @@ public sealed class NoteExporter(
             note.Id, content, created, updated,
             note.Tags.Where(t => t.Name is not null).Select(t => t.Name!).Order(StringComparer.Ordinal).ToList(),
             note.IsPinned, note.ArchivedAtUtc is not null, exportedAttachments, note.Kind, note.DailyDate,
-            note.Labels.Where(l => l.Name is not null).Select(l => l.Name!).Order(StringComparer.Ordinal).ToList());
+            note.Labels.Where(l => l.Name is not null).Select(l => l.Name!).Order(StringComparer.Ordinal).ToList(),
+            NoteMoods.Allowed(note.Kind) ? note.Mood : NoteMood.None);
         await WriteTextAsync(zip, notePath, NoteFormatter.Render(exported, options.Format), updated, cancellationToken);
         return (notePath, exported);
     }

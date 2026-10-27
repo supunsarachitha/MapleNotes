@@ -18,7 +18,7 @@ public sealed class ConversionController(ConversionService conversion) : Control
 {
     private const long MultipartOverheadBytes = 64 * 1024;
 
-    private static readonly HashSet<string> Fields = new(StringComparer.OrdinalIgnoreCase) { "metadata" };
+    private static readonly HashSet<string> Fields = new(StringComparer.OrdinalIgnoreCase) { "metadata", "sticker" };
 
     /// <summary>Returns the next notes, files and labels to convert.</summary>
     /// <remarks>
@@ -59,8 +59,9 @@ public sealed class ConversionController(ConversionService conversion) : Control
     /// <summary>Stores a converted file.</summary>
     /// <remarks>
     /// Send <c>multipart/form-data</c> with one file part. Entering end-to-end mode: the file encrypted for this
-    /// attachment's ID, preceded by the form field <c>metadata</c> (the encrypted name, type and size). Leaving it:
-    /// the decrypted file, with its name and type on the file part.
+    /// attachment's ID, preceded by the form field <c>metadata</c> (the encrypted name, type, size and sticker flag).
+    /// Leaving it: the decrypted file, with its name and type on the file part, preceded by the form field
+    /// <c>sticker</c> (<c>true</c>) for a sticker.
     /// </remarks>
     /// <param name="id">Attachment ID.</param>
     /// <param name="cancellationToken">Cancels the request; nothing changes.</param>

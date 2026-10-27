@@ -1,7 +1,19 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it } from "vitest";
 import { decryptAttachment } from "../crypto/attachments";
-import { decryptMetadata, decryptNote, decryptTagName, encryptMetadata, encryptNote, encryptTagName, tagToken } from "../crypto/content";
+import {
+  decryptMetadata,
+  decryptMood,
+  decryptNote,
+  decryptTagName,
+  encryptMetadata,
+  encryptMood,
+  encryptNote,
+  encryptTagName,
+  moodContext,
+  tagToken,
+} from "../crypto/content";
+import { open } from "../crypto/envelope";
 import { importDataKey, type DataKeys } from "../crypto/datakey";
 import { fromBase64, toBase64 } from "../crypto/encoding";
 import v from "../crypto/test-vectors.json";
@@ -9,9 +21,12 @@ import {
   decodeAttachment,
   decodeNote,
   decodeTags,
+  encodeImport,
   encodeNewNote,
   encodeNoteUpdate,
   encodeUpload,
+  openMoodFromDevice,
+  sealMoodForDevice,
   setContentSession,
   tagFilterParams,
   UNREADABLE_NOTE,
@@ -117,6 +132,7 @@ describe("note encryption at the API boundary", () => {
       name: "holiday photo.png",
       type: "image/png",
       size: 4,
+      sticker: false,
     });
     setContentSession({ userId, mode: "Off", keys: null });
     expect(await encodeUpload(file)).toBeNull();
@@ -134,5 +150,86 @@ describe("note encryption at the API boundary", () => {
     expect(decoded).not.toHaveProperty("encryptedMetadata");
     expect(plain).toMatchObject({ fileName: "a.png", isImage: true });
     expect(plain.endToEnd).toBeUndefined();
+  });
+
+  it("seals the sticker flag in the metadata of uploads, and reads it back only for pictures", async () => {
+    const sticker = (await encodeUpload(new File([new Uint8Array([1])], "sun.webp", { type: "image/webp" }), true))!;
+    const metadata = await decryptMetadata(keys, userId, sticker.id, fromBase64(sticker.metadata));
+    const base = { sizeBytes: 1, isImage: false, url: "", createdAtUtc: "", fileName: null, contentType: null };
+    const pdf = toBase64(await encryptMetadata(keys, userId, v.ids.attachmentId, { name: "a.pdf", type: "application/pdf", size: 1, sticker: true }));
+    const old = toBase64(await encryptMetadata(keys, userId, v.ids.attachmentId, { name: "a.png", type: "image/png", size: 1 }));
+
+    expect(metadata).toEqual({ name: "sun.webp", type: "image/webp", size: 1, sticker: true });
+    expect(await decodeAttachment({ ...base, id: sticker.id, encryptedMetadata: sticker.metadata })).toMatchObject({ isSticker: true, isImage: true });
+    expect(await decodeAttachment({ ...base, id: v.ids.attachmentId, encryptedMetadata: pdf })).toMatchObject({ isSticker: false });
+    expect(await decodeAttachment({ ...base, id: v.ids.attachmentId, encryptedMetadata: old })).toMatchObject({ isSticker: false });
+    expect(await decodeAttachment({ ...base, id: "x", fileName: "s.png", contentType: "image/png", isSticker: true })).toMatchObject({ isSticker: true });
+  });
+
+  it("pads every mood, none included, to the same length and binds it to the note", async () => {
+    const lengths = new Set<number>();
+    for (const mood of [null, "Awful", "Bad", "Okay", "Good", "Great"]) {
+      const envelope = await encryptMood(keys, userId, v.ids.noteId, mood);
+      lengths.add(envelope.length);
+      const padded = new TextDecoder().decode(await open(keys.metadata, envelope, moodContext(userId, v.ids.noteId)));
+      expect(padded).toBe((mood ?? "none").toLowerCase().padEnd(8, " "));
+      expect(await decryptMood(keys, userId, v.ids.noteId, envelope)).toBe(mood?.toLowerCase() ?? null);
+    }
+    expect(lengths.size).toBe(1);
+    const sealed = await encryptMood(keys, userId, v.ids.noteId, "Good");
+    await expect(decryptMood(keys, userId, v.ids.attachmentId, sealed)).rejects.toThrow();
+  });
+
+  it("always sends an end-to-end note's mood encrypted, and none for kinds without moods", async () => {
+    const withMood = await encodeNewNote("text", "Quick", "Good");
+    const without = await encodeNewNote("text", "Note");
+    const todo = await encodeNewNote("text", "Todo", "Good");
+    const restored = await encodeImport(null, "text", false, "Note", "Great");
+    const update = await encodeNoteUpdate(v.ids.noteId, "text", null);
+    const keep = await encodeNoteUpdate(v.ids.noteId, "text");
+
+    expect(withMood).not.toHaveProperty("mood");
+    expect(await decryptMood(keys, userId, withMood.id!, fromBase64(withMood.encrypted!.mood!))).toBe("good");
+    expect(await decryptMood(keys, userId, without.id!, fromBase64(without.encrypted!.mood!))).toBeNull();
+    expect(todo.encrypted!.mood).toBeUndefined();
+    expect(await decryptMood(keys, userId, restored.id!, fromBase64(restored.encrypted!.mood!))).toBe("great");
+    expect(await decryptMood(keys, userId, v.ids.noteId, fromBase64(update.encrypted!.mood!))).toBeNull();
+    expect(keep.encrypted!.mood).toBeUndefined();
+  });
+
+  it("sends a plain account's mood as it is, and None to take it off", async () => {
+    setContentSession({ userId, mode: "AtRest", keys: null });
+
+    expect(await encodeNewNote("hi", "Note", "Okay")).toEqual({ content: "hi", mood: "Okay" });
+    expect(await encodeNewNote("hi", "Habit", "Okay")).toEqual({ content: "hi" });
+    expect(await encodeImport("id-1", "hi", false, "Quick", "Bad")).toEqual({ id: "id-1", content: "hi", mood: "Bad" });
+    expect(await encodeNoteUpdate("id-1", "hi", null)).toEqual({ content: "hi", mood: "None" });
+    expect(await encodeNoteUpdate("id-1", "hi")).toEqual({ content: "hi" });
+  });
+
+  it("decrypts moods, showing none for one that does not open, and reads plain ones", async () => {
+    const encryptedMood = toBase64(await encryptMood(keys, userId, v.ids.noteId, "Great"));
+    const encryptedContent = toBase64(await encryptNote(keys, userId, v.ids.noteId, "text"));
+    const foreign = toBase64(await encryptMood(keys, userId, v.ids.attachmentId, "Great"));
+
+    const decoded = await decodeNote(wire({ encryptedContent, encryptedMood }));
+
+    expect(decoded.mood).toBe("Great");
+    expect(decoded).not.toHaveProperty("encryptedMood");
+    expect((await decodeNote(wire({ encryptedContent, encryptedMood: foreign }))).mood).toBeNull();
+    expect((await decodeNote(wire({ content: "plain", mood: "Bad" }))).mood).toBe("Bad");
+    expect((await decodeNote(wire({ content: "plain" }))).mood).toBeNull();
+  });
+
+  it("keeps a mood on this device encrypted for an end-to-end key, plain otherwise", async () => {
+    const sealed = await sealMoodForDevice(v.ids.noteId, "Okay");
+    expect(sealed.mood).toBeUndefined();
+    expect(await openMoodFromDevice(v.ids.noteId, sealed)).toBe("Okay");
+    expect(await openMoodFromDevice(v.ids.noteId, await sealMoodForDevice(v.ids.noteId, null))).toBeNull();
+    expect(await sealMoodForDevice(v.ids.noteId, undefined)).toEqual({});
+
+    setContentSession({ userId, mode: "Off", keys: null });
+    expect(await sealMoodForDevice(v.ids.noteId, "Bad")).toEqual({ mood: "Bad" });
+    expect(await openMoodFromDevice(v.ids.noteId, sealed)).toBeUndefined(); // locked: not readable now
   });
 });

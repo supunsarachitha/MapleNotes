@@ -52,8 +52,9 @@ public sealed class ConversionService(MapleDbContext db, NoteService notes, Atta
         foreach (var note in noteBatch)
         {
             convertNotes.Add(entering
-                ? new ConversionNote(note.Id, await notes.ReadContentAsync(note, cancellationToken), null, note.UpdatedAtUtc)
-                : new ConversionNote(note.Id, null, note.Content, note.UpdatedAtUtc));
+                ? new ConversionNote(note.Id, await notes.ReadContentAsync(note, cancellationToken), null, note.UpdatedAtUtc,
+                    note.Mood == NoteMood.None ? null : note.Mood)
+                : new ConversionNote(note.Id, null, note.Content, note.UpdatedAtUtc, EncryptedMood: note.EncryptedMood));
         }
 
         var attachmentBatch = noteBatch.Count >= take
@@ -61,7 +62,7 @@ public sealed class ConversionService(MapleDbContext db, NoteService notes, Atta
             : await pendingAttachments.OrderBy(a => a.CreatedAtUtc).ThenBy(a => a.Id).Take(take - noteBatch.Count).ToListAsync(cancellationToken);
         var convertAttachments = attachmentBatch
             .Select(a => entering
-                ? new ConversionAttachment(a.Id, a.FileName, a.ContentType, a.SizeBytes, null)
+                ? new ConversionAttachment(a.Id, a.FileName, a.ContentType, a.SizeBytes, null, a.IsSticker)
                 : new ConversionAttachment(a.Id, null, null, a.SizeBytes, a.EncryptedMetadata))
             .ToList();
         var room = take - noteBatch.Count - attachmentBatch.Count;
@@ -125,7 +126,7 @@ public sealed class ConversionService(MapleDbContext db, NoteService notes, Atta
                 throw new ApiValidationException("content", "The decrypted text is larger than the note.");
             }
 
-            await notes.ApplyPlainTextAsync(note, content, cancellationToken);
+            await notes.ApplyPlainTextAsync(note, content, cancellationToken, request.Mood);
         }
 
         await db.SaveChangesAsync(cancellationToken); // UpdatedAtUtc stays: converting is not editing
@@ -145,7 +146,8 @@ public sealed class ConversionService(MapleDbContext db, NoteService notes, Atta
         var attachment = await db.Attachments.SingleOrDefaultAsync(a => a.Id == attachmentId && a.UserId == userId, cancellationToken)
             ?? throw new ApiProblemException(StatusCodes.Status404NotFound, "The file no longer exists.");
         await attachments.ReplaceContentAsync(
-            attachment, file.Body, file.FileName, file.ContentType, file.Base64("metadata", EndToEndContent.MaxMetadataEnvelopeBytes), cancellationToken);
+            attachment, file.Body, file.FileName, file.ContentType, file.Base64("metadata", EndToEndContent.MaxMetadataEnvelopeBytes),
+            cancellationToken, file.Flag("sticker"));
         await cleanup.RunAsync(userId, cancellationToken);
         return true;
     }

@@ -36,6 +36,13 @@ public sealed class Attachment : IRevisioned
     /// </summary>
     public byte[]? EncryptedMetadata { get; set; }
 
+    /// <summary>
+    /// A sticker: a picture from a sticker pack, shown small above the note's other files rather than in its picture
+    /// grid. Only images can be stickers. For an end-to-end file this stays false and the flag travels inside
+    /// <see cref="EncryptedMetadata"/>, so the server does not learn it.
+    /// </summary>
+    public bool IsSticker { get; set; }
+
     /// <summary>When the file was uploaded (UTC).</summary>
     public DateTime CreatedAtUtc { get; set; }
 

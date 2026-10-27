@@ -15,9 +15,11 @@ namespace MapleNotes.Server.Features.Attachments;
 /// </param>
 /// <param name="CreatedAtUtc">When the file was uploaded.</param>
 /// <param name="EncryptedMetadata">For an end-to-end file: its name, type and size, for the browser to decrypt.</param>
+/// <param name="IsSticker">A sticker, shown small above the note's other files. Always false for an end-to-end file, whose
+/// flag is in its encrypted metadata.</param>
 public sealed record AttachmentResponse(
     Guid Id, string? FileName, string? ContentType, long SizeBytes, bool IsImage, string Url, DateTime CreatedAtUtc,
-    byte[]? EncryptedMetadata = null)
+    byte[]? EncryptedMetadata = null, bool IsSticker = false)
 {
     /// <summary>Maps an attachment entity to its API representation.</summary>
     /// <param name="attachment">The attachment.</param>
@@ -28,7 +30,7 @@ public sealed record AttachmentResponse(
         return attachment.Scheme == ContentScheme.EndToEnd
             ? new(attachment.Id, null, null, attachment.SizeBytes, false, url, attachment.CreatedAtUtc, attachment.EncryptedMetadata)
             : new(attachment.Id, attachment.FileName, attachment.ContentType, attachment.SizeBytes,
-                UploadPolicy.IsImage(attachment.ContentType), url, attachment.CreatedAtUtc);
+                UploadPolicy.IsImage(attachment.ContentType), url, attachment.CreatedAtUtc, IsSticker: attachment.IsSticker);
     }
 }
 

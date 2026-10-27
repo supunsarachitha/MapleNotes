@@ -1,16 +1,20 @@
 import { fromUtf8 } from "../crypto/encoding";
-import { LABEL_COLORS, type LabelColor, type NoteKind } from "../lib/types";
+import { isInlineImage } from "../lib/media";
+import { LABEL_COLORS, moodAllowed, parseMood, type LabelColor, type NoteKind, type NoteMood } from "../lib/types";
 import { readZip, type ZipEntry } from "./zip";
 
 // Reads what a restore brings in: Maple Notes export archives (every format and folder layout, with their
 // attachments) and single Markdown, text or JSON files. The formats are the ones the exporters write
 // (src/export/format.ts and the server's NoteFormatter.cs); the export's manifest.json lists every note with its ID,
-// so even plain-text exports restore under their original IDs.
+// so even plain-text exports restore under their original IDs. Falcon Notes writes the same formats, with a note's mood
+// and which of its pictures are stickers (written the same way by the exporters since 1.17).
 
 export interface ImportAttachment {
   name: string;
   type: string;
   size: number;
+  /** A sticker: the note's file lists it once more under stickers, and it is a picture. */
+  sticker: boolean;
   read(): Promise<Uint8Array>;
 }
 
@@ -28,6 +32,8 @@ export interface ImportItem {
   dailyDate: string | null;
   /** The names of its labels. */
   labels: string[];
+  /** Its mood; null for none, and always for a todo list or a habit. */
+  mood: NoteMood | null;
   attachments: ImportAttachment[];
   /** Attached files the note mentions that are not in the archive. */
   missing: string[];
@@ -98,8 +104,11 @@ interface ParsedNote {
   kind: NoteKind;
   dailyDate: string | null;
   labels: string[];
+  mood: NoteMood | null;
   /** Attachment paths relative to the note file, with their original names and types when the format keeps them. */
   attachments: Array<{ path: string; name?: string; type?: string }>;
+  /** The paths, as written among the attachments, of those that are stickers. */
+  stickers: string[];
 }
 
 const date = (value: unknown) => {
@@ -133,20 +142,25 @@ function parseMarkdown(text: string): ParsedNote | null {
   const end = text.indexOf("\n---\n", 3);
   if (end < 0) return null;
   const fields = new Map<string, string>();
-  const paths: string[] = [];
-  let inAttachments = false;
+  // The front matter's lists of paths: one "  - " item per line below their key, until the next key.
+  const lists = new Map<string, string[]>([
+    ["attachments", []],
+    ["stickers", []],
+  ]);
+  let list: string[] | undefined;
   for (const line of text.slice(4, end).split("\n")) {
     const item = /^ {2}- (.*)$/.exec(line);
-    if (inAttachments && item) {
+    if (list && item) {
       const path = jsonString(item[1]!);
-      if (path) paths.push(path);
+      if (path) list.push(path);
       continue;
     }
     const field = /^([a-z]+):\s?(.*)$/.exec(line);
     if (!field) continue;
-    inAttachments = field[1] === "attachments";
+    list = lists.get(field[1]!);
     fields.set(field[1]!, field[2]!);
   }
+  const paths = lists.get("attachments")!;
   if (!fields.has("created")) return null;
 
   let body = text.slice(end + 5);
@@ -172,7 +186,9 @@ function parseMarkdown(text: string): ParsedNote | null {
     kind: kind(fields.get("kind")),
     dailyDate: day(fields.get("daily")),
     labels: jsonNames(fields.get("labels")),
+    mood: parseMood(fields.get("mood")),
     attachments: paths.map((path, i) => ({ path, name: names.length === paths.length ? names[i] : undefined })),
+    stickers: lists.get("stickers")!,
   };
 }
 
@@ -184,10 +200,12 @@ function parsePlainText(text: string): ParsedNote | null {
   const body = split < 0 ? "" : text.slice(split + 2);
   const fields = new Map<string, string>();
   const paths: string[] = [];
+  const stickers: string[] = [];
   for (const line of header.split("\n")) {
     const field = /^([A-Za-z]+): (.*)$/.exec(line);
     if (!field) continue;
     if (field[1] === "Attachment") paths.push(field[2]!);
+    else if (field[1] === "Sticker") stickers.push(field[2]!);
     else fields.set(field[1]!, field[2]!);
   }
   const state = fields.get("State") ?? "";
@@ -202,7 +220,9 @@ function parsePlainText(text: string): ParsedNote | null {
     kind: kind(fields.get("Kind")),
     dailyDate: day(fields.get("Daily")),
     labels: jsonNames(fields.get("Labels")),
+    mood: parseMood(fields.get("Mood")),
     attachments: paths.map((path) => ({ path })),
+    stickers,
   };
 }
 
@@ -227,6 +247,8 @@ function parseJson(text: string): ParsedNote | null {
     kind: kind(note.kind),
     dailyDate: day(note.dailyDate),
     labels: names(note.labels),
+    mood: parseMood(note.mood),
+    stickers: names(note.stickers),
     attachments: attachments
       .filter((a) => typeof a.path === "string")
       .map((a) => ({
@@ -245,7 +267,20 @@ function parseNote(name: string, text: string, modified: Date): ParsedNote {
     extension === "json" ? parseJson(clean) : extension === "txt" ? parsePlainText(clean) : parseMarkdown(clean);
   if (parsed) return parsed;
   if (extension === "json") throw new Error("This JSON file is not a Maple Notes note.");
-  return { id: null, content: clean, createdAt: modified, updatedAt: modified, pinned: false, archived: false, kind: "Note", dailyDate: null, labels: [], attachments: [] };
+  return {
+    id: null,
+    content: clean,
+    createdAt: modified,
+    updatedAt: modified,
+    pinned: false,
+    archived: false,
+    kind: "Note",
+    dailyDate: null,
+    labels: [],
+    mood: null,
+    attachments: [],
+    stickers: [],
+  };
 }
 
 /** Resolves a path relative to a file inside the archive, e.g. ../attachments/x from 2026-09/note.md. */
@@ -264,6 +299,8 @@ const originalName = (path: string) => path.slice(path.lastIndexOf("/") + 1).rep
 function toItem(source: string, parsed: ParsedNote, fallbackTime: Date, entries: Map<string, ZipEntry> | null, manifest?: ManifestNote): ImportItem {
   const attachments: ImportAttachment[] = [];
   const missing: string[] = [];
+  // A sticker path that is not among the attachments is passed over, as Falcon Notes does.
+  const stickers = new Set(parsed.stickers.map((path) => resolve(source, path)));
   for (const attachment of parsed.attachments) {
     const path = resolve(source, attachment.path);
     const entry = entries?.get(path);
@@ -272,9 +309,11 @@ function toItem(source: string, parsed: ParsedNote, fallbackTime: Date, entries:
       continue;
     }
     const name = attachment.name ?? originalName(path);
-    attachments.push({ name, type: attachment.type ?? guessType(name), size: entry.size, read: () => entry.read() });
+    const type = attachment.type ?? guessType(name);
+    attachments.push({ name, type, size: entry.size, sticker: stickers.has(path) && isInlineImage(type), read: () => entry.read() });
   }
   const createdAt = parsed.createdAt ?? date(manifest?.createdAt) ?? fallbackTime;
+  const noteKind = manifest?.kind ? kind(manifest.kind) : parsed.kind;
   return {
     source,
     id: manifest?.id && UUID.test(manifest.id) ? manifest.id : parsed.id,
@@ -283,9 +322,10 @@ function toItem(source: string, parsed: ParsedNote, fallbackTime: Date, entries:
     updatedAt: parsed.updatedAt ?? createdAt,
     pinned: parsed.pinned,
     archived: parsed.archived || manifest?.archived === true,
-    kind: manifest?.kind ? kind(manifest.kind) : parsed.kind,
+    kind: noteKind,
     dailyDate: parsed.dailyDate ?? day(manifest?.dailyDate),
     labels: parsed.labels.length > 0 ? parsed.labels : names(manifest?.labels),
+    mood: moodAllowed(noteKind) ? parsed.mood : null,
     attachments,
     missing,
   };

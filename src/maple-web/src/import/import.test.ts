@@ -76,14 +76,79 @@ describe("restoring an export", () => {
       expect(item.updatedAt.getTime()).toBe(format === "txt" && !edited ? seconds(note.createdAtUtc) : seconds(note.updatedAtUtc));
       expect([item.pinned, item.archived, item.kind, item.dailyDate]).toEqual([note.isPinned, note.isArchived, note.kind, note.dailyDate ?? null]);
       expect([...item.labels].sort()).toEqual((note.labelIds ?? []).map((id) => labelNames.get(id)!).sort());
+      expect(item.mood).toBe(note.mood ?? null);
       expect(item.missing).toEqual([]);
       const expected = withFiles ? note.attachments : [];
       expect(item.attachments.map((a) => a.name)).toEqual(expected.map((a) => (format === "txt" ? safeFileName(a.fileName) : a.fileName)));
       if (format === "json") expect(item.attachments.map((a) => a.type)).toEqual(expected.map((a) => a.contentType));
+      expect(item.attachments.map((a) => a.sticker)).toEqual(expected.map((a) => a.isSticker === true));
       for (const [i, attachment] of item.attachments.entries()) {
         expect([...(await attachment.read())]).toEqual([...fromBase64(files[expected[i]!.id]!)]);
       }
     }
+  });
+
+  it("restores the moods and stickers in every format", () => {
+    // The dataset has a note with a mood and a sticker, and a quick note with a mood (ExportVectorTests.cs).
+    expect(notes.filter((n) => n.mood).map((n) => [n.kind, n.mood])).toEqual(expect.arrayContaining([["Note", "Great"], ["Quick", "Bad"]]));
+    expect(notes.flatMap((n) => n.attachments).filter((a) => a.isSticker)).toHaveLength(1);
+  });
+
+  it("reads Falcon Notes files with moods and stickers, in any case, and passes over what it does not know", async () => {
+    const markdown = [
+      "---",
+      "id: 0192f3a2-0000-7000-8000-0000000000aa",
+      "kind: note",
+      "created: 2026-10-14T09:00:00+02:00",
+      "updated: 2026-10-14T09:00:00+02:00",
+      "tags: []",
+      "labels: []",
+      "pinned: false",
+      "archived: false",
+      "mood: GOOD",
+      "attachments:",
+      '  - "../attachments/aaaaaaaa_sun.webp"',
+      '  - "../attachments/bbbbbbbb_menu.pdf"',
+      "stickers:",
+      '  - "../attachments/aaaaaaaa_sun.webp"',
+      '  - "../attachments/bbbbbbbb_menu.pdf"',
+      '  - "../attachments/cccccccc_gone.png"',
+      "---",
+      "",
+      "A sunny day",
+      "",
+    ].join("\n");
+    const text = "Created: 2026-10-14T10:00:00+02:00\nKind: todo\nMood: great\n\n- [ ] a todo list has no mood\n";
+    const json = JSON.stringify({ id: "0192f3a2-0000-7000-8000-0000000000bb", kind: "quick", createdAt: "2026-10-14T11:00:00+02:00", updatedAt: "2026-10-14T11:00:00+02:00", pinned: false, archived: false, mood: "ecstatic", content: "later moods are none", attachments: [] });
+    const quick = "Created: 2026-10-14T12:00:00+02:00\nKind: quick\nMood: Awful\nAttachment: ../attachments/dddddddd_cat.png\nSticker: ../attachments/dddddddd_cat.png\n\nmeh\n";
+    const zip = new File(
+      [
+        zipSync({
+          "2026/a.md": strToU8(markdown),
+          "2026/b.txt": strToU8(text),
+          "2026/c.json": strToU8(json),
+          "2026/d.txt": strToU8(quick),
+          "attachments/aaaaaaaa_sun.webp": new Uint8Array([1]),
+          "attachments/bbbbbbbb_menu.pdf": new Uint8Array([2]),
+          "attachments/dddddddd_cat.png": new Uint8Array([3]),
+        }),
+      ],
+      "falcon.zip",
+    );
+
+    const plan = await readImport([zip]);
+
+    expect(plan.problems).toEqual([]);
+    expect(plan.items.map((i) => [i.source, i.kind, i.mood])).toEqual([
+      ["2026/a.md", "Note", "Good"],
+      ["2026/b.txt", "Todo", null],
+      ["2026/c.json", "Quick", null],
+      ["2026/d.txt", "Quick", "Awful"],
+    ]);
+    // Only pictures among the note's own files become stickers.
+    expect(plan.items[0]!.attachments.map((a) => [a.name, a.sticker])).toEqual([["sun.webp", true], ["menu.pdf", false]]);
+    expect(plan.items[0]!.missing).toEqual([]);
+    expect(plan.items[3]!.attachments.map((a) => [a.name, a.sticker])).toEqual([["cat.png", true]]);
   });
 
   it("reads single note files and archives without a manifest", async () => {
@@ -120,7 +185,8 @@ describe("running a restore", () => {
     kind: "Note",
     dailyDate: null,
     labels,
-    attachments: Array.from({ length: attachments }, (_, i) => ({ name: `f${i}.png`, type: "image/png", size: 1, read: async () => new Uint8Array([i]) })),
+    mood: null,
+    attachments: Array.from({ length: attachments }, (_, i) => ({ name: `f${i}.png`, type: "image/png", size: 1, sticker: i === 1, read: async () => new Uint8Array([i]) })),
     missing: [],
   });
 
@@ -219,6 +285,7 @@ describe("running a restore", () => {
       [null, []],
     ]);
     expect(api.deleteAttachment).toHaveBeenCalledWith("upload-3"); // the failed note's file is removed again
+    expect(upload.mock.calls.map((call) => (call as unknown[])[3])).toEqual([{ sticker: false }, { sticker: true }, { sticker: false }]); // stickers stay stickers
     expect(result).toMatchObject({ total: 4, done: 4, imported: 2, skipped: 1, files: 2, failed: [{ source: "bad.md", reason: "Write something or attach a file." }] });
     expect(updates).toEqual([0, 1, 2, 3, 4]);
   });

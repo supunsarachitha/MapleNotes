@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from "react";
-import { Paperclip, X, FileText, AlertCircle } from "lucide-react";
+import { Paperclip, X, FileText, AlertCircle, Smile, Sticker as StickerIcon } from "lucide-react";
 import { api, ApiError, uploadAttachment } from "../lib/api";
 import { AttachmentThumbnail } from "./AttachmentGallery";
 import { applyFormat, FormatToolbar, shortcutFormat } from "./FormatToolbar";
@@ -11,7 +11,10 @@ import { shrinkPhoto } from "../lib/shrinkPhoto";
 import { useInvalidateNotes } from "../lib/queries";
 import { saveDailyNote } from "../lib/daily";
 import { joinTitle, splitTitle } from "../lib/titles";
-import type { Attachment, Note, NoteKind } from "../lib/types";
+import { StickerPackError, stickerFile, stickersAllowed, stickerFileName, type Sticker } from "../lib/stickers";
+import { moodAllowed, type Attachment, type Note, type NoteKind, type NoteMood } from "../lib/types";
+import { MOOD_EMOJI, MoodPicker } from "./MoodPicker";
+import { StickerPicker } from "./StickerPicker";
 import { useTagSuggestions } from "./TagSuggestions";
 import { useToast } from "./Toaster";
 import { Button, IconButton, cn } from "./ui";
@@ -27,6 +30,8 @@ interface ComposerFile {
   progress: number;
   attachment?: Attachment;
   error?: string;
+  /** A sticker from a sticker pack: shown whole, not cropped. */
+  sticker?: boolean;
   /** Already attached to the note being edited (so not deleted when the edit is cancelled). */
   existing: boolean;
   abort?: AbortController;
@@ -44,6 +49,7 @@ function fromAttachment(attachment: Attachment): ComposerFile {
     previewUrl: attachment.isImage && !attachment.endToEnd ? attachment.url : undefined,
     progress: 1,
     attachment,
+    sticker: attachment.isSticker === true,
     existing: true,
   };
 }
@@ -53,6 +59,8 @@ function fromAttachment(attachment: Attachment): ComposerFile {
  * posting is instant; the note only references their IDs. With note titles on, a title field is shown; the title is
  * saved as the note's first line, as a heading (see lib/titles.ts), and may start with today's date. Editing starts
  * with the caret at the end of the text, and with tag suggestions on, existing tags are offered while a #tag is typed.
+ * With the mood tracker on, a smiley button chooses the note's mood; with stickers on, a sticker button adds stickers
+ * from the packs in this browser (notes and quick notes only, as in Falcon Notes).
  */
 export function Composer({
   note,
@@ -89,12 +97,18 @@ export function Composer({
   const [files, setFiles] = useState<ComposerFile[]>(() => note?.attachments.map(fromAttachment) ?? []);
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [mood, setMood] = useState<NoteMood | null>(note?.mood ?? null);
+  const [picker, setPicker] = useState<"mood" | "stickers" | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const invalidateNotes = useInvalidateNotes();
   const toast = useToast();
   const suggestions = useTagSuggestions(textarea, setText, preferences.tagSuggestions);
   const editing = note !== undefined;
+  const noteKind = note?.kind ?? kind;
+  const offersMood = preferences.moodTracker && moodAllowed(noteKind);
+  const offersStickers = preferences.stickers && stickersAllowed(noteKind);
+  const pickerId = editing ? `edit-${note.id}` : "composer";
 
   // Grow the text box with its content, up to a comfortable maximum.
   useLayoutEffect(() => {
@@ -168,6 +182,29 @@ export function Composer({
     }
   }
 
+  // The picture is copied from its pack into the note's files, so the note keeps it if the pack is removed.
+  function addSticker(sticker: Sticker) {
+    const key = `new-${nextKey++}`;
+    const abort = new AbortController();
+    setFiles((current) => [
+      ...current,
+      { key, name: stickerFileName(sticker), size: 0, isImage: true, sticker: true, progress: 0, existing: false, abort },
+    ]);
+    const send = async () => {
+      const file = await stickerFile(sticker);
+      if (!file) throw new StickerPackError("This sticker's pack was removed.");
+      update(key, { size: file.size, previewUrl: URL.createObjectURL(file) });
+      abort.signal.throwIfAborted();
+      return uploadAttachment(file, (progress) => update(key, { progress }), abort.signal, { sticker: true });
+    };
+    send()
+      .then((attachment) => update(key, { attachment, progress: 1 }))
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        update(key, { error: error instanceof ApiError || error instanceof StickerPackError ? error.message : "Could not add this sticker." });
+      });
+  }
+
   function removeFile(file: ComposerFile) {
     file.abort?.abort();
     if (file.previewUrl?.startsWith("blob:")) URL.revokeObjectURL(file.previewUrl);
@@ -180,10 +217,17 @@ export function Composer({
     if (!canSave) return;
     setSaving(true);
     try {
-      if (editing) await api.updateNote(note.id, content, attachmentIds, note);
-      else if (daily) await saveDailyNote(daily.date, daily.title, text, attachmentIds);
-      else if (kind === "Note") await api.createNote(content, attachmentIds);
-      else await api.createNote(content, attachmentIds, { kind });
+      // Without the mood tracker, an edit keeps the note's mood as it is.
+      const chosen = offersMood ? mood : undefined;
+      if (editing) {
+        if (chosen === undefined) await api.updateNote(note.id, content, attachmentIds, note);
+        else await api.updateNote(note.id, content, attachmentIds, note, chosen);
+      } else if (daily) await saveDailyNote(daily.date, daily.title, text, attachmentIds, chosen ?? undefined);
+      else {
+        const options = { ...(kind === "Note" ? {} : { kind }), ...(chosen ? { mood: chosen } : {}) };
+        if (Object.keys(options).length > 0) await api.createNote(content, attachmentIds, options);
+        else await api.createNote(content, attachmentIds);
+      }
       await invalidateNotes();
       if (!editing) {
         const next = suggestTitle();
@@ -191,6 +235,8 @@ export function Composer({
         setTitle(next);
         setText("");
         setFiles([]);
+        setMood(null);
+        setPicker(null);
       }
       onDone?.();
     } catch (error) {
@@ -307,7 +353,7 @@ export function Composer({
               title={`${file.name} (${formatBytes(file.size)})`}
             >
               {file.previewUrl ? (
-                <img src={file.previewUrl} alt={file.name} className="size-full object-cover" />
+                <img src={file.previewUrl} alt={file.name} className={file.sticker ? "size-full object-contain p-1" : "size-full object-cover"} />
               ) : file.attachment?.endToEnd && file.attachment.isImage ? (
                 <AttachmentThumbnail attachment={file.attachment} />
               ) : (
@@ -341,6 +387,18 @@ export function Composer({
         </ul>
       )}
 
+      {offersMood && picker === "mood" && (
+        <MoodPicker
+          id={`${pickerId}-mood`}
+          value={mood}
+          onChange={(next) => {
+            setMood(next);
+            setPicker(null);
+          }}
+        />
+      )}
+      {offersStickers && picker === "stickers" && <StickerPicker id={`${pickerId}-stickers`} onChoose={addSticker} />}
+
       <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2 dark:border-stone-800">
         <input
           ref={fileInput}
@@ -355,6 +413,32 @@ export function Composer({
         <IconButton label="Attach files" onClick={() => fileInput.current?.click()}>
           <Paperclip className="size-5" />
         </IconButton>
+        {offersMood && (
+          <IconButton
+            label={mood ? `Mood: ${mood}` : "Mood"}
+            aria-expanded={picker === "mood"}
+            aria-controls={`${pickerId}-mood`}
+            onClick={() => setPicker((open) => (open === "mood" ? null : "mood"))}
+          >
+            {mood ? (
+              <span aria-hidden="true" className="text-xl leading-none">
+                {MOOD_EMOJI[mood]}
+              </span>
+            ) : (
+              <Smile className="size-5" />
+            )}
+          </IconButton>
+        )}
+        {offersStickers && (
+          <IconButton
+            label="Stickers"
+            aria-expanded={picker === "stickers"}
+            aria-controls={`${pickerId}-stickers`}
+            onClick={() => setPicker((open) => (open === "stickers" ? null : "stickers"))}
+          >
+            <StickerIcon className="size-5" />
+          </IconButton>
+        )}
         {content.length > MAX_LENGTH * 0.9 && (
           <span className={cn("text-xs", content.length > MAX_LENGTH ? "text-red-700" : "text-stone-500")}>
             {content.length.toLocaleString()} / {MAX_LENGTH.toLocaleString()}
