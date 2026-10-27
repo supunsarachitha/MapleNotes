@@ -4,7 +4,7 @@ import { api, ApiError } from "./api";
 import { formatDate, localDateKey } from "./dates";
 import { usePreferences } from "./preferences";
 import { joinTitle, splitTitle } from "./titles";
-import type { Note } from "./types";
+import type { Note, NoteMood } from "./types";
 
 /** Today's date on this device, updated when the day changes while the app is open. */
 export function useToday(): Date {
@@ -50,16 +50,17 @@ export function useDailyTemplate() {
 
 /**
  * Saves the first words of a day's note, titled with the date. If another device started the day's note in the
- * meantime, the words are added to that note instead.
+ * meantime, the words are added to that note instead, with their mood when one was chosen (otherwise the note keeps its own).
  */
-export async function saveDailyNote(date: string, title: string, body: string, attachmentIds: string[]): Promise<Note> {
+export async function saveDailyNote(date: string, title: string, body: string, attachmentIds: string[], mood?: NoteMood): Promise<Note> {
   try {
-    return await api.createNote(joinTitle(title, body), attachmentIds, { dailyDate: date });
+    return await api.createNote(joinTitle(title, body), attachmentIds, mood ? { dailyDate: date, mood } : { dailyDate: date });
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 409) throw error;
     const existing = await api.dailyNote(date);
     if (!existing) throw error;
     const ids = [...existing.attachments.map((attachment) => attachment.id), ...attachmentIds];
-    return api.updateNote(existing.id, body.trim() ? `${existing.content.trimEnd()}\n\n${body}` : existing.content, ids, existing);
+    const content = body.trim() ? `${existing.content.trimEnd()}\n\n${body}` : existing.content;
+    return mood ? api.updateNote(existing.id, content, ids, existing, mood) : api.updateNote(existing.id, content, ids, existing);
   }
 }

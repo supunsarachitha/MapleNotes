@@ -32,6 +32,7 @@ import { Composer } from "./Composer";
 import { LabelChips, LabelPicker } from "./Labels";
 import { LinkPreviews } from "./LinkPreviews";
 import { Markdown } from "./Markdown";
+import { MoodBadge } from "./MoodPicker";
 import { useRemoveNote } from "./NoteRemoval";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
@@ -76,7 +77,7 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
   const [choosingLabels, setChoosingLabels] = useState(false);
   const patch = usePatchNote();
   const toast = useToast();
-  const { noteTitles, quickNoteTitles, quickNotes, linkPreviews, archive, doubleTapToEdit, labels, dailyNotes, dailyNoteTemplate } =
+  const { noteTitles, quickNoteTitles, quickNotes, linkPreviews, archive, doubleTapToEdit, labels, dailyNotes, dailyNoteTemplate, moodTracker } =
     usePreferences();
   const updatePreferences = useUpdatePreferences();
   const isTemplate = note.id === dailyNoteTemplate;
@@ -131,6 +132,7 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
           {formatRelative(note.createdAtUtc)}
         </time>
         {edited && <span title={`Edited ${formatAbsolute(note.updatedAtUtc)}`}>· edited</span>}
+        {moodTracker && note.mood && <MoodBadge mood={note.mood} />}
         {showKind && note.kind !== "Note" && (
           <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-300">
             {note.kind === "Todo" ? "Todo list" : "Quick note"}
