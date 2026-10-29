@@ -1,0 +1,9 @@
+title = "gitleaks allowlist for test-vector fixtures"
+
+# test-vectors.json is a byte-level crypto test vector file: it contains
+# deterministic, throwaway key material that gitleaks' generic-api-key rule
+# flags but is not a real secret. See docs/security review notes in repos.md.
+[allowlist]
+  paths = [
+    "src/maple-web/src/crypto/test-vectors.json",
+  ]
