@@ -1,0 +1,15 @@
+# Keeps the GitHub Actions used by the workflows up to date. The workflows pin each action to a full commit SHA
+# (with the release tag as a comment) so a moved tag cannot change what CI runs; Dependabot updates the SHA and the
+# comment together. Security updates for npm and NuGet are separate and keep working as before.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - dependencies
