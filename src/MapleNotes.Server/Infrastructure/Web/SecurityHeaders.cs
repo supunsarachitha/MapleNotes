@@ -25,14 +25,27 @@ internal static class SecurityHeaders
     public const string AttachmentContentSecurityPolicy = "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox";
 
     /// <summary>
+    /// Content-Security-Policy for the optional interactive API reference (<c>/scalar</c>). The page configures itself
+    /// with an inline script, so inline scripts and styles are allowed here, but everything else stays as strict as the
+    /// application's policy: code only from this origin, requests only to this origin, no plugins, no framing.
+    /// </summary>
+    public const string ApiReferenceContentSecurityPolicy =
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
+        "font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
+
+    /// <summary>
     /// Adds the headers. Responses that already set a Content-Security-Policy (attachments) keep theirs. The optional
-    /// API reference page needs inline scripts, so it gets no policy. API responses are not stored by browsers
+    /// API reference page (<c>/scalar</c>) needs inline scripts, so it gets its own, looser policy, but only while the
+    /// reference is switched on: otherwise <c>/scalar</c> is an ordinary unknown route that serves the web app, which
+    /// must keep the application policy. Every other response, including the OpenAPI document, gets the application
+    /// policy. API responses are not stored by browsers
     /// (<c>Cache-Control: no-store</c>) unless they choose their own caching: they carry decrypted notes, and while an
     /// account changes to end-to-end encryption, plain text that must not linger on disk.
     /// </summary>
     /// <param name="app">The application pipeline.</param>
+    /// <param name="apiReferenceEnabled">Whether the interactive API reference is mapped at <c>/scalar</c>.</param>
     /// <returns>The same pipeline.</returns>
-    public static IApplicationBuilder UseMapleSecurityHeaders(this IApplicationBuilder app) =>
+    public static IApplicationBuilder UseMapleSecurityHeaders(this IApplicationBuilder app, bool apiReferenceEnabled) =>
         app.Use(async (context, next) =>
         {
             context.Response.OnStarting(() =>
@@ -50,10 +63,11 @@ internal static class SecurityHeaders
                     headers.CacheControl = "no-store";
                 }
 
-                var isApiReference = context.Request.Path.StartsWithSegments("/scalar") || context.Request.Path.StartsWithSegments("/openapi");
-                if (!headers.ContainsKey(HeaderNames.ContentSecurityPolicy) && !isApiReference)
+                if (!headers.ContainsKey(HeaderNames.ContentSecurityPolicy))
                 {
-                    headers.ContentSecurityPolicy = AppContentSecurityPolicy;
+                    headers.ContentSecurityPolicy = apiReferenceEnabled && context.Request.Path.StartsWithSegments("/scalar")
+                        ? ApiReferenceContentSecurityPolicy
+                        : AppContentSecurityPolicy;
                 }
 
                 return Task.CompletedTask;

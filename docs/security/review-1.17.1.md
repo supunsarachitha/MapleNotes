@@ -19,46 +19,40 @@
 
 ## 2. Summary
 
-The codebase is already strongly hardened. **No critical or high-severity issue was found in the application code.** One low-to-medium defence-in-depth gap was found in the server. There are also two supply-chain items.
+The codebase is already strongly hardened. **No critical or high-severity issue was found in the application code.** One low-severity hardening gap was found in the server (first reported as low–medium; corrected in phase 1). There are also two supply-chain items.
 
 | # | Finding | Severity | Area |
 |---|---------|----------|------|
-| F1 | Pages under `/scalar` and `/openapi` are served **without a Content-Security-Policy**, including the main web app when API docs are disabled | Low–Medium | Server headers |
+| F1 | The optional API reference page (`/scalar`) is served with **no Content-Security-Policy** when enabled, and the header code exempts `/openapi` for no reason | Low (opt-in feature, hardening) | Server headers |
 | F2 | `undici` (dev/test dependency) has known high-severity advisories | Low (build-time only) | Web dependencies |
 | F3 | GitHub Actions are pinned to mutable tags (`@v7`), not commit SHAs, in a workflow that pushes Docker images | Low | CI supply chain |
 
 ## 3. Findings
 
-### F1: CSP skipped for `/scalar` and `/openapi` paths
+### F1: No CSP on the API reference page (corrected during phase 1)
 
 **Where:**
-- `src/MapleNotes.Server/Infrastructure/Web/SecurityHeaders.cs`, lines 53–57
-- `src/MapleNotes.Server/Program.cs`, lines 90–105
+- `src/MapleNotes.Server/Infrastructure/Web/SecurityHeaders.cs`
+- `src/MapleNotes.Server/Program.cs`
 
 **What happens:**
-- The security-header middleware skips the app Content-Security-Policy for any request path starting with `/scalar` or `/openapi`. It does this because the optional API reference page needs inline scripts.
-- The skip is unconditional. It applies even when the API reference is **disabled**, which is the default in production (`MAPLE_API_DOCS` unset).
-- In that case `/scalar` and `/openapi/...` are not mapped. The request falls through to `MapFallbackToFile("index.html")`.
-- The result is that the **full Maple Notes web app is served without its CSP** at URLs such as `https://notes.example/scalar` or `https://notes.example/scalar/anything`.
+- The security-header middleware skipped the Content-Security-Policy for every path starting with `/scalar` or `/openapi`.
+- When the interactive API reference is switched on (Development or `MAPLE_API_DOCS=true`, off by default), the Scalar page ran with no policy at all, on the same origin as the user's session.
+- `/openapi/v1.json` is a JSON document. It never needed an exemption.
 
-**Impact:**
-- The CSP (`script-src 'self'`, `connect-src 'self'`, `frame-ancestors 'none'` …) is the main safety net if an HTML/script injection bug ever appears in the web app.
-- An attacker who finds such a bug can send a victim a `/scalar/...` link to get the app running with no CSP. Decrypted notes and the end-to-end key material in the browser would then be exposed.
-- `X-Frame-Options: DENY` is still sent, so clickjacking stays blocked.
-- **No exploitable injection was found today.** This is a defence-in-depth gap, not a live exploit.
-- When API docs **are** enabled, the Scalar page itself also runs with no CSP on the same origin as the app session.
+**Correction to the first draft:** the first draft said that with API docs off, `/scalar/...` served the full web app without its CSP. Tests in phase 1 showed this is **not** the case. The SPA fallback rewrites the request path to `/index.html` before the headers are written, so the app policy was still applied. The real gap is limited to the opt-in reference page, so severity is lowered to **Low (hardening)**.
 
-**Fix:**
-1. Exempt `/scalar` and `/openapi` from the app CSP **only when the API reference is actually enabled**. Read the same `IsDevelopment() || ApiDocs` condition used in `Program.cs`.
-2. Even when enabled, give the reference page its own restrictive CSP rather than none. Allow `'unsafe-inline'` only for scripts and styles, keep `connect-src 'self'`, `frame-ancestors 'none'` and `object-src 'none'`, and keep the default `img-src`.
-3. Add server tests:
-   - With API docs off, `GET /scalar` and `GET /scalar/x` return the app CSP header.
-   - With API docs on, `GET /scalar` returns the reference-page CSP, not none.
-4. Update `docs/threat-model.md` (security headers section) to describe the behaviour.
+**Fix (done in phase 1):**
+1. The reference page gets its own policy, `ApiReferenceContentSecurityPolicy`. It allows the page's single inline script, but loads code only from this origin, allows `connect-src 'self'`, sets `object-src 'none'` and `frame-ancestors 'none'`.
+2. The exemption applies only when the reference is actually enabled, so it no longer depends on the fallback's path rewrite.
+3. `/openapi` is no longer exempt and gets the app policy.
+4. Tests:
+   - The app policy is kept on `/scalar`, `/scalar/v1`, `/openapi/v1.json` and `/openapi/anything` when the reference is off.
+   - The reference page gets its own policy when on.
+   - The OpenAPI document gets the app policy.
+5. `docs/threat-model.md` describes the behaviour.
 
-**Acceptance:**
-- No HTML response from the server lacks a `Content-Security-Policy` header.
-- The new tests pass and the existing suite stays green.
+**Acceptance:** every server response carries a `Content-Security-Policy` header, and the full server test suite is green.
 
 ### F2: `undici` advisories (dev dependency)
 
@@ -127,7 +121,7 @@ The codebase is already strongly hardened. **No critical or high-severity issue 
 
 | Phase | Work | Deliverable |
 |-------|------|-------------|
-| 1 | F1 server fix + tests + threat-model note | Commit on `release-1.17.1`, `dotnet test` green in CI |
+| 1 | F1 reference-page CSP + tests + threat-model note (done) | Commit on `release-1.17.1`, `dotnet test` green in CI |
 | 2 | F2 undici bump (or merge #46 first and rebase) | `npm audit` clean, web tests/build green |
 | 3 | F3 pin actions to SHAs + Dependabot for actions | CI passes on the branch |
 | 4 | Version bump 1.17.0 → 1.17.1 (`Directory.Build.props`, `Dockerfile`, `package.json`, lock file) + CHANGELOG "Security" entry | PR `release-1.17.1` → `main` |
