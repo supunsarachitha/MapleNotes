@@ -1,0 +1,60 @@
+# Tags each release automatically. On every push to main, reads <Version> from Directory.Build.props and, when the
+# tag vX.Y.Z does not exist yet, creates it on that commit. A release PR that bumps the version therefore gets its tag
+# as soon as it merges; any other push to main finds the tag already there and does nothing.
+#
+# Tags pushed with GITHUB_TOKEN do not start other workflows, so this workflow then starts CI on the new tag itself
+# (workflow_dispatch). CI builds and publishes the container image tagged with the version, as a manual tag push would.
+name: Release tag
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag the version on main
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # push the tag
+      actions: write # start CI on the tag
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Read the version
+        id: version
+        run: |
+          version=$(grep -oP '<Version>\K[^<]+' Directory.Build.props | head -n 1)
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error file=Directory.Build.props::<Version> is '$version', not X.Y.Z"
+            exit 1
+          fi
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create the tag if it is missing
+        id: create
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "$TAG already exists; nothing to do."
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
+          echo "Tagged $GITHUB_SHA as $TAG."
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the versioned image
+        if: steps.create.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"

@@ -5,6 +5,8 @@ on:
     branches: [main]
     tags: ["*"]
   pull_request:
+  # Started by release-tag.yml on a tag it has just created (tags pushed by workflows do not trigger "push").
+  workflow_dispatch:
 
 permissions:
   contents: read
