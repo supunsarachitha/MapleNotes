@@ -22,7 +22,9 @@ Cloud sessions run `.claude/hooks/session-start.sh`, which installs the .NET SDK
   `/opt/pw-browsers`.
 
 CI (`.github/workflows/ci.yml`) runs the server build and tests, the web type check, tests and build, and
-`python3 scripts/check-licenses.py`.
+`python3 scripts/check-licenses.py`. `.github/workflows/release-tag.yml` tags `vX.Y.Z` from `<Version>` in
+`Directory.Build.props` when a new version reaches `main`, then starts CI on the tag to publish the versioned image: bump
+the version in the release PR and do not tag by hand.
 
 ## Things that must stay in step
 
