@@ -6,11 +6,12 @@
 
 <p align="center">
   A self-hosted place for quick notes, encrypted at rest or end to end.<br>
-  Timeline feed · todo lists · daily notes · habit tracker · Markdown and #tags · attachments · export and restore · one Docker container.
+  Timeline feed · todo lists · daily notes · habit tracker · moods and stickers · Markdown and #tags · attachments · export and restore · one Docker container.
 </p>
 
 <p align="center">
   <a href="https://github.com/supunsarachitha/MapleNotes/actions/workflows/ci.yml"><img src="https://github.com/supunsarachitha/MapleNotes/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/github/v/tag/supunsarachitha/MapleNotes?label=release&sort=semver" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/.NET-10%20LTS-512BD4" alt=".NET 10 LTS">
   <img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-8f1d21" alt="License: PolyForm Noncommercial 1.0.0">
 </p>
@@ -84,11 +85,10 @@
   account sees its own usage against it; anything that would pass it is refused, and nothing already stored is lost.
 - **Help built in.** A user guide in the app explains every feature, and works offline.
 - **Accounts.** Multiple users with secure authentication, each with a display name of their choice, and optional
-  two-factor sign-in with an authenticator app and single-use recovery codes. The first
-  account becomes the administrator, who can give the app its own name and icon, open registration, limit each
-  account's storage, choose how long devices stay signed in (30 to 400 days), disable or remove accounts, turn off
-  two-factor sign-in for someone who lost their phone, and appoint other administrators. Administrators never see anyone's
-  notes.
+  two-factor sign-in with an authenticator app and single-use recovery codes. The first account becomes the
+  administrator, who can give the app its own name and icon, open registration, limit each account's storage, choose
+  how long devices stay signed in (30 to 400 days), disable or remove accounts, turn off two-factor sign-in for someone
+  who lost their phone, and appoint other administrators. Administrators never see anyone's notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
   in its own window, with the app's name and icon (or the ones an administrator chose).
@@ -643,8 +643,9 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 - If you lose both your password and your recovery key, end-to-end encrypted notes cannot be recovered by anyone.
 
 Details: [docs/threat-model.md](docs/threat-model.md), [docs/architecture.md](docs/architecture.md#cryptography) and
-[docs/e2ee-spec.md](docs/e2ee-spec.md). The latest security review, with its open findings, is
-[docs/security-audit-2026-10.md](docs/security-audit-2026-10.md).
+[docs/e2ee-spec.md](docs/e2ee-spec.md). Security reviews: the full audit of 1.10.1, with its open findings, is
+[docs/security-audit-2026-10.md](docs/security-audit-2026-10.md); the latest review, for 1.17.1, is
+[docs/security/review-1.17.1.md](docs/security/review-1.17.1.md).
 
 ### Forgotten passwords
 

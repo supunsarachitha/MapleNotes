@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.1] - 2026-10-29
+
+Security hardening. Nothing changes in how Maple Notes behaves for people using it.
+
+### Security
+
+- **API reference page has its own Content-Security-Policy.** The optional interactive API reference (`/scalar`,
+  shown in Development or with `MAPLE_API_DOCS=true`) used to be served with no policy at all. It now gets a policy
+  that allows its one inline script but loads code only from this origin, sends requests only to this origin and cannot
+  be framed. The exemption applies only while the reference is switched on, and the OpenAPI document
+  (`/openapi/v1.json`) is no longer exempt from the application policy. The web app itself always had its strict policy.
+- undici 8.11.2 → 8.12.3, which fixes several advisories, including
+  [GHSA-4qv8-2p9j-2685](https://github.com/advisories/GHSA-4qv8-2p9j-2685) and
+  [GHSA-f72v-6w45-q472](https://github.com/advisories/GHSA-f72v-6w45-q472). It is used only by the test tools and was
+  never part of the app or the container image.
+
+### Changed
+
+- CI: every GitHub Action is pinned to a full commit SHA, so a moved tag cannot change what builds and publishes the
+  container image. Dependabot now keeps the actions up to date.
+
 ## [1.17.0] - 2026-10-26
 
 ### Added
@@ -601,7 +622,9 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.16.1...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.17.1...HEAD
+[1.17.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.17.0...v1.17.1
+[1.17.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.16.1...v1.17.0
 [1.16.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.16.0...v1.16.1
 [1.16.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.12.0...v1.15.0

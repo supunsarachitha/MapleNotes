@@ -96,7 +96,11 @@ access as the user.
 
 Defences:
 - Markdown is rendered without raw HTML.
-- The Content-Security-Policy allows scripts only from the app's origin: no inline script and no `eval`.
+- The Content-Security-Policy allows scripts only from the app's origin: no inline script and no `eval`. Every
+  response carries a policy. The one exception to the strict policy is the optional interactive API reference
+  (`/scalar`, Development or `MAPLE_API_DOCS=true`), which needs one inline script: it gets its own policy that allows
+  inline scripts but still loads code only from this origin, sends requests only to this origin and cannot be framed.
+  When the reference is off, `/scalar` is an ordinary route that serves the app with the strict policy.
 - Attachments are served with `nosniff` and a sandboxing policy, and anything that is not passive media is sent as a
   download. Neither the server nor the media service worker ever renders an uploaded file as part of the app.
 - A custom app icon must be a PNG, JPEG or WebP image, checked by its content, and is served with the same sandboxing

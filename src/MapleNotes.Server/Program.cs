@@ -68,8 +68,11 @@ if (args is ["backup"])
     }
 }
 
+// Interactive API reference (/scalar) and OpenAPI document (/openapi/v1.json): Development, or when switched on.
+var apiReferenceEnabled = app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>(MapleOptions.ApiDocsKey);
+
 app.UseForwardedHeaders();
-app.UseMapleSecurityHeaders();
+app.UseMapleSecurityHeaders(apiReferenceEnabled);
 app.UseExceptionHandler();
 if (!app.Environment.IsDevelopment())
 {
@@ -87,8 +90,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/healthz");
 
-// Interactive API reference (/scalar) and OpenAPI document (/openapi/v1.json).
-if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>(MapleOptions.ApiDocsKey))
+if (apiReferenceEnabled)
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
