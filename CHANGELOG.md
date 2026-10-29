@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI: releases are tagged automatically. When a push to `main` carries a new `<Version>` in `Directory.Build.props`,
   the `Release tag` workflow creates the `vX.Y.Z` tag and starts CI on it, which publishes the versioned container
   image.
+- CI: the Dependabot version-update file added in 1.17.1 is removed again. Version updates stay off (security
+  pull requests are unaffected); the monthly maintenance routine keeps the pinned actions up to date instead.
 
 ## [1.17.1] - 2026-10-29
 
