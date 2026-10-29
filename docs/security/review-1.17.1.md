@@ -122,7 +122,7 @@ The codebase is already strongly hardened. **No critical or high-severity issue 
 | Phase | Work | Deliverable |
 |-------|------|-------------|
 | 1 | F1 reference-page CSP + tests + threat-model note (done) | Commit on `release-1.17.1`, `dotnet test` green in CI |
-| 2 | F2 undici bump (or merge #46 first and rebase) | `npm audit` clean, web tests/build green |
+| 2 | F2 undici bump, merged from #46 (done) | `npm audit` clean, web tests/build green |
 | 3 | F3 pin actions to SHAs + Dependabot for actions | CI passes on the branch |
 | 4 | Version bump 1.17.0 → 1.17.1 (`Directory.Build.props`, `Dockerfile`, `package.json`, lock file) + CHANGELOG "Security" entry | PR `release-1.17.1` → `main` |
 
