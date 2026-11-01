@@ -92,7 +92,12 @@ describe("Habits", () => {
     renderWith(<HabitsPage />, { habitTracker: true });
 
     const habits = await screen.findByRole("list", { name: "Your habits" });
-    expect(within(habits).getAllByRole("listitem").map((item) => item.firstChild?.textContent)).toEqual(["Walk", "Read 20 minutes"]);
+    expect(within(habits).getAllByRole("listitem").map((item) => item.firstChild?.firstChild?.textContent)).toEqual(["Walk", "Read 20 minutes"]);
+    expect(within(habits).getAllByRole("listitem")[1]).toHaveTextContent("Current streak: 2 days");
+    expect(within(habits).getAllByRole("listitem")[1]).toHaveTextContent("This week: 2/3");
+    const summary = screen.getByRole("region", { name: "Today" });
+    expect(summary).toHaveTextContent(/of 2 done today/);
+    expect(within(summary).getByText("Read 20 minutes")).toBeInTheDocument(); // best streak running
     expect(list).toHaveBeenCalledWith(expect.objectContaining({ kinds: ["Habit"], state: "active" }));
     expect(screen.getByText(/Sep 23\s–\s29/)).toBeInTheDocument();
     const days = within(habits).getAllByRole("button", { name: /^Read 20 minutes, / });
@@ -121,6 +126,18 @@ describe("Habits", () => {
     expect(later).toBeEnabled();
     await user.click(later);
     expect(screen.getByRole("button", { name: "Read 20 minutes, today, Tuesday, September 29" })).toBeInTheDocument();
+  });
+
+  it("adds a suggested habit with one tap", async () => {
+    serve([]);
+    const create = vi.spyOn(api, "createNote").mockResolvedValue(habit("h-new", "# Walk", "2026-09-29T08:00:00Z"));
+    const user = userEvent.setup();
+    renderWith(<HabitsPage />, { habitTracker: true });
+
+    const suggestions = await screen.findByRole("group", { name: "Suggestions" });
+    await user.click(within(suggestions).getByRole("button", { name: "Walk" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith("# Walk", [], { kind: "Habit" }));
   });
 
   it("adds a habit", async () => {

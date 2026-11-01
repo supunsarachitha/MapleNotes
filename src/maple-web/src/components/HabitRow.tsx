@@ -1,7 +1,23 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Archive, ArchiveRestore, Check, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  Check,
+  Flame,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
-import { dateOf, parseHabit, serializeHabit, toggleDay, type Habit } from "../lib/habits";
+import {
+  dateOf,
+  habitStart,
+  habitStats,
+  parseHabit,
+  serializeHabit,
+  toggleDay,
+  type Habit,
+} from "../lib/habits";
 import { saveErrorMessage } from "../lib/apiError";
 import { focusAtEndRef } from "../lib/focus";
 import { useNoteEditor } from "../lib/noteEditor";
@@ -16,22 +32,49 @@ import { Button, IconButton, cn } from "./ui";
  * The layout of the week's header and of each habit: the name, the days and the menu on one line; on phones the name
  * and the menu share a line and the days go under them.
  */
-export const HABIT_ROW = "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]";
-export const DAY_GRID = "col-span-2 grid grid-cols-7 justify-items-center gap-1 sm:order-2 sm:col-span-1 sm:flex";
+export const HABIT_ROW =
+  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]";
+export const DAY_GRID =
+  "col-span-2 grid grid-cols-7 justify-items-center gap-1 sm:order-2 sm:col-span-1 sm:flex";
 
-const longDate = new Intl.DateTimeFormat("en", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const longDate = new Intl.DateTimeFormat("en", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
 
 export const habitName = (habit: Habit) => habit.name || "Untitled habit";
-export const dayCount = (count: number) => `${count} ${count === 1 ? "day" : "days"}`;
+export const dayCount = (count: number) =>
+  `${count} ${count === 1 ? "day" : "days"}`;
 
 /**
  * A habit on the Habits page: tap a day to mark it done or not done; rename, archive or delete the habit from its
  * menu. Every tick shows at once and is saved in the background as the habit's Markdown (see lib/habits.ts).
  */
-export function HabitRow({ note, days, today }: { note: Note; days: string[]; today: string }) {
+export function HabitRow({
+  note,
+  days,
+  today,
+  weekStart = 1,
+}: {
+  note: Note;
+  days: string[];
+  today: string;
+  weekStart?: number;
+}) {
   const toast = useToast();
-  const [habit, commit] = useNoteEditor<Habit>(note, parseHabit, serializeHabit, (error) =>
-    toast.error(saveErrorMessage(error, "A change to this habit could not be saved. Please try again.")),
+  const [habit, commit] = useNoteEditor<Habit>(
+    note,
+    parseHabit,
+    serializeHabit,
+    (error) =>
+      toast.error(
+        saveErrorMessage(
+          error,
+          "A change to this habit could not be saved. Please try again.",
+        ),
+      ),
   );
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
@@ -41,6 +84,16 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
   const patch = usePatchNote();
   const name = habitName(habit);
   const done = new Set(habit.days);
+  const stats = habitStats(
+    {
+      id: note.id,
+      name,
+      start: habitStart(habit, note.createdAtUtc),
+      days: habit.days,
+    },
+    today,
+    weekStart,
+  );
 
   function finishRename() {
     setRenaming(false);
@@ -72,7 +125,14 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
           className="w-full min-w-0 rounded-lg border border-stone-300 bg-white px-2 py-1 text-[15px] font-medium outline-none focus:border-maple-500 dark:border-stone-700 dark:bg-stone-950"
         />
       ) : (
-        <span className="min-w-0 break-words font-medium">{name}</span>
+        <div className="min-w-0">
+          <span className="break-words font-medium">{name}</span>
+          <HabitMeta
+            current={stats.current}
+            weekDone={stats.week.done}
+            weekPossible={stats.week.possible}
+          />
+        </div>
       )}
 
       <DropdownMenu.Root>
@@ -108,8 +168,12 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
                 patch.mutate(
                   { id: note.id, isArchived: true },
                   {
-                    onSuccess: () => toast.info("Archived. It keeps its history under Archived habits."),
-                    onError: () => toast.error("That didn't work. Please try again."),
+                    onSuccess: () =>
+                      toast.info(
+                        "Archived. It keeps its history under Archived habits.",
+                      ),
+                    onError: () =>
+                      toast.error("That didn't work. Please try again."),
                   },
                 )
               }
@@ -141,7 +205,9 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
                   ? "border-maple-600 bg-maple-600 text-white hover:bg-maple-700 dark:border-maple-500 dark:bg-maple-500 dark:text-stone-950"
                   : cn(
                       "text-transparent hover:border-maple-400 dark:hover:border-maple-500",
-                      day === today ? "border-maple-500 dark:border-maple-400" : "border-stone-300 dark:border-stone-600",
+                      day === today
+                        ? "border-maple-500 dark:border-maple-400"
+                        : "border-stone-300 dark:border-stone-600",
                     ),
               )}
             >
@@ -156,6 +222,53 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
   );
 }
 
+/** Under a habit's name: its running streak and how much of this week is done. */
+function HabitMeta({
+  current,
+  weekDone,
+  weekPossible,
+}: {
+  current: number;
+  weekDone: number;
+  weekPossible: number;
+}) {
+  const rate = weekPossible > 0 ? weekDone / weekPossible : 0;
+  return (
+    <div className="mt-1 flex items-center gap-3 text-xs text-stone-500 dark:text-stone-400">
+      <span
+        className={cn(
+          "inline-flex items-center gap-0.5 tabular-nums",
+          current > 0 && "font-medium text-orange-600 dark:text-orange-400",
+        )}
+        title="Current streak"
+      >
+        <Flame className="size-3.5" aria-hidden="true" />
+        <span className="sr-only">Current streak: </span>
+        {dayCount(current)}
+      </span>
+      <span
+        className="inline-flex min-w-0 items-center gap-1.5"
+        title="This week"
+      >
+        <span
+          className="h-1.5 w-14 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-700"
+          aria-hidden="true"
+        >
+          <span
+            className="block h-full rounded-full bg-maple-600 dark:bg-maple-400"
+            style={{ width: `${rate * 100}%` }}
+          />
+        </span>
+        <span className="tabular-nums">
+          <span className="sr-only">This week: </span>
+          {weekDone}/{weekPossible}
+          <span aria-hidden="true"> this week</span>
+        </span>
+      </span>
+    </div>
+  );
+}
+
 /** An archived habit: out of the list and the chart, with its history kept, until it is restored or deleted. */
 export function ArchivedHabitRow({ note }: { note: Note }) {
   const habit = parseHabit(note.content);
@@ -167,20 +280,28 @@ export function ArchivedHabitRow({ note }: { note: Note }) {
   return (
     <li className="flex items-center gap-2 py-2">
       <span className="min-w-0 flex-1 break-words">{name}</span>
-      <span className="shrink-0 text-sm tabular-nums text-stone-500 dark:text-stone-400">{dayCount(habit.days.length)}</span>
+      <span className="shrink-0 text-sm tabular-nums text-stone-500 dark:text-stone-400">
+        {dayCount(habit.days.length)}
+      </span>
       <Button
         variant="secondary"
         className="h-9"
         onClick={() =>
           patch.mutate(
             { id: note.id, isArchived: false },
-            { onSuccess: () => toast.info(`Restored "${name}".`), onError: () => toast.error("That didn't work. Please try again.") },
+            {
+              onSuccess: () => toast.info(`Restored "${name}".`),
+              onError: () => toast.error("That didn't work. Please try again."),
+            },
           )
         }
       >
         <ArchiveRestore className="size-4" aria-hidden="true" /> Restore
       </Button>
-      <IconButton label={removal.inTrash ? `Move ${name} to the trash` : `Delete ${name}`} onClick={removal.start}>
+      <IconButton
+        label={removal.inTrash ? `Move ${name} to the trash` : `Delete ${name}`}
+        onClick={removal.start}
+      >
         <Trash2 className="size-5" />
       </IconButton>
       {removal.dialog}
@@ -190,7 +311,10 @@ export function ArchivedHabitRow({ note }: { note: Note }) {
 
 /** Deleting a habit: into the trash, or for good after confirming when the trash is off. */
 function useRemoveHabit(note: Note, habit: Habit) {
-  const history = habit.days.length > 0 ? ` and its history (${dayCount(habit.days.length)} done)` : "";
+  const history =
+    habit.days.length > 0
+      ? ` and its history (${dayCount(habit.days.length)} done)`
+      : "";
   return useRemoveNote(note, {
     noun: "habit",
     confirmTitle: "Delete this habit?",
