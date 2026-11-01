@@ -34,3 +34,32 @@ describe("HomeHeader helpers", () => {
     expect(writingStats(new Map(), today)).toEqual({ week: 0, month: 0, streak: 0 });
   });
 });
+
+describe("Home shortcuts", () => {
+  it("N focuses the composer and / the search box, but not while typing", async () => {
+    const { render } = await import("@testing-library/react");
+    const { useHomeShortcuts } = await import("./HomeHeader");
+    function Harness() {
+      useHomeShortcuts();
+      return (
+        <>
+          <input type="search" aria-label="Search notes" />
+          <textarea id="composer" aria-label="New note" />
+        </>
+      );
+    }
+    const view = render(<Harness />);
+    const composer = view.getByLabelText("New note");
+    const search = view.getByLabelText("Search notes");
+    document.body.focus();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "n", bubbles: true }));
+    expect(composer).toHaveFocus();
+    composer.dispatchEvent(new KeyboardEvent("keydown", { key: "/", bubbles: true }));
+    expect(composer).toHaveFocus();
+    composer.blur();
+    // jsdom has no layout, so the visible-search check falls back to opening navigation; the box is focused later.
+    search.getClientRects = () => [{}] as unknown as DOMRectList;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "/", bubbles: true }));
+    expect(search).toHaveFocus();
+  });
+});

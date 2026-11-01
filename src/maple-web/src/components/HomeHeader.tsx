@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { CheckSquare, Flame, PenLine, Repeat, Search, Zap, CalendarRange, Feather } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { api } from "../lib/api";
-import { formatDate, localDateKey } from "../lib/dates";
+import { localDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
 import { queryKeys, useAuthStatus } from "../lib/queries";
@@ -42,26 +42,26 @@ export function writingStats(counts: Map<string, number>, today: Date): { week: 
 
 function Stat({ icon: Icon, value, label, accent }: { icon: typeof Flame; value: ReactNode; label: string; accent?: boolean }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+    <div className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 max-sm:flex-col max-sm:items-start max-sm:gap-1.5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
       <span
         className={
           accent
-            ? "flex size-9 shrink-0 items-center justify-center rounded-xl bg-maple-100 text-maple-700 dark:bg-maple-600/20 dark:text-maple-400"
-            : "flex size-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300"
+            ? "flex size-8 shrink-0 items-center justify-center rounded-xl bg-maple-100 sm:size-9 text-maple-700 dark:bg-maple-600/20 dark:text-maple-400"
+            : "flex size-8 shrink-0 items-center justify-center rounded-xl bg-stone-100 sm:size-9 text-stone-600 dark:bg-stone-800 dark:text-stone-300"
         }
       >
         <Icon className="size-4.5" aria-hidden="true" />
       </span>
       <div className="min-w-0">
         <p className="text-lg font-semibold leading-tight tabular-nums">{value}</p>
-        <p className="text-xs text-stone-500 dark:text-stone-400">{label}</p>
+        <p className="whitespace-nowrap text-xs text-stone-500 dark:text-stone-400">{label}</p>
       </div>
     </div>
   );
 }
 
 const chip =
-  "inline-flex h-9 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 text-sm font-medium text-stone-700 shadow-sm transition-colors hover:border-maple-400 hover:text-maple-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-maple-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-maple-600 dark:hover:text-maple-400";
+  "inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200 bg-white px-3.5 text-sm font-medium text-stone-700 shadow-sm transition-colors hover:border-maple-400 hover:text-maple-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-maple-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-200 dark:hover:border-maple-600 dark:hover:text-maple-400";
 
 /** Focuses the side menu's search box; on small screens the navigation drawer opens first. */
 export function focusSearch() {
@@ -73,8 +73,37 @@ export function focusSearch() {
   setTimeout(() => visible()?.focus(), 60);
 }
 
+/** True while the user is typing somewhere, so single-key shortcuts stay out of the way. */
+function typing(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+}
+
+/** Home's single-key shortcuts: N writes a new note, / searches. */
+export function useHomeShortcuts() {
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || typing(event.target)) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (event.key === "n" || event.key === "N") {
+        event.preventDefault();
+        document.getElementById("composer")?.focus();
+      } else if (event.key === "/") {
+        event.preventDefault();
+        focusSearch();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+}
+
+const kbd =
+  "rounded border border-stone-300 bg-stone-50 px-1.5 py-0.5 font-sans text-[11px] font-medium text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300";
+
 /** Home's header: a greeting with the date, writing stats and shortcuts to the other tabs. */
 export function HomeHeader({ now = new Date() }: { now?: Date }) {
+  useHomeShortcuts();
   const user = useAuthStatus().data?.user;
   const preferences = usePreferences();
   const kinds = useEnabledKinds();
@@ -87,13 +116,13 @@ export function HomeHeader({ now = new Date() }: { now?: Date }) {
   });
   const stats = days.data ? writingStats(new Map(days.data.map((d) => [d.date, d.count])), now) : null;
   const firstName = user?.displayName.trim().split(/\s+/)[0];
-  const weekday = now.toLocaleDateString(undefined, { weekday: "long" });
+  const longDate = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
   return (
     <header className="mb-6 flex flex-col gap-4">
       <div>
         <p className="text-sm font-medium text-maple-700 dark:text-maple-400">
-          {weekday}, {formatDate(now, preferences.dateFormat)}
+          {longDate}
         </p>
         <h1 className="mt-0.5 text-2xl font-semibold tracking-tight sm:text-3xl">
           {greeting(now.getHours())}
@@ -106,16 +135,17 @@ export function HomeHeader({ now = new Date() }: { now?: Date }) {
           <>
             <Stat icon={Flame} accent value={stats.streak} label="day streak" />
             <Stat icon={Feather} value={stats.week} label="this week" />
-            <Stat icon={CalendarRange} value={stats.month} label="last 30 days" />
+            <Stat icon={CalendarRange} value={stats.month} label="30 days" />
           </>
         ) : (
-          [0, 1, 2].map((i) => <div key={i} className="h-[62px] animate-pulse rounded-2xl bg-stone-200/70 dark:bg-stone-800/70" />)
+          [0, 1, 2].map((i) => <div key={i} className="h-[92px] animate-pulse sm:h-[62px] rounded-2xl bg-stone-200/70 dark:bg-stone-800/70" />)
         )}
       </div>
 
       <nav aria-label="Quick actions" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-        <button type="button" className={chip} onClick={() => document.getElementById("composer")?.focus()}>
+        <button type="button" className={chip} aria-keyshortcuts="N" onClick={() => document.getElementById("composer")?.focus()}>
           <PenLine className="size-4" aria-hidden="true" /> New note
+          <kbd className={`${kbd} ml-1 hidden sm:inline`} aria-hidden="true">N</kbd>
         </button>
         {preferences.todoLists && (
           <Link href="/todo" className={chip}>
@@ -132,8 +162,9 @@ export function HomeHeader({ now = new Date() }: { now?: Date }) {
             <Repeat className="size-4" aria-hidden="true" /> Habits
           </Link>
         )}
-        <button type="button" className={chip} onClick={focusSearch}>
+        <button type="button" className={chip} aria-keyshortcuts="/" onClick={focusSearch}>
           <Search className="size-4" aria-hidden="true" /> Search
+          <kbd className={`${kbd} ml-1 hidden sm:inline`} aria-hidden="true">/</kbd>
         </button>
       </nav>
     </header>
