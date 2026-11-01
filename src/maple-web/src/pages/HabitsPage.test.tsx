@@ -128,6 +128,18 @@ describe("Habits", () => {
     expect(screen.getByRole("button", { name: "Read 20 minutes, today, Tuesday, September 29" })).toBeInTheDocument();
   });
 
+  it("adds a suggested habit with one tap", async () => {
+    serve([]);
+    const create = vi.spyOn(api, "createNote").mockResolvedValue(habit("h-new", "# Walk", "2026-09-29T08:00:00Z"));
+    const user = userEvent.setup();
+    renderWith(<HabitsPage />, { habitTracker: true });
+
+    const suggestions = await screen.findByRole("group", { name: "Suggestions" });
+    await user.click(within(suggestions).getByRole("button", { name: "Walk" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith("# Walk", [], { kind: "Habit" }));
+  });
+
   it("adds a habit", async () => {
     serve([]);
     const create = vi.spyOn(api, "createNote").mockResolvedValue(habit("h-new", "# Stretch", "2026-09-29T08:00:00Z"));
