@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from "react";
-import { Paperclip, X, FileText, AlertCircle, Smile, Sticker as StickerIcon } from "lucide-react";
+import { Paperclip, X, FileText, AlertCircle, Smile, Sticker as StickerIcon, Maximize2, Minimize2 } from "lucide-react";
 import { api, ApiError, uploadAttachment } from "../lib/api";
 import { AttachmentThumbnail } from "./AttachmentGallery";
 import { applyFormat, FormatToolbar, shortcutFormat } from "./FormatToolbar";
@@ -20,6 +20,12 @@ import { useToast } from "./Toaster";
 import { Button, IconButton, cn } from "./ui";
 
 const MAX_LENGTH = 100_000;
+
+/** Words in a text, for the word count shown while writing. */
+export function countWords(text: string): number {
+  const words = text.trim().match(/\S+/g);
+  return words ? words.length : 0;
+}
 
 interface ComposerFile {
   key: string;
@@ -99,6 +105,7 @@ export function Composer({
   const [dragging, setDragging] = useState(false);
   const [mood, setMood] = useState<NoteMood | null>(note?.mood ?? null);
   const [picker, setPicker] = useState<"mood" | "stickers" | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const invalidateNotes = useInvalidateNotes();
@@ -115,8 +122,24 @@ export function Composer({
     const element = textarea.current;
     if (!element) return;
     element.style.height = "auto";
+    if (fullscreen) {
+      element.style.height = "";
+      return;
+    }
+    element.style.height = "auto";
     element.style.height = `${Math.min(element.scrollHeight, 480)}px`;
-  }, [text]);
+  }, [text, fullscreen]);
+
+  // Full screen: the page behind does not scroll, and the caret stays in the text.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    textarea.current?.focus();
+    return () => {
+      document.body.style.overflow = overflow;
+    };
+  }, [fullscreen]);
 
   // Opened for writing: the caret goes after the text, where one carries on, once the box has grown to fit it.
   useEffect(() => {
@@ -136,6 +159,7 @@ export function Composer({
     [],
   );
 
+  const words = countWords(withTitle ? `${title} ${text}` : text);
   const uploading = files.some((f) => !f.attachment && !f.error);
   const attachmentIds = files.flatMap((f) => (f.attachment ? [f.attachment.id] : []));
   const content = daily ? joinTitle(daily.title, text) : withTitle ? joinTitle(title, text) : text;
@@ -238,6 +262,7 @@ export function Composer({
         setMood(null);
         setPicker(null);
       }
+      setFullscreen(false);
       onDone?.();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.fieldError("content") ?? error.message : "Could not save the note.");
@@ -260,6 +285,12 @@ export function Composer({
     } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       void save();
+    } else if (event.key.toLowerCase() === "f" && event.shiftKey && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      setFullscreen((open) => !open);
+    } else if (event.key === "Escape" && fullscreen) {
+      event.preventDefault();
+      setFullscreen(false);
     } else if (event.key === "Escape" && editing) {
       event.preventDefault();
       cancel();
@@ -273,6 +304,9 @@ export function Composer({
     } else if (event.key === "Enter") {
       event.preventDefault();
       textarea.current?.focus();
+    } else if (event.key === "Escape" && fullscreen) {
+      event.preventDefault();
+      setFullscreen(false);
     } else if (event.key === "Escape" && editing) {
       event.preventDefault();
       cancel();
@@ -300,12 +334,20 @@ export function Composer({
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
+      role={fullscreen ? "dialog" : undefined}
+      aria-modal={fullscreen || undefined}
+      aria-label={fullscreen ? (editing ? "Edit note, full screen" : "New note, full screen") : undefined}
       className={cn(
-        "rounded-2xl border bg-white p-3 shadow-sm transition-colors dark:bg-stone-900",
-        dragging ? "border-maple-500 ring-2 ring-maple-500/30" : "border-stone-200 dark:border-stone-800",
+        "transition-colors",
+        fullscreen
+          ? "fixed inset-0 z-50 flex flex-col overflow-y-auto bg-stone-50 px-4 py-6 sm:px-8 sm:py-10 dark:bg-stone-950"
+          : "rounded-2xl border bg-white p-3 shadow-sm focus-within:border-maple-400 focus-within:shadow-md dark:bg-stone-900 dark:focus-within:border-maple-600",
+        !fullscreen && (dragging ? "border-maple-500 ring-2 ring-maple-500/30" : "border-stone-200 dark:border-stone-800"),
+        fullscreen && dragging && "ring-4 ring-inset ring-maple-500/40",
       )}
     >
-      {daily && <p className="mb-1 border-b border-stone-100 px-1 pb-2 pt-1 text-base font-semibold dark:border-stone-800">{daily.title}</p>}
+      <div className={cn(fullscreen && "mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col")}>
+      {daily && <p className={cn("mb-1 border-b border-stone-100 px-1 pb-2 pt-1 font-semibold dark:border-stone-800", fullscreen ? "text-2xl sm:text-3xl" : "text-base")}>{daily.title}</p>}
       {withTitle && (
         <input
           type="text"
@@ -315,13 +357,17 @@ export function Composer({
           aria-label={editing ? "Edit title" : "Title"}
           placeholder="Title"
           maxLength={300}
-          className="mb-1 block w-full border-b border-stone-100 bg-transparent px-1 pb-2 pt-1 text-base font-semibold text-stone-900 outline-none placeholder:font-normal placeholder:text-stone-400 dark:border-stone-800 dark:text-stone-100"
+          className={cn(
+            "mb-1 block w-full border-b border-stone-100 bg-transparent px-1 pb-2 pt-1 font-semibold text-stone-900 outline-none",
+            "placeholder:font-normal placeholder:text-stone-400 dark:border-stone-800 dark:text-stone-100",
+            fullscreen ? "pb-3 text-2xl sm:text-3xl" : "text-base",
+          )}
         />
       )}
       <label htmlFor={editing ? `edit-${note.id}` : "composer"} className="sr-only">
         {editing ? "Edit note" : "New note"}
       </label>
-      <div className="relative">
+      <div className={cn("relative", fullscreen && "flex min-h-0 flex-1 flex-col")}>
         <textarea
           id={editing ? `edit-${note.id}` : "composer"}
           ref={textarea}
@@ -337,7 +383,10 @@ export function Composer({
           rows={editing ? 3 : 2}
           placeholder={editing ? undefined : placeholder}
           {...suggestions.inputProps}
-          className="block w-full resize-none bg-transparent px-1 py-1 text-base leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100"
+          className={cn(
+            "block w-full resize-none bg-transparent px-1 py-1 leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100",
+            fullscreen ? "min-h-[40vh] flex-1 py-4 font-serif text-lg sm:text-xl sm:leading-loose" : "text-base",
+          )}
         />
         {suggestions.popup}
       </div>
@@ -444,8 +493,21 @@ export function Composer({
             {content.length.toLocaleString()} / {MAX_LENGTH.toLocaleString()}
           </span>
         )}
-        <span className="hidden text-xs text-stone-400 sm:inline">Ctrl/⌘ + Enter to {editing ? "save" : "post"}</span>
-        <div className="ml-auto flex gap-2">
+        {words > 0 && (
+          <span className="text-xs tabular-nums text-stone-500 dark:text-stone-400" aria-live="polite">
+            {words.toLocaleString()} {words === 1 ? "word" : "words"}
+            {fullscreen && ` · ${Math.max(1, Math.round(words / 200))} min read`}
+          </span>
+        )}
+        <span className="hidden text-xs text-stone-400 md:inline">Ctrl/⌘ + Enter to {editing ? "save" : "post"}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <IconButton
+            label={fullscreen ? "Exit full screen (Esc)" : "Full screen (Ctrl/⌘ + Shift + F)"}
+            aria-pressed={fullscreen}
+            onClick={() => setFullscreen((open) => !open)}
+          >
+            {fullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
+          </IconButton>
           {editing && (
             <Button variant="ghost" onClick={cancel}>
               Cancel
@@ -455,6 +517,7 @@ export function Composer({
             {editing ? "Save" : "Post"}
           </Button>
         </div>
+      </div>
       </div>
     </div>
   );
