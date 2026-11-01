@@ -104,9 +104,9 @@ function Stat({
         <div className="text-xs text-stone-500 dark:text-stone-400">
           {label}
         </div>
-        <div className="truncate font-semibold tabular-nums">{value}</div>
+        <div className="font-semibold tabular-nums">{value}</div>
         {hint && (
-          <div className="truncate text-xs text-stone-500 dark:text-stone-400">
+          <div className="break-words text-xs text-stone-500 dark:text-stone-400">
             {hint}
           </div>
         )}
@@ -135,7 +135,7 @@ export function HabitSummary({ stats }: { stats: HabitStats[] }) {
   return (
     <section
       aria-label="Today"
-      className="mb-4 flex flex-col gap-4 rounded-2xl border border-stone-200 bg-gradient-to-br from-maple-50 to-white p-4 shadow-sm sm:flex-row sm:items-center dark:border-stone-800 dark:from-maple-600/10 dark:to-stone-900"
+      className="mb-4 flex flex-col gap-4 rounded-2xl border border-stone-200 bg-gradient-to-br from-maple-50 to-white p-4 shadow-sm dark:border-stone-800 dark:from-maple-600/10 dark:to-stone-900"
     >
       <div className="flex items-center gap-4">
         <ProgressRing value={stats.length ? done / stats.length : 0}>
@@ -155,7 +155,7 @@ export function HabitSummary({ stats }: { stats: HabitStats[] }) {
           </p>
         </div>
       </div>
-      <div className={cn("grid grid-cols-2 gap-3 sm:ml-auto sm:flex sm:gap-6")}>
+      <div className={cn("grid grid-cols-2 gap-3 border-t border-stone-200 pt-4 sm:grid-cols-3 dark:border-stone-800")}>
         <Stat
           icon={Flame}
           label="Best streak running"
