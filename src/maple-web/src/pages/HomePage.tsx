@@ -1,9 +1,10 @@
-import { CalendarDays, Hash, Search, Tag, X } from "lucide-react";
+import { CalendarDays, Hash, Maximize2, Paperclip, Pin, Search, Tag, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Composer } from "../components/Composer";
+import { HomeHeader } from "../components/HomeHeader";
 import { LabelDot } from "../components/Labels";
 import { NoteList } from "../components/NoteList";
-import { EmptyState } from "../components/ui";
+import { EmptyState, cn } from "../components/ui";
 import { NoteCard } from "../components/NoteCard";
 import { useDailyTemplate, useTodaysNote } from "../lib/daily";
 import { formatDate, parseDateKey } from "../lib/dates";
@@ -25,6 +26,34 @@ function FilterHeader({ icon: Icon, marker, label }: { icon: typeof Hash; marker
         <X className="size-4" aria-hidden="true" /> Clear
       </Link>
     </div>
+  );
+}
+
+/** Home's empty feed: a few first steps instead of a blank page. */
+function GettingStarted() {
+  const steps: Array<[typeof Hash, string, string]> = [
+    [Hash, "Organise with #tags", "Type #ideas or #work in a note; tags appear in the side menu."],
+    [Paperclip, "Add photos and files", "Paste, drop or attach them; they are uploaded while you write."],
+    [Maximize2, "Write without distractions", "Open full screen with the expand button or Ctrl/⌘ + Shift + F."],
+  ];
+  return (
+    <section aria-label="Getting started" className="rounded-2xl border border-dashed border-stone-300 px-5 py-8 dark:border-stone-700">
+      <p className="text-center font-medium">Nothing here yet</p>
+      <p className="mx-auto mt-1 max-w-sm text-center text-sm text-stone-600 dark:text-stone-300">Write your first note above. A few things to try:</p>
+      <ul className="mx-auto mt-5 flex max-w-md flex-col gap-3">
+        {steps.map(([Icon, title, text]) => (
+          <li key={title} className="flex gap-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-maple-50 text-maple-700 dark:bg-maple-600/15 dark:text-maple-400">
+              <Icon className="size-4" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-sm font-medium">{title}</p>
+              <p className="text-sm text-stone-600 dark:text-stone-300">{text}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -127,24 +156,28 @@ export function HomePage() {
 
   return (
     <>
-      <h1 className="sr-only">Home</h1>
+      <HomeHeader />
       {today.enabled && (
         <div className="mb-6">
           <TodayCard today={today} />
         </div>
       )}
-      <Composer />
+      <section aria-label="New note">
+        <h2 className={cn(sectionHeading, "mb-3")}>New note</h2>
+        <Composer />
+      </section>
       <div className="mt-6 flex flex-col gap-6">
-        <NoteList state="pinned" showEndMarker={false} hideIds={hideIds} header={<h2 className={sectionHeading}>Pinned</h2>} />
         <NoteList
-          state="feed"
+          state="pinned"
+          showEndMarker={false}
           hideIds={hideIds}
-          empty={
-            <EmptyState title="Nothing here yet">
-              Write your first note above. Add #tags to organise notes, and attach photos or files.
-            </EmptyState>
+          header={
+            <h2 className={cn(sectionHeading, "flex items-center gap-1.5")}>
+              <Pin className="size-3.5" aria-hidden="true" /> Pinned
+            </h2>
           }
         />
+        <NoteList state="feed" hideIds={hideIds} header={<h2 className={sectionHeading}>Recent</h2>} empty={<GettingStarted />} />
       </div>
     </>
   );

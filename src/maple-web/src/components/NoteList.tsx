@@ -60,7 +60,12 @@ export function NoteList({
     return (
       <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading notes">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-28 animate-pulse rounded-2xl bg-stone-200/70 dark:bg-stone-800/70" />
+          <div key={i} className="animate-pulse rounded-2xl border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-900">
+            <div className="h-3 w-24 rounded-full bg-stone-200 dark:bg-stone-800" />
+            <div className="mt-4 h-3.5 w-11/12 rounded-full bg-stone-200 dark:bg-stone-800" />
+            <div className="mt-2.5 h-3.5 w-3/4 rounded-full bg-stone-200 dark:bg-stone-800" />
+            <div className="mt-2.5 h-3.5 w-1/2 rounded-full bg-stone-200 dark:bg-stone-800" />
+          </div>
         ))}
       </div>
     );
