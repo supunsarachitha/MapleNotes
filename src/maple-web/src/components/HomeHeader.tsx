@@ -42,19 +42,25 @@ export function writingStats(counts: Map<string, number>, today: Date): { week: 
 
 function Stat({ icon: Icon, value, label, accent }: { icon: typeof Flame; value: ReactNode; label: string; accent?: boolean }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 max-sm:flex-col max-sm:items-start max-sm:gap-1.5 shadow-sm dark:border-stone-800 dark:bg-stone-900">
+    <div className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 shadow-sm max-sm:rounded-xl max-sm:px-2.5 max-sm:py-1.5 dark:border-stone-800 dark:bg-stone-900">
       <span
         className={
           accent
-            ? "flex size-8 shrink-0 items-center justify-center rounded-xl bg-maple-100 sm:size-9 text-maple-700 dark:bg-maple-600/20 dark:text-maple-400"
-            : "flex size-8 shrink-0 items-center justify-center rounded-xl bg-stone-100 sm:size-9 text-stone-600 dark:bg-stone-800 dark:text-stone-300"
+            ? "flex size-9 shrink-0 items-center justify-center rounded-xl bg-maple-100 text-maple-700 max-sm:hidden dark:bg-maple-600/20 dark:text-maple-400"
+            : "flex size-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-600 max-sm:hidden dark:bg-stone-800 dark:text-stone-300"
         }
       >
         <Icon className="size-4.5" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <p className="text-lg font-semibold leading-tight tabular-nums">{value}</p>
-        <p className="whitespace-nowrap text-xs text-stone-500 dark:text-stone-400">{label}</p>
+        <p className="flex items-center gap-1.5 text-lg font-semibold leading-tight tabular-nums max-sm:text-base">
+          <Icon
+            className={`size-3.5 shrink-0 sm:hidden ${accent ? "text-maple-600 dark:text-maple-400" : "text-stone-500 dark:text-stone-400"}`}
+            aria-hidden="true"
+          />
+          {value}
+        </p>
+        <p className="whitespace-nowrap text-xs text-stone-500 max-sm:text-[11px] dark:text-stone-400">{label}</p>
       </div>
     </div>
   );
@@ -138,7 +144,7 @@ export function HomeHeader({ now = new Date() }: { now?: Date }) {
             <Stat icon={CalendarRange} value={stats.month} label="30 days" />
           </>
         ) : (
-          [0, 1, 2].map((i) => <div key={i} className="h-[92px] animate-pulse sm:h-[62px] rounded-2xl bg-stone-200/70 dark:bg-stone-800/70" />)
+          [0, 1, 2].map((i) => <div key={i} className="h-[50px] animate-pulse sm:h-[62px] rounded-2xl bg-stone-200/70 dark:bg-stone-800/70" />)
         )}
       </div>
 
