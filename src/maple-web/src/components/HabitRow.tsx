@@ -1,7 +1,7 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Archive, ArchiveRestore, Check, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Check, Flame, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
-import { dateOf, parseHabit, serializeHabit, toggleDay, type Habit } from "../lib/habits";
+import { dateOf, habitStart, habitStats, parseHabit, serializeHabit, toggleDay, type Habit } from "../lib/habits";
 import { saveErrorMessage } from "../lib/apiError";
 import { focusAtEndRef } from "../lib/focus";
 import { useNoteEditor } from "../lib/noteEditor";
@@ -28,7 +28,7 @@ export const dayCount = (count: number) => `${count} ${count === 1 ? "day" : "da
  * A habit on the Habits page: tap a day to mark it done or not done; rename, archive or delete the habit from its
  * menu. Every tick shows at once and is saved in the background as the habit's Markdown (see lib/habits.ts).
  */
-export function HabitRow({ note, days, today }: { note: Note; days: string[]; today: string }) {
+export function HabitRow({ note, days, today, weekStart = 1 }: { note: Note; days: string[]; today: string; weekStart?: number }) {
   const toast = useToast();
   const [habit, commit] = useNoteEditor<Habit>(note, parseHabit, serializeHabit, (error) =>
     toast.error(saveErrorMessage(error, "A change to this habit could not be saved. Please try again.")),
@@ -41,6 +41,7 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
   const patch = usePatchNote();
   const name = habitName(habit);
   const done = new Set(habit.days);
+  const stats = habitStats({ id: note.id, name, start: habitStart(habit, note.createdAtUtc), days: habit.days }, today, weekStart);
 
   function finishRename() {
     setRenaming(false);
@@ -72,7 +73,10 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
           className="w-full min-w-0 rounded-lg border border-stone-300 bg-white px-2 py-1 text-[15px] font-medium outline-none focus:border-maple-500 dark:border-stone-700 dark:bg-stone-950"
         />
       ) : (
-        <span className="min-w-0 break-words font-medium">{name}</span>
+        <div className="min-w-0">
+          <span className="break-words font-medium">{name}</span>
+          <HabitMeta current={stats.current} weekDone={stats.week.done} weekPossible={stats.week.possible} />
+        </div>
       )}
 
       <DropdownMenu.Root>
@@ -153,6 +157,33 @@ export function HabitRow({ note, days, today }: { note: Note; days: string[]; to
 
       {removal.dialog}
     </li>
+  );
+}
+
+/** Under a habit's name: its running streak and how much of this week is done. */
+function HabitMeta({ current, weekDone, weekPossible }: { current: number; weekDone: number; weekPossible: number }) {
+  const rate = weekPossible > 0 ? weekDone / weekPossible : 0;
+  return (
+    <div className="mt-1 flex items-center gap-3 text-xs text-stone-500 dark:text-stone-400">
+      <span
+        className={cn("inline-flex items-center gap-0.5 tabular-nums", current > 0 && "font-medium text-orange-600 dark:text-orange-400")}
+        title="Current streak"
+      >
+        <Flame className="size-3.5" aria-hidden="true" />
+        <span className="sr-only">Current streak: </span>
+        {dayCount(current)}
+      </span>
+      <span className="inline-flex min-w-0 items-center gap-1.5" title="This week">
+        <span className="h-1.5 w-14 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-700" aria-hidden="true">
+          <span className="block h-full rounded-full bg-maple-600 dark:bg-maple-400" style={{ width: `${rate * 100}%` }} />
+        </span>
+        <span className="tabular-nums">
+          <span className="sr-only">This week: </span>
+          {weekDone}/{weekPossible}
+          <span aria-hidden="true"> this week</span>
+        </span>
+      </span>
+    </div>
   );
 }
 

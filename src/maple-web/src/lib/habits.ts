@@ -187,3 +187,26 @@ export function share(scores: Array<{ done: number; possible: number }>): number
   const possible = scores.reduce((sum, score) => sum + score.possible, 0);
   return possible > 0 ? scores.reduce((sum, score) => sum + score.done, 0) / possible : null;
 }
+
+/** A habit as the summary and analytics need it: its start, days done and the derived numbers. */
+export interface HabitStats extends TrackedHabit {
+  id: string;
+  name: string;
+  doneToday: boolean;
+  current: number;
+  best: number;
+  total: number;
+  /** This week (from `weekStart`) so far. */
+  week: PeriodScore;
+}
+
+/** The numbers shown for one habit: streaks, whether today is done, and this week so far. */
+export function habitStats(
+  habit: TrackedHabit & { id: string; name: string },
+  today: string,
+  weekStart: number,
+): HabitStats {
+  const { current, best, total } = streaks(habit.days, today);
+  const [thisWeek] = recentPeriods("weeks", today, weekStart, 1);
+  return { ...habit, doneToday: habit.days.includes(today), current, best, total, week: scorePeriod([habit], thisWeek!, today) };
+}

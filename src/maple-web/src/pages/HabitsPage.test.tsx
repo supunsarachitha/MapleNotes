@@ -92,7 +92,12 @@ describe("Habits", () => {
     renderWith(<HabitsPage />, { habitTracker: true });
 
     const habits = await screen.findByRole("list", { name: "Your habits" });
-    expect(within(habits).getAllByRole("listitem").map((item) => item.firstChild?.textContent)).toEqual(["Walk", "Read 20 minutes"]);
+    expect(within(habits).getAllByRole("listitem").map((item) => item.firstChild?.firstChild?.textContent)).toEqual(["Walk", "Read 20 minutes"]);
+    expect(within(habits).getAllByRole("listitem")[1]).toHaveTextContent("Current streak: 2 days");
+    expect(within(habits).getAllByRole("listitem")[1]).toHaveTextContent("This week: 2/3");
+    const summary = screen.getByRole("region", { name: "Today" });
+    expect(summary).toHaveTextContent(/of 2 done today/);
+    expect(within(summary).getByText("Read 20 minutes")).toBeInTheDocument(); // best streak running
     expect(list).toHaveBeenCalledWith(expect.objectContaining({ kinds: ["Habit"], state: "active" }));
     expect(screen.getByText(/Sep 23\s–\s29/)).toBeInTheDocument();
     const days = within(habits).getAllByRole("button", { name: /^Read 20 minutes, / });
