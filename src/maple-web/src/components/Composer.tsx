@@ -377,7 +377,7 @@ export function Composer({
       <label htmlFor={editing ? `edit-${note.id}` : "composer"} className="sr-only">
         {editing ? "Edit note" : "New note"}
       </label>
-      <div className="flex items-center gap-1">
+      <FormatToolbar target={textarea} onChange={setText}>
         <input
           ref={fileInput}
           type="file"
@@ -417,10 +417,7 @@ export function Composer({
             <StickerIcon className="size-5" />
           </IconButton>
         )}
-        <div className="min-w-0 flex-1">
-          <FormatToolbar target={textarea} onChange={setText} />
-        </div>
-      </div>
+      </FormatToolbar>
 
       {offersMood && picker === "mood" && (
         <MoodPicker
