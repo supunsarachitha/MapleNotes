@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
 import type { AuthStatus, Preferences } from "../lib/types";
-import { FeaturesSection } from "./PreferenceSections";
+import { WritingExtrasSection } from "./PreferenceSections";
 import { ToastProvider } from "./Toaster";
 
 function renderFeatures(preferences: Partial<Preferences>) {
@@ -29,7 +29,7 @@ function renderFeatures(preferences: Partial<Preferences>) {
   return render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <FeaturesSection />
+        <WritingExtrasSection />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -37,7 +37,7 @@ function renderFeatures(preferences: Partial<Preferences>) {
 
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 
-describe("Sticker packs in Settings → Features", () => {
+describe("Sticker packs in Settings → Writing", () => {
   it("has the Mood tracker and Stickers switches, off as installed, with the packs only while stickers are on", () => {
     renderFeatures({});
     expect(screen.getByRole("switch", { name: "Mood tracker" })).not.toBeChecked();

@@ -9,7 +9,7 @@ import { queryKeys } from "../lib/queries";
 import type { AuthStatus, Note, Preferences } from "../lib/types";
 import { onScreen } from "../test/viewport";
 import { NoteCard } from "./NoteCard";
-import { FeaturesSection } from "./PreferenceSections";
+import { NotesFilesSection } from "./PreferenceSections";
 import { ToastProvider } from "./Toaster";
 
 const note: Note = {
@@ -73,7 +73,7 @@ describe("link previews", () => {
   });
 
   it("explains what the server learns, especially for end-to-end accounts", () => {
-    renderWith(<FeaturesSection />, {}, { user: { id: "u", username: "m", displayName: "M", role: "User", encryptionMode: "EndToEnd", hasEndToEndKey: true, createdAtUtc: "", preferences: DEFAULT_PREFERENCES } });
+    renderWith(<NotesFilesSection />, {}, { user: { id: "u", username: "m", displayName: "M", role: "User", encryptionMode: "EndToEnd", hasEndToEndKey: true, createdAtUtc: "", preferences: DEFAULT_PREFERENCES } });
 
     expect(screen.getByRole("switch", { name: "Link previews" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByText(/even though your notes are end-to-end encrypted/)).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("link previews", () => {
   it("asks before turning previews on, and turns them off at once", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
     const user = userEvent.setup();
-    renderWith(<FeaturesSection />, {});
+    renderWith(<NotesFilesSection />, {});
 
     await user.click(screen.getByRole("switch", { name: "Link previews" }));
     const dialog = screen.getByRole("dialog", { name: "Turn on link previews?" });
@@ -102,7 +102,7 @@ describe("link previews", () => {
   });
 
   it("hides the switch when the server does not allow previews", () => {
-    renderWith(<FeaturesSection />, {}, { linkPreviewsAvailable: false });
+    renderWith(<NotesFilesSection />, {}, { linkPreviewsAvailable: false });
 
     expect(screen.queryByRole("switch", { name: "Link previews" })).not.toBeInTheDocument();
   });
