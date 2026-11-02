@@ -1,5 +1,5 @@
 import { Bold, Code, Heading2, Italic, Link2, List, ListChecks, Quote, type LucideIcon } from "lucide-react";
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { applyEdit, formatEdit, type Format } from "../lib/markdownEdit";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -41,9 +41,18 @@ export function shortcutFormat(event: { key: string; metaKey: boolean; ctrlKey: 
 }
 
 /** Formatting buttons for a Markdown text box. */
-export function FormatToolbar({ target, onChange }: { target: RefObject<HTMLTextAreaElement | null>; onChange: (text: string) => void }) {
+export function FormatToolbar({
+  target,
+  onChange,
+  children,
+}: {
+  target: RefObject<HTMLTextAreaElement | null>;
+  onChange: (text: string) => void;
+  /** Extra buttons shown after the formatting ones; the row wraps onto more lines when it is too narrow. */
+  children?: ReactNode;
+}) {
   return (
-    <div role="toolbar" aria-label="Formatting" className="-mx-1 flex gap-0.5 overflow-x-auto">
+    <div role="toolbar" aria-label="Formatting" className="mb-1 flex flex-wrap items-center gap-0.5">
       {TOOLS.map(({ format, label, icon: Icon, key }) => {
         const title = key ? `${label} (${MOD}${key.toUpperCase()})` : label;
         return (
@@ -61,6 +70,7 @@ export function FormatToolbar({ target, onChange }: { target: RefObject<HTMLText
           </button>
         );
       })}
+      {children}
     </div>
   );
 }

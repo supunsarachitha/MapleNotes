@@ -14,7 +14,7 @@ export const GUIDE: GuideSection[] = [
     body: `Write in the box at the top of **Home** and choose **Post** (or press Ctrl+Enter, ⌘+Enter on a Mac). Your newest notes
 are at the top.
 
-- **Formatting.** Use the toolbar under the text box for bold, italic, headings, lists, checklists, quotes, code and
+- **Formatting.** Use the toolbar above the text box for bold, italic, headings, lists, checklists, quotes, code and
   links, or type [Markdown](https://commonmark.org/help/) yourself. Ctrl/⌘+B, I and K are shortcuts for bold, italic
   and links.
 - **Pictures and files.** Choose the paperclip, paste, or drag files onto the box. They upload while you write.
