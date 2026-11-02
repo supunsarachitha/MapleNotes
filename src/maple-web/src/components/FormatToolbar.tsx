@@ -48,12 +48,11 @@ export function FormatToolbar({
 }: {
   target: RefObject<HTMLTextAreaElement | null>;
   onChange: (text: string) => void;
-  /** Extra buttons shown before the formatting ones; the row wraps onto more lines when it is too narrow. */
+  /** Extra buttons shown after the formatting ones; the row wraps onto more lines when it is too narrow. */
   children?: ReactNode;
 }) {
   return (
     <div role="toolbar" aria-label="Formatting" className="mb-1 flex flex-wrap items-center gap-0.5">
-      {children}
       {TOOLS.map(({ format, label, icon: Icon, key }) => {
         const title = key ? `${label} (${MOD}${key.toUpperCase()})` : label;
         return (
@@ -71,6 +70,7 @@ export function FormatToolbar({
           </button>
         );
       })}
+      {children}
     </div>
   );
 }

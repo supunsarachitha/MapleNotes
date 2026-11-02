@@ -388,9 +388,16 @@ export function Composer({
             event.target.value = "";
           }}
         />
-        <IconButton label="Attach files" onClick={() => fileInput.current?.click()}>
-          <Paperclip className="size-5" />
-        </IconButton>
+        {offersStickers && (
+          <IconButton
+            label="Stickers"
+            aria-expanded={picker === "stickers"}
+            aria-controls={`${pickerId}-stickers`}
+            onClick={() => setPicker((open) => (open === "stickers" ? null : "stickers"))}
+          >
+            <StickerIcon className="size-5" />
+          </IconButton>
+        )}
         {offersMood && (
           <IconButton
             label={mood ? `Mood: ${mood}` : "Mood"}
@@ -407,16 +414,9 @@ export function Composer({
             )}
           </IconButton>
         )}
-        {offersStickers && (
-          <IconButton
-            label="Stickers"
-            aria-expanded={picker === "stickers"}
-            aria-controls={`${pickerId}-stickers`}
-            onClick={() => setPicker((open) => (open === "stickers" ? null : "stickers"))}
-          >
-            <StickerIcon className="size-5" />
-          </IconButton>
-        )}
+        <IconButton label="Attach files" onClick={() => fileInput.current?.click()}>
+          <Paperclip className="size-5" />
+        </IconButton>
       </FormatToolbar>
 
       {offersMood && picker === "mood" && (
