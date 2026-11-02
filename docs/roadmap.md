@@ -10,7 +10,7 @@ use), then 6 and 2.
 Features most note apps have.
 
 1. **Offline use.** Since 1.12 the app opens offline and shows the notes read recently on a device that stays signed in,
-   and new notes and edits made offline are saved once the server can be reached again. Searches, files, and other
+   and since 1.15 new notes and edits made offline are saved once the server can be reached again. Searches, files, and other
    changes (pinning, archiving, labels, the trash) still need a connection.
 2. **Reminders and due dates.** Notes, todos and habits have no reminder, due date or notification.
 3. **Note history.** Earlier versions of a note cannot be seen or restored.
@@ -42,13 +42,13 @@ Features most note apps have.
 19. Drag-to-reorder todo items.
 20. Habit targets, such as "3 times a week".
 21. Habit reminders.
-22. Archiving a habit.
+22. ~~Archiving a habit.~~ Done: habits can be archived and restored since 1.3.0.
 
 ## Backup and data
 
 23. Automatic scheduled backups, for example a nightly export to a folder or to S3.
 24. Import from other apps: Google Keep (Takeout), Evernote (`.enex`), Standard Notes, Joplin and Simplenote. Today a
-    restore reads Maple Notes exports and single Markdown, text and JSON files.
+    restore reads Maple Notes and Falcon Notes exports and single Markdown, text and JSON files.
 25. Export of one note, or a selection, including to PDF or printing.
 
 ## Settings that are fixed today
@@ -74,6 +74,6 @@ Features most note apps have.
 From the [October 2026 security audit](security-audit-2026-10.md), where each has a recommended fix.
 
 37. End-to-end tag names and file details do not count toward the storage limit.
-38. In "Off" mode, attachments are not encrypted on disk, although the documentation says they are.
+38. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).
 39. The sign-in lockout reveals whether a username exists.
 40. The Nginx Proxy Manager deployment file trusts forwarded addresses from too wide a network.

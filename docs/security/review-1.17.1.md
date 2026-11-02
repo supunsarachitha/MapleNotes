@@ -4,6 +4,8 @@
 - **Review date:** 2026-10-29
 - **Release branch:** `release-1.17.1` (cut from `main`)
 - **Tracking issue:** #47
+- **Status:** F1 to F3 were fixed in 1.17.1 ([CHANGELOG.md](../../CHANGELOG.md)). The Dependabot file that step 2 of F3 added was
+  removed again in Unreleased; version updates stay off, and the monthly maintenance routine keeps the actions pinned up to date.
 
 ## 1. How the review was done
 

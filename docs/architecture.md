@@ -40,7 +40,7 @@ flowchart LR
 |---|---|
 | `src/MapleNotes.Server/Program.cs` | Entry point: command-line modes, middleware pipeline, service registration. |
 | `src/MapleNotes.Server/Domain/` | Entities: `User` (with `UserPreferences`), `Note` (with `NoteKind`), `Attachment`, `Tag`, `Label`, `InstanceSetting`. |
-| `src/MapleNotes.Server/Features/` | One folder per feature: `Auth`, `Admin`, `Notes` (including daily notes, restoring and the trash), `Labels`, `Attachments`, `Encryption`, `EndToEnd` (key material, recovery, browser conversion), `Export`, `Preferences`. Each has its controller, request/response records and service. |
+| `src/MapleNotes.Server/Features/` | One folder per feature: `Auth`, `Admin`, `Notes` (including daily notes, restoring and the trash), `Labels`, `Attachments`, `Encryption`, `EndToEnd` (key material, recovery, browser conversion), `Export`, `Preferences`, `Storage` (usage and limits), `LinkPreviews` and `Branding`. Each has its controller, request/response records and service. |
 | `src/MapleNotes.Server/Infrastructure/` | Cross-cutting code: `Configuration`, `Crypto`, `Persistence` (EF Core, migrations, backups), `Storage` (attachment files), `Hosting`, `Web` (auth, antiforgery, security headers, rate limits). |
 | `src/maple-web/` | React + TypeScript + Vite + Tailwind CSS single-page app. |
 | `src/maple-web/src/crypto/` | Browser cryptography: Argon2id in a Web Worker, HKDF, envelopes, the attachment format, recovery keys, key storage, and the shared test vectors. |
@@ -48,7 +48,7 @@ flowchart LR
 | `src/maple-web/src/sw/` | The service worker (`/sw.js`, built separately by `vite.sw.config.ts`): keeps the app and recently read notes for offline reading, decrypts end-to-end media and streams browser exports. |
 | `src/maple-web/src/export/` | The browser export, a port of the server's, with the shared export vectors. |
 | `src/maple-web/src/import/` | Restoring: a ZIP reader, the parser for every export format and for single files, and the runner that restores notes through the API. |
-| `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Habits (with the progress chart and a month calendar), Archive, Settings, Help, and the sign-in, unlock and recovery screens. |
+| `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Habits (with the progress chart and a month calendar), Archive, Tags, Trash, Settings, Help, and the sign-in, unlock and recovery screens. |
 | `tests/MapleNotes.Server.Tests/` | Unit and integration tests (xUnit v3, `WebApplicationFactory`). |
 | `scripts/` | License check and third-party notice generator. |
 | `site/` | The project website, published to GitHub Pages by `.github/workflows/pages.yml` with the app's icon and the README screenshots. |
@@ -56,7 +56,8 @@ flowchart LR
 ### Request pipeline
 
 `ForwardedHeaders` (trusted proxies only) → security headers → exception handler (RFC 9457 problem details) →
-HSTS (HTTPS only) → static files → routing → rate limiter → authentication → authorization → controllers.
+HSTS (HTTPS only) → static files → routing → authentication → rate limiter → authorization → controllers. The rate limiter runs after
+authentication, so per-user policies see the signed-in user.
 Every controller action requires a signed-in user unless marked `[AllowAnonymous]`, and every state-changing request
 must carry a valid antiforgery token. Both are enforced globally, so a new endpoint is secure by default.
 
@@ -209,7 +210,7 @@ volume cannot be used to forge a session.
 
 | Threat | Off / encrypted at rest | End-to-end |
 |---|---|---|
-| Stolen disk, copied volume or leaked backup (without the master key) | **Protected.** The database, attachments and key ring are all ciphertext. | **Protected**, twice over. |
+| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 38). | **Protected**, twice over. |
 | Someone who knows the master key, or reads the server's memory or data while it runs | **Not protected.** The server holds the keys. | **Protected.** The server never has the key; it sees ciphertext, sizes, timestamps, and which notes share a tag. |
 | Someone who takes over the server and changes the web app it serves | **Not protected.** | **Not protected** once the user signs in or unlocks with the modified app, which could capture the password. See [threat-model.md](threat-model.md). |
 | Tampering with stored ciphertext | **Detected.** Authenticated encryption everywhere. | **Detected**, in the browser. |
@@ -275,7 +276,8 @@ note transaction, and a concurrent edit.
 - Prelogin and sign-in answer identically for unknown users and wrong passwords, including timing: unknown usernames
   get the default parameters with a stable pseudo-salt derived from the prelogin key, and are checked against a dummy
   hash. Five consecutive failures lock the account for 15 minutes, and prelogin and the authentication endpoints are
-  rate-limited per client IP (`MAPLE_AUTH_RATE_LIMIT`, a separate budget for each).
+  rate-limited per client IP (`MAPLE_AUTH_RATE_LIMIT`, a separate budget for each). Known gap: unknown names never lock, so a locked account answers 429 where an unknown
+one answers 401, which reveals that the name exists (roadmap item 39).
 - Session cookie: `HttpOnly`, `SameSite=Strict`, `Secure` over HTTPS, sliding expiry with "keep me signed in",
   otherwise a browser-session cookie. The expiry is 30 days unless administrators chose another length, up to 400 days
   (`SessionDays` in `InstanceSettings`); it is set when the session signs in, and renewal keeps it, so a new length
@@ -303,7 +305,9 @@ an ordinary upload, and for end-to-end accounts the shrunk file is what gets enc
 
 Downloads display only passive media inline: common image, audio and video types, and plain text. Everything else,
 including SVG and HTML, is sent as a download with a generic content type. Each download also carries `nosniff` and
-`Content-Security-Policy: default-src 'none'; sandbox`, so an uploaded file can never run script in the app's origin.
+`Content-Security-Policy: default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox`, so an
+uploaded file can never run script in the app's origin. The `img-src` and `media-src` entries let inline pictures, audio
+and video load from this origin.
 
 End-to-end files are encrypted in the browser before upload and served back as ciphertext. The web app's media
 service worker (`src/maple-web/src/sw`) decrypts them for the page at `/e2ee/attachments/{id}`, fetching only the
@@ -502,6 +506,7 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 | `StartupInitializer` | Before anything else starts | Validates settings and the master key, creates the data layout, backs up and migrates the database. Problems stop startup with a one-line message. |
 | `EncryptionMigrationService` | Startup, on a mode change, every 5 minutes | Converts content between `None` and `Server` to match each account's mode. The browser converts to and from end-to-end encryption. |
 | `AttachmentCleanupService` | Startup, then hourly | Removes uploads never attached to a note (after 24 h), orphan files (after 1 h) and interrupted writes. |
+| `TrashCleanupService` | Startup, then hourly | Deletes notes and files that have been in the trash for 30 days. |
 
 ## HTTP hardening
 
@@ -521,7 +526,7 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 
 ## Testing
 
-- **Server:** about 470 xUnit tests.
+- **Server:** over 340 xUnit test methods.
   - Crypto primitives, including tampering, truncation, reordering, wrong keys and every chunk boundary.
   - The storage layer and startup, including the upgrade of a 1.0 database.
   - API behaviour through `WebApplicationFactory`: authentication (key-derived sign-in, legacy upgrade, unknown
@@ -537,7 +542,7 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 - **Shared vectors:** `test-vectors.json` (every end-to-end derivation and format) and `export-vectors.json` (the
   server's export archives) are written by the C# tests and checked by the web tests, so both implementations agree
   byte for byte.
-- **Web:** about 295 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
+- **Web:** over 370 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
   conversion, the service worker's range decryption and offline reading (what is kept, for whom, and when it is
   deleted), writing offline (what is kept, how it shows, sending, conflicts, encryption on the device), the browser export against the server's archives, restoring
   those archives, Markdown safety and checkboxes ticked in notes, the composer with titles and tag suggestions, the

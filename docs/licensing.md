@@ -25,7 +25,7 @@ high-stakes distribution.
 
 | Category | Licenses | Rule |
 |---|---|---|
-| Allowed | MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Zlib, Unlicense, CC0-1.0, public domain, OFL-1.1 (fonts only) | Use freely; keep notices. Apache-2.0: also carry any `NOTICE` file. |
+| Allowed | MIT, MIT-0, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Zlib, Unlicense, CC0-1.0, BlueOak-1.0.0, Python-2.0, PSF-2.0, CC-BY-4.0, public domain, OFL-1.1 (fonts only) | Use freely; keep notices. Apache-2.0: also carry any `NOTICE` file. The SPDX ids are those in `ALLOWED` in `scripts/check-licenses.py`. Public domain and OFL-1.1 are not there yet, so such a package fails the check until the script is updated. |
 | Review first | MPL-2.0, LGPL, EPL, anything with a custom license file | Needs an explicit decision recorded in this file. |
 | Not allowed | GPL, AGPL, SSPL, BUSL, Elastic, Commons Clause, "non-commercial" or "source-available" licenses, any license requiring payment for some users | Never added. |
 
@@ -116,6 +116,7 @@ not affect the license of Maple Notes' own code; their sources are available fro
 ## Before public release
 
 - [x] Regenerate `THIRD-PARTY-NOTICES.md` from the exact dependency versions being released (done for 1.0.0, 1.1.0,
-  1.2.0, 1.2.1, 1.3.0, 1.3.1 and 1.4.0).
+  1.2.0, 1.2.1, 1.3.0, 1.3.1 and 1.4.0; the file in the repo also lists the 1.16.1 dependency versions, such as
+  @tanstack/react-query 5.104.1).
 - [ ] Put the copyright holder's legal name in the `Required Notice` line of `LICENSE`.
 - [ ] Search trademark databases (for example USPTO, EUIPO, WIPO) for "Maple Notes" in software classes.

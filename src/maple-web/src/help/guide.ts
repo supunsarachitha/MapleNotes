@@ -18,6 +18,7 @@ are at the top.
   links, or type [Markdown](https://commonmark.org/help/) yourself. Ctrl/⌘+B, I and K are shortcuts for bold, italic
   and links.
 - **Pictures and files.** Choose the paperclip, paste, or drag files onto the box. They upload while you write.
+- **Full screen.** Turn on **Open the editor in full screen** in [Settings → Writing](/settings/writing), under Editing. Then editing a note, or clicking into the new-note box, opens a full screen view. Esc closes it.
 - **Checklists.** Tick a checklist's boxes right in the note; the change is saved straight away.
 - **Changing a note.** Open a note's **⋯** menu to edit it, pin it to the top, label it, copy its text, archive it or
   delete it. Editing starts with the cursor at the end of the note, ready to carry on. Archived notes wait in the
@@ -55,7 +56,7 @@ Tab), or tap it. Esc closes the list.`,
     body: `Labels are coloured markers you put on notes and todo lists by hand, such as *Work* in blue or *Urgent* in red.
 Unlike tags, they are not part of what you write, so adding or removing one never changes a note.
 
-Turn on **Labels** in [Settings → Labels](/settings/labels), where you also create, rename, recolour and delete them.
+Turn on **Use labels** in [Settings → Labels](/settings/labels), where you also create, rename, recolour and delete them.
 Then choose **Labels…** in a note's **⋯** menu to tick the ones it should have; you can create a new label right there
 by typing its name. A note shows its labels at the bottom, and choosing one, or a label in the side menu, lists its
 notes.
@@ -332,6 +333,9 @@ when it is almost full. Once it is full, new files, notes and longer edits are n
 | Ctrl+B / ⌘+B | Bold |
 | Ctrl+I / ⌘+I | Italic |
 | Ctrl+K / ⌘+K | Link |
+| Ctrl+Shift+F / ⌘+Shift+F | Open or close the full screen editor |
+| N | On Home, start a new note in the box |
+| / | On Home, search notes |
 | ← → | Previous and next picture in the viewer |`,
   },
   {

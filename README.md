@@ -50,7 +50,8 @@
   habit tracker, the archive, the Tags page, labels, the trash and Help in the side menu on or off in Settings, on
   every device at once.
   Turning a feature off hides it and deletes nothing. Settings is organised in sections (Account, Appearance, Side
-  menu, Writing, Features, Labels, Backup & data, Privacy & security), each with its own address.
+  menu, Writing, Notes & files, Labels, Backup & data, Privacy & security, and Administration for administrators), each
+  with its own address.
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists you tick in place, tables, code), with a formatting toolbar and shortcuts
   in the editor, and clickable `#tags`, including
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
@@ -60,8 +61,8 @@
   With end-to-end encryption their names are encrypted too.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
   upload progress. Images keep their shape on any screen and open in a full-screen viewer; audio and video play
-  inline, and video seeking works on iOS. Optionally, photos are shrunk in the browser before they upload (at most
-  2560 pixels, as JPEG), often to a tenth of the size.
+  inline, and video can be skipped to any point. Optionally, photos are shrunk in the browser before they upload (with
+  the Large size, at most 2560 pixels on the longest side, as JPEG), often to a tenth of the size.
 - **Search.** Finds text in your notes, including encrypted ones. With end-to-end encryption, search runs in your
   browser.
 - **Encryption, chosen per account.**
@@ -99,9 +100,9 @@
 - **Appearance.** Light or dark (or follow your device), seven accent colours, the side menu's order (drag or arrows)
   and text size, and the first day of the week, chosen in Settings and applied on every device.
 - **Moods.** Notes and quick notes can carry a mood — Awful, Bad, Okay, Good or Great — shown as a smiley on the card.
-  Turn on **Mood tracker** in Settings → Features, then pick one in the composer. In end-to-end mode the mood is
+  Turn on **Mood tracker** in Settings → Writing, then pick one in the composer. In end-to-end mode the mood is
   encrypted with the note. Exports and backups carry it.
-- **Stickers.** Add sticker packs in Settings → Features: ZIP files of pictures kept on this device. Put a sticker on a
+- **Stickers.** Add sticker packs in Settings → Writing: ZIP files of pictures kept on this device. Put a sticker on a
   note from the sticker picker in the composer; it uploads as a picture attachment, so it stays on the note and across
   devices. Exports and restores carry stickers, and are compatible with Falcon Notes.
 - **Small and hardened.** One container: non-root, read-only root filesystem, built-in health check.
@@ -118,7 +119,7 @@ Dark mode: [screenshot](docs/screenshots/home-feed-dark.png).
 
 ## Quick start
 
-You need Docker. Maple Notes listens on port 8080 inside the container. Open it at `http://localhost` on the server
+You need Docker. Maple Notes listens on port 8080 inside the container. Open it at `http://localhost:8080` (or the `MAPLE_PORT` you set) on the server
 itself; from any other device it needs HTTPS, because browsers only allow its in-page encryption on HTTPS or
 `localhost` (see [Reverse proxy](#reverse-proxy-and-https)).
 
@@ -578,15 +579,15 @@ account and restore one of the sample backups below. It is a public demo, so don
 [`demo-backup-samples/`](demo-backup-samples/) holds a sample account as a Markdown and a JSON export: notes, todo
 lists, quick notes, daily notes, habits, nested tags, archived notes, photos, a video, a voice memo, a PDF and a CSV
 file. Create an account, then restore either file in **Settings → Backup & data**. Settings are not part of a
-backup, so to see everything, turn on note titles (under **Writing**) and daily notes, the habit tracker and link
-previews (under **Features**) in Settings.
+backup, so to see everything, turn on note titles and daily notes (under **Writing**), the habit tracker (under **Side menu**) and link
+previews (under **Notes & files**) in Settings.
 
 ## Falcon Notes: the offline Android app
 
 [Falcon Notes](https://supunsarachitha.github.io/FalconNotes/) is the offline companion of Maple Notes: an Android app
-([source](https://github.com/supunsarachitha/FalconNotes)) with the same timeline, todo lists, quick notes, daily notes
+([source](https://github.com/supunsarachitha/FalconNotes)) with the same timeline, todo lists, daily notes
 and habit tracker, based on Maple Notes 1.8.0. It needs no server, no account and no internet permission, and keeps
-everything on the device, always encrypted. It runs on Android 8.0 and later, on phones and tablets.
+everything on the device, always encrypted.
 
 The two do not sync, but each restores the other's backups. Export in one, under **Settings → Backup & data**, and
 restore the ZIP in the other: notes keep their dates, pins, archive state, kind and files, and notes that are already
@@ -697,6 +698,16 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.16 to 1.17
+
+Nothing to do. The migration adds a mood to each note (none for existing notes) and a sticker flag to each attachment
+(off for existing files). Version 1.16.1 changed only dependencies, and 1.17.1 changed only the security headers of the
+optional API reference (`MAPLE_API_DOCS=true`).
+
+For API clients: notes gained `mood` and `encryptedMood` (an end-to-end note's mood, encrypted by the browser),
+attachments gained `isSticker`, an upload marks a sticker with a `sticker` form field sent before the file, and
+preferences gained `moodTracker` and `stickers`.
+
 ### From 1.15 to 1.16
 
 Nothing to do. The migration adds a setting to each label, off for every existing label, so no note moves until its
@@ -740,14 +751,14 @@ take a sealed `modeRecord`, the account gained `endToEndModeRecord`, and `GET /m
 
 ### From 1.9 to 1.10
 
-Nothing to do. Accounts that shrink photos keep today's size (Large) until they choose another in Settings → Features.
+Nothing to do. Accounts that shrink photos keep today's size (Large) until they choose another in Settings → Notes & files.
 For API clients, preferences gained `photoSize` (`Large`, `Medium` or `Small`).
 
 ### From 1.8 to 1.9
 
 Nothing to do. Exports now list each note's labels by name, and the manifest lists the labels' colours (manifest
 version 3); restoring such an export into Maple Notes 1.8 brings the notes back without their labels. Help stays in the
-side menu until an account hides it in Settings → Features.
+side menu until an account hides it in Settings → Side menu.
 
 For API clients: `POST /api/v1/notes/import` takes `labelIds`, preferences gained `helpMenu`, and an account with
 end-to-end label names (but no end-to-end notes or files) is now exported by the browser: `GET /api/v1/export` answers
@@ -757,7 +768,7 @@ end-to-end label names (but no end-to-end notes or files) is now exported by the
 
 Nothing to do. The migration adds the trash, labels and an index that makes long lists faster. The trash is on for
 every account, so deleting now keeps notes for 30 days (they count towards storage until then); turning the trash off
-in Settings → Features deletes at once, as before. Labels and tag suggestions stay off until an account turns them on,
+in Settings → Notes & files deletes at once, as before. Labels and tag suggestions stay off until an account turns them on,
 and the side menu keeps its usual order.
 
 For API clients: notes gained `labelIds` and `trashedAtUtc`; lists take `state=trash` and `label`; `PATCH
@@ -786,7 +797,7 @@ without it removes the limit); `GET /api/v1/account/storage` gained `quotaBytes`
 HTTP 507 when they do not fit in an account's storage limit.
 
 **From 1.2 to 1.3.** Nothing to do. The habit tracker is off for every account until it is turned on in Settings →
-Features. Habits are notes of a new kind, so exports file them under `habits/`; restoring such an export into Maple
+Side menu. Habits are notes of a new kind, so exports file them under `habits/`; restoring such an export into Maple
 Notes 1.2 brings habits back as ordinary notes. The API gained the kind `habit` and the preference `habitTracker`.
 Without a `kind`, tag and calendar counts leave habits out.
 
@@ -877,7 +888,7 @@ and set `MAPLE_TRUSTED_PROXIES` to the proxy's address or network, so Maple Note
 
 ## Development
 
-Requirements: .NET 10 SDK, Node.js 22.12 or later, Docker (for container builds).
+Requirements: .NET 10 SDK 10.0.401 or newer (see `global.json`), Node.js 22.12 or later, Docker (for container builds).
 
 ```sh
 # API server on http://localhost:5051. It uses a public development key and ./data/dev;
