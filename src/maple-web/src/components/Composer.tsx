@@ -391,10 +391,48 @@ export function Composer({
         <IconButton label="Attach files" onClick={() => fileInput.current?.click()}>
           <Paperclip className="size-5" />
         </IconButton>
+        {offersMood && (
+          <IconButton
+            label={mood ? `Mood: ${mood}` : "Mood"}
+            aria-expanded={picker === "mood"}
+            aria-controls={`${pickerId}-mood`}
+            onClick={() => setPicker((open) => (open === "mood" ? null : "mood"))}
+          >
+            {mood ? (
+              <span aria-hidden="true" className="text-xl leading-none">
+                {MOOD_EMOJI[mood]}
+              </span>
+            ) : (
+              <Smile className="size-5" />
+            )}
+          </IconButton>
+        )}
+        {offersStickers && (
+          <IconButton
+            label="Stickers"
+            aria-expanded={picker === "stickers"}
+            aria-controls={`${pickerId}-stickers`}
+            onClick={() => setPicker((open) => (open === "stickers" ? null : "stickers"))}
+          >
+            <StickerIcon className="size-5" />
+          </IconButton>
+        )}
         <div className="min-w-0 flex-1">
           <FormatToolbar target={textarea} onChange={setText} />
         </div>
       </div>
+
+      {offersMood && picker === "mood" && (
+        <MoodPicker
+          id={`${pickerId}-mood`}
+          value={mood}
+          onChange={(next) => {
+            setMood(next);
+            setPicker(null);
+          }}
+        />
+      )}
+      {offersStickers && picker === "stickers" && <StickerPicker id={`${pickerId}-stickers`} onChoose={addSticker} />}
 
       <div className={cn("relative", fullscreen && "flex min-h-0 flex-1 flex-col")}>
         <textarea
@@ -463,45 +501,7 @@ export function Composer({
         </ul>
       )}
 
-      {offersMood && picker === "mood" && (
-        <MoodPicker
-          id={`${pickerId}-mood`}
-          value={mood}
-          onChange={(next) => {
-            setMood(next);
-            setPicker(null);
-          }}
-        />
-      )}
-      {offersStickers && picker === "stickers" && <StickerPicker id={`${pickerId}-stickers`} onChoose={addSticker} />}
-
       <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2 dark:border-stone-800">
-        {offersMood && (
-          <IconButton
-            label={mood ? `Mood: ${mood}` : "Mood"}
-            aria-expanded={picker === "mood"}
-            aria-controls={`${pickerId}-mood`}
-            onClick={() => setPicker((open) => (open === "mood" ? null : "mood"))}
-          >
-            {mood ? (
-              <span aria-hidden="true" className="text-xl leading-none">
-                {MOOD_EMOJI[mood]}
-              </span>
-            ) : (
-              <Smile className="size-5" />
-            )}
-          </IconButton>
-        )}
-        {offersStickers && (
-          <IconButton
-            label="Stickers"
-            aria-expanded={picker === "stickers"}
-            aria-controls={`${pickerId}-stickers`}
-            onClick={() => setPicker((open) => (open === "stickers" ? null : "stickers"))}
-          >
-            <StickerIcon className="size-5" />
-          </IconButton>
-        )}
         {content.length > MAX_LENGTH * 0.9 && (
           <span className={cn("text-xs", content.length > MAX_LENGTH ? "text-red-700" : "text-stone-500")}>
             {content.length.toLocaleString()} / {MAX_LENGTH.toLocaleString()}
