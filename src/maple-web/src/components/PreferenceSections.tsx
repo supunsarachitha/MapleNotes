@@ -284,47 +284,6 @@ export function FeaturesSection() {
 
   return (
     <>
-      <Section title="Pages" description="Each one adds a page to the side menu. Turning one off hides it; nothing is deleted.">
-        <div className="divide-y divide-stone-100 dark:divide-stone-800">
-          <PreferenceSwitch
-            label="Todo lists"
-            description="A Todo tab for checklists you create and tick off."
-            checked={preferences.todoLists}
-            onChange={(todoLists) => save({ todoLists })}
-          />
-          <PreferenceSwitch
-            label="Quick notes"
-            description="A Quick notes tab: a scratchpad for short notes that stay out of your timeline."
-            checked={preferences.quickNotes}
-            onChange={(quickNotes) => save({ quickNotes })}
-          />
-          <PreferenceSwitch
-            label="Habit tracker"
-            description="A Habits tab: tick off your daily habits and see your progress in a chart."
-            checked={preferences.habitTracker}
-            onChange={(habitTracker) => save({ habitTracker })}
-          />
-          <PreferenceSwitch
-            label="Tags page"
-            description="A Tags page listing every tag with how many notes use it. Tags in your notes work either way."
-            checked={preferences.tags}
-            onChange={(tags) => save({ tags })}
-          />
-          <PreferenceSwitch
-            label="Archive"
-            description="An Archive page for notes you put away, and the Archive action on notes and lists. Turning it off hides them; archived notes are kept."
-            checked={preferences.archive}
-            onChange={(archive) => save({ archive })}
-          />
-          <PreferenceSwitch
-            label="Help in the menu"
-            description="Help in the side menu. Turning it off hides the item; the guide stays at /help."
-            checked={preferences.helpMenu}
-            onChange={(helpMenu) => save({ helpMenu })}
-          />
-        </div>
-      </Section>
-
       <Section title="Home and menu">
         <div className="divide-y divide-stone-100 dark:divide-stone-800">
           <PreferenceSwitch

@@ -177,16 +177,17 @@ describe("Settings", () => {
     expect(screen.getByRole("switch", { name: "Note titles" })).toHaveAttribute("aria-checked", "true");
   });
 
-  it("turns features off and on", async () => {
+  it("hides and shows side menu items with their eye, but never Home", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
-    renderSettings(idle, user, null, "/settings/features");
-    const todo = screen.getByRole("switch", { name: "Todo lists" });
+    renderSettings(idle, user, null, "/settings/menu");
 
-    expect(todo).toHaveAttribute("aria-checked", "true"); // on by default
+    expect(screen.queryByRole("button", { name: /Home (from|in) the menu/ })).not.toBeInTheDocument();
+    const todo = screen.getByRole("button", { name: "Hide Todo from the menu" });
+    expect(todo).toHaveAttribute("aria-pressed", "false"); // shown by default
     await userEvent.click(todo);
 
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, todoLists: false }));
-    expect(todo).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("button", { name: "Show Todo in the menu" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("offers a photo size once photos are shrunk", async () => {
@@ -205,14 +206,12 @@ describe("Settings", () => {
 
   it("offers the habit tracker, off by default", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
-    renderSettings(idle, user, null, "/settings/features");
-    const habits = screen.getByRole("switch", { name: "Habit tracker" });
+    renderSettings(idle, user, null, "/settings/menu");
 
-    expect(habits).toHaveAttribute("aria-checked", "false");
-    await userEvent.click(habits);
+    await userEvent.click(screen.getByRole("button", { name: "Show Habits in the menu" }));
 
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, habitTracker: true }));
-    expect(habits).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: "Hide Habits from the menu" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("offers double-tap to edit, off by default", async () => {
@@ -252,11 +251,11 @@ describe("Settings", () => {
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ menuTextSize: "Large" })));
     await userEvent.click(sections.getByRole("link", { name: /^Appearance/ }));
     await userEvent.selectOptions(screen.getByLabelText("Week starts on"), "Monday");
-    await userEvent.click(sections.getByRole("link", { name: /^Features/ }));
+    await userEvent.click(sections.getByRole("link", { name: /^Side menu/ }));
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ weekStart: "Monday" })));
-    await userEvent.click(screen.getByRole("switch", { name: "Archive" }));
-    await userEvent.click(screen.getByRole("switch", { name: "Tags page" }));
-    await userEvent.click(screen.getByRole("switch", { name: "Help in the menu" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide Archive from the menu" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide Tags from the menu" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide Help from the menu" }));
 
     await waitFor(() =>
       expect(save).toHaveBeenLastCalledWith({
@@ -407,7 +406,7 @@ describe("Settings", () => {
 
     expect(screen.getByRole("button", { name: "Move Home up" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Move Help down" })).toBeDisabled();
-    expect(items()[3]).toContain("Hidden: Habit tracker is off"); // keeps its place for when it is turned on
+    expect(items()[3]).toContain("Hidden"); // keeps its place for when it is turned on
     await userEvent.click(screen.getByRole("button", { name: "Move Todo up" }));
 
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuOrder: "todo,home,quick,habits,tags,archive,settings,help" }));
