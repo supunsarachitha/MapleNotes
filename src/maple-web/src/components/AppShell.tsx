@@ -10,7 +10,7 @@ import { usePendingCount } from "../lib/outbox";
 import { useOutboxSync } from "../lib/outboxSync";
 import { usePreferences } from "../lib/preferences";
 import { useAuthStatus, useLabels, useSignedOut, useTags } from "../lib/queries";
-import { Link, navigate, useLocation, type Location } from "../lib/router";
+import { Link, navigate, useLocation, useStayOnHome, type Location } from "../lib/router";
 import type { User } from "../lib/types";
 import { Calendar } from "./Calendar";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -280,6 +280,7 @@ function SettingsButton({ className }: { className?: string }) {
 export function AppShell({ user, children }: { user: User; children: ReactNode }) {
   // The shell shows only once the account's notes can be read and written, which sending changes made offline needs.
   useOutboxSync(true);
+  useStayOnHome();
   const { appName } = useBranding();
   const { path } = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);

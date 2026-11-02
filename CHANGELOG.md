@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- In the installed app (PWA), the Back button on the Home page keeps you on Home instead of leaving the app. Back from other pages works as before; browser tabs are not affected.
 - CI: releases are tagged automatically. When a push to `main` carries a new `<Version>` in `Directory.Build.props`,
   the `Release tag` workflow creates the `vX.Y.Z` tag and starts CI on it, which publishes the versioned container
   image.
