@@ -43,7 +43,7 @@ export function shortcutFormat(event: { key: string; metaKey: boolean; ctrlKey: 
 /** Formatting buttons for a Markdown text box. */
 export function FormatToolbar({ target, onChange }: { target: RefObject<HTMLTextAreaElement | null>; onChange: (text: string) => void }) {
   return (
-    <div role="toolbar" aria-label="Formatting" className="-mx-1 mb-1 flex gap-0.5 overflow-x-auto">
+    <div role="toolbar" aria-label="Formatting" className="mb-1 flex gap-0.5 overflow-x-auto">
       {TOOLS.map(({ format, label, icon: Icon, key }) => {
         const title = key ? `${label} (${MOD}${key.toUpperCase()})` : label;
         return (

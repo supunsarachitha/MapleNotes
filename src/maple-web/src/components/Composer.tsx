@@ -377,7 +377,24 @@ export function Composer({
       <label htmlFor={editing ? `edit-${note.id}` : "composer"} className="sr-only">
         {editing ? "Edit note" : "New note"}
       </label>
-      <FormatToolbar target={textarea} onChange={setText} />
+      <div className="flex items-center gap-1">
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(event) => {
+            if (event.target.files) addFiles(event.target.files);
+            event.target.value = "";
+          }}
+        />
+        <IconButton label="Attach files" onClick={() => fileInput.current?.click()}>
+          <Paperclip className="size-5" />
+        </IconButton>
+        <div className="min-w-0 flex-1">
+          <FormatToolbar target={textarea} onChange={setText} />
+        </div>
+      </div>
 
       <div className={cn("relative", fullscreen && "flex min-h-0 flex-1 flex-col")}>
         <textarea
@@ -459,19 +476,6 @@ export function Composer({
       {offersStickers && picker === "stickers" && <StickerPicker id={`${pickerId}-stickers`} onChoose={addSticker} />}
 
       <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2 dark:border-stone-800">
-        <input
-          ref={fileInput}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(event) => {
-            if (event.target.files) addFiles(event.target.files);
-            event.target.value = "";
-          }}
-        />
-        <IconButton label="Attach files" onClick={() => fileInput.current?.click()}>
-          <Paperclip className="size-5" />
-        </IconButton>
         {offersMood && (
           <IconButton
             label={mood ? `Mood: ${mood}` : "Mood"}
