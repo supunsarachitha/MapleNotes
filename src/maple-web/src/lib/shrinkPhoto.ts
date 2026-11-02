@@ -1,4 +1,4 @@
-// Shrinking photos in the browser before they upload (Settings → Features), so they take a fraction of the space.
+// Shrinking photos in the browser before they upload (Settings → Notes & files), so they take a fraction of the space.
 // It happens before any encryption, so it works the same for end-to-end accounts.
 
 import type { PhotoSize } from "./types";

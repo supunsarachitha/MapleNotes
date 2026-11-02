@@ -10,7 +10,7 @@ import {
   Server,
   ShieldCheck,
   Tag,
-  ToggleRight,
+  FileStack,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
@@ -20,7 +20,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
 import { ExportSection } from "../components/ExportSection";
 import { LabelSettings } from "../components/LabelSettings";
-import { AppearanceSection, EditingSection, FeaturesSection, MenuSection, WritingSection } from "../components/PreferenceSections";
+import { AppearanceSection, EditingSection, MenuSection, NotesFilesSection, WritingExtrasSection, WritingSection } from "../components/PreferenceSections";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
 import { TwoFactorSection } from "../components/TwoFactorSection";
@@ -190,7 +190,7 @@ function TrashSection() {
       description={
         trash
           ? "Deleted notes, todo lists and habits wait in the trash for 30 days, then they are deleted for good."
-          : "The trash is turned off in Features: deleting is immediate and permanent."
+          : "The trash is turned off in Notes & files: deleting is immediate and permanent."
       }
     >
       <Link
@@ -840,10 +840,10 @@ interface SettingsSection {
 /** The sections of Settings, in the order of the list; each has its own address, /settings/{id}. */
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "account", title: "Account", summary: "Your name, how much you store, and deleting your account.", icon: CircleUserRound },
-  { id: "appearance", title: "Appearance", summary: "Light or dark, the accent colour and the first day of the week.", icon: Palette },
-  { id: "menu", title: "Side menu", summary: "The order of the menu's items and their size.", icon: PanelLeft },
-  { id: "writing", title: "Writing", summary: "Titles, dates, tag suggestions and editing.", icon: PenLine },
-  { id: "features", title: "Features", summary: "The pages and tools you use.", icon: ToggleRight },
+  { id: "appearance", title: "Appearance", summary: "Light or dark, the accent colour, the first day of the week and the menu's text size.", icon: Palette },
+  { id: "menu", title: "Side menu", summary: "Which pages the menu shows, in what order, and the calendar.", icon: PanelLeft },
+  { id: "writing", title: "Writing", summary: "Titles, dates, editing, daily notes, moods and stickers.", icon: PenLine },
+  { id: "notes", title: "Notes & files", summary: "The trash, photo uploads and link previews.", icon: FileStack },
   { id: "labels", title: "Labels", summary: "Coloured labels for your notes.", icon: Tag },
   { id: "data", title: "Backup & data", summary: "Export, restore, the trash and starting over.", icon: DatabaseBackup },
   { id: "security", title: "Privacy & security", summary: "Your password, two-factor sign-in, encryption, recovery key and sessions.", icon: ShieldCheck },
@@ -861,10 +861,11 @@ function SectionContent({ id, user }: { id: string; user: User }) {
         <>
           <WritingSection />
           <EditingSection />
+          <WritingExtrasSection />
         </>
       );
-    case "features":
-      return <FeaturesSection />;
+    case "notes":
+      return <NotesFilesSection />;
     case "labels":
       return <LabelSettings />;
     case "data":
@@ -906,7 +907,9 @@ function SectionContent({ id, user }: { id: string; user: User }) {
 export function SettingsPage({ user }: { user: User }) {
   const { path } = useLocation();
   const sections = SETTINGS_SECTIONS.filter((section) => !section.adminOnly || user.role === "Admin");
-  const requested = path.startsWith("/settings/") ? path.slice("/settings/".length) : null;
+  const asked = path.startsWith("/settings/") ? path.slice("/settings/".length) : null;
+  // Features was split up; its old address opens the section that kept most of it.
+  const requested = asked === "features" ? "notes" : asked;
   const current = sections.find((section) => section.id === requested) ?? null;
   const shown = current ?? sections[0]!;
   // A conversion after a change of encryption shows in the list, wherever one is.

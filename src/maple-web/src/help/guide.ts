@@ -97,7 +97,7 @@ quick notes.`,
   {
     id: "daily",
     title: "Daily notes",
-    body: `Turn on **Daily notes** in [Settings → Features](/settings/features) to get a **Today** card at the top of Home, titled with today's
+    body: `Turn on **Daily notes** in [Settings → Writing](/settings/writing) to get a **Today** card at the top of Home, titled with today's
 date. Write in it and it becomes today's note; days you skip leave no empty notes. If you start the day's note on two
 devices at once, the second one adds to it rather than starting another.
 
@@ -105,18 +105,18 @@ devices at once, the second one adds to it rather than starting another.
 then choose **Use as daily-note template** from its **⋯** menu. Today's card then starts with its text, ready to fill in;
 the template's title, if it has one, is left out, and its files are not copied. Edit the note to change the template.
 A quick note or an archived note works well for it, as it stays out of your timeline. To stop, choose **Stop using as
-daily template** from its menu, or **Stop using** under Daily notes in [Settings → Features](/settings/features).`,
+daily template** from its menu, or **Stop using** under Daily notes in [Settings → Writing](/settings/writing).`,
   },
   {
     id: "calendar",
     title: "The calendar",
     body: `The calendar in the menu marks the days you wrote on. Choose a day to see that day's notes, and use the arrows to go
-to other months. You can turn the calendar off in [Settings → Features](/settings/features).`,
+to other months. You can turn the calendar off in [Settings → Side menu](/settings/menu).`,
   },
   {
     id: "habits",
     title: "Habits",
-    body: `Turn on the **Habit tracker** in [Settings → Features](/settings/features) to get **Habits** in the menu. Add a habit, such as "Read 20
+    body: `Turn on **Habits** with its eye in [Settings → Side menu](/settings/menu) to get it in the menu. Add a habit, such as "Read 20
 minutes", then tap a day's circle on each day you do it; tap it again to undo. The last seven days are shown, with
 today outlined, and the arrows go back a week at a time, so you can fill in a day you missed.
 
@@ -140,7 +140,7 @@ download when you choose them.
 Pictures, players and link previews load as you scroll towards them, so a long timeline opens quickly however many
 files it has.
 
-To save space, turn on **Shrink photos before uploading** in [Settings → Features](/settings/features): large photos are
+To save space, turn on **Shrink photos before uploading** in [Settings → Notes & files](/settings/notes): large photos are
 resized and saved as JPEG before they upload, and their location and camera details are left out. Then choose a
 **Photo size**: **Large** (2560 pixels on the longest side) stays sharp on big screens and is often a tenth of the
 original; **Medium** (1920 pixels) and **Small** (1280 pixels) are smaller still, and saved at a lower quality, which
@@ -150,11 +150,11 @@ they are.`,
   {
     id: "moods",
     title: "Moods and stickers",
-    body: `Turn on **Mood tracker** in [Settings → Features](/settings/features) to give notes and quick notes a mood: Awful,
+    body: `Turn on **Mood tracker** in [Settings → Writing](/settings/writing) to give notes and quick notes a mood: Awful,
 Bad, Okay, Good or Great. Pick one in the composer's mood button, shown as a smiley on the note card after the time.
 Todo lists and habits cannot have a mood.
 
-**Stickers** add pictures from sticker packs to your notes. Turn on **Stickers** in [Settings → Features](/settings/features),
+**Stickers** add pictures from sticker packs to your notes. Turn on **Stickers** in [Settings → Writing](/settings/writing),
 then add a pack from a ZIP file. Stickers are kept in this browser and synced to your other devices as picture attachments,
 so they stay on a note even if you remove the pack. A sticker shows above the note's gallery, not in it, and comes
 through in exports and backups, where it is compatible with Falcon Notes. With end-to-end encryption, a mood is
@@ -163,7 +163,7 @@ encrypted with the note and a sticker's flag is encrypted with the file; the ser
   {
     id: "links",
     title: "Link previews",
-    body: `With **Link previews** on in [Settings → Features](/settings/features), notes show the title and description of the pages they link
+    body: `With **Link previews** on in [Settings → Notes & files](/settings/notes), notes show the title and description of the pages they link
 to. To get them, the server visits each linked page, so it learns which links you save, even if your notes are
 end-to-end encrypted. That is why they are off until you turn them on, and why Maple Notes asks you to confirm when you
 do. Your server's administrator may also have switched them off for everyone.`,
@@ -172,11 +172,11 @@ do. Your server's administrator may also have switched them off for everyone.`,
     id: "appearance",
     title: "Appearance",
     body: `Under [Settings → Appearance](/settings/appearance), choose **Light**, **Dark**, or **Device** to follow your phone
-or computer, pick an accent colour, and choose the day your weeks start on in the calendars.
+or computer, pick an accent colour, choose the day your weeks start on in the calendars, and make the side menu's text
+smaller or larger.
 
 Under [Settings → Side menu](/settings/menu), put the menu's items in the order you use them: drag an item by its
-handle, or move it with its arrows. You can also make the menu's text smaller or larger. Your choices follow you to
-every device you sign in on.`,
+handle, or move it with its arrows. Its eye hides or shows it. Your choices follow you to every device you sign in on.`,
   },
   {
     id: "install",
@@ -216,10 +216,12 @@ when you are reading saved copies, and a badge at the top right, in the title ba
   {
     id: "features",
     title: "Choosing your features",
-    body: `Everything beyond plain notes can be switched on or off in [Settings → Features](/settings/features): todo
-lists, quick notes, the habit tracker, the Tags page, the archive, Help in the side menu, daily notes, the calendar,
-labels, the trash and link previews. Turning something off only hides it; nothing is deleted, and it all comes back
-when you turn it on again. With Help hidden from the menu, this guide is still at [/help](/help).`,
+    body: `Everything beyond plain notes can be switched on or off. In [Settings → Side menu](/settings/menu), the eye next to Todo, Quick notes,
+Habits, Tags, Archive and Help shows or hides that page (Home always shows), and the calendar has its own switch.
+Daily notes, moods and stickers are in [Settings → Writing](/settings/writing), labels in [Settings → Labels](/settings/labels), and the trash,
+photo shrinking and link previews in [Settings → Notes & files](/settings/notes). Turning something off only hides it; nothing is deleted, and it all
+comes back when you turn it on again. With Help hidden from the menu, this guide is still at [/help](/help).
+Settings itself is the gear at the top right, next to the Online badge.`,
   },
   {
     id: "trash",
@@ -231,7 +233,7 @@ straight back. The trash is not in the menu: open it from [Settings → Backup &
 Things stay in the trash for 30 days, then they are deleted for good by themselves. Until then they still count
 towards your storage, and they are left out of your timeline, searches, tags, the calendar and exports.
 
-If you would rather delete for good at once, turn the **Trash** off in [Settings → Features](/settings/features);
+If you would rather delete for good at once, turn the **Trash** off in [Settings → Notes & files](/settings/notes);
 deleting then asks first.`,
   },
   {

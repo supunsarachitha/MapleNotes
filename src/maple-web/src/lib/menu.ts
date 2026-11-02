@@ -1,8 +1,11 @@
-import { Archive, CalendarCheck, CircleHelp, Hash, Home, ListTodo, Settings, Zap, type LucideIcon } from "lucide-react";
+import { Archive, CalendarCheck, CircleHelp, Hash, Home, ListTodo, Zap, type LucideIcon } from "lucide-react";
 import type { Preferences } from "./types";
 
-/** The side menu's items in their default order (the server knows the same names). */
-export const MENU_ITEMS = ["home", "todo", "quick", "habits", "tags", "archive", "settings", "help"] as const;
+/**
+ * The side menu's items in their default order (the server knows the same names). Settings is not one: it is the gear
+ * in the top bar, and saved orders that still list it simply skip it.
+ */
+export const MENU_ITEMS = ["home", "todo", "quick", "habits", "tags", "archive", "help"] as const;
 export type MenuItemId = (typeof MENU_ITEMS)[number];
 
 export interface MenuItemInfo {
@@ -13,17 +16,18 @@ export interface MenuItemInfo {
   shown: (preferences: Preferences) => boolean;
   /** The feature switch that hides it, if any. */
   feature?: string;
+  /** The preference the item's eye in Settings → Side menu turns on and off; items without one always show. */
+  toggle?: "todoLists" | "quickNotes" | "habitTracker" | "tags" | "archive" | "helpMenu";
 }
 
 export const MENU_INFO: Record<MenuItemId, MenuItemInfo> = {
   home: { label: "Home", href: "/", icon: Home, shown: () => true },
-  todo: { label: "Todo", href: "/todo", icon: ListTodo, shown: (p) => p.todoLists, feature: "Todo lists" },
-  quick: { label: "Quick notes", href: "/quick", icon: Zap, shown: (p) => p.quickNotes, feature: "Quick notes" },
-  habits: { label: "Habits", href: "/habits", icon: CalendarCheck, shown: (p) => p.habitTracker, feature: "Habit tracker" },
-  tags: { label: "Tags", href: "/tags", icon: Hash, shown: (p) => p.tags, feature: "Tags page" },
-  archive: { label: "Archive", href: "/archive", icon: Archive, shown: (p) => p.archive, feature: "Archive" },
-  settings: { label: "Settings", href: "/settings", icon: Settings, shown: () => true },
-  help: { label: "Help", href: "/help", icon: CircleHelp, shown: (p) => p.helpMenu, feature: "Help in the menu" },
+  todo: { label: "Todo", href: "/todo", icon: ListTodo, shown: (p) => p.todoLists, feature: "Todo lists", toggle: "todoLists" },
+  quick: { label: "Quick notes", href: "/quick", icon: Zap, shown: (p) => p.quickNotes, feature: "Quick notes", toggle: "quickNotes" },
+  habits: { label: "Habits", href: "/habits", icon: CalendarCheck, shown: (p) => p.habitTracker, feature: "Habit tracker", toggle: "habitTracker" },
+  tags: { label: "Tags", href: "/tags", icon: Hash, shown: (p) => p.tags, feature: "Tags page", toggle: "tags" },
+  archive: { label: "Archive", href: "/archive", icon: Archive, shown: (p) => p.archive, feature: "Archive", toggle: "archive" },
+  help: { label: "Help", href: "/help", icon: CircleHelp, shown: (p) => p.helpMenu, feature: "Help in the menu", toggle: "helpMenu" },
 };
 
 const isMenuItem = (value: string): value is MenuItemId => (MENU_ITEMS as readonly string[]).includes(value);

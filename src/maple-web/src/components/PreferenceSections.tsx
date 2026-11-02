@@ -63,7 +63,7 @@ export function useSavePreferences() {
 
 const THEME_ICONS = { System: Monitor, Light: Sun, Dark: Moon } as const;
 
-/** Light or dark, the accent colour and the first day of the week; saved for the account, so every device looks the same. */
+/** Light or dark, the accent colour, the first day of the week and the menu's text size; saved for the account, so every device looks the same. */
 export function AppearanceSection() {
   const id = useId();
   const preferences = usePreferences();
@@ -148,49 +148,55 @@ export function AppearanceSection() {
         </select>
         <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">For the calendars and the weekly habit chart.</p>
       </div>
+        <fieldset className="mt-5">
+        <legend className="mb-2 text-sm font-medium">Menu text size</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {MENU_TEXT_SIZES.map((size) => (
+            <label
+              key={size}
+              className={cn(
+                "flex cursor-pointer items-center justify-center rounded-xl border px-3 py-2.5 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-maple-500",
+                size === "Small" ? "text-[13px]" : size === "Large" ? "text-[17px]" : "text-[15px]",
+                preferences.menuTextSize === size
+                  ? "border-maple-600 bg-maple-50 font-medium text-maple-700 dark:border-maple-500 dark:bg-maple-600/15 dark:text-maple-400"
+                  : "border-stone-200 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800",
+              )}
+            >
+              <input
+                type="radio"
+                name="menuTextSize"
+                value={size}
+                checked={preferences.menuTextSize === size}
+                onChange={() => save({ menuTextSize: size })}
+                className="sr-only"
+              />
+              {size}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">The size of the items in the side menu.</p>
+      </fieldset>
     </Section>
   );
 }
 
-/** The side menu: the order of its items, and how large they are. */
+/** The side menu: its items in order, each shown or hidden, and the calendar below them. */
 export function MenuSection() {
   const preferences = usePreferences();
   const save = useSavePreferences();
 
   return (
     <>
-      <Section title="Menu order" description="Arrange the side menu's items the way you use them. The order follows you to every device.">
+      <Section title="Menu items" description="Arrange the side menu's items the way you use them, and hide the ones you don't. It follows you to every device.">
         <MenuOrderEditor />
       </Section>
-      <Section title="Menu text size">
-        <fieldset>
-          <legend className="sr-only">Menu text size</legend>
-          <div className="grid grid-cols-3 gap-2">
-            {MENU_TEXT_SIZES.map((size) => (
-              <label
-                key={size}
-                className={cn(
-                  "flex cursor-pointer items-center justify-center rounded-xl border px-3 py-2.5 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-maple-500",
-                  size === "Small" ? "text-[13px]" : size === "Large" ? "text-[17px]" : "text-[15px]",
-                  preferences.menuTextSize === size
-                    ? "border-maple-600 bg-maple-50 font-medium text-maple-700 dark:border-maple-500 dark:bg-maple-600/15 dark:text-maple-400"
-                    : "border-stone-200 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="menuTextSize"
-                  value={size}
-                  checked={preferences.menuTextSize === size}
-                  onChange={() => save({ menuTextSize: size })}
-                  className="sr-only"
-                />
-                {size}
-              </label>
-            ))}
-          </div>
-          <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">The size of the items in the side menu.</p>
-        </fieldset>
+      <Section title="Below the menu">
+        <PreferenceSwitch
+          label="Calendar"
+          description="A month calendar in the side menu. Days with notes are marked; choose one to see its notes."
+          checked={preferences.calendar}
+          onChange={(calendar) => save({ calendar })}
+        />
       </Section>
     </>
   );
@@ -275,7 +281,41 @@ const firstLine = (content: string) => {
   return line.length > 60 ? `${line.slice(0, 60)}…` : line.trim();
 };
 
-export function FeaturesSection() {
+/** Daily notes, moods and stickers: optional extras where you write. */
+export function WritingExtrasSection() {
+  const preferences = usePreferences();
+  const save = useSavePreferences();
+
+  return (
+    <Section title="Extras" description="Optional tools for what you write. Turning one off hides it; nothing is deleted.">
+      <div className="divide-y divide-stone-100 dark:divide-stone-800">
+        <PreferenceSwitch
+          label="Daily notes"
+          description="Show today's note at the top of Home, titled with the date. It is saved the first time you write in it, so days you skip leave no empty notes."
+          checked={preferences.dailyNotes}
+          onChange={(dailyNotes) => save({ dailyNotes })}
+        />
+        {preferences.dailyNotes && <DailyTemplateSetting onClear={() => save({ dailyNoteTemplate: "" })} />}
+        <PreferenceSwitch
+          label="Mood tracker"
+          description="A smiley button where you write a note or quick note: choose one of five smilies for how you feel, and it shows on the note. Turning it off hides the smilies; the moods you chose are kept."
+          checked={preferences.moodTracker}
+          onChange={(moodTracker) => save({ moodTracker })}
+        />
+        <PreferenceSwitch
+          label="Stickers"
+          description="A sticker button where you write a note or quick note: add stickers from the sticker packs in this browser. Turning it off hides the button; stickers already on your notes stay."
+          checked={preferences.stickers}
+          onChange={(stickers) => save({ stickers })}
+        />
+        {preferences.stickers && <StickerPacksSetting />}
+      </div>
+    </Section>
+  );
+}
+
+/** The trash, photo uploads and link previews. */
+export function NotesFilesSection() {
   const preferences = usePreferences();
   const save = useSavePreferences();
   const status = useAuthStatus().data;
@@ -284,85 +324,7 @@ export function FeaturesSection() {
 
   return (
     <>
-      <Section title="Pages" description="Each one adds a page to the side menu. Turning one off hides it; nothing is deleted.">
-        <div className="divide-y divide-stone-100 dark:divide-stone-800">
-          <PreferenceSwitch
-            label="Todo lists"
-            description="A Todo tab for checklists you create and tick off."
-            checked={preferences.todoLists}
-            onChange={(todoLists) => save({ todoLists })}
-          />
-          <PreferenceSwitch
-            label="Quick notes"
-            description="A Quick notes tab: a scratchpad for short notes that stay out of your timeline."
-            checked={preferences.quickNotes}
-            onChange={(quickNotes) => save({ quickNotes })}
-          />
-          <PreferenceSwitch
-            label="Habit tracker"
-            description="A Habits tab: tick off your daily habits and see your progress in a chart."
-            checked={preferences.habitTracker}
-            onChange={(habitTracker) => save({ habitTracker })}
-          />
-          <PreferenceSwitch
-            label="Tags page"
-            description="A Tags page listing every tag with how many notes use it. Tags in your notes work either way."
-            checked={preferences.tags}
-            onChange={(tags) => save({ tags })}
-          />
-          <PreferenceSwitch
-            label="Archive"
-            description="An Archive page for notes you put away, and the Archive action on notes and lists. Turning it off hides them; archived notes are kept."
-            checked={preferences.archive}
-            onChange={(archive) => save({ archive })}
-          />
-          <PreferenceSwitch
-            label="Help in the menu"
-            description="Help in the side menu. Turning it off hides the item; the guide stays at /help."
-            checked={preferences.helpMenu}
-            onChange={(helpMenu) => save({ helpMenu })}
-          />
-        </div>
-      </Section>
-
-      <Section title="Home and menu">
-        <div className="divide-y divide-stone-100 dark:divide-stone-800">
-          <PreferenceSwitch
-            label="Daily notes"
-            description="Show today's note at the top of Home, titled with the date. It is saved the first time you write in it, so days you skip leave no empty notes."
-            checked={preferences.dailyNotes}
-            onChange={(dailyNotes) => save({ dailyNotes })}
-          />
-          {preferences.dailyNotes && <DailyTemplateSetting onClear={() => save({ dailyNoteTemplate: "" })} />}
-          <PreferenceSwitch
-            label="Calendar"
-            description="A month calendar in the side menu. Days with notes are marked; choose one to see its notes."
-            checked={preferences.calendar}
-            onChange={(calendar) => save({ calendar })}
-          />
-          <PreferenceSwitch
-            label="Labels"
-            description="Coloured labels you put on notes and todo lists from their ⋯ menu, listed in the side menu. Manage them under Settings → Labels."
-            checked={preferences.labels}
-            onChange={(labels) => save({ labels })}
-          />
-          <PreferenceSwitch
-            label="Mood tracker"
-            description="A smiley button where you write a note or quick note: choose one of five smilies for how you feel, and it shows on the note. Turning it off hides the smilies; the moods you chose are kept."
-            checked={preferences.moodTracker}
-            onChange={(moodTracker) => save({ moodTracker })}
-          />
-          <PreferenceSwitch
-            label="Stickers"
-            description="A sticker button where you write a note or quick note: add stickers from the sticker packs in this browser. Turning it off hides the button; stickers already on your notes stay."
-            checked={preferences.stickers}
-            onChange={(stickers) => save({ stickers })}
-          />
-          {preferences.stickers && <StickerPacksSetting />}
-        </div>
-      </Section>
-
-      <Section title="Notes and files">
+      <Section title="Deleting, photos and links">
         <div className="divide-y divide-stone-100 dark:divide-stone-800">
           <PreferenceSwitch
             label="Trash"

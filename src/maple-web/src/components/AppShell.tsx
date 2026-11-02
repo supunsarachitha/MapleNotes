@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Cloud, CloudOff, EyeOff, Home, LogOut, Menu, Search, X } from "lucide-react";
+import { Cloud, CloudOff, EyeOff, Home, LogOut, Menu, Search, Settings, X } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { useBranding } from "../lib/branding";
@@ -44,7 +44,7 @@ function NavLink({ href, icon: Icon, children, active, onNavigate }: {
   );
 }
 
-/** Whether a menu item is the page being shown. Settings stays marked on the trash, which is reached from it. */
+/** Whether a menu item is the page being shown. */
 function isActive(item: MenuItemId, { path, params }: Location): boolean {
   const filtered = ["tag", "q", "day", "label"].some((name) => params.has(name));
   switch (item) {
@@ -52,8 +52,6 @@ function isActive(item: MenuItemId, { path, params }: Location): boolean {
       return path === "/" && !filtered;
     case "tags":
       return path === "/tags" || (path === "/" && params.has("tag"));
-    case "settings":
-      return path === "/settings" || path.startsWith("/settings/") || path === "/trash";
     default:
       return path === MENU_INFO[item].href;
   }
@@ -252,6 +250,29 @@ function ConnectionStatus({ className }: { className?: string }) {
   );
 }
 
+/** The gear that opens Settings, after the connection badge. Marked while Settings, or the trash reached from it, shows. */
+function SettingsButton({ className }: { className?: string }) {
+  const { path } = useLocation();
+  const active = path === "/settings" || path.startsWith("/settings/") || path === "/trash";
+  return (
+    <Link
+      href="/settings"
+      aria-label="Settings"
+      title="Settings"
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-maple-500",
+        active
+          ? "bg-maple-50 text-maple-700 dark:bg-maple-600/15 dark:text-maple-400"
+          : "text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100",
+        className,
+      )}
+    >
+      <Settings className="size-5" aria-hidden="true" />
+    </Link>
+  );
+}
+
 /**
  * The signed-in layout. Phones: a top bar with a slide-in navigation drawer. Wide screens (≥1024 px): a fixed
  * sidebar next to a centred reading column.
@@ -279,7 +300,8 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
           <BrandMark className="size-7 shrink-0" />
           <span className="truncate font-semibold">{appName}</span>
         </Link>
-        <ConnectionStatus className="ml-auto mr-1" />
+        <ConnectionStatus className="ml-auto" />
+        <SettingsButton />
       </header>
 
       <div className="mx-auto flex max-w-6xl">
@@ -288,8 +310,9 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
         </aside>
         <main id="main" className="relative min-w-0 flex-1 px-4 pb-24 pt-4 lg:px-10 lg:pt-8">
           {/* Sits in the top padding, above the page's own heading and buttons; phones show it in the title bar. */}
-          <div className="absolute right-10 top-0.5 hidden lg:block">
+          <div className="absolute right-8 top-0 hidden items-center gap-1 lg:flex">
             <ConnectionStatus />
+            <SettingsButton className="size-8" />
           </div>
           <div className={cn("mx-auto", wide ? "max-w-4xl" : "max-w-2xl")}>
             <OfflineNotice />

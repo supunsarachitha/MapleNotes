@@ -140,8 +140,8 @@ describe("Composer stickers", () => {
     const user = userEvent.setup();
     renderComposer({}, { stickers: true });
     await user.click(screen.getByRole("button", { name: "Stickers" }));
-    expect(screen.getByRole("group", { name: "Stickers" })).toHaveTextContent("No sticker packs yet. Add one in Settings → Features.");
-    expect(screen.getByRole("link", { name: "Settings → Features" })).toHaveAttribute("href", "/settings/features");
+    expect(screen.getByRole("group", { name: "Stickers" })).toHaveTextContent("No sticker packs yet. Add one in Settings → Writing.");
+    expect(screen.getByRole("link", { name: "Settings → Writing" })).toHaveAttribute("href", "/settings/writing");
   });
 
   it("adds each sticker chosen as a sticker file, keeps the picker open, and posts with them", async () => {

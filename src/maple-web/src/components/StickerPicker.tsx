@@ -37,8 +37,8 @@ export function StickerPicker({ id, onChoose }: { id: string; onChoose: (sticker
       ) : !shown ? (
         <p className="px-1 py-2 text-sm text-stone-600 dark:text-stone-300">
           No sticker packs yet. Add one in{" "}
-          <Link href="/settings/features" className="font-medium text-maple-700 underline-offset-2 hover:underline dark:text-maple-400">
-            Settings → Features
+          <Link href="/settings/writing" className="font-medium text-maple-700 underline-offset-2 hover:underline dark:text-maple-400">
+            Settings → Writing
           </Link>
           .
         </p>

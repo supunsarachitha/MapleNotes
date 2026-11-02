@@ -21,7 +21,7 @@ const user: User = {
   preferences: DEFAULT_PREFERENCES,
 };
 
-/** Renders Settings at an address: /settings, or one section such as /settings/features. */
+/** Renders Settings at an address: /settings, or one section such as /settings/notes. */
 function renderSettings(status: EncryptionStatus, account: User = user, quotaBytes: number | null = null, path = "/settings") {
   window.history.replaceState(null, "", path);
   vi.spyOn(api, "encryption").mockResolvedValue(status);
@@ -54,13 +54,19 @@ function mockAdmin(settings: InstanceSettings) {
 }
 
 describe("Settings", () => {
+  it("opens Notes & files at the old Features address", () => {
+    renderSettings(idle, user, null, "/settings/features");
+    expect(screen.getByRole("heading", { level: 1, name: "Notes & files" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Trash" })).toBeInTheDocument();
+  });
+
   it("lists its sections, shows Account first, and opens a section from the list", async () => {
     renderSettings(idle);
     const sections = within(screen.getByRole("navigation", { name: "Settings sections" }));
 
     expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeInTheDocument();
     expect(sections.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
-      "/settings/account", "/settings/appearance", "/settings/menu", "/settings/writing", "/settings/features", "/settings/labels",
+      "/settings/account", "/settings/appearance", "/settings/menu", "/settings/writing", "/settings/notes", "/settings/labels",
       "/settings/data", "/settings/security",
     ]); // no Administration for members
     expect(screen.getByRole("heading", { name: "Profile" })).toBeInTheDocument();
@@ -177,21 +183,22 @@ describe("Settings", () => {
     expect(screen.getByRole("switch", { name: "Note titles" })).toHaveAttribute("aria-checked", "true");
   });
 
-  it("turns features off and on", async () => {
+  it("hides and shows side menu items with their eye, but never Home", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
-    renderSettings(idle, user, null, "/settings/features");
-    const todo = screen.getByRole("switch", { name: "Todo lists" });
+    renderSettings(idle, user, null, "/settings/menu");
 
-    expect(todo).toHaveAttribute("aria-checked", "true"); // on by default
+    expect(screen.queryByRole("button", { name: /Home (from|in) the menu/ })).not.toBeInTheDocument();
+    const todo = screen.getByRole("button", { name: "Hide Todo from the menu" });
+    expect(todo).toHaveAttribute("aria-pressed", "false"); // shown by default
     await userEvent.click(todo);
 
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, todoLists: false }));
-    expect(todo).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("button", { name: "Show Todo in the menu" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("offers a photo size once photos are shrunk", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
-    renderSettings(idle, user, null, "/settings/features");
+    renderSettings(idle, user, null, "/settings/notes");
 
     expect(screen.queryByRole("group", { name: "Photo size" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("switch", { name: "Shrink photos before uploading" }));
@@ -205,14 +212,12 @@ describe("Settings", () => {
 
   it("offers the habit tracker, off by default", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
-    renderSettings(idle, user, null, "/settings/features");
-    const habits = screen.getByRole("switch", { name: "Habit tracker" });
+    renderSettings(idle, user, null, "/settings/menu");
 
-    expect(habits).toHaveAttribute("aria-checked", "false");
-    await userEvent.click(habits);
+    await userEvent.click(screen.getByRole("button", { name: "Show Habits in the menu" }));
 
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, habitTracker: true }));
-    expect(habits).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: "Hide Habits from the menu" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("offers double-tap to edit, off by default", async () => {
@@ -245,18 +250,17 @@ describe("Settings", () => {
 
   it("changes the menu text size, the first day of the week, the Archive and Tags pages, and Help in the menu", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
-    renderSettings(idle, user, null, "/settings/menu");
+    renderSettings(idle, user, null, "/settings/appearance");
     const sections = within(screen.getByRole("navigation", { name: "Settings sections" }));
 
     await userEvent.click(screen.getByRole("radio", { name: "Large" }));
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ menuTextSize: "Large" })));
-    await userEvent.click(sections.getByRole("link", { name: /^Appearance/ }));
     await userEvent.selectOptions(screen.getByLabelText("Week starts on"), "Monday");
-    await userEvent.click(sections.getByRole("link", { name: /^Features/ }));
+    await userEvent.click(sections.getByRole("link", { name: /^Side menu/ }));
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ weekStart: "Monday" })));
-    await userEvent.click(screen.getByRole("switch", { name: "Archive" }));
-    await userEvent.click(screen.getByRole("switch", { name: "Tags page" }));
-    await userEvent.click(screen.getByRole("switch", { name: "Help in the menu" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide Archive from the menu" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide Tags from the menu" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide Help from the menu" }));
 
     await waitFor(() =>
       expect(save).toHaveBeenLastCalledWith({
@@ -407,12 +411,12 @@ describe("Settings", () => {
 
     expect(screen.getByRole("button", { name: "Move Home up" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Move Help down" })).toBeDisabled();
-    expect(items()[3]).toContain("Hidden: Habit tracker is off"); // keeps its place for when it is turned on
+    expect(items()[3]).toContain("Hidden"); // keeps its place for when it is turned on
     await userEvent.click(screen.getByRole("button", { name: "Move Todo up" }));
 
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuOrder: "todo,home,quick,habits,tags,archive,settings,help" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuOrder: "todo,home,quick,habits,tags,archive,help" }));
     expect(items()[0]).toContain("Todo");
-    expect(screen.getByText("Todo moved to position 1 of 8.")).toBeInTheDocument();
+    expect(screen.getByText("Todo moved to position 1 of 7.")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Back to the usual order" }));
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(DEFAULT_PREFERENCES));
@@ -424,10 +428,11 @@ describe("Settings", () => {
     const sections = within(screen.getByRole("navigation", { name: "Settings sections" }));
 
     await userEvent.click(screen.getByRole("switch", { name: "Suggest tags while typing" }));
-    await userEvent.click(sections.getByRole("link", { name: /^Features/ }));
+    await userEvent.click(sections.getByRole("link", { name: /^Notes & files/ }));
     expect(screen.getByRole("switch", { name: "Trash" })).toHaveAttribute("aria-checked", "true"); // on by default
-    expect(screen.getByRole("switch", { name: "Labels" })).toHaveAttribute("aria-checked", "false");
-    await userEvent.click(screen.getByRole("switch", { name: "Labels" }));
+    await userEvent.click(sections.getByRole("link", { name: /^Labels/ }));
+    expect(screen.getByRole("switch", { name: "Use labels" })).toHaveAttribute("aria-checked", "false");
+    await userEvent.click(screen.getByRole("switch", { name: "Use labels" }));
 
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, tagSuggestions: true, labels: true }));
   });

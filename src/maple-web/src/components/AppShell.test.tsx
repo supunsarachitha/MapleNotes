@@ -68,10 +68,19 @@ describe("AppShell", () => {
   });
 
   it("orders the menu as the user chose, leaving out pages that are turned off", () => {
-    renderShell({ menuOrder: "help,settings,todo", habitTracker: false });
+    renderShell({ menuOrder: "help,settings,todo", habitTracker: false }); // older orders still list Settings
 
     const links = within(screen.getByRole("navigation", { name: "Main" })).getAllByRole("link");
-    expect(links.map((link) => link.textContent)).toEqual(["Help", "Settings", "Todo", "Home", "Quick notes", "Tags", "Archive"]);
+    expect(links.map((link) => link.textContent)).toEqual(["Help", "Todo", "Home", "Quick notes", "Tags", "Archive"]);
+  });
+
+  it("opens Settings from the gear in the top bar, not the side menu", () => {
+    renderShell({});
+
+    expect(within(screen.getByRole("navigation", { name: "Main" })).queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
+    const gears = screen.getAllByRole("link", { name: "Settings" });
+    expect(gears.length).toBeGreaterThan(0);
+    for (const gear of gears) expect(gear).toHaveAttribute("href", "/settings");
   });
 
   it("lists the labels under the menu while labels are on", async () => {

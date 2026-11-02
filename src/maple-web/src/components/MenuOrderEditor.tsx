@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical } from "lucide-react";
 import { useRef, useState, type PointerEvent } from "react";
 import { MENU_INFO, menuOrder, moveItem, saveMenuOrder, type MenuItemId } from "../lib/menu";
 import { usePreferences } from "../lib/preferences";
@@ -7,8 +7,8 @@ import { Button, IconButton, cn } from "./ui";
 
 /**
  * The side menu's items in their order, to rearrange: drag one by its handle (mouse, pen or finger), or move it with
- * its arrow buttons, which keyboards and screen readers use. Each change is saved for the account at once. Items whose
- * feature is off stay in the list, marked, so they keep their place for when it is turned on.
+ * its arrow buttons, which keyboards and screen readers use. The eye shows or hides an item (Home always shows). Each
+ * change is saved for the account at once. Hidden items stay in the list, marked, so they keep their place.
  */
 export function MenuOrderEditor() {
   const preferences = usePreferences();
@@ -66,7 +66,7 @@ export function MenuOrderEditor() {
     <div>
       <ol aria-label="Menu items in order" className="divide-y divide-stone-100 rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
         {order.map((id, index) => {
-          const { label, icon: Icon, shown, feature } = MENU_INFO[id];
+          const { label, icon: Icon, shown, toggle } = MENU_INFO[id];
           const off = !shown(preferences);
           return (
             <li
@@ -92,10 +92,21 @@ export function MenuOrderEditor() {
                 <GripVertical className="size-5" />
               </span>
               <Icon className={cn("size-5 shrink-0", off ? "text-stone-400" : "text-stone-600 dark:text-stone-300")} aria-hidden="true" />
-              <span className={cn("min-w-0 flex-1 truncate text-sm font-medium", off && "text-stone-500 dark:text-stone-400")}>
+              <span className={cn("min-w-0 flex-1 break-words text-sm font-medium", off && "text-stone-500 dark:text-stone-400")}>
                 {label}
-                {off && <span className="ml-2 text-xs font-normal">Hidden: {feature} is off</span>}
+                {off && <span className="block text-xs font-normal sm:ml-2 sm:inline">Hidden</span>}
+                {id === "archive" && off && <span className="block text-xs font-normal">The Archive action on notes is hidden too; archived notes are kept.</span>}
               </span>
+              {toggle && (
+                <IconButton
+                  label={off ? `Show ${label} in the menu` : `Hide ${label} from the menu`}
+                  aria-pressed={off}
+                  className={cn("size-9", off && "text-maple-700 dark:text-maple-400")}
+                  onClick={() => save({ [toggle]: off })}
+                >
+                  {off ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </IconButton>
+              )}
               <IconButton label={`Move ${label} up`} className="size-9" disabled={index === 0} onClick={() => step(id, -1)}>
                 <ArrowUp className="size-4" />
               </IconButton>
@@ -112,7 +123,7 @@ export function MenuOrderEditor() {
             Back to the usual order
           </Button>
         )}
-        <span className="text-sm text-stone-600 dark:text-stone-300">Drag an item by its handle, or use its arrows.</span>
+        <span className="text-sm text-stone-600 dark:text-stone-300">Drag an item by its handle, or use its arrows. The eye hides an item; nothing is deleted.</span>
       </div>
       <p className="sr-only" aria-live="polite">
         {announcement}
