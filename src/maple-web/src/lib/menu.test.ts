@@ -7,16 +7,16 @@ describe("menu order", () => {
   });
 
   it("puts the chosen items first and the rest after them in their usual order", () => {
-    expect(menuOrder("help,todo")).toEqual(["help", "todo", "home", "quick", "habits", "tags", "archive", "settings"]);
+    expect(menuOrder("help,todo")).toEqual(["help", "todo", "home", "quick", "habits", "tags", "archive"]);
   });
 
   it("ignores unknown and repeated names, so an older or newer saved order still works", () => {
-    expect(menuOrder("inbox,todo,todo,,home")).toEqual(["todo", "home", "quick", "habits", "tags", "archive", "settings", "help"]);
+    expect(menuOrder("inbox,todo,todo,,home")).toEqual(["todo", "home", "quick", "habits", "tags", "archive", "help"]);
   });
 
   it("saves the usual order as nothing, so later additions keep their default place", () => {
     expect(saveMenuOrder([...MENU_ITEMS])).toBe("");
-    expect(saveMenuOrder(moveItem([...MENU_ITEMS], 1, 0))).toBe("todo,home,quick,habits,tags,archive,settings,help");
+    expect(saveMenuOrder(moveItem([...MENU_ITEMS], 1, 0))).toBe("todo,home,quick,habits,tags,archive,help");
   });
 
   it("moves one item and leaves the list alone for moves out of range", () => {

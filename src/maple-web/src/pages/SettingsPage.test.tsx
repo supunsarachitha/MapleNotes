@@ -409,9 +409,9 @@ describe("Settings", () => {
     expect(items()[3]).toContain("Hidden"); // keeps its place for when it is turned on
     await userEvent.click(screen.getByRole("button", { name: "Move Todo up" }));
 
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuOrder: "todo,home,quick,habits,tags,archive,settings,help" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuOrder: "todo,home,quick,habits,tags,archive,help" }));
     expect(items()[0]).toContain("Todo");
-    expect(screen.getByText("Todo moved to position 1 of 8.")).toBeInTheDocument();
+    expect(screen.getByText("Todo moved to position 1 of 7.")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Back to the usual order" }));
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(DEFAULT_PREFERENCES));
