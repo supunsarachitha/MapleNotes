@@ -1,18 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { localDateKey } from "../lib/dates";
-import { greeting, writingStats } from "./HomeHeader";
+import { writingStats } from "./HomeHeader";
 
 const today = new Date(2026, 8, 29, 10);
 const key = (offset: number) => localDateKey(new Date(2026, 8, 29 - offset));
 
 describe("HomeHeader helpers", () => {
-  it("greets by the hour", () => {
-    expect(greeting(3)).toBe("Good night");
-    expect(greeting(9)).toBe("Good morning");
-    expect(greeting(14)).toBe("Good afternoon");
-    expect(greeting(20)).toBe("Good evening");
-  });
-
   it("counts the week, the month and a streak that includes today", () => {
     const counts = new Map([
       [key(0), 2],
