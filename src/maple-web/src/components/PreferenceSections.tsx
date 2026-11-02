@@ -456,6 +456,12 @@ export function EditingSection() {
     <Section title="Editing">
       <div className="divide-y divide-stone-100 dark:divide-stone-800">
         <PreferenceSwitch
+          label="Open the editor in full screen"
+          description="Editing a note, or clicking into the new-note box, opens the distraction-free full screen view. Esc closes it."
+          checked={preferences.openFullScreen}
+          onChange={(openFullScreen) => save({ openFullScreen })}
+        />
+        <PreferenceSwitch
           label="Suggest tags while typing"
           description="When you type # in a note, your existing tags that match are offered; choose one with the arrows and Enter, or tap it."
           checked={preferences.tagSuggestions}

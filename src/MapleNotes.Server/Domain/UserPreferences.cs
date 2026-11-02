@@ -110,6 +110,12 @@ public sealed record UserPreferences
     /// <summary>Double-tap (or double-click) a note to edit it, as well as choosing Edit from its menu; off by default.</summary>
     public bool DoubleTapToEdit { get; init; }
 
+    /// <summary>
+    /// Open the note editor in full screen: when an existing note is edited, and when the new-note box is focused; off by
+    /// default.
+    /// </summary>
+    public bool OpenFullScreen { get; init; }
+
     /// <summary>Suggest the account's existing tags while a <c>#tag</c> is being typed; off by default.</summary>
     public bool TagSuggestions { get; init; }
 

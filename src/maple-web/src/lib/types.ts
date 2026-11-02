@@ -79,6 +79,8 @@ export interface Preferences {
   linkPreviews: boolean;
   /** Double-tap (or double-click) a note to edit it. */
   doubleTapToEdit: boolean;
+  /** Open the note editor in full screen. */
+  openFullScreen: boolean;
   /** Suggest existing tags while a #tag is being typed. */
   tagSuggestions: boolean;
   /** Coloured labels on notes. */
