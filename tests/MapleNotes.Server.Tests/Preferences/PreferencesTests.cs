@@ -43,6 +43,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.Equal((true, true, "Medium", "Auto"), (preferences.Archive, preferences.Tags, preferences.MenuTextSize, preferences.WeekStart));
         Assert.Equal((false, false), (preferences.QuickNoteTitles, preferences.DoubleTapToEdit)); // both opt-in
         Assert.Equal((false, false, true, ""), (preferences.TagSuggestions, preferences.Labels, preferences.Trash, preferences.MenuOrder));
+        Assert.False(preferences.OpenFullScreen); // opt-in
         Assert.True(preferences.HelpMenu);
         Assert.Equal("", preferences.DailyNoteTemplate); // no template until one is chosen
         Assert.Equal("Large", preferences.PhotoSize); // as photos were shrunk before sizes could be chosen
@@ -56,7 +57,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         {
             NoteTitles = true, DateInTitles = true, DateFormat = "dddd, d MMMM yyyy", TodoLists = false, QuickNotes = false, DailyNotes = true,
             HabitTracker = true, ShrinkPhotos = true, Archive = false, Tags = false, MenuTextSize = "Large", WeekStart = "Monday",
-            QuickNoteTitles = true, DoubleTapToEdit = true, TagSuggestions = true, Labels = true, Trash = false, MenuOrder = "help,home,todo",
+            QuickNoteTitles = true, DoubleTapToEdit = true, TagSuggestions = true, OpenFullScreen = true, Labels = true, Trash = false, MenuOrder = "help,home,todo",
             HelpMenu = false, PhotoSize = "Small", DailyNoteTemplate = Guid.CreateVersion7().ToString(),
         };
 

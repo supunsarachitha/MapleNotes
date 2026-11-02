@@ -105,7 +105,9 @@ export function Composer({
   const [dragging, setDragging] = useState(false);
   const [mood, setMood] = useState<NoteMood | null>(note?.mood ?? null);
   const [picker, setPicker] = useState<"mood" | "stickers" | null>(null);
-  const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(() => note !== undefined && preferences.openFullScreen);
+  // New-note boxes open full screen when focused; armed again once focus leaves, so Esc does not reopen it at once.
+  const armed = useRef(true);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const invalidateNotes = useInvalidateNotes();
@@ -334,6 +336,14 @@ export function Composer({
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
+      onFocus={() => {
+        if (editing || !preferences.openFullScreen || !armed.current) return;
+        armed.current = false;
+        setFullscreen(true);
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) armed.current = true;
+      }}
       role={fullscreen ? "dialog" : undefined}
       aria-modal={fullscreen || undefined}
       aria-label={fullscreen ? (editing ? "Edit note, full screen" : "New note, full screen") : undefined}

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Setting **Open the editor in full screen** (Settings → Writing → Editing, off by default, saved to the account so it
+  applies on every device): editing a note, or clicking into the new-note box, opens the full screen view. API:
+  preferences gain `openFullScreen`.
+
 ### Changed
 
 - CI: releases are tagged automatically. When a push to `main` carries a new `<Version>` in `Directory.Build.props`,

@@ -24,6 +24,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   photoSize: "Large",
   linkPreviews: false,
   doubleTapToEdit: false,
+  openFullScreen: false,
   tagSuggestions: false,
   labels: false,
   trash: true,
