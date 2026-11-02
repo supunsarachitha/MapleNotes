@@ -92,9 +92,9 @@ export function MenuOrderEditor() {
                 <GripVertical className="size-5" />
               </span>
               <Icon className={cn("size-5 shrink-0", off ? "text-stone-400" : "text-stone-600 dark:text-stone-300")} aria-hidden="true" />
-              <span className={cn("min-w-0 flex-1 truncate text-sm font-medium", off && "text-stone-500 dark:text-stone-400")}>
+              <span className={cn("min-w-0 flex-1 break-words text-sm font-medium", off && "text-stone-500 dark:text-stone-400")}>
                 {label}
-                {off && <span className="ml-2 text-xs font-normal">Hidden</span>}
+                {off && <span className="block text-xs font-normal sm:ml-2 sm:inline">Hidden</span>}
                 {id === "archive" && off && <span className="block text-xs font-normal">The Archive action on notes is hidden too; archived notes are kept.</span>}
               </span>
               {toggle && (
