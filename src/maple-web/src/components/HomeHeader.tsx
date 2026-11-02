@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { CheckSquare, Flame, PenLine, Repeat, Search, Zap, CalendarRange, Feather } from "lucide-react";
+import { CheckSquare, Flame, Repeat, Search, Zap, CalendarRange, Feather } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { localDateKey } from "../lib/dates";
@@ -149,10 +149,6 @@ export function HomeHeader({ now = new Date() }: { now?: Date }) {
       </div>
 
       <nav aria-label="Quick actions" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-        <button type="button" className={chip} aria-keyshortcuts="N" onClick={() => document.getElementById("composer")?.focus()}>
-          <PenLine className="size-4" aria-hidden="true" /> New note
-          <kbd className={`${kbd} ml-1 hidden sm:inline`} aria-hidden="true">N</kbd>
-        </button>
         {preferences.todoLists && (
           <Link href="/todo" className={chip}>
             <CheckSquare className="size-4" aria-hidden="true" /> Todo
