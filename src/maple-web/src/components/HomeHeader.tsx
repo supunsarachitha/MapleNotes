@@ -5,18 +5,10 @@ import { api } from "../lib/api";
 import { localDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
-import { queryKeys, useAuthStatus } from "../lib/queries";
+import { queryKeys } from "../lib/queries";
 import { Link } from "../lib/router";
 
 const STATS_DAYS = 60;
-
-/** "Good morning" and so on, from the hour of the day. */
-export function greeting(hour: number): string {
-  if (hour < 5) return "Good night";
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
-}
 
 /**
  * Writing stats from per-day note counts: notes in the last 7 days (today included), notes in the last 30, and the
@@ -107,10 +99,9 @@ export function useHomeShortcuts() {
 const kbd =
   "rounded border border-stone-300 bg-stone-50 px-1.5 py-0.5 font-sans text-[11px] font-medium text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300";
 
-/** Home's header: a greeting with the date, writing stats and shortcuts to the other tabs. */
+/** Home's header: the date, writing stats and shortcuts to the other tabs. */
 export function HomeHeader({ now = new Date() }: { now?: Date }) {
   useHomeShortcuts();
-  const user = useAuthStatus().data?.user;
   const preferences = usePreferences();
   const kinds = useEnabledKinds();
   const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (STATS_DAYS - 1));
@@ -121,7 +112,6 @@ export function HomeHeader({ now = new Date() }: { now?: Date }) {
     staleTime: 60_000,
   });
   const stats = days.data ? writingStats(new Map(days.data.map((d) => [d.date, d.count])), now) : null;
-  const firstName = user?.displayName.trim().split(/\s+/)[0];
   const longDate = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
   return (
@@ -130,10 +120,6 @@ export function HomeHeader({ now = new Date() }: { now?: Date }) {
         <p className="text-sm font-medium text-maple-700 dark:text-maple-400">
           {longDate}
         </p>
-        <h1 className="mt-0.5 text-2xl font-semibold tracking-tight sm:text-3xl">
-          {greeting(now.getHours())}
-          {firstName ? `, ${firstName}` : ""}
-        </h1>
       </div>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3" aria-label="Writing stats" aria-busy={days.isPending || undefined}>
