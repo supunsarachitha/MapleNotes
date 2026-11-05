@@ -66,7 +66,8 @@ function fromAttachment(attachment: Attachment): ComposerFile {
  * saved as the note's first line, as a heading (see lib/titles.ts), and may start with today's date. Editing starts
  * with the caret at the end of the text, and with tag suggestions on, existing tags are offered while a #tag is typed.
  * With the mood tracker on, a smiley button chooses the note's mood; with stickers on, a sticker button adds stickers
- * from the packs in this browser (notes and quick notes only, as in Falcon Notes).
+ * from the packs in this browser (notes and quick notes only, as in Falcon Notes). A collapsible composer shows one
+ * line while it is empty and unfocused, and opens the full editor when it gets focus.
  */
 export function Composer({
   note,
@@ -77,6 +78,7 @@ export function Composer({
   placeholder = "What's on your mind? Use #tags and **Markdown**.",
   daily,
   initialText = "",
+  collapsible = false,
 }: {
   /** The note to edit; omit to write a new note. */
   note?: Note;
@@ -92,6 +94,8 @@ export function Composer({
   daily?: { date: string; title: string };
   /** The text a new note starts with, such as the daily-note template. */
   initialText?: string;
+  /** While empty and unfocused, show a single line (placeholder, attach, full screen) instead of the full editor. */
+  collapsible?: boolean;
 }) {
   const preferences = usePreferences();
   const withTitle = allowTitle && preferences.noteTitles && !daily;
@@ -106,6 +110,7 @@ export function Composer({
   const [mood, setMood] = useState<NoteMood | null>(note?.mood ?? null);
   const [picker, setPicker] = useState<"mood" | "stickers" | null>(null);
   const [fullscreen, setFullscreen] = useState(() => note !== undefined && preferences.openFullScreen);
+  const [focused, setFocused] = useState(false);
   // New-note boxes open full screen when focused; armed again once focus leaves, so Esc does not reopen it at once.
   const armed = useRef(true);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -118,6 +123,12 @@ export function Composer({
   const offersMood = preferences.moodTracker && moodAllowed(noteKind);
   const offersStickers = preferences.stickers && stickersAllowed(noteKind);
   const pickerId = editing ? `edit-${note.id}` : "composer";
+  // A collapsible box stays one line until it gets focus or holds anything: text, a typed title, files or a mood.
+  const collapsed =
+    collapsible && !editing && !fullscreen && !focused && !dragging && picker === null && mood === null && files.length === 0 &&
+    text.trim().length === 0 && (!withTitle || title.trim() === suggested.trim());
+  // One line has room for the placeholder's first sentence only.
+  const shortPlaceholder = placeholder.split(/(?<=[.?!…])\s/)[0];
 
   // Grow the text box with its content, up to a comfortable maximum.
   useLayoutEffect(() => {
@@ -130,7 +141,7 @@ export function Composer({
     }
     element.style.height = "auto";
     element.style.height = `${Math.min(element.scrollHeight, 480)}px`;
-  }, [text, fullscreen]);
+  }, [text, fullscreen, collapsed]);
 
   // Full screen: the page behind does not scroll, and the caret stays in the text.
   useEffect(() => {
@@ -336,13 +347,19 @@ export function Composer({
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
+      onClick={(event) => {
+        if (collapsed && event.target === event.currentTarget) textarea.current?.focus();
+      }}
       onFocus={() => {
+        setFocused(true);
         if (editing || !preferences.openFullScreen || !armed.current) return;
         armed.current = false;
         setFullscreen(true);
       }}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) armed.current = true;
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+        armed.current = true;
+        setFocused(false);
       }}
       role={fullscreen ? "dialog" : undefined}
       aria-modal={fullscreen || undefined}
@@ -351,7 +368,8 @@ export function Composer({
         "transition-colors",
         fullscreen
           ? "fixed inset-0 z-50 flex flex-col overflow-y-auto bg-stone-50 px-4 py-6 sm:px-8 sm:py-10 dark:bg-stone-950"
-          : "rounded-2xl border bg-white p-3 shadow-sm focus-within:border-maple-400 focus-within:shadow-md dark:bg-stone-900 dark:focus-within:border-maple-600",
+          : "rounded-2xl border bg-white shadow-sm focus-within:border-maple-400 focus-within:shadow-md dark:bg-stone-900 dark:focus-within:border-maple-600",
+        !fullscreen && (collapsed ? "cursor-text py-1.5 pl-3 pr-1.5" : "p-3"),
         !fullscreen && (dragging ? "border-maple-500 ring-2 ring-maple-500/30" : "border-stone-200 dark:border-stone-800"),
         fullscreen && dragging && "ring-4 ring-inset ring-maple-500/40",
       )}
@@ -371,12 +389,14 @@ export function Composer({
             "mb-1 block w-full border-b border-stone-100 bg-transparent px-1 pb-2 pt-1 font-semibold text-stone-900 outline-none",
             "placeholder:font-normal placeholder:text-stone-400 dark:border-stone-800 dark:text-stone-100",
             fullscreen ? "pb-3 text-2xl sm:text-3xl" : "text-base",
+            collapsed && "hidden",
           )}
         />
       )}
       <label htmlFor={editing ? `edit-${note.id}` : "composer"} className="sr-only">
         {editing ? "Edit note" : "New note"}
       </label>
+      <div className={cn(collapsed && "hidden")}>
       <FormatToolbar target={textarea} onChange={setText}>
         <input
           ref={fileInput}
@@ -418,6 +438,7 @@ export function Composer({
           <Paperclip className="size-5" />
         </IconButton>
       </FormatToolbar>
+      </div>
 
       {offersMood && picker === "mood" && (
         <MoodPicker
@@ -431,7 +452,7 @@ export function Composer({
       )}
       {offersStickers && picker === "stickers" && <StickerPicker id={`${pickerId}-stickers`} onChoose={addSticker} />}
 
-      <div className={cn("relative", fullscreen && "flex min-h-0 flex-1 flex-col")}>
+      <div className={cn("relative", fullscreen && "flex min-h-0 flex-1 flex-col", collapsed && "flex items-center gap-0.5")}>
         <textarea
           id={editing ? `edit-${note.id}` : "composer"}
           ref={textarea}
@@ -444,14 +465,27 @@ export function Composer({
           onBlur={suggestions.close}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
-          rows={editing ? 3 : 2}
-          placeholder={editing ? undefined : placeholder}
+          rows={collapsed ? 1 : editing ? 3 : 2}
+          wrap={collapsed ? "off" : undefined}
+          placeholder={editing ? undefined : collapsed ? shortPlaceholder : placeholder}
           {...suggestions.inputProps}
           className={cn(
             "block w-full resize-none bg-transparent px-1 py-1 leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100",
             fullscreen ? "min-h-[40vh] flex-1 py-4 font-serif text-lg sm:text-xl sm:leading-loose" : "text-base",
+            collapsed && "min-w-0 flex-1 overflow-hidden",
           )}
         />
+        {collapsed && (
+          // These buttons must not take focus on press: focus opens the full editor, which removes them before the click.
+          <>
+            <IconButton label="Attach files" onMouseDown={(event) => event.preventDefault()} onClick={() => fileInput.current?.click()}>
+              <Paperclip className="size-5" />
+            </IconButton>
+            <IconButton label="Full screen (Ctrl/⌘ + Shift + F)" onMouseDown={(event) => event.preventDefault()} onClick={() => setFullscreen(true)}>
+              <Maximize2 className="size-5" />
+            </IconButton>
+          </>
+        )}
         {suggestions.popup}
       </div>
 
@@ -498,7 +532,7 @@ export function Composer({
         </ul>
       )}
 
-      <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2 dark:border-stone-800">
+      <div className={cn("mt-2 flex items-center gap-2 border-t border-stone-100 pt-2 dark:border-stone-800", collapsed && "hidden")}>
         {content.length > MAX_LENGTH * 0.9 && (
           <span className={cn("text-xs", content.length > MAX_LENGTH ? "text-red-700" : "text-stone-500")}>
             {content.length.toLocaleString()} / {MAX_LENGTH.toLocaleString()}

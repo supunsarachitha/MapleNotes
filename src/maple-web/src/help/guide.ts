@@ -11,8 +11,8 @@ export const GUIDE: GuideSection[] = [
   {
     id: "writing",
     title: "Writing notes",
-    body: `Write in the box at the top of **Home** and choose **Post** (or press Ctrl+Enter, ⌘+Enter on a Mac). Your newest notes
-are at the top.
+    body: `Tap the box at the top of **Home** to open it, write, and choose **Post** (or press Ctrl+Enter, ⌘+Enter on a Mac). While
+it is empty the box stays one line; it opens when you tap it. Your newest notes are at the top.
 
 - **Formatting.** Use the toolbar above the text box for bold, italic, headings, lists, checklists, quotes, code and
   links, or type [Markdown](https://commonmark.org/help/) yourself. Ctrl/⌘+B, I and K are shortcuts for bold, italic
