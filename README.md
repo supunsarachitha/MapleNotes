@@ -56,13 +56,16 @@
   in the editor, and clickable `#tags`, including
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
   Optionally, your existing tags are suggested while you type one.
+  Optionally, editing a note, or clicking into the new-note box, opens the full screen editor (Settings → Writing →
+  Editing).
 - **Labels.** Optionally, coloured labels you put on notes and todo lists by hand, in ten colours, listed in the side
   menu with their notes. A label can keep its notes out of Home and Quick notes, so they show only on the label's page.
   With end-to-end encryption their names are encrypted too.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
   upload progress. Images keep their shape on any screen and open in a full-screen viewer; audio and video play
   inline, and video can be skipped to any point. Optionally, photos are shrunk in the browser before they upload (with
-  the Large size, at most 2560 pixels on the longest side, as JPEG), often to a tenth of the size.
+  the Large size, at most 2560 pixels on the longest side, as WebP where the browser can save it and as JPEG where it
+  cannot), often to a tenth of the size. Animated pictures upload as they are.
 - **Search.** Finds text in your notes, including encrypted ones. With end-to-end encryption, search runs in your
   browser.
 - **Encryption, chosen per account.**
