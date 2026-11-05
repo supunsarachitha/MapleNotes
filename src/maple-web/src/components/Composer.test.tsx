@@ -241,3 +241,66 @@ describe("Composer", () => {
     await waitFor(() => expect(create).toHaveBeenCalledWith("- [ ] Buy **maple** syrup[link text](https://)", []));
   });
 });
+
+describe("Composer, collapsible", () => {
+  const inHidden = (element: Element) => element.closest(".hidden") !== null;
+
+  it("shows one line while empty and unfocused", () => {
+    renderComposer({ collapsible: true }, { noteTitles: true });
+
+    const box = screen.getByLabelText<HTMLTextAreaElement>("New note");
+    expect(box.rows).toBe(1);
+    expect(box.placeholder).toBe("What's on your mind?");
+    expect(inHidden(screen.getByRole("toolbar", { name: "Formatting" }))).toBe(true);
+    expect(inHidden(screen.getByRole("button", { name: "Post" }))).toBe(true);
+    expect(inHidden(screen.getByLabelText("Title"))).toBe(true);
+    expect(screen.getAllByRole("button", { name: "Attach files" }).filter((button) => !inHidden(button))).toHaveLength(1);
+  });
+
+  it("opens the full editor on focus and closes again when left empty", async () => {
+    const user = userEvent.setup();
+    renderComposer({ collapsible: true });
+    const box = screen.getByLabelText<HTMLTextAreaElement>("New note");
+
+    await user.click(box);
+    expect(box.rows).toBe(2);
+    expect(box.placeholder).toBe("What's on your mind? Use #tags and **Markdown**.");
+    expect(inHidden(screen.getByRole("toolbar", { name: "Formatting" }))).toBe(false);
+    expect(inHidden(screen.getByRole("button", { name: "Post" }))).toBe(false);
+
+    // Focus moving to a button inside the box keeps it open.
+    screen.getByRole("button", { name: /^Bold/ }).focus();
+    await nextFrame();
+    expect(box.rows).toBe(2);
+
+    await user.click(document.body);
+    await waitFor(() => expect(box.rows).toBe(1));
+  });
+
+  it("stays open once something is written", async () => {
+    const user = userEvent.setup();
+    renderComposer({ collapsible: true });
+    const box = screen.getByLabelText<HTMLTextAreaElement>("New note");
+
+    await user.type(box, "draft");
+    box.blur();
+    await nextFrame();
+    expect(box.rows).toBe(2);
+    expect(inHidden(screen.getByRole("button", { name: "Post" }))).toBe(false);
+  });
+
+  it("opens full screen from the one-line box", async () => {
+    const user = userEvent.setup();
+    renderComposer({ collapsible: true });
+
+    const [fullScreen] = screen.getAllByRole("button", { name: "Full screen (Ctrl/⌘ + Shift + F)" }).filter((button) => !button.closest(".hidden"));
+    await user.click(fullScreen!);
+    expect(screen.getByRole("dialog", { name: "New note, full screen" })).toBeInTheDocument();
+  });
+
+  it("is never collapsed without the option", () => {
+    renderComposer();
+    expect(screen.getByLabelText<HTMLTextAreaElement>("New note").rows).toBe(2);
+    expect(inHidden(screen.getByRole("toolbar", { name: "Formatting" }))).toBe(false);
+  });
+});

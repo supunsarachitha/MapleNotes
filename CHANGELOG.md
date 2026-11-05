@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The empty **New note** box on Home is now a single line (with attach and full screen buttons) instead of the full
+  editor. Tap it to open the title, formatting toolbar and **Post**; it shrinks back when you leave it empty.
 - **Shrink photos before uploading** saves photos as WebP instead of JPEG where the browser can, which is usually a
   quarter to a third smaller at the same quality. Pictures with see-through parts (such as PNG screenshots) are now
   shrunk too, as WebP keeps them. The browser is asked whether it can save WebP; browsers that cannot (today Safari, and

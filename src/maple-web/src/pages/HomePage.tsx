@@ -164,7 +164,7 @@ export function HomePage() {
       )}
       <section aria-label="New note">
         <h2 className={cn(sectionHeading, "mb-3")}>New note</h2>
-        <Composer />
+        <Composer collapsible />
       </section>
       <div className="mt-6 flex flex-col gap-6">
         <NoteList
