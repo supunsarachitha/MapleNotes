@@ -66,6 +66,20 @@ describe("Quick notes", () => {
     await waitFor(() => expect(create).toHaveBeenCalledWith("Buy stamps", [], { kind: "Quick" }));
   });
 
+  it("keeps the empty box to one line until it is tapped", async () => {
+    vi.spyOn(api, "listNotes").mockResolvedValue({ items: [], nextCursor: null });
+    const user = userEvent.setup();
+    renderWith(<QuickNotesPage />);
+
+    const box = screen.getByPlaceholderText<HTMLTextAreaElement>("Jot something down…");
+    expect(box.rows).toBe(1);
+    expect(screen.getByRole("button", { name: "Post" }).closest(".hidden")).not.toBeNull();
+
+    await user.click(box);
+    expect(box.rows).toBe(2);
+    expect(screen.getByRole("button", { name: "Post" }).closest(".hidden")).toBeNull();
+  });
+
   it("gives quick notes a title when titles are on for them", async () => {
     vi.spyOn(api, "listNotes").mockResolvedValue({ items: [], nextCursor: null });
     const create = vi.spyOn(api, "createNote").mockResolvedValue(quick);
