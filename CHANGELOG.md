@@ -17,8 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Shrink photos before uploading** saves photos as WebP instead of JPEG where the browser can, which is usually a
   quarter to a third smaller at the same quality. Pictures with see-through parts (such as PNG screenshots) are now
-  shrunk too, as WebP keeps them. The browser is asked once whether it can save WebP; Safari, and every browser on an
-  iPhone or iPad, cannot, so they keep saving JPEG as before. Photos already uploaded stay as they are.
+  shrunk too, as WebP keeps them. The browser is asked whether it can save WebP; browsers that cannot (today Safari, and
+  every browser on an iPhone or iPad) keep saving JPEG as before. Animated PNG, WebP and AVIF pictures are uploaded as
+  they are instead of becoming still pictures. Photos already uploaded stay as they are.
 - In the installed app (PWA), the Back button on the Home page keeps you on Home instead of leaving the app. Back from other pages works as before; browser tabs are not affected.
 - CI: releases are tagged automatically. When a push to `main` carries a new `<Version>` in `Directory.Build.props`,
   the `Release tag` workflow creates the `vX.Y.Z` tag and starts CI on it, which publishes the versioned container

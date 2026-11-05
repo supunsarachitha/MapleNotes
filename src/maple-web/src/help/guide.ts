@@ -142,9 +142,9 @@ Pictures, players and link previews load as you scroll towards them, so a long t
 files it has.
 
 To save space, turn on **Shrink photos before uploading** in [Settings → Notes & files](/settings/notes): large photos are
-resized and saved as WebP before they upload (as JPEG in Safari and on iPhone and iPad, which cannot save WebP), and
-their location and camera details are left out. Pictures with see-through parts, such as screenshots of logos, are
-shrunk too where WebP is used. Then choose a
+resized and saved as WebP before they upload (as JPEG in browsers that cannot save WebP, today Safari and every browser
+on iPhone and iPad), and their location and camera details are left out. Pictures with see-through parts, such as
+screenshots of logos, are shrunk too where WebP is used; animated pictures are uploaded as they are. Then choose a
 **Photo size**: **Large** (2560 pixels on the longest side) stays sharp on big screens and is often a tenth of the
 original; **Medium** (1920 pixels) and **Small** (1280 pixels) are smaller still, and saved at a lower quality, which
 suits photos you mostly look at on a phone. The full-size original is not kept, and photos you uploaded earlier stay as
