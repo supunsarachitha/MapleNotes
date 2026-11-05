@@ -91,9 +91,9 @@ Todo lists stay out of your Home timeline, but searches and tags find them.`,
   {
     id: "quick",
     title: "Quick notes",
-    body: `**Quick notes** is a scratchpad for things you jot down in passing, kept out of your timeline. When a quick note
-turns out to be worth keeping, open its **⋯** menu and choose **Move to Home**. A timeline note can also move to
-quick notes.`,
+    body: `**Quick notes** is a scratchpad for things you jot down in passing, kept out of your timeline. Tap the one-line box at
+the top to write one. When a quick note turns out to be worth keeping, open its **⋯** menu and choose **Move to Home**.
+A timeline note can also move to quick notes.`,
   },
   {
     id: "daily",

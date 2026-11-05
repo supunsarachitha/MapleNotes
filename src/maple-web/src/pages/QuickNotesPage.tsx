@@ -21,7 +21,7 @@ export function QuickNotesPage() {
           <p className="mb-4 text-sm text-stone-600 dark:text-stone-300">
             Jot things down without filling your timeline. Move a note to Home from its menu when it is worth keeping.
           </p>
-          <Composer kind="Quick" allowTitle={quickNoteTitles} placeholder="Jot something down…" />
+          <Composer kind="Quick" allowTitle={quickNoteTitles} placeholder="Jot something down…" collapsible />
           <div className="mt-6 flex flex-col gap-6">
             <NoteList
               state="pinned"
