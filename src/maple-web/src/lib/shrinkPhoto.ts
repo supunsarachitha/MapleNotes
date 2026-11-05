@@ -4,7 +4,7 @@
 import type { PhotoSize } from "./types";
 
 /**
- * How far each photo size shrinks: the longest side in pixels, and the JPEG quality. Like the "standard" and "HD"
+ * How far each photo size shrinks: the longest side in pixels, and the quality it is saved at (WebP or JPEG). Like the "standard" and "HD"
  * choices of messaging and photo apps, smaller photos are also saved at a lower quality, where it shows least.
  */
 export const PHOTO_PRESETS: Record<PhotoSize, { maxSide: number; quality: number }> = {
@@ -33,23 +33,56 @@ export function fitWithin(width: number, height: number, max = MAX_PHOTO_SIDE): 
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 
-/** The shrunk photo's file name: the same name, as a .jpg. */
-export function jpegName(name: string): string {
-  return `${name.replace(/\.[^.]*$/, "") || "photo"}.jpg`;
+/** The shrunk photo's file name: the same name, with the extension of the format it was saved in. */
+export function photoName(name: string, extension: "jpg" | "webp" = "jpg"): string {
+  return `${name.replace(/\.[^.]*$/, "") || "photo"}.${extension}`;
 }
 
-function canvasOf(width: number, height: number, quality: number) {
+/** The shrunk photo's file name as a JPEG. */
+export function jpegName(name: string): string {
+  return photoName(name, "jpg");
+}
+
+type PhotoType = "image/webp" | "image/jpeg";
+
+function canvasOf(width: number, height: number) {
   if (typeof OffscreenCanvas !== "undefined") {
     const canvas = new OffscreenCanvas(width, height);
-    return { context: canvas.getContext("2d"), toJpeg: () => canvas.convertToBlob({ type: "image/jpeg", quality }) };
+    return { context: canvas.getContext("2d"), save: (type: PhotoType, quality: number) => canvas.convertToBlob({ type, quality }) };
   }
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   return {
     context: canvas.getContext("2d"),
-    toJpeg: () => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality)),
+    save: (type: PhotoType, quality: number) => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality)),
   };
+}
+
+let webpCheck: Promise<boolean> | undefined;
+
+/**
+ * Whether this browser can save pictures as WebP, asked once by saving a 1 × 1 picture. Browsers that cannot, such as
+ * Safari and every browser on an iPhone or iPad, quietly hand back a PNG instead, so the answer is read from the result
+ * rather than guessed from the browser's name.
+ */
+export function canSaveWebp(): Promise<boolean> {
+  webpCheck ??= (async () => {
+    try {
+      const { context, save } = canvasOf(1, 1);
+      if (!context) return false;
+      context.fillRect(0, 0, 1, 1);
+      return (await save("image/webp", 0.8))?.type === "image/webp";
+    } catch {
+      return false;
+    }
+  })();
+  return webpCheck;
+}
+
+/** Forgets the answer of {@link canSaveWebp}, for tests. */
+export function resetWebpCheck(): void {
+  webpCheck = undefined;
 }
 
 function hasTransparency(context: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D, width: number, height: number): boolean {
@@ -62,8 +95,10 @@ function hasTransparency(context: OffscreenCanvasRenderingContext2D | CanvasRend
 
 /**
  * Shrinks a photo: upright (as its camera meant it), at most the size's longest side (see {@link PHOTO_PRESETS}),
- * re-saved as a JPEG at the size's quality. Re-saving leaves out the location and camera details a photo may carry. Returns the file unchanged when the
- * browser cannot decode it, when it has transparent parts (which JPEG cannot keep), or when shrinking would hardly help.
+ * re-saved at the size's quality as WebP where the browser can save it (see {@link canSaveWebp}), and as JPEG otherwise.
+ * Re-saving leaves out the location and camera details a photo may carry. Returns the file unchanged when the browser
+ * cannot decode it, when it has transparent parts and must be saved as JPEG (which cannot keep them), or when shrinking
+ * would hardly help.
  */
 export async function shrinkPhoto(file: File, size: PhotoSize = "Large"): Promise<File> {
   if (!canShrink(file) || typeof createImageBitmap !== "function") return file;
@@ -76,14 +111,16 @@ export async function shrinkPhoto(file: File, size: PhotoSize = "Large"): Promis
   try {
     const { maxSide, quality } = PHOTO_PRESETS[size];
     const { width, height } = fitWithin(bitmap.width, bitmap.height, maxSide);
-    const { context, toJpeg } = canvasOf(width, height, quality);
+    const webp = await canSaveWebp();
+    const { context, save } = canvasOf(width, height);
     if (!context) return file;
     context.imageSmoothingQuality = "high"; // a smoother downscale than the default, which keeps small sizes sharp
     context.drawImage(bitmap, 0, 0, width, height);
-    if (file.type !== "image/jpeg" && hasTransparency(context, width, height)) return file;
-    const jpeg = await toJpeg();
-    if (!jpeg || jpeg.size > file.size * WORTHWHILE) return file;
-    return new File([jpeg], jpegName(file.name), { type: "image/jpeg", lastModified: file.lastModified });
+    if (!webp && file.type !== "image/jpeg" && hasTransparency(context, width, height)) return file;
+    const type: PhotoType = webp ? "image/webp" : "image/jpeg";
+    const saved = await save(type, quality);
+    if (!saved || saved.type !== type || saved.size > file.size * WORTHWHILE) return file;
+    return new File([saved], photoName(file.name, webp ? "webp" : "jpg"), { type, lastModified: file.lastModified });
   } catch {
     return file;
   } finally {

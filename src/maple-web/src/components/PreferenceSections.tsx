@@ -335,7 +335,7 @@ export function NotesFilesSection() {
           <div className="py-3 first:pt-0 last:pb-0">
             <PreferenceSwitch
               label="Shrink photos before uploading"
-              description="Large photos are resized and saved as JPEG, often a tenth of the size or less. Their location and camera details are left out too. Photos already uploaded stay as they are."
+              description="Large photos are resized and saved as WebP (or JPEG in Safari and on iPhone and iPad), often a tenth of the size or less. Their location and camera details are left out too. Photos already uploaded stay as they are."
               checked={preferences.shrinkPhotos}
               onChange={(shrinkPhotos) => save({ shrinkPhotos })}
             />
