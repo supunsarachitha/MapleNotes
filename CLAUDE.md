@@ -7,8 +7,6 @@ for how the parts fit, `docs/e2ee-spec.md` and `docs/threat-model.md` before tou
 
 ## Commands
 
-Cloud sessions run `.claude/hooks/session-start.sh`, which installs the .NET SDK and restores packages.
-
 - Server build (warnings are errors): `dotnet build`
 - Server tests: `dotnet test --project tests/MapleNotes.Server.Tests`, one class with
   `-- --filter-class "*BrandingTests"`, one test with `-- --filter-method "*Some_test_name*"`
