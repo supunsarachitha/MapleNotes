@@ -9,7 +9,7 @@ Findings were confirmed by reading the code paths end to end and, where it matte
 against the running app. Each fix on this branch comes with a test that fails without it.
 
 > **Status (November 2026 docs check):** the fixes under "Fixed on this branch" shipped in 1.11.0 ([CHANGELOG.md](../CHANGELOG.md)).
-> The "Open" findings were checked against the 1.18.1 code and are still open; [roadmap.md](roadmap.md) items 35 to 38
+> The "Open" findings were checked against the 1.18.1 code and are still open; [roadmap.md](roadmap.md) items 32 to 35
 > track the four Medium ones. The rest of this document is the record as written.
 
 ## Summary
