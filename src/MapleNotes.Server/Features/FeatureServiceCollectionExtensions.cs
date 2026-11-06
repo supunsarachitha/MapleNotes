@@ -7,6 +7,7 @@ using MapleNotes.Server.Features.Export;
 using MapleNotes.Server.Features.Labels;
 using MapleNotes.Server.Features.LinkPreviews;
 using MapleNotes.Server.Features.Notes;
+using MapleNotes.Server.Features.Passkeys;
 using MapleNotes.Server.Features.Preferences;
 using MapleNotes.Server.Features.Storage;
 
@@ -22,6 +23,8 @@ internal static class FeatureServiceCollectionExtensions
     {
         services.AddScoped<AccountService>();
         services.AddScoped<TwoFactorService>();
+        services.AddScoped<PasskeyService>();
+        services.AddSingleton<PasskeyChallenges>();
         services.AddScoped<AccountDeletionService>();
         services.AddScoped<InstanceSettingsService>();
         services.AddScoped<UserAdministrationService>();
