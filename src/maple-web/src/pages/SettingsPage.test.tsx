@@ -7,7 +7,7 @@ import { api } from "../lib/api";
 import { auth } from "../lib/auth";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
-import type { AuthStatus, EncryptionStatus, InstanceSettings, Label, User } from "../lib/types";
+import type { AuthStatus, EncryptionStatus, InstanceSettings, Label, Passkey, PasskeyCreationOptions, User } from "../lib/types";
 import { SettingsPage } from "./SettingsPage";
 
 const user: User = {
@@ -25,6 +25,7 @@ const user: User = {
 function renderSettings(status: EncryptionStatus, account: User = user, quotaBytes: number | null = null, path = "/settings") {
   window.history.replaceState(null, "", path);
   vi.spyOn(api, "encryption").mockResolvedValue(status);
+  if (!vi.isMockFunction(api.passkeys.list)) vi.spyOn(api.passkeys, "list").mockResolvedValue([]);
   vi.spyOn(api.twoFactor, "status").mockResolvedValue({ enabled: account.twoFactorEnabled ?? false, recoveryCodesLeft: account.twoFactorEnabled ? 10 : 0 });
   vi.spyOn(api, "storage").mockResolvedValue({
     notesBytes: 3 * 1024, noteCount: 12, filesBytes: 5 * 1024 * 1024, fileCount: 4, totalBytes: 5 * 1024 * 1024 + 3 * 1024, quotaBytes,
@@ -510,5 +511,58 @@ describe("Settings", () => {
     renderSettings(idle, { ...user, role: "Admin" });
 
     expect(screen.getByRole("link", { name: /^Administration/ })).toHaveAttribute("href", "/settings/admin");
+  });
+});
+
+describe("passkeys", () => {
+  const passkey: Passkey = { id: "p1", name: "Phone", backedUp: true, createdAtUtc: "2026-11-01T10:00:00Z", lastUsedAtUtc: null };
+  const options: PasskeyCreationOptions = {
+    challengeId: "c1", challenge: "AQ==", rp: { id: "localhost", name: "Maple Notes" },
+    user: { id: "AQ==", name: "maple", displayName: "Maple" }, algorithms: [-7], excludeCredentials: [], timeoutMs: 1000,
+  };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("adds a passkey with a name and the password, and lists it", async () => {
+    vi.stubGlobal("PublicKeyCredential", class {});
+    vi.stubGlobal("isSecureContext", true);
+    Object.defineProperty(navigator, "credentials", { value: { create: vi.fn(), get: vi.fn() }, configurable: true });
+    vi.spyOn(api.passkeys, "list").mockResolvedValueOnce([]).mockResolvedValue([passkey]);
+    vi.spyOn(api.passkeys, "creationOptions").mockResolvedValue(options);
+    const add = vi.spyOn(auth, "addPasskey").mockResolvedValue(passkey);
+    renderSettings(idle, user, null, "/settings/security");
+
+    await userEvent.click(await screen.findByRole("button", { name: "Add a passkey…" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Add a passkey" }));
+    await userEvent.type(dialog.getByLabelText("Name (optional)"), "Phone");
+    await userEvent.type(dialog.getByLabelText("Your password"), "correct horse battery staple");
+    await waitFor(() => expect(dialog.getByRole("button", { name: "Continue" })).toBeEnabled());
+    await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
+
+    expect(add).toHaveBeenCalledWith(user, "correct horse battery staple", options, "Phone");
+    const list = within(await screen.findByRole("list", { name: "Passkeys" }));
+    expect(list.getByText("Phone")).toBeInTheDocument();
+    expect(list.getByText("Added 2026-11-01")).toBeInTheDocument();
+    expect(list.getByText("Synced")).toBeInTheDocument();
+    expect(list.getByText("Not used yet")).toBeInTheDocument();
+  });
+
+  it("removes a passkey after the password", async () => {
+    vi.spyOn(api.passkeys, "list").mockResolvedValue([passkey]);
+    vi.spyOn(auth, "proveIdentity").mockResolvedValue({ authKey: "derived-key" });
+    const remove = vi.spyOn(api.passkeys, "remove").mockResolvedValue();
+    renderSettings(idle, user, null, "/settings/security");
+
+    await userEvent.click(await screen.findByRole("button", { name: "Remove Phone" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Remove this passkey?" }));
+    await userEvent.type(dialog.getByLabelText("Your password"), "correct horse battery staple");
+    await userEvent.click(dialog.getByRole("button", { name: "Remove" }));
+
+    await waitFor(() => expect(remove).toHaveBeenCalledWith("p1", { authKey: "derived-key" }));
+  });
+
+  it("explains when the browser cannot add passkeys", async () => {
+    renderSettings(idle, user, null, "/settings/security");
+    expect(await screen.findByText(/This browser cannot add passkeys here/)).toBeInTheDocument();
   });
 });

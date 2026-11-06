@@ -345,6 +345,35 @@ export interface AdminUser {
 }
 
 /** Whether two-factor sign-in is on, and how many recovery codes are left. */
+/** A passkey of the signed-in account. */
+export interface Passkey {
+  id: string;
+  name: string;
+  /** Synced to other devices by a password manager or the platform. */
+  backedUp: boolean;
+  createdAtUtc: string;
+  lastUsedAtUtc: string | null;
+}
+
+/** Options for adding a passkey; binary fields are base64. */
+export interface PasskeyCreationOptions {
+  challengeId: string;
+  challenge: string;
+  rp: { id: string; name: string };
+  user: { id: string; name: string; displayName: string };
+  algorithms: number[];
+  excludeCredentials: Array<{ id: string; transports: string[] | null }>;
+  timeoutMs: number;
+}
+
+/** Options for signing in with a passkey; binary fields are base64. */
+export interface PasskeyRequestOptions {
+  challengeId: string;
+  challenge: string;
+  rpId: string;
+  timeoutMs: number;
+}
+
 export interface TwoFactorStatus {
   enabled: boolean;
   recoveryCodesLeft: number;

@@ -3,7 +3,8 @@ import { api } from "./api";
 import { isTwoFactorRequired } from "./apiError";
 import { deriveForAccount, deriveForNewPassword, rememberKeyDerived } from "./credentials";
 import { e2ee } from "./e2ee";
-import type { CredentialProof, User } from "./types";
+import { createPasskey, getPasskey } from "./passkeys";
+import type { CredentialProof, Passkey, PasskeyCreationOptions, PasskeyRequestOptions, User } from "./types";
 
 // Key-derived sign-in (docs/e2ee-spec.md §1). The password never leaves the browser: Argon2id turns it into an
 // authentication key, which is all the server receives, and a wrapping key, which stays on this page and protects the
@@ -43,6 +44,32 @@ export const auth = {
       if (isTwoFactorRequired(error)) throw new TwoFactorRequired((code) => finish(code.trim()));
       throw error;
     }
+  },
+
+  /**
+   * Signs in with a passkey. Pass `options` fetched beforehand when a tap starts this: Safari shows the passkey prompt
+   * only right after a tap, so nothing slow should run in between. With `autofill`, waits until the person picks a
+   * passkey from the username field's suggestions. End-to-end accounts are then unlocked on the unlock screen.
+   */
+  async signInWithPasskey(
+    rememberMe: boolean,
+    { options, autofill = false, signal }: { options?: PasskeyRequestOptions; autofill?: boolean; signal?: AbortSignal } = {},
+  ): Promise<User> {
+    const request = options ?? (await api.passkeys.signInOptions());
+    const credential = await getPasskey(request, { autofill, signal });
+    const user = await api.passkeys.signIn({ challengeId: request.challengeId, credential, rememberMe });
+    await rememberKeyDerived(user.username);
+    return user;
+  },
+
+  /**
+   * Creates a passkey on this device with `options` fetched beforehand (so the prompt opens straight from the tap),
+   * then proves the password and adds the passkey to the account.
+   */
+  async addPasskey(user: User, password: string, options: PasskeyCreationOptions, name?: string): Promise<Passkey> {
+    const credential = await createPasskey(options);
+    const proof = await auth.proveIdentity(user.username, password);
+    return api.passkeys.add({ proof, challengeId: options.challengeId, credential, ...(name ? { name } : {}) });
   },
 
   async register(username: string, password: string, displayName?: string): Promise<User> {

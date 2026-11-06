@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Passkeys** (in progress): sign in with a passkey instead of the password. The server checks passkeys with .NET's
   own cryptography, without a new library. Passkeys ask for a fingerprint, face or PIN, so an account with an
   authenticator app is not asked for its code when it signs in with one.
+  - **Settings → Privacy & security → Passkeys:** add a passkey (with your password), see which are synced and when
+    each was last used, rename and remove them.
+  - **Sign in with a passkey** on the sign-in page; browsers that support it also offer your passkeys in the username
+    field's suggestions.
   - API: `GET /api/v1/account/passkeys` lists the account's passkeys; `POST .../options` and `POST` add one (with a
     password proof); `PATCH`/`DELETE .../{id}` rename and remove one (removing needs a password proof).
     `POST /api/v1/auth/passkey/options` and `POST /api/v1/auth/passkey/login` sign in.

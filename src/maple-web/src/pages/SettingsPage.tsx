@@ -23,6 +23,7 @@ import { LabelSettings } from "../components/LabelSettings";
 import { AppearanceSection, EditingSection, MenuSection, NotesFilesSection, WritingExtrasSection, WritingSection } from "../components/PreferenceSections";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
+import { PasskeysSection } from "../components/PasskeysSection";
 import { TwoFactorSection } from "../components/TwoFactorSection";
 import { VersionNote } from "../components/VersionNote";
 import { useToast } from "../components/Toaster";
@@ -881,6 +882,7 @@ function SectionContent({ id, user }: { id: string; user: User }) {
         <>
           <PasswordSection user={user} />
           <TwoFactorSection user={user} />
+          <PasskeysSection user={user} />
           <EncryptionSection user={user} />
           {user.hasEndToEndKey && <RecoverySection user={user} />}
           <SessionsSection />
