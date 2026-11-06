@@ -210,7 +210,7 @@ volume cannot be used to forge a session.
 
 | Threat | Off / encrypted at rest | End-to-end |
 |---|---|---|
-| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 38). | **Protected**, twice over. |
+| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 36). | **Protected**, twice over. |
 | Someone who knows the master key, or reads the server's memory or data while it runs | **Not protected.** The server holds the keys. | **Protected.** The server never has the key; it sees ciphertext, sizes, timestamps, and which notes share a tag. |
 | Someone who takes over the server and changes the web app it serves | **Not protected.** | **Not protected** once the user signs in or unlocks with the modified app, which could capture the password. See [threat-model.md](threat-model.md). |
 | Tampering with stored ciphertext | **Detected.** Authenticated encryption everywhere. | **Detected**, in the browser. |
@@ -277,7 +277,7 @@ note transaction, and a concurrent edit.
   get the default parameters with a stable pseudo-salt derived from the prelogin key, and are checked against a dummy
   hash. Five consecutive failures lock the account for 15 minutes, and prelogin and the authentication endpoints are
   rate-limited per client IP (`MAPLE_AUTH_RATE_LIMIT`, a separate budget for each). Known gap: unknown names never lock, so a locked account answers 429 where an unknown
-one answers 401, which reveals that the name exists (roadmap item 39).
+one answers 401, which reveals that the name exists (roadmap item 37).
 - Session cookie: `HttpOnly`, `SameSite=Strict`, `Secure` over HTTPS, sliding expiry with "keep me signed in",
   otherwise a browser-session cookie. The expiry is 30 days unless administrators chose another length, up to 400 days
   (`SessionDays` in `InstanceSettings`); it is set when the session signs in, and renewal keeps it, so a new length

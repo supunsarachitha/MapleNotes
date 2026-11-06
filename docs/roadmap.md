@@ -2,7 +2,7 @@
 
 Features and settings Maple Notes does not have yet, from a comparison with similar note apps (Google Keep, Memos,
 Standard Notes, Joplin, Obsidian) and a check of the code as of version 1.10.1, kept up to date since (last reviewed for
-1.17.1). Numbers are for reference only; they are not an order of work. The suggested starting point is 1 (offline
+1.18.1). Numbers are for reference only; they are not an order of work. The suggested starting point is 1 (offline
 use), then 6 and 2.
 
 ## Biggest gaps
@@ -33,47 +33,45 @@ Features most note apps have.
 13. A drawing or handwriting note.
 14. Voice recording in the app. Audio files can be attached, but not recorded.
 15. Turning a quick note into a todo list or habit, and back.
-16. A list of keyboard shortcuts, beyond the formatting shortcuts.
 
 ## Todos and habits
 
-17. Recurring todos.
-18. Sub-tasks in todo lists.
-19. Drag-to-reorder todo items.
-20. Habit targets, such as "3 times a week".
-21. Habit reminders.
-22. ~~Archiving a habit.~~ Done: habits can be archived and restored since 1.3.0.
+16. Recurring todos.
+17. Sub-tasks in todo lists.
+18. Drag-to-reorder todo items.
+19. Habit targets, such as "3 times a week".
+20. Habit reminders.
 
 ## Backup and data
 
-23. Automatic scheduled backups, for example a nightly export to a folder or to S3.
-24. Import from other apps: Google Keep (Takeout), Evernote (`.enex`), Standard Notes, Joplin and Simplenote. Today a
+21. Automatic scheduled backups, for example a nightly export to a folder or to S3.
+22. Import from other apps: Google Keep (Takeout), Evernote (`.enex`), Standard Notes, Joplin and Simplenote. Today a
     restore reads Maple Notes and Falcon Notes exports and single Markdown, text and JSON files.
-25. Export of one note, or a selection, including to PDF or printing.
+23. Export of one note, or a selection, including to PDF or printing.
 
 ## Settings that are fixed today
 
-26. **Trash retention:** fixed at 30 days.
-27. **Signed-in devices:** there is no list of devices to sign out one by one, and "Sign out" does not end the session on
+24. **Trash retention:** fixed at 30 days.
+25. **Signed-in devices:** there is no list of devices to sign out one by one, and "Sign out" does not end the session on
     the server.
-28. **Photo sizes:** three presets; a custom size or quality cannot be set.
-29. **Default view on opening:** the app always starts on Home.
-30. **Language:** the interface is in English only.
-31. **Time zone:** the app always uses the browser's time zone.
+26. **Photo sizes:** three presets; a custom size or quality cannot be set.
+27. **Default view on opening:** the app always starts on Home.
+28. **Language:** the interface is in English only.
+29. **Time zone:** the app always uses the browser's time zone.
 
 ## Administration
 
-32. Sign-in with an existing account system, such as Google or Authelia (OIDC/SSO).
-33. Email: invitations, password-reset links and notices. There is no email support.
-34. API tokens for scripts and integrations: the API works only with the browser's sign-in cookie.
-35. A default storage limit for new accounts, and different limits per account.
-36. An audit log of administrator actions and sign-ins.
+30. Sign-in with an existing account system, such as Google or Authelia (OIDC/SSO).
+31. Email: invitations, password-reset links and notices. There is no email support.
+32. API tokens for scripts and integrations: the API works only with the browser's sign-in cookie.
+33. A default storage limit for new accounts, and different limits per account.
+34. An audit log of administrator actions and sign-ins.
 
 ## Security items still open
 
 From the [October 2026 security audit](security-audit-2026-10.md), where each has a recommended fix.
 
-37. End-to-end tag names and file details do not count toward the storage limit.
-38. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).
-39. The sign-in lockout reveals whether a username exists.
-40. The Nginx Proxy Manager deployment file trusts forwarded addresses from too wide a network.
+35. End-to-end tag names and file details do not count toward the storage limit.
+36. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).
+37. The sign-in lockout reveals whether a username exists.
+38. The Nginx Proxy Manager deployment file trusts forwarded addresses from too wide a network.
