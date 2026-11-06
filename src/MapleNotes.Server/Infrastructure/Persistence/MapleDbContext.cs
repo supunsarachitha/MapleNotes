@@ -30,6 +30,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
     /// <summary>Runtime-editable instance settings.</summary>
     public DbSet<InstanceSetting> InstanceSettings => Set<InstanceSetting>();
 
+    /// <summary>Gets the accounts' passkeys.</summary>
+    public DbSet<Passkey> Passkeys => Set<Passkey>();
+
     /// <inheritdoc />
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -148,6 +151,17 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             label.Property(l => l.Name).HasMaxLength(Label.MaxNameLength);
             label.Property(l => l.Color).HasMaxLength(16);
             label.HasIndex(l => new { l.UserId, l.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<Passkey>(passkey =>
+        {
+            passkey.ToTable("Passkeys");
+            passkey.HasOne<User>().WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            passkey.Property(p => p.CredentialId).HasMaxLength(Passkey.MaxCredentialIdBytes);
+            passkey.HasIndex(p => p.CredentialId).IsUnique();
+            passkey.HasIndex(p => p.UserId);
+            passkey.Property(p => p.Name).HasMaxLength(Passkey.MaxNameLength);
+            passkey.Property(p => p.Transports).HasMaxLength(100);
         });
 
         modelBuilder.Entity<InstanceSetting>(setting =>

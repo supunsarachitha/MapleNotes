@@ -189,6 +189,58 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("Notes", (string)null);
                 });
 
+            modelBuilder.Entity("MapleNotes.Server.Domain.Passkey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Algorithm")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("BackedUp")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("CredentialId")
+                        .IsRequired()
+                        .HasMaxLength(1023)
+                        .HasColumnType("BLOB");
+
+                    b.Property<DateTime?>("LastUsedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("PublicKey")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.Property<long>("SignCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Transports")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CredentialId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Passkeys", (string)null);
+                });
+
             modelBuilder.Entity("MapleNotes.Server.Domain.Tag", b =>
                 {
                     b.Property<Guid>("Id")
@@ -384,6 +436,15 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("MapleNotes.Server.Domain.Note", b =>
+                {
+                    b.HasOne("MapleNotes.Server.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MapleNotes.Server.Domain.Passkey", b =>
                 {
                     b.HasOne("MapleNotes.Server.Domain.User", null)
                         .WithMany()
