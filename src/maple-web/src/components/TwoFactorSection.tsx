@@ -71,7 +71,7 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
   );
 }
 
-function DialogShell({
+export function DialogShell({
   open,
   onOpenChange,
   title,

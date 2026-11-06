@@ -31,6 +31,9 @@ import type {
   ProblemDetails,
   Tag,
   TagWire,
+  Passkey,
+  PasskeyCreationOptions,
+  PasskeyRequestOptions,
   TwoFactorSetup,
   TwoFactorStatus,
   User,
@@ -38,6 +41,7 @@ import type {
 } from "./types";
 import { moodAllowed } from "./types";
 import { ApiError } from "./apiError";
+import type { NewPasskeyWire, PasskeyAssertionWire } from "./passkeys";
 import { noteApiResponse } from "./offline";
 import {
   canKeepOffline,
@@ -477,6 +481,22 @@ export const api = {
       twoFactorCode?: string;
     }): Promise<User> {
       const user = await request<User>("POST", "/api/v1/auth/recovery/reset", body);
+      await refreshAntiforgeryToken();
+      return user;
+    },
+  },
+
+  /** Signing in with a passkey, and the account's passkeys (lib/passkeys.ts talks to the browser). */
+  passkeys: {
+    list: () => request<Passkey[]>("GET", "/api/v1/account/passkeys"),
+    creationOptions: () => request<PasskeyCreationOptions>("POST", "/api/v1/account/passkeys/options"),
+    add: (body: { proof: CredentialProof; challengeId: string; name?: string; credential: NewPasskeyWire }) =>
+      request<Passkey>("POST", "/api/v1/account/passkeys", body),
+    rename: (id: string, name: string) => request<Passkey>("PATCH", `/api/v1/account/passkeys/${id}`, { name }),
+    remove: (id: string, proof: CredentialProof) => request<void>("DELETE", `/api/v1/account/passkeys/${id}`, { proof }),
+    signInOptions: () => request<PasskeyRequestOptions>("POST", "/api/v1/auth/passkey/options"),
+    async signIn(body: { challengeId: string; credential: PasskeyAssertionWire; rememberMe: boolean }): Promise<User> {
+      const user = await request<User>("POST", "/api/v1/auth/passkey/login", body);
       await refreshAntiforgeryToken();
       return user;
     },
