@@ -33,7 +33,7 @@ Stolen disks, a leaked backup, a cloud snapshot, a decommissioned drive.
 - **Encrypted at rest and end-to-end:** protected. The database is encrypted with a key derived from the master key,
   and so are the attachment files (per account) and the Data Protection key ring that signs sessions. The master key is
   never stored in the data volume.
-- **Off:** the database and key ring are encrypted, but attachment files are plaintext on disk (roadmap item 38). Use
+- **Off:** the database and key ring are encrypted, but attachment files are plaintext on disk (roadmap item 36). Use
   an encrypted mode if files must be protected from a disk copy.
 - **What leaks:** the number and approximate sizes of files in `attachments/`, and file times.
 
@@ -166,7 +166,7 @@ server is one of the adversaries above.
   compromised server gains nothing from the code.
 - Unknown usernames receive the same answer as real ones (default parameters and a stable pseudo-salt), so they
   cannot be told apart, with two exceptions: the legacy upgrade (below), and the lockout, which a real account triggers
-  after five wrong sign-ins and an unknown name never does (roadmap item 39).
+  after five wrong sign-ins and an unknown name never does (roadmap item 37).
 
 ### Legacy accounts
 
