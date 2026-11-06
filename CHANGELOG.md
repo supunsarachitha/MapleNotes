@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.1] - 2026-11-06
+
 ### Changed
 
 - The empty box on **Quick notes** is now a single line too, like the New note box on Home. Tap it to open the title,
@@ -651,7 +653,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.1...HEAD
+[1.18.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.17.1...v1.18.0
 [1.17.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.17.0...v1.17.1
 [1.17.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.16.1...v1.17.0
