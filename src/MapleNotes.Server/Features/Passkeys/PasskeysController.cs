@@ -1,4 +1,6 @@
+using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Admin;
+using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.AspNetCore.Authorization;
@@ -122,11 +124,12 @@ public sealed class PasskeysController(PasskeyService passkeys, InstanceSettings
 
 /// <summary>Signing in with a passkey.</summary>
 /// <param name="passkeys">Passkey operations.</param>
+/// <param name="audit">The audit log (sign-ins and administrators' actions).</param>
 [ApiController]
 [Route("api/v1/auth/passkey")]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class PasskeySignInController(PasskeyService passkeys) : ControllerBase
+public sealed class PasskeySignInController(PasskeyService passkeys, AuditLog audit) : ControllerBase
 {
     /// <summary>Returns options for <c>navigator.credentials.get()</c>, with a challenge valid for five minutes.</summary>
     /// <returns>The options. They name no account, so they reveal nothing about which accounts exist.</returns>
@@ -164,14 +167,19 @@ public sealed class PasskeySignInController(PasskeyService passkeys) : Controlle
     public async Task<ActionResult<PasskeySignInResponse>> Login(PasskeyLoginRequest request, CancellationToken cancellationToken)
     {
         var (result, passkey) = await passkeys.SignInAsync(request, cancellationToken);
+        var username = result.User?.Username;
         switch (result.Error)
         {
             case AccountError.None:
                 await SessionSignIn.SignInAsync(HttpContext, result.User!, request.RememberMe);
-                return new PasskeySignInResponse(UserResponse.From(result.User!), passkey!.Id, passkey.E2eeWrappedKey);
+                await audit.RecordAsync(AuditEvent.SignIn, username, $"Signed in with the passkey \"{passkey!.Name}\".", cancellationToken, method: "Passkey");
+                return new PasskeySignInResponse(UserResponse.From(result.User!), passkey.Id, passkey.E2eeWrappedKey);
             case AccountError.Disabled:
+                await audit.RecordAsync(AuditEvent.SignInFailed, username, "The account is disabled.", cancellationToken, method: "Passkey");
                 return Problem(statusCode: StatusCodes.Status403Forbidden, title: "This account has been disabled by an administrator.");
             default:
+                await audit.RecordAsync(
+                    AuditEvent.SignInFailed, username, "The passkey is unknown, or its signature or challenge was not valid.", cancellationToken, method: "Passkey");
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "This passkey could not sign you in.");
         }
     }

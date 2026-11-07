@@ -1,5 +1,7 @@
 import type {
   AdminUser,
+  AuditFilter,
+  AuditPage,
   Attachment,
   AttachmentWire,
   AuthStatus,
@@ -542,6 +544,8 @@ export const api = {
     /** Replaces all the settings, so send every field. */
     updateSettings: (settings: InstanceSettings) => request<InstanceSettings>("PUT", "/api/v1/admin/settings", settings),
     users: () => request<AdminUser[]>("GET", "/api/v1/admin/users"),
+    audit: (filter: AuditFilter, before?: number | null) =>
+      request<AuditPage>("GET", `/api/v1/admin/audit?filter=${filter}&limit=50${before ? `&before=${before}` : ""}`),
     updateUser: (id: string, changes: { isDisabled?: boolean; role?: UserRole; turnOffTwoFactor?: boolean }) =>
       request<void>("PATCH", `/api/v1/admin/users/${id}`, changes),
     deleteUser: (id: string) => request<void>("DELETE", `/api/v1/admin/users/${id}`),

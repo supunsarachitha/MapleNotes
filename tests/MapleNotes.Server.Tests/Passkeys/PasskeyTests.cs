@@ -1,3 +1,4 @@
+using MapleNotes.Server.Features.Audit;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -61,6 +62,8 @@ public sealed class PasskeyTests : IAsyncLifetime
         Assert.Equal("maple", (await other.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.Username);
         var listed = Assert.Single((await _client.GetJsonAsync<List<PasskeyResponse>>("/api/v1/account/passkeys"))!);
         Assert.Equal(_clock.GetUtcNow().UtcDateTime, listed.LastUsedAtUtc);
+        var audited = (await _client.GetJsonAsync<AuditPageResponse>("/api/v1/admin/audit?filter=SignIns"))!.Items[0];
+        Assert.Equal((AuditEvent.SignIn, "maple", "Passkey", "Signed in with the passkey \"My phone\"."), (audited.Event, audited.Username, audited.Method, audited.Detail));
     }
 
     [Fact]

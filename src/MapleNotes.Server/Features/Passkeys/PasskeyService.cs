@@ -265,7 +265,7 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
         var user = await db.Users.SingleAsync(u => u.Id == passkey.UserId, cancellationToken);
         if (user.IsDisabled)
         {
-            return (AccountResult.Fail(AccountError.Disabled), null);
+            return (new AccountResult(user, AccountError.Disabled), null); // the user only names the account in the audit log
         }
 
         passkey.SignCount = data.SignCount;

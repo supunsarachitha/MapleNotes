@@ -33,7 +33,7 @@ Stolen disks, a leaked backup, a cloud snapshot, a decommissioned drive.
 - **Encrypted at rest and end-to-end:** protected. The database is encrypted with a key derived from the master key,
   and so are the attachment files (per account) and the Data Protection key ring that signs sessions. The master key is
   never stored in the data volume.
-- **Off:** the database and key ring are encrypted, but attachment files are plaintext on disk (roadmap item 29). Use
+- **Off:** the database and key ring are encrypted, but attachment files are plaintext on disk (roadmap item 28). Use
   an encrypted mode if files must be protected from a disk copy.
 - **What leaks:** the number and approximate sizes of files in `attachments/`, and file times.
 
@@ -148,6 +148,12 @@ not how much it stores: storage usage is shown only to the account itself, and a
 only. They can set a storage limit for every account, but not see who reaches it. An administrator who also runs the
 server is one of the adversaries above.
 
+The audit log lets administrators see sign-ins, refused sign-ins and other administrators' changes, with the time and
+the address each request came from (after trusted proxies), for 180 days. It holds no note content, passwords, keys or
+two-factor codes: a refused sign-in records the username that was typed (even when no such account exists) and why it
+was refused. It is evidence for an honest administrator, not protection against a dishonest one, who can edit the
+database. Changes to one's own password, two-factor sign-in and passkeys are not recorded.
+
 ### Password guessing through the app
 
 - Five failed attempts lock an account for 15 minutes, and sign-in, prelogin and recovery are rate-limited per client
@@ -178,7 +184,7 @@ server is one of the adversaries above.
   compromised server gains nothing from the code. The same holds for a passkey that only signs in.
 - Unknown usernames receive the same answer as real ones (default parameters and a stable pseudo-salt), so they
   cannot be told apart, with two exceptions: the legacy upgrade (below), and the lockout, which a real account triggers
-  after five wrong sign-ins and an unknown name never does (roadmap item 30).
+  after five wrong sign-ins and an unknown name never does (roadmap item 29).
 
 ### Legacy accounts
 

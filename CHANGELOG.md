@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   device. It decides which day a note belongs to in the calendar and on Home, the times shown on notes, when today's
   daily note starts, which day a habit is ticked for, and the default for exports. API: preferences gain `timeZone`
   (an IANA name such as `Asia/Colombo`, or empty for Automatic).
+- **Audit log** (Settings → Administration, administrators only): sign-ins with a password or a passkey, refused
+  sign-ins with the reason (wrong password, wrong two-factor code, locked or disabled account, unknown passkey), and
+  administrators' changes to the server's settings and to accounts (enabled, disabled, role, two-factor turned off,
+  deleted), with time and address, newest first, filterable. Entries are kept for 180 days.
+  - API: `GET /api/v1/admin/audit?filter=All|SignIns|FailedSignIns|Admin&before=&limit=`.
+  - Database: a new `AuditEntries` table, created when the server starts.
 
 ## [1.18.2] - 2026-11-07
 

@@ -34,6 +34,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
     /// <summary>Gets the accounts' passkeys.</summary>
     public DbSet<Passkey> Passkeys => Set<Passkey>();
 
+    /// <summary>Sign-ins and administrators' actions.</summary>
+    public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+
     /// <inheritdoc />
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -164,6 +167,18 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             passkey.Property(p => p.Name).HasMaxLength(Passkey.MaxNameLength);
             passkey.Property(p => p.Transports).HasMaxLength(100);
             passkey.Property(p => p.E2eeWrappedKey).HasMaxLength(EndToEndKeys.WrappedKeyBytes);
+        });
+
+        modelBuilder.Entity<AuditEntry>(entry =>
+        {
+            entry.ToTable("AuditEntries");
+            entry.Property(e => e.Event).HasConversion<string>().HasMaxLength(32);
+            entry.Property(e => e.Username).HasMaxLength(AuditEntry.MaxUsernameLength);
+            entry.Property(e => e.TargetUsername).HasMaxLength(AuditEntry.MaxUsernameLength);
+            entry.Property(e => e.Method).HasMaxLength(16);
+            entry.Property(e => e.Detail).HasMaxLength(AuditEntry.MaxDetailLength);
+            entry.Property(e => e.IpAddress).HasMaxLength(64);
+            entry.HasIndex(e => e.AtUtc); // for pruning
         });
 
         modelBuilder.Entity<InstanceSetting>(setting =>

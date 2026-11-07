@@ -1,4 +1,5 @@
 using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.AspNetCore.Authorization;
@@ -9,11 +10,12 @@ namespace MapleNotes.Server.Features.Admin;
 /// <summary>Instance administration. Administrators manage settings and accounts but never see note content.</summary>
 /// <param name="instanceSettings">Instance settings.</param>
 /// <param name="users">Account administration.</param>
+/// <param name="audit">The audit log (sign-ins and administrators' actions).</param>
 [ApiController]
 [Route("api/v1/admin")]
 [Authorize(Roles = nameof(UserRole.Admin))]
 [Produces("application/json")]
-public sealed class AdminController(InstanceSettingsService instanceSettings, UserAdministrationService users) : ControllerBase
+public sealed class AdminController(InstanceSettingsService instanceSettings, UserAdministrationService users, AuditLog audit) : ControllerBase
 {
     /// <summary>Returns the instance settings.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -57,9 +59,29 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
         }
 
         var sessionDays = request.SessionDays ?? InstanceSettingsService.DefaultSessionDays;
+        var before = await GetSettings(cancellationToken);
         await instanceSettings.SaveAsync(request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays, cancellationToken);
-        return new InstanceSettingsResponse(request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays);
+        var after = new InstanceSettingsResponse(request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays);
+        if (SettingsChanges(before, after) is { Length: > 0 } changes)
+        {
+            await audit.RecordAsync(AuditEvent.SettingsChanged, User.Identity?.Name, changes, cancellationToken);
+        }
+
+        return after;
     }
+
+    /// <summary>Lists the audit log, newest first: sign-ins (made and refused) and administrators' actions.</summary>
+    /// <param name="filter">Which entries: <c>All</c>, <c>SignIns</c>, <c>FailedSignIns</c> or <c>Admin</c>.</param>
+    /// <param name="before">The previous page's <c>nextCursor</c>.</param>
+    /// <param name="limit">Page size, 1 to 100.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>A page of entries. Entries are kept for 180 days.</returns>
+    /// <response code="200">The entries.</response>
+    [HttpGet("audit")]
+    [ProducesResponseType<AuditPageResponse>(StatusCodes.Status200OK)]
+    public Task<AuditPageResponse> ListAudit(
+        AuditFilter filter = AuditFilter.All, long? before = null, int limit = 50, CancellationToken cancellationToken = default) =>
+        audit.ListAsync(filter, before, limit, cancellationToken);
 
     /// <summary>Lists all accounts.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -108,4 +130,37 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
             UserUpdateResult.NotFound => NotFound(),
             _ => Problem(statusCode: StatusCodes.Status409Conflict, title: "Delete your own account from your settings."),
         };
+
+    /// <summary>The changed settings in a sentence ("Registration: closed → open. Sessions: 30 → 14 days."), or "".</summary>
+    /// <param name="before">The settings before.</param>
+    /// <param name="after">The settings after.</param>
+    /// <returns>The changes.</returns>
+    internal static string SettingsChanges(InstanceSettingsResponse before, InstanceSettingsResponse after)
+    {
+        static string Open(bool open) => open ? "open" : "closed";
+        static string Quota(int? mb) => mb is { } value ? $"{value} MB" : "no limit";
+        static string Name(string? name) => string.IsNullOrEmpty(name) ? "the default" : $"\"{name}\"";
+        var changes = new List<string>();
+        if (before.AllowRegistration != after.AllowRegistration)
+        {
+            changes.Add($"Registration: {Open(before.AllowRegistration)} → {Open(after.AllowRegistration)}.");
+        }
+
+        if (before.StorageQuotaMb != after.StorageQuotaMb)
+        {
+            changes.Add($"Storage limit: {Quota(before.StorageQuotaMb)} → {Quota(after.StorageQuotaMb)}.");
+        }
+
+        if (before.AppName != after.AppName)
+        {
+            changes.Add($"App name: {Name(before.AppName)} → {Name(after.AppName)}.");
+        }
+
+        if (before.SessionDays != after.SessionDays)
+        {
+            changes.Add($"Sessions last: {before.SessionDays} → {after.SessionDays} days.");
+        }
+
+        return string.Join(" ", changes);
+    }
 }

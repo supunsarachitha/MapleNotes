@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
+import { AuditLogSection } from "../components/AuditLogSection";
 import { BrandMark } from "../components/BrandMark";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
@@ -851,7 +852,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "labels", title: "Labels", summary: "Coloured labels for your notes.", icon: Tag },
   { id: "data", title: "Backup & data", summary: "Export, restore, the trash and starting over.", icon: DatabaseBackup },
   { id: "security", title: "Privacy & security", summary: "Your password, two-factor sign-in, encryption, recovery key and sessions.", icon: ShieldCheck },
-  { id: "admin", title: "Administration", summary: "Accounts, sign-ups, storage and this server's name.", icon: Server, adminOnly: true },
+  { id: "admin", title: "Administration", summary: "Accounts, sign-ups, storage, this server's name and the audit log.", icon: Server, adminOnly: true },
 ];
 
 function SectionContent({ id, user }: { id: string; user: User }) {
@@ -892,7 +893,12 @@ function SectionContent({ id, user }: { id: string; user: User }) {
         </>
       );
     case "admin":
-      return <AdminSection currentUserId={user.id} />;
+      return (
+        <>
+          <AdminSection currentUserId={user.id} />
+          <AuditLogSection />
+        </>
+      );
     default:
       return (
         <>
