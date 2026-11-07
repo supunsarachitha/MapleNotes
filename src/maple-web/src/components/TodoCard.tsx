@@ -7,7 +7,7 @@ import { moveItem } from "../lib/menu";
 import { useNoteEditor } from "../lib/noteEditor";
 import { usePreferences } from "../lib/preferences";
 import { usePatchNote } from "../lib/queries";
-import { parseItems, parseTodo, serializeItems, serializeTodo, type TodoItem, type TodoList } from "../lib/todo";
+import { addItem, parseItems, parseTodo, serializeItems, serializeTodo, type TodoItem, type TodoList, toggleItem } from "../lib/todo";
 import type { Note } from "../lib/types";
 import { LabelChips, LabelPicker } from "./Labels";
 import { MenuItem } from "./NoteCard";
@@ -161,8 +161,17 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
 
   const done = list.items.filter((item) => item.done).length;
 
+  // Ticked items move to the bottom and unticked ones back above them; the box keeps focus as its item moves, and the
+  // move is announced, so a keyboard user does not tick the next item by mistake.
+  const boxes = useRef<Array<HTMLInputElement | null>>([]);
   function toggle(index: number) {
-    commit({ ...list, items: list.items.map((item, i) => (i === index ? { ...item, done: !item.done } : item)) });
+    const item = list.items[index]!;
+    const items = toggleItem(list.items, index);
+    const to = items.findIndex((other) => !list.items.includes(other)); // the ticked item is the only new object
+    commit({ ...list, items });
+    if (to === index) return;
+    setAnnouncement(`${item.text} ${item.done ? "moved above the ticked items" : "moved to the bottom"}.`);
+    requestAnimationFrame(() => boxes.current[to]?.focus());
   }
 
   function add(event: FormEvent) {
@@ -170,7 +179,7 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
     const text = newItem.trim();
     if (!text) return;
     setNewItem("");
-    commit({ ...list, items: [...list.items, { text, done: false }] });
+    commit({ ...list, items: addItem(list.items, text) });
   }
 
   function startEdit(index: number) {
@@ -357,6 +366,9 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
                   )}
                   <input
                     type="checkbox"
+                    ref={(box) => {
+                      boxes.current[index] = box;
+                    }}
                     checked={item.done}
                     onChange={() => toggle(index)}
                     disabled={note.isArchived}

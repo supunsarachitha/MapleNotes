@@ -84,7 +84,8 @@ names of attached files. Archived notes are not included.`,
     id: "todo",
     title: "Todo lists",
     body: `Open **Todo** in the menu and create a list, such as "Groceries". Add items in the box at the bottom of the list,
-tick them off as you go, and choose an item to change its text. The list's **⋯** menu can rename it, clear the
+tick them off as you go, and choose an item to change its text. A ticked item moves to the bottom of the list, and
+new items go above the ticked ones; untick an item to put it back at the end of the open items. The list's **⋯** menu can rename it, clear the
 ticked items, pin it, archive it or delete it.
 
 To put an item in another place, drag it by the dotted handle on its left. With a keyboard, move to the handle with
