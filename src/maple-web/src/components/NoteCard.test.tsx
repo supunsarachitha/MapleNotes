@@ -230,3 +230,43 @@ describe("Moods and stickers", () => {
     await waitFor(() => expect(update).toHaveBeenCalledWith("n1", note.content, [], expect.anything(), "Great"));
   });
 });
+
+describe("printing a note", () => {
+  it("prints only this note, with its title as the page title, and puts everything back afterwards", async () => {
+    const print = vi.spyOn(window, "print").mockImplementation(() => {});
+    document.title = "Maple Notes";
+    renderWith(<NoteCard note={{ ...note, content: "# Shopping\n\nBuy **maple syrup**." }} />, { noteTitles: true });
+
+    await userEvent.click(screen.getByRole("button", { name: "Note actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Print…" }));
+
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    const view = document.getElementById("print-note")!;
+    expect(view.parentElement).toBe(document.body); // a direct child, so the print rules can hide everything else
+    expect(within(view).getByRole("heading", { name: "Shopping" })).toBeInTheDocument();
+    expect(view.textContent).toContain("Buy maple syrup.");
+    expect(document.body).toHaveClass("printing-note");
+    expect(document.title).toBe("Shopping");
+
+    fireEvent(window, new Event("afterprint"));
+    await waitFor(() => expect(document.getElementById("print-note")).toBeNull());
+    expect(document.body).not.toHaveClass("printing-note");
+    expect(document.title).toBe("Maple Notes");
+  });
+
+  it("waits for the note's pictures and names its other files", async () => {
+    const print = vi.spyOn(window, "print").mockImplementation(() => {});
+    const file = (id: string, isImage: boolean, fileName: string) =>
+      ({ id, fileName, contentType: isImage ? "image/png" : "application/pdf", size: 10, isImage, url: `/api/v1/attachments/${id}`, createdAtUtc: note.createdAtUtc }) as never;
+    renderWith(<NoteCard note={{ ...note, attachments: [file("a1", true, "sunset.png"), file("a2", false, "ticket.pdf")] }} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Note actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Print…" }));
+
+    const view = await waitFor(() => document.getElementById("print-note")!);
+    expect(view.textContent).toContain("Attached: ticket.pdf");
+    expect(print).not.toHaveBeenCalled(); // the picture has not loaded yet
+    fireEvent.load(within(view).getByRole("img", { name: "sunset.png" }));
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+  });
+});

@@ -23,7 +23,9 @@ it is empty the box stays one line; it opens when you tap it. Your newest notes 
 - **Changing a note.** Open a note's **⋯** menu to edit it, pin it to the top, label it, copy its text, archive it or
   delete it. Editing starts with the cursor at the end of the note, ready to carry on. Archived notes wait in the
   **Archive**, where you can restore them, and deleted ones in the [trash](/trash). To edit a note faster, turn on
-  **Double-tap to edit** in [Settings → Writing](/settings/writing), then double-tap the note (or double-click it).`,
+  **Double-tap to edit** in [Settings → Writing](/settings/writing), then double-tap the note (or double-click it).
+- **Printing a note.** Choose **Print…** in its **⋯** menu. Only that note is printed, black on white, with its pictures
+  and the names of its other files. To keep it as a PDF, choose **Save as PDF** in the print dialog.`,
   },
   {
     id: "titles",

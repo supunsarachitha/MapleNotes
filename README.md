@@ -31,12 +31,12 @@
   scroll that stays stable while new notes arrive. Pictures, players and link previews load as they come into view,
   so a long timeline with thousands of notes and files opens as quickly as a short one.
 - **Full note lifecycle.** Create, edit inline (optionally with a double-tap, always with the cursor at the end), pin,
-  label, archive (and restore), and delete into a trash that keeps notes for 30 days, with Undo; or, with the trash
-  off, delete for good after confirming.
+  label, archive (and restore), print (or save as PDF), and delete into a trash that keeps notes for 30 days, with
+  Undo; or, with the trash off, delete for good after confirming.
 - **Titles and dates.** Optionally give notes, and quick notes too, a title, which can start with today's date in the
   format you choose.
-- **Todo lists.** A Todo tab for checklists: add items, tick them off, edit them all at once as Markdown, rename, pin
-  and archive lists.
+- **Todo lists.** A Todo tab for checklists: add items, tick them off, drag them into order (or move them with the
+  arrow keys), edit them all at once as Markdown, rename, pin and archive lists.
 - **Quick notes.** A scratchpad tab for short notes that stay out of your timeline; move one to Home when it is worth
   keeping.
 - **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.
@@ -102,8 +102,8 @@
   notes you read recently, still encrypted on the device for end-to-end accounts. New notes and edits made offline are
   kept on the device and saved when the server can be reached again; an edit never overwrites a newer one made
   elsewhere, it is saved as a separate note instead. Signing out deletes them.
-- **Appearance.** Light or dark (or follow your device), seven accent colours, the side menu's order (drag or arrows)
-  and text size, and the first day of the week, chosen in Settings and applied on every device.
+- **Appearance.** Light or dark (or follow your device), seven accent colours, the size of note text, the side menu's
+  order (drag or arrows) and text size, and the first day of the week, chosen in Settings and applied on every device.
 - **Moods.** Notes and quick notes can carry a mood — Awful, Bad, Okay, Good or Great — shown as a smiley on the card.
   Turn on **Mood tracker** in Settings → Writing, then pick one in the composer. In end-to-end mode the mood is
   encrypted with the note. Exports and backups carry it.

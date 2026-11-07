@@ -1,21 +1,5 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import {
-  Archive,
-  ArchiveRestore,
-  CalendarCheck,
-  CalendarX,
-  CloudUpload,
-  Copy,
-  Home,
-  MoreHorizontal,
-  Pencil,
-  Pin,
-  PinOff,
-  Tag,
-  Trash2,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
+import { Archive, ArchiveRestore, CalendarCheck, CalendarX, CloudUpload, Copy, Home, MoreHorizontal, Pencil, Pin, PinOff, Printer, Tag, Trash2, Zap, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { saveErrorMessage } from "../lib/apiError";
 import { useDoubleTap } from "../lib/doubleTap";
@@ -32,6 +16,7 @@ import { Composer } from "./Composer";
 import { LabelChips, LabelPicker } from "./Labels";
 import { LinkPreviews } from "./LinkPreviews";
 import { Markdown } from "./Markdown";
+import { usePrintNote } from "./PrintNote";
 import { MoodBadge } from "./MoodPicker";
 import { useRemoveNote } from "./NoteRemoval";
 import { useToast } from "./Toaster";
@@ -98,6 +83,7 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
   });
   const { title, body } = noteTitles ? splitTitle(content) : { title: "", body: content };
   const edited = new Date(note.updatedAtUtc).getTime() - new Date(note.createdAtUtc).getTime() > 60_000;
+  const printing = usePrintNote(note, title, body);
 
   function change(changes: { isPinned?: boolean; isArchived?: boolean; kind?: Note["kind"] }, message: string) {
     patch.mutate({ id: note.id, ...changes }, {
@@ -216,6 +202,9 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
                 >
                   Copy text
                 </MenuItem>
+                <MenuItem icon={Printer} onSelect={printing.start}>
+                  Print…
+                </MenuItem>
                 {(archive || note.isArchived) && (
                   <MenuItem
                     icon={note.isArchived ? ArchiveRestore : Archive}
@@ -241,6 +230,7 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
       <LabelChips ids={note.labelIds} />
 
       {removal.dialog}
+      {printing.view}
       {labels && <LabelPicker note={note} open={choosingLabels} onOpenChange={setChoosingLabels} />}
     </article>
   );

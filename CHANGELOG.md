@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   least 16 px so phones do not zoom in. API: preferences gain `noteTextSize` (`Small`, `Medium` or `Large`).
 - **Reorder todo items:** drag an item by the handle on its left, or move the handle with the arrow keys (Home and End
   go to the top or the bottom); screen readers hear the new position. The order is saved in the list's Markdown.
+- **Print a note:** **Print…** in a note's or quick note's **⋯** menu prints only that note, black on white even in the
+  dark theme, with its title, date, pictures and the names of its other files. The print dialog's **Save as PDF** keeps
+  it as a PDF, named after the note's title.
 
 ## [1.18.1] - 2026-11-06
 
