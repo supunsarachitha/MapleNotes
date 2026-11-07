@@ -332,6 +332,15 @@ picture as an ordinary attachment marked as a sticker (the form field `sticker=t
 encrypted metadata, [e2ee-spec.md §5](e2ee-spec.md#5-attachments)), so the note keeps it when the pack is removed and
 on every device. The server accepts the flag only for images.
 
+## Printing a note
+
+`components/PrintNote.tsx` renders the note into a layer that is a direct child of `body` and hidden on screen. While
+it is shown, `body.printing-note` is set and the `@media print` rules in `index.css` hide every other child of `body`
+and force black on white, whatever the theme. The print dialog opens once the note's pictures have loaded (end-to-end
+pictures through the same decryption as on screen, so nothing leaves the browser) or after 10 seconds. The page
+title is the note's title meanwhile, which browsers suggest as the PDF's file name; `afterprint` puts everything back.
+Nothing is sent to the server.
+
 ## Export
 
 `GET /api/v1/export` streams a ZIP archive. Notes are read in batches of 200 in chronological order and decrypted in
@@ -549,11 +558,12 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 - **Shared vectors:** `test-vectors.json` (every end-to-end derivation and format) and `export-vectors.json` (the
   server's export archives) are written by the C# tests and checked by the web tests, so both implementations agree
   byte for byte.
-- **Web:** over 370 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
+- **Web:** over 450 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
   conversion, the service worker's range decryption and offline reading (what is kept, for whom, and when it is
   deleted), writing offline (what is kept, how it shows, sending, conflicts, encryption on the device), the browser export against the server's archives, restoring
   those archives, Markdown safety and checkboxes ticked in notes, the composer with titles and tag suggestions, the
-  caret at the end when editing, todo lists (also edited as Markdown), quick and daily notes, double-tap to edit,
+  caret at the end when editing, todo lists (also edited as Markdown, and reordered by drag or keyboard), quick and
+  daily notes, double-tap to edit, printing a note, the note text size,
   habits and their chart, labels, the trash with Undo, the menu's order, loading media only near the screen, shrinking
   photos, preferences, storage limits, and the sectioned settings and recovery screens.
 - **Releases:** additionally tested in a real browser (Playwright, Chromium) against the built container at desktop
