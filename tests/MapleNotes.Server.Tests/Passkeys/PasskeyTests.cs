@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Features.Auth;
+using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Encryption;
+using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Features.Passkeys;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Persistence;
@@ -52,7 +54,10 @@ public sealed class PasskeyTests : IAsyncLifetime
         var signedIn = await SignInAsync(other, device);
 
         Assert.Equal(HttpStatusCode.OK, signedIn.StatusCode);
-        Assert.Equal("maple", (await signedIn.Content.ReadFromJsonAsync<UserResponse>(ApiClient.Json, Ct))!.Username);
+        var answer = (await signedIn.Content.ReadFromJsonAsync<PasskeySignInResponse>(ApiClient.Json, Ct))!;
+        Assert.Equal("maple", answer.User.Username);
+        Assert.Equal(added.Id, answer.PasskeyId);
+        Assert.Null(answer.WrappedKey);
         Assert.Equal("maple", (await other.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.Username);
         var listed = Assert.Single((await _client.GetJsonAsync<List<PasskeyResponse>>("/api/v1/account/passkeys"))!);
         Assert.Equal(_clock.GetUtcNow().UtcDateTime, listed.LastUsedAtUtc);
@@ -305,6 +310,71 @@ public sealed class PasskeyTests : IAsyncLifetime
         Assert.Equal("localhost", options.RpId);
         Assert.Equal(32, options.Challenge.Length);
         Assert.Equal(PasskeyService.TimeoutMs, options.TimeoutMs);
+    }
+
+    [Fact]
+    public async Task A_passkey_unlocks_end_to_end_notes_once_its_wrapped_key_is_stored_with_the_password()
+    {
+        var account = await EndToEndAccount.EnableAsync(_client);
+        using var device = new FakeAuthenticator();
+        var added = await AddAsync(device);
+        var prf = RandomNumberGenerator.GetBytes(32); // stays in the browser
+        var wrapped = E2eeCrypto.Seal(E2eeCrypto.PasskeyWrapKey(prf), account.DataKey, E2eeCrypto.PasskeyContext(_user.Id, added.Id));
+
+        var wrongPassword = await _client.PutJsonAsync($"/api/v1/account/passkeys/{added.Id}/e2ee",
+            new PasskeyUnlockRequest(await _client.ProofAsync("wrong password"), wrapped));
+        var malformed = await _client.PutJsonAsync($"/api/v1/account/passkeys/{added.Id}/e2ee",
+            new PasskeyUnlockRequest(await _client.ProofAsync(), new byte[10]));
+        var unknown = await _client.PutJsonAsync($"/api/v1/account/passkeys/{Guid.CreateVersion7()}/e2ee",
+            new PasskeyUnlockRequest(await _client.ProofAsync(), wrapped));
+        Assert.Contains("password", (await ReadProblemAsync(wrongPassword)).Errors.Keys);
+        Assert.Contains("wrappedKey", (await ReadProblemAsync(malformed)).Errors.Keys);
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        Assert.Empty((await _client.GetJsonAsync<List<PasskeyUnlockKey>>("/api/v1/account/passkeys/e2ee"))!);
+
+        var stored = await _client.PutJsonAsync($"/api/v1/account/passkeys/{added.Id}/e2ee",
+            new PasskeyUnlockRequest(await _client.ProofAsync(), wrapped));
+        Assert.True((await stored.Content.ReadFromJsonAsync<PasskeyResponse>(ApiClient.Json, Ct))!.UnlocksNotes);
+        var key = Assert.Single((await _client.GetJsonAsync<List<PasskeyUnlockKey>>("/api/v1/account/passkeys/e2ee"))!);
+        Assert.Equal(added.Id, key.Id);
+        Assert.Equal(device.CredentialId, key.CredentialId);
+        Assert.Equal(wrapped, key.WrappedKey);
+
+        using var other = new ApiClient(_app);
+        var answer = (await (await SignInAsync(other, device)).Content.ReadFromJsonAsync<PasskeySignInResponse>(ApiClient.Json, Ct))!;
+        Assert.Equal(added.Id, answer.PasskeyId);
+        Assert.Equal(account.DataKey, E2eeCrypto.Open(E2eeCrypto.PasskeyWrapKey(prf), answer.WrappedKey!,
+            E2eeCrypto.PasskeyContext(_user.Id, answer.PasskeyId)));
+    }
+
+    [Fact]
+    public async Task Only_accounts_with_an_end_to_end_key_can_store_one_for_a_passkey()
+    {
+        using var device = new FakeAuthenticator();
+        var added = await AddAsync(device);
+        var response = await _client.PutJsonAsync($"/api/v1/account/passkeys/{added.Id}/e2ee",
+            new PasskeyUnlockRequest(await _client.ProofAsync(), new byte[EndToEndKeys.WrappedKeyBytes]));
+
+        Assert.Contains("wrappedKey", (await ReadProblemAsync(response)).Errors.Keys);
+    }
+
+    [Fact]
+    public async Task Leaving_end_to_end_encryption_deletes_the_keys_stored_for_passkeys()
+    {
+        var account = await EndToEndAccount.EnableAsync(_client);
+        using var device = new FakeAuthenticator();
+        var added = await AddAsync(device);
+        var wrapped = E2eeCrypto.Seal(E2eeCrypto.PasskeyWrapKey(RandomNumberGenerator.GetBytes(32)), account.DataKey,
+            E2eeCrypto.PasskeyContext(_user.Id, added.Id));
+        (await _client.PutJsonAsync($"/api/v1/account/passkeys/{added.Id}/e2ee",
+            new PasskeyUnlockRequest(await _client.ProofAsync(), wrapped))).EnsureSuccessStatusCode();
+
+        (await account.SetModeAsync(_client, EncryptionMode.AtRest)).EnsureSuccessStatusCode();
+
+        using var scope = _app.Services.CreateScope();
+        var passkey = await scope.ServiceProvider.GetRequiredService<MapleDbContext>().Passkeys.SingleAsync(Ct);
+        Assert.Null(passkey.E2eeWrappedKey); // no end-to-end content was left, so the key went with the rest
+        Assert.Empty((await _client.GetJsonAsync<List<PasskeyUnlockKey>>("/api/v1/account/passkeys/e2ee"))!);
     }
 
     [Fact]

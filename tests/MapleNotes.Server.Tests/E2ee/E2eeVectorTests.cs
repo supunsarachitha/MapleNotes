@@ -38,6 +38,8 @@ public sealed class E2eeVectorTests
             Convert.FromBase64String(v.WrappedDataKey.EnvelopeB64), E2eeCrypto.DataKeyContext(userId)));
         Assert.Equal(dataKey, E2eeCrypto.Open(Convert.FromBase64String(v.Recovery.WrapKeyB64),
             Convert.FromBase64String(v.Recovery.WrappedDataKeyB64), E2eeCrypto.RecoveryContext(userId)));
+        Assert.Equal(dataKey, E2eeCrypto.Open(Convert.FromBase64String(v.Passkey.WrapKeyB64),
+            Convert.FromBase64String(v.Passkey.WrappedDataKeyB64), E2eeCrypto.PasskeyContext(userId, Guid.Parse(v.Passkey.PasskeyId))));
         Assert.Equal(v.Note.Plaintext, E2eeCrypto.DecryptNote(dataKey, userId, Guid.Parse(v.Ids.NoteId),
             Convert.FromBase64String(v.Note.EnvelopeB64)));
         Assert.Equal(Pattern(v.Attachment.PlaintextLength),
@@ -92,6 +94,11 @@ public sealed class E2eeVectorTests
         const string metadataJson = "{\"name\":\"sunset.png\",\"type\":\"image/png\",\"size\":70000}";
         const string labelName = "Café plans 🍁"; // as written: label names keep their case
 
+        var passkeyId = Guid.Parse("0192f3a5-3333-7444-8555-666677778888");
+        var prfOutput = Sequence(32, start: 0x40);
+        var passkeyNonce = Sequence(12, start: 0x70);
+        var passkeyWrap = E2eeCrypto.PasskeyWrapKey(prfOutput);
+
         return new Vectors(
             Version: 2,
             Kdf: new KdfVector(password, B64(salt), E2eeCrypto.TestMemoryKiB, E2eeCrypto.TestIterations, 1, B64(master), B64(authKey), B64(wrapKey)),
@@ -109,7 +116,9 @@ public sealed class E2eeVectorTests
             Metadata: new MetadataVector(metadataJson, B64(metadataNonce),
                 B64(E2eeCrypto.SealMetadata(dataKey, userId, attachmentId, metadataJson, metadataNonce))),
             Label: new LabelVector(labelName, B64(labelNonce),
-                B64(E2eeCrypto.Seal(metadataKey, System.Text.Encoding.UTF8.GetBytes(labelName), E2eeCrypto.LabelContext(userId, labelId), labelNonce))));
+                B64(E2eeCrypto.Seal(metadataKey, System.Text.Encoding.UTF8.GetBytes(labelName), E2eeCrypto.LabelContext(userId, labelId), labelNonce))),
+            Passkey: new PasskeyVector(passkeyId.ToString(), E2eeCrypto.PasskeyPrfSalt, B64(prfOutput), B64(passkeyWrap), B64(passkeyNonce),
+                B64(E2eeCrypto.Seal(passkeyWrap, dataKey, E2eeCrypto.PasskeyContext(userId, passkeyId), passkeyNonce))));
     }
 
     private static byte[] Sequence(int length, int start) => Enumerable.Range(0, length).Select(i => (byte)(start + i)).ToArray();
@@ -131,7 +140,8 @@ public sealed class E2eeVectorTests
 
     private sealed record Vectors(
         int Version, KdfVector Kdf, IdsVector Ids, string DataKeyB64, SubkeysVector Subkeys, EnvelopeVector WrappedDataKey,
-        NoteVector Note, TagVector Tag, RecoveryVector Recovery, AttachmentVector Attachment, MetadataVector Metadata, LabelVector Label);
+        NoteVector Note, TagVector Tag, RecoveryVector Recovery, AttachmentVector Attachment, MetadataVector Metadata, LabelVector Label,
+        PasskeyVector Passkey);
 
     private sealed record KdfVector(
         string Password, string SaltB64, int MemoryKiB, int Iterations, int Parallelism, string MasterB64, string AuthKeyB64, string WrapKeyB64);
@@ -154,4 +164,7 @@ public sealed class E2eeVectorTests
     private sealed record MetadataVector(string Json, string NonceB64, string EnvelopeB64);
 
     private sealed record LabelVector(string Name, string NonceB64, string EncryptedNameB64);
+
+    private sealed record PasskeyVector(
+        string PasskeyId, string PrfSalt, string PrfOutputB64, string WrapKeyB64, string NonceB64, string WrappedDataKeyB64);
 }

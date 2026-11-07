@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.EndToEnd;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -162,6 +163,7 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             passkey.HasIndex(p => p.UserId);
             passkey.Property(p => p.Name).HasMaxLength(Passkey.MaxNameLength);
             passkey.Property(p => p.Transports).HasMaxLength(100);
+            passkey.Property(p => p.E2eeWrappedKey).HasMaxLength(EndToEndKeys.WrappedKeyBytes);
         });
 
         modelBuilder.Entity<InstanceSetting>(setting =>

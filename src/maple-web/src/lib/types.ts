@@ -353,6 +353,17 @@ export interface Passkey {
   backedUp: boolean;
   createdAtUtc: string;
   lastUsedAtUtc: string | null;
+  /** The credential ID (base64), so the browser can ask for this passkey. */
+  credentialId: string;
+  /** Whether it also unlocks the end-to-end notes (docs/e2ee-spec.md §6a). */
+  unlocksNotes: boolean;
+}
+
+/** A passkey that unlocks the notes, with the data key wrapped for it. */
+export interface PasskeyUnlockKey {
+  id: string;
+  credentialId: string;
+  wrappedKey: string;
 }
 
 /** Options for adding a passkey; binary fields are base64. */

@@ -80,6 +80,14 @@ internal static class E2eeCrypto
     public static string MetadataContext(Guid userId, Guid attachmentId) =>
         $"maple-notes/v2/e2ee/attachment-meta/{N(userId)}/{N(attachmentId)}";
 
+    /// <summary>The salt every passkey's PRF is evaluated with (docs/e2ee-spec.md §6a).</summary>
+    public const string PasskeyPrfSalt = "maple-notes/v2/passkey/prf";
+
+    /// <summary>The wrapping key derived from a passkey's PRF output.</summary>
+    public static byte[] PasskeyWrapKey(byte[] prfOutput) => Hkdf(prfOutput, "maple-notes/v2/passkey/wrap");
+
+    public static string PasskeyContext(Guid userId, Guid passkeyId) => $"maple-notes/v2/e2ee/passkey/{N(userId)}/{N(passkeyId)}";
+
     public static string ModeContext(Guid userId) => $"maple-notes/v2/e2ee/mode/{N(userId)}";
 
     public static string MoodContext(Guid userId, Guid noteId) => $"maple-notes/v2/e2ee/mood/{N(userId)}/{N(noteId)}";

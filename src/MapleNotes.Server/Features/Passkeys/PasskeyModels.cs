@@ -8,7 +8,27 @@ namespace MapleNotes.Server.Features.Passkeys;
 /// <param name="BackedUp">Whether it is synced to other devices (by a password manager or the platform).</param>
 /// <param name="CreatedAtUtc">When it was added.</param>
 /// <param name="LastUsedAtUtc">When it last signed in, if ever.</param>
-public sealed record PasskeyResponse(Guid Id, string Name, bool BackedUp, DateTime CreatedAtUtc, DateTime? LastUsedAtUtc);
+/// <param name="CredentialId">The credential ID, so the browser can ask for exactly this passkey.</param>
+/// <param name="UnlocksNotes">Whether it also unlocks the account's end-to-end notes.</param>
+public sealed record PasskeyResponse(
+    Guid Id, string Name, bool BackedUp, DateTime CreatedAtUtc, DateTime? LastUsedAtUtc, byte[] CredentialId, bool UnlocksNotes);
+
+/// <summary>Lets a passkey unlock the account's end-to-end notes.</summary>
+/// <param name="Proof">Proof of the password, so a stolen session cannot plant a key of its own.</param>
+/// <param name="WrappedKey">The data key wrapped for this passkey (docs/e2ee-spec.md §6a).</param>
+public sealed record PasskeyUnlockRequest(CredentialProof Proof, byte[] WrappedKey);
+
+/// <summary>A passkey that unlocks the notes, for the unlock screen.</summary>
+/// <param name="Id">The passkey's row ID, part of the wrapping context.</param>
+/// <param name="CredentialId">Its credential ID, so the browser can ask for exactly these passkeys.</param>
+/// <param name="WrappedKey">The data key wrapped for it.</param>
+public sealed record PasskeyUnlockKey(Guid Id, byte[] CredentialId, byte[] WrappedKey);
+
+/// <summary>The answer to a passkey sign-in.</summary>
+/// <param name="User">The signed-in account.</param>
+/// <param name="PasskeyId">The passkey that signed in.</param>
+/// <param name="WrappedKey">The data key wrapped for that passkey, when it unlocks the notes.</param>
+public sealed record PasskeySignInResponse(UserResponse User, Guid PasskeyId, byte[]? WrappedKey);
 
 /// <summary>The relying party (this site) in creation options.</summary>
 /// <param name="Id">The RP ID: the site's host name.</param>

@@ -1,5 +1,6 @@
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Auth;
+using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,7 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
         await db.Passkeys.AsNoTracking()
             .Where(p => p.UserId == userId)
             .OrderBy(p => p.CreatedAtUtc).ThenBy(p => p.Id)
-            .Select(p => new PasskeyResponse(p.Id, p.Name, p.BackedUp, p.CreatedAtUtc, p.LastUsedAtUtc))
+            .Select(p => new PasskeyResponse(p.Id, p.Name, p.BackedUp, p.CreatedAtUtc, p.LastUsedAtUtc, p.CredentialId, p.E2eeWrappedKey != null))
             .ToListAsync(cancellationToken);
 
     /// <summary>Issues options to create a passkey for the account.</summary>
@@ -162,6 +163,54 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
         return passkey is not null;
     }
 
+    /// <summary>Stores the data key wrapped for a passkey, after proof of the password.</summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="id">The passkey.</param>
+    /// <param name="request">Proof of the password and the wrapped key.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The passkey, or null when the account has no such passkey.</returns>
+    /// <exception cref="ApiValidationException">The password is wrong, the account has no end-to-end key, or the key is malformed.</exception>
+    public async Task<PasskeyResponse?> SetUnlockKeyAsync(Guid userId, Guid id, PasskeyUnlockRequest request, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
+        if (!credentials.Verify(user, request.Proof?.AuthKey, request.Proof?.Password))
+        {
+            throw new ApiValidationException("password", "The password is not correct.");
+        }
+
+        await db.SaveChangesAsync(cancellationToken); // keeps a legacy credential upgrade: the password was right
+        if (user.E2eeWrappedKey is null)
+        {
+            throw new ApiValidationException("wrappedKey", "This account has no end-to-end key.");
+        }
+
+        if (!EndToEndKeys.IsWrappedKey(request.WrappedKey))
+        {
+            throw new ApiValidationException("wrappedKey", "This is not a wrapped end-to-end key.");
+        }
+
+        var passkey = await db.Passkeys.SingleOrDefaultAsync(p => p.Id == id && p.UserId == userId, cancellationToken);
+        if (passkey is null)
+        {
+            return null;
+        }
+
+        passkey.E2eeWrappedKey = request.WrappedKey;
+        await db.SaveChangesAsync(cancellationToken);
+        return ToResponse(passkey);
+    }
+
+    /// <summary>Lists the account's passkeys that unlock the notes, with their wrapped keys.</summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="cancellationToken">Cancels the query.</param>
+    /// <returns>The keys.</returns>
+    public async Task<IReadOnlyList<PasskeyUnlockKey>> ListUnlockKeysAsync(Guid userId, CancellationToken cancellationToken) =>
+        await db.Passkeys.AsNoTracking()
+            .Where(p => p.UserId == userId && p.E2eeWrappedKey != null)
+            .OrderBy(p => p.CreatedAtUtc).ThenBy(p => p.Id)
+            .Select(p => new PasskeyUnlockKey(p.Id, p.CredentialId, p.E2eeWrappedKey!))
+            .ToListAsync(cancellationToken);
+
     /// <summary>Issues options to sign in with any passkey for this site.</summary>
     /// <param name="rpId">The RP ID.</param>
     /// <param name="origin">The expected origin.</param>
@@ -175,25 +224,25 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
     /// <summary>Checks a passkey's answer and returns the account it signs in to.</summary>
     /// <param name="request">The challenge handle and the answer.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>The account, or the reason it was refused.</returns>
-    public async Task<AccountResult> SignInAsync(PasskeyLoginRequest request, CancellationToken cancellationToken)
+    /// <returns>The account and the passkey, or the reason it was refused.</returns>
+    public async Task<(AccountResult Result, Passkey? Passkey)> SignInAsync(PasskeyLoginRequest request, CancellationToken cancellationToken)
     {
         var ceremony = challenges.Take(request.ChallengeId, PasskeyChallenges.Purpose.SignIn, null);
         var assertion = request.Credential;
         if (ceremony is null || assertion?.Id is not { Length: > 0 and <= Passkey.MaxCredentialIdBytes })
         {
-            return AccountResult.Fail(AccountError.InvalidCredentials);
+            return (AccountResult.Fail(AccountError.InvalidCredentials), null);
         }
 
         var passkey = await db.Passkeys.SingleOrDefaultAsync(p => p.CredentialId == assertion.Id, cancellationToken);
         if (passkey is null)
         {
-            return AccountResult.Fail(AccountError.InvalidCredentials);
+            return (AccountResult.Fail(AccountError.InvalidCredentials), null);
         }
 
         if (assertion.UserHandle is { } handle && !handle.AsSpan().SequenceEqual(UserHandle(passkey.UserId)))
         {
-            return AccountResult.Fail(AccountError.InvalidCredentials);
+            return (AccountResult.Fail(AccountError.InvalidCredentials), null);
         }
 
         WebAuthn.AuthenticatorData data;
@@ -205,25 +254,25 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
         }
         catch (WebAuthnException)
         {
-            return AccountResult.Fail(AccountError.InvalidCredentials);
+            return (AccountResult.Fail(AccountError.InvalidCredentials), null);
         }
 
         if (!WebAuthn.CounterAdvanced(passkey.SignCount, data.SignCount))
         {
-            return AccountResult.Fail(AccountError.InvalidCredentials);
+            return (AccountResult.Fail(AccountError.InvalidCredentials), null);
         }
 
         var user = await db.Users.SingleAsync(u => u.Id == passkey.UserId, cancellationToken);
         if (user.IsDisabled)
         {
-            return AccountResult.Fail(AccountError.Disabled);
+            return (AccountResult.Fail(AccountError.Disabled), null);
         }
 
         passkey.SignCount = data.SignCount;
         passkey.BackedUp = data.BackedUp;
         passkey.LastUsedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);
-        return AccountResult.Success(user);
+        return (AccountResult.Success(user), passkey);
     }
 
     /// <summary>The WebAuthn user handle of an account: its ID as 16 bytes, which says nothing about the person.</summary>
@@ -231,7 +280,7 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
     /// <returns>The handle.</returns>
     public static byte[] UserHandle(Guid userId) => userId.ToByteArray(bigEndian: true);
 
-    private static PasskeyResponse ToResponse(Passkey p) => new(p.Id, p.Name, p.BackedUp, p.CreatedAtUtc, p.LastUsedAtUtc);
+    private static PasskeyResponse ToResponse(Passkey p) => new(p.Id, p.Name, p.BackedUp, p.CreatedAtUtc, p.LastUsedAtUtc, p.CredentialId, p.E2eeWrappedKey != null);
 
     private static string? CleanName(string? name)
     {

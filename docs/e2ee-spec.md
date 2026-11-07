@@ -327,6 +327,37 @@ recoveryAuthKey  = HKDF(recoveryKey, info "maple-notes/v2/recovery/auth")
 - **Replacing** (`PUT /api/v1/account/e2ee/recovery`, with a proof of the password) wraps the data key for a new
   recovery key; the old one stops working.
 
+## 6a. Passkeys that unlock
+
+A passkey (WebAuthn, see [architecture.md](architecture.md)) signs in without the password. Where the passkey supports
+the WebAuthn PRF extension, it can also unlock the data key, so a passkey sign-in needs no password at all.
+
+```text
+prfSalt         = UTF-8("maple-notes/v2/passkey/prf")   the same for every passkey
+prfOutput       = the passkey's PRF result for prfSalt (32 bytes; never leaves the browser)
+passkeyWrapKey  = HKDF(prfOutput, info "maple-notes/v2/passkey/wrap")
+wrapped         = envelope(passkeyWrapKey, dataKey, context "maple-notes/v2/e2ee/passkey/{userId:N}/{passkeyId:N}",
+                           key version = data-key version)
+```
+
+- **Why one salt is enough:** the browser hashes the salt with a fixed prefix before the authenticator applies the
+  passkey's own secret, so every passkey gives a different output, and none is usable on another site.
+- **Setting it up:** the browser asks for the PRF output when it creates the passkey. Some devices give it only when
+  the passkey is used, so Settings then asks for one more use. The browser unwraps the data key with the password's
+  `wrapKey` (§3), wraps it as above, opens the result again to check it, and sends it with a proof of the password to
+  `PUT /api/v1/account/passkeys/{id}/e2ee`. The proof is required so that a stolen session cannot store a key of its
+  own choosing for the account's browsers to use.
+- **Unlocking:** every passkey sign-in asks for the PRF output. `POST /api/v1/auth/passkey/login` answers with the
+  passkey's ID and its wrapped key, if any; the browser unwraps it. On the unlock screen, `GET
+  /api/v1/account/passkeys/e2ee` lists the passkeys that unlock, with their credential IDs and wrapped keys, and the
+  browser asks one of those passkeys for its PRF output with a challenge of its own (the output is the proof, so the
+  server checks nothing there).
+- **Checking the key:** when the account has a mode record (§3a), the unwrapped key must open it, or it is not used.
+- **Removal:** a wrapped key goes with its passkey, and with the end-to-end key material (§3, key cleanup). Password
+  changes and recovery keep the same data key, so they leave these wrappings as they are.
+- **Trust:** anyone who can use the passkey (including a password manager that syncs it) can read the notes. The
+  passkey's own protection (fingerprint, face or PIN, and the sync account) replaces the password for them.
+
 ## 7. Keeping the key in the browser
 
 While the app is open, the unlocked data key exists only as non-extractable `CryptoKey`s. Between page loads it is
@@ -353,7 +384,8 @@ that page only. Re-issuing the cookie for the same session (a password change on
 
 `src/maple-web/src/crypto/test-vectors.json` fixes every input: the password, salts, nonces, data key, recovery key,
 IDs and a two-chunk attachment. It also records every output: the derived keys, the envelopes (a label name's
-included), the tag token, the displayed recovery key, and the SHA-256 of the encrypted attachment. The vectors use the minimum Argon2 parameters so
+included), the tag token, the displayed recovery key, a passkey's wrapping key and wrapped data key from a fixed PRF output (§6a),
+and the SHA-256 of the encrypted attachment. The vectors use the minimum Argon2 parameters so
 the tests stay fast. The C# test (`tests/MapleNotes.Server.Tests/E2ee/E2eeVectorTests.cs`) regenerates the file when
 `MAPLE_WRITE_VECTORS=1` is set and otherwise verifies it; the TypeScript test
 (`src/maple-web/src/crypto/vectors.test.ts`) verifies it with the browser code.
