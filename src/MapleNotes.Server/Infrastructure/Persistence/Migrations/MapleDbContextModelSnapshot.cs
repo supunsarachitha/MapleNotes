@@ -232,6 +232,42 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("Notes", (string)null);
                 });
 
+            modelBuilder.Entity("MapleNotes.Server.Domain.NoteReminder", b =>
+                {
+                    b.Property<Guid>("NoteId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastSentAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("NextAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Repeat")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartLocal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("NoteId");
+
+                    b.HasIndex("NextAtUtc");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("NoteReminders", (string)null);
+                });
+
             modelBuilder.Entity("MapleNotes.Server.Domain.Passkey", b =>
                 {
                     b.Property<Guid>("Id")
@@ -286,6 +322,51 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Passkeys", (string)null);
+                });
+
+            modelBuilder.Entity("MapleNotes.Server.Domain.PushSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Auth")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("BLOB");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastSentAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("P256dh")
+                        .IsRequired()
+                        .HasMaxLength(65)
+                        .HasColumnType("BLOB");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PushSubscriptions", (string)null);
                 });
 
             modelBuilder.Entity("MapleNotes.Server.Domain.Tag", b =>
@@ -491,7 +572,31 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MapleNotes.Server.Domain.NoteReminder", b =>
+                {
+                    b.HasOne("MapleNotes.Server.Domain.Note", null)
+                        .WithOne()
+                        .HasForeignKey("MapleNotes.Server.Domain.NoteReminder", "NoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MapleNotes.Server.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MapleNotes.Server.Domain.Passkey", b =>
+                {
+                    b.HasOne("MapleNotes.Server.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MapleNotes.Server.Domain.PushSubscription", b =>
                 {
                     b.HasOne("MapleNotes.Server.Domain.User", null)
                         .WithMany()

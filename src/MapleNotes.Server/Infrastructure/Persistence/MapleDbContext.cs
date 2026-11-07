@@ -37,6 +37,12 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
     /// <summary>Sign-ins and administrators' actions.</summary>
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
+    /// <summary>Devices that receive push notifications.</summary>
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+
+    /// <summary>Reminders on notes.</summary>
+    public DbSet<NoteReminder> NoteReminders => Set<NoteReminder>();
+
     /// <inheritdoc />
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -167,6 +173,30 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             passkey.Property(p => p.Name).HasMaxLength(Passkey.MaxNameLength);
             passkey.Property(p => p.Transports).HasMaxLength(100);
             passkey.Property(p => p.E2eeWrappedKey).HasMaxLength(EndToEndKeys.WrappedKeyBytes);
+        });
+
+        modelBuilder.Entity<PushSubscription>(subscription =>
+        {
+            subscription.ToTable("PushSubscriptions");
+            subscription.HasOne<User>().WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            subscription.Property(p => p.Endpoint).HasMaxLength(PushSubscription.MaxEndpointLength);
+            subscription.HasIndex(p => p.Endpoint).IsUnique();
+            subscription.HasIndex(p => p.UserId);
+            subscription.Property(p => p.P256dh).HasMaxLength(65);
+            subscription.Property(p => p.Auth).HasMaxLength(16);
+            subscription.Property(p => p.Name).HasMaxLength(PushSubscription.MaxNameLength);
+        });
+
+        modelBuilder.Entity<NoteReminder>(reminder =>
+        {
+            reminder.ToTable("NoteReminders");
+            reminder.HasKey(r => r.NoteId);
+            reminder.HasOne<Note>().WithOne().HasForeignKey<NoteReminder>(r => r.NoteId).OnDelete(DeleteBehavior.Cascade);
+            reminder.HasOne<User>().WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
+            reminder.Property(r => r.TimeZone).HasMaxLength(64);
+            reminder.Property(r => r.Repeat).HasConversion<string>().HasMaxLength(16);
+            reminder.HasIndex(r => r.NextAtUtc); // the sender's "what is due" query
+            reminder.HasIndex(r => r.UserId);
         });
 
         modelBuilder.Entity<AuditEntry>(entry =>

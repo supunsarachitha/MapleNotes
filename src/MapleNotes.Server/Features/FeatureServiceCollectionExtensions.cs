@@ -10,6 +10,8 @@ using MapleNotes.Server.Features.LinkPreviews;
 using MapleNotes.Server.Features.Notes;
 using MapleNotes.Server.Features.Passkeys;
 using MapleNotes.Server.Features.Preferences;
+using MapleNotes.Server.Features.Push;
+using MapleNotes.Server.Features.Reminders;
 using MapleNotes.Server.Features.Storage;
 
 namespace MapleNotes.Server.Features;
@@ -63,6 +65,24 @@ internal static class FeatureServiceCollectionExtensions
                 ConnectTimeout = TimeSpan.FromSeconds(5),
                 PooledConnectionLifetime = TimeSpan.FromMinutes(2),
                 ConnectCallback = NetworkGuard.ConnectAsync,
+            });
+
+        services.AddScoped<PushService>();
+        services.AddScoped<ReminderService>();
+        services.AddHostedService<ReminderSenderService>();
+        services.AddHttpClient(PushService.ClientName, client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(15);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd($"MapleNotes/{typeof(PushService).Assembly.GetName().Version?.ToString(2)} (push)");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                AllowAutoRedirect = false,
+                UseCookies = false,
+                UseProxy = false,
+                ConnectTimeout = TimeSpan.FromSeconds(5),
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                ConnectCallback = NetworkGuard.ConnectAsync, // push endpoints come from browsers: public addresses only
             });
 
         services.AddScoped<EncryptionSettingsService>();

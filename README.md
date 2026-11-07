@@ -616,6 +616,7 @@ All settings are environment variables.
 | `MAPLE_TRUSTED_PROXIES` | — | Reverse proxy addresses or CIDR ranges whose `X-Forwarded-*` headers are trusted, e.g. `172.16.0.0/12`. |
 | `MAPLE_AUTH_RATE_LIMIT` | `10` | Sign-in, registration and password attempts per client IP per minute (prelogin has a separate budget of the same size). |
 | `MAPLE_LINK_PREVIEWS` | `true` | Let accounts turn on link previews, for which the server fetches linked pages (public addresses only). Set to `false` to keep the server from fetching anything. |
+| `MAPLE_PUSH_CONTACT` | the project page | A `mailto:` or `https:` address the push services (Google, Apple, Mozilla, Microsoft) can use to reach whoever runs this server about its reminder notifications. |
 | `MAPLE_API_DOCS` | `false` | Publish the OpenAPI document (`/openapi/v1.json`) and API reference (`/scalar`). |
 | `ASPNETCORE_HTTP_PORTS` | `8080` | Port inside the container. |
 | `AllowedHosts` | `*` | Restrict accepted host names, e.g. `notes.example.com`. |
