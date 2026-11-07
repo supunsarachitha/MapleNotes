@@ -1,9 +1,10 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Archive, ArchiveRestore, CalendarCheck, CalendarX, CloudUpload, Copy, Home, MoreHorizontal, Pencil, Pin, PinOff, Printer, Tag, Trash2, Zap, type LucideIcon } from "lucide-react";
+import { Archive, ArchiveRestore, Bell, BellPlus, CalendarCheck, CalendarX, CloudUpload, Copy, Home, MoreHorizontal, Pencil, Pin, PinOff, Printer, Tag, Trash2, Zap, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { saveErrorMessage } from "../lib/apiError";
 import { useDoubleTap } from "../lib/doubleTap";
 import { formatAbsolute, formatRelative } from "../lib/format";
+import { repeatText, useReminder } from "../lib/reminders";
 import { toggleTask } from "../lib/markdownEdit";
 import { useNoteEditor } from "../lib/noteEditor";
 import { usePreferences, useUpdatePreferences } from "../lib/preferences";
@@ -19,6 +20,7 @@ import { Markdown } from "./Markdown";
 import { usePrintNote } from "./PrintNote";
 import { MoodBadge } from "./MoodPicker";
 import { useRemoveNote } from "./NoteRemoval";
+import { ReminderDialog } from "./ReminderDialog";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
 
@@ -60,6 +62,10 @@ const same = (content: string) => content;
 export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [choosingLabels, setChoosingLabels] = useState(false);
+  const [reminding, setReminding] = useState(false);
+  const reminder = useReminder(note.id);
+  // Reminders are for notes and quick notes the server already has.
+  const canRemind = (note.kind === "Note" || note.kind === "Quick") && !note.pending && !note.isArchived;
   const patch = usePatchNote();
   const toast = useToast();
   const { noteTitles, quickNoteTitles, quickNotes, linkPreviews, archive, doubleTapToEdit, labels, dailyNotes, dailyNoteTemplate, moodTracker } =
@@ -158,6 +164,11 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
                     <MenuItem icon={Pencil} onSelect={() => setEditing(true)}>
                       Edit
                     </MenuItem>
+                    {canRemind && (
+                      <MenuItem icon={BellPlus} onSelect={() => setReminding(true)}>
+                        {reminder ? "Change reminder…" : "Remind me…"}
+                      </MenuItem>
+                    )}
                     {labels && (
                       <MenuItem icon={Tag} onSelect={() => setChoosingLabels(true)}>
                         Labels…
@@ -228,8 +239,21 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
       {linkPreviews && previewsAvailable && <LinkPreviews content={content} />}
       <AttachmentGallery attachments={note.attachments} />
       <LabelChips ids={note.labelIds} />
+      {reminder && canRemind && (
+        <button
+          type="button"
+          onClick={() => setReminding(true)}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-maple-50 px-2.5 py-1 text-xs font-medium text-maple-700 hover:bg-maple-100 dark:bg-maple-600/15 dark:text-maple-400"
+          aria-label={`Reminder: ${formatAbsolute(reminder.nextAtUtc)}${reminder.repeat === "None" ? "" : `, ${repeatText(reminder.repeat).toLowerCase()}`}. Change it`}
+        >
+          <Bell className="size-3.5" aria-hidden="true" />
+          {formatAbsolute(reminder.nextAtUtc)}
+          {reminder.repeat !== "None" && <span className="font-normal">· {repeatText(reminder.repeat)}</span>}
+        </button>
+      )}
 
       {removal.dialog}
+      {canRemind && <ReminderDialog noteId={note.id} open={reminding} onOpenChange={setReminding} />}
       {printing.view}
       {labels && <LabelPicker note={note} open={choosingLabels} onOpenChange={setChoosingLabels} />}
     </article>

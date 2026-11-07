@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Reminders on notes**, sent as notifications even when the app is closed.
+  - **Remind me…** in a note's or quick note's menu: later today, tomorrow at 09:00, next Monday, or a date and time,
+    once or every day, week or month, in the account's time zone (repeats keep their local time across daylight-saving
+    changes). A bell on the note shows the next time; tap it to change or remove the reminder.
+  - **Reminders** in the side menu lists what is coming up, by day; a notification opens it at its note.
+  - **Settings → Notifications** turns notifications on or off for this device, sends a test, and lists and removes
+    the account's other devices. On iPhone and iPad they work once the app is on the Home Screen (iOS 16.4+).
+  - The server sends them itself with Web Push (RFC 8291 encryption and RFC 8292 VAPID with .NET's cryptography, no
+    new package). The text is the note's first line; end-to-end notes get a fixed text, since the server cannot read
+    them. New optional setting `MAPLE_PUSH_CONTACT`, a contact for the push services.
+  - API: `PUT`/`DELETE /api/v1/notes/{id}/reminder`, `GET /api/v1/reminders`, `GET /api/v1/push/key`, and
+    `GET`/`POST /api/v1/account/push-subscriptions`, `DELETE .../{id}`, `POST .../{id}/test`. The side menu order may
+    include `reminders`.
+  - Database: new `NoteReminders` and `PushSubscriptions` tables, created when the server starts.
+- **Asks before leaving unsaved text.** Going back (browser or phone Back, the back gesture) or to another page while a
+  new note, quick note, daily note or an edit has unsaved text asks **Save**, **Discard** or **Keep editing**; Back is
+  undone while it asks. Closing or reloading the tab shows the browser's own "Leave site?" prompt. Nothing is asked when
+  there is nothing new.
+
 ## [1.19.0] - 2026-11-07
 
 One time zone for all your devices, and an audit log for administrators.

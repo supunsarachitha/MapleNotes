@@ -1,4 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
+import { LeaveDialog } from "./LeaveDialog";
 import { setTimeZone } from "../lib/dates";
 import { Cloud, CloudOff, EyeOff, Home, LogOut, Menu, Search, Settings, X } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -295,6 +296,7 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
       className="min-h-dvh bg-stone-100 text-stone-900 dark:bg-stone-950 dark:text-stone-100"
       data-note-text={user.preferences.noteTextSize.toLowerCase()}
     >
+      <LeaveDialog />
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2">
         Skip to content
       </a>

@@ -25,7 +25,10 @@ it is empty the box stays one line; it opens when you tap it. Your newest notes 
   **Archive**, where you can restore them, and deleted ones in the [trash](/trash). To edit a note faster, turn on
   **Double-tap to edit** in [Settings → Writing](/settings/writing), then double-tap the note (or double-click it).
 - **Printing a note.** Choose **Print…** in its **⋯** menu. Only that note is printed, black on white, with its pictures
-  and the names of its other files. To keep it as a PDF, choose **Save as PDF** in the print dialog.`,
+  and the names of its other files. To keep it as a PDF, choose **Save as PDF** in the print dialog.
+- **Leaving before saving.** If you go back, or to another page, while a new note or an edit is not saved yet, Maple
+  Notes asks whether to **Save** it, **Discard** it, or **Keep editing**. Closing or reloading the tab gets your
+  browser's own "Leave site?" question.`,
   },
   {
     id: "titles",
@@ -118,6 +121,23 @@ daily template** from its menu, or **Stop using** under Daily notes in [Settings
     title: "The calendar",
     body: `The calendar in the menu marks the days you wrote on. Choose a day to see that day's notes, and use the arrows to go
 to other months. You can turn the calendar off in [Settings → Side menu](/settings/menu).`,
+  },
+  {
+    id: "reminders",
+    title: "Reminders",
+    body: `To be reminded of a note, choose **Remind me…** in its **⋯** menu: later today, tomorrow morning, next Monday, or
+a date and time of your own, once or every day, week or month. A bell on the note shows when; tap it to change or
+remove the reminder. **Reminders** in the menu lists what is coming up.
+
+Reminders arrive as notifications, even when Maple Notes is closed, on each device where you turn them on in
+[Settings → Notifications](/settings/notifications) (with **Send a test** to check). On iPhone and iPad they work once
+Maple Notes is on the Home Screen (iOS 16.4 or later): tap **Share**, then **Add to Home Screen**, and turn them on from
+there. Times follow your time zone in [Settings → Appearance](/settings/appearance), and a repeating reminder keeps its
+time when the clocks change.
+
+The notification shows the note's first line, so it may appear on a locked screen; with end-to-end encryption the
+server cannot read your notes, and the notification only says to open Maple Notes. Reminders on archived notes or notes
+in the trash are not sent.`,
   },
   {
     id: "habits",

@@ -72,7 +72,7 @@ describe("AppShell", () => {
     renderShell({ menuOrder: "help,settings,todo", habitTracker: false }); // older orders still list Settings
 
     const links = within(screen.getByRole("navigation", { name: "Main" })).getAllByRole("link");
-    expect(links.map((link) => link.textContent)).toEqual(["Help", "Todo", "Home", "Quick notes", "Tags", "Archive"]);
+    expect(links.map((link) => link.textContent)).toEqual(["Help", "Todo", "Home", "Quick notes", "Reminders", "Tags", "Archive"]);
   });
 
   it("opens Settings from the gear in the top bar, not the side menu", () => {

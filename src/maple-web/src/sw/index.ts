@@ -4,6 +4,7 @@ import { fromBase64 } from "../crypto/encoding";
 import { loadLocalKey } from "../crypto/keystore";
 import { EXPORT_PREFIX, exportResponse, registerExport } from "./exportStream";
 import { MEDIA_PREFIX, serveAttachment, type Opened, type Unlocked } from "./media";
+import { notificationFor, readPayload } from "./notify";
 import { apiKind, dropOldShells, handleApi, handleShell, isShellRequest, saveShell, type OfflineDeps, type Shell } from "./offline";
 
 // The app's service worker: keeps the app and what the account last read for offline reading (see offline.ts),
@@ -36,6 +37,28 @@ worker.addEventListener("message", (event: ExtendableMessageEvent) => {
   if (message.type === "keys" && message.userId && message.keys) current = { userId: message.userId, keys: message.keys };
   if (message.type === "forget") current = null;
   opened.clear();
+});
+
+// Reminders arrive as push messages; a tap opens (or focuses) the app at the note.
+worker.addEventListener("push", (event: PushEvent) => {
+  const { title, options } = notificationFor(readPayload(event.data?.text()));
+  event.waitUntil(worker.registration.showNotification(title, options));
+});
+
+worker.addEventListener("notificationclick", (event: NotificationEvent) => {
+  event.notification.close();
+  const url = new URL((event.notification.data as { url?: string } | null)?.url ?? "/reminders", worker.location.origin).href;
+  event.waitUntil(
+    worker.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (windows) => {
+      const open = windows.find((client) => new URL(client.url).origin === worker.location.origin);
+      if (open) {
+        await open.navigate(url).catch(() => undefined);
+        await open.focus();
+        return;
+      }
+      await worker.clients.openWindow(url);
+    }),
+  );
 });
 
 worker.addEventListener("fetch", (event: FetchEvent) => {

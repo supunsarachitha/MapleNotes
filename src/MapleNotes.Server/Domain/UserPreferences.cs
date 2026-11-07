@@ -41,7 +41,7 @@ public sealed record UserPreferences
     public static IReadOnlyList<string> WeekStarts { get; } = ["Auto", "Sunday", "Monday", "Saturday"];
 
     /// <summary>The items of the side menu, in their default order; <see cref="MenuOrder"/> rearranges them.</summary>
-    public static IReadOnlyList<string> MenuItems { get; } = ["home", "todo", "quick", "habits", "tags", "archive", "settings", "help"];
+    public static IReadOnlyList<string> MenuItems { get; } = ["home", "todo", "quick", "habits", "reminders", "tags", "archive", "settings", "help"];
 
     /// <summary>
     /// Show a title field when writing notes. A title is stored as the note's first line, written as a Markdown

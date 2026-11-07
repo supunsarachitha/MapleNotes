@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from "react";
 import { Paperclip, X, FileText, AlertCircle, Smile, Sticker as StickerIcon, Maximize2, Minimize2 } from "lucide-react";
+import { useLeaveGuard } from "../lib/router";
 import { api, ApiError, uploadAttachment } from "../lib/api";
 import { AttachmentThumbnail } from "./AttachmentGallery";
 import { applyFormat, FormatToolbar, shortcutFormat } from "./FormatToolbar";
@@ -250,8 +251,8 @@ export function Composer({
     if (file.attachment && !file.existing) void api.deleteAttachment(file.attachment.id).catch(() => undefined);
   }
 
-  async function save() {
-    if (!canSave) return;
+  async function save(): Promise<boolean> {
+    if (!canSave) return false;
     setSaving(true);
     try {
       // Without the mood tracker, an edit keeps the note's mood as it is.
@@ -277,8 +278,10 @@ export function Composer({
       }
       setFullscreen(false);
       onDone?.();
+      return true;
     } catch (error) {
       toast.error(error instanceof ApiError ? error.fieldError("content") ?? error.message : "Could not save the note.");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -288,6 +291,41 @@ export function Composer({
     files.filter((f) => !f.existing).forEach(removeFile);
     onDone?.();
   }
+
+  // Unsaved: an edit that differs from the note (text, files or mood), or a new note with anything in it. Leaving the
+  // page then asks first (lib/router.tsx, LeaveDialog).
+  const sameFiles = (a: string[], b: string[]) => a.length === b.length && a.every((id, i) => id === b[i]);
+  const dirty = editing
+    ? content !== note.content ||
+      !sameFiles(files.map((f) => f.attachment?.id ?? f.key), note.attachments.map((a) => a.id)) ||
+      (offersMood && mood !== (note.mood ?? null))
+    : text.trim().length > 0 || typedTitle || files.length > 0 || mood !== null;
+  useLeaveGuard({
+    dirty: () => dirty && !saving,
+    save: async () => {
+      if (uploading) {
+        toast.error("Wait for the files to finish uploading, then try again.");
+        return false;
+      }
+      if (!canSave && editing && content.trim().length === 0 && attachmentIds.length === 0) {
+        toast.error("An empty note cannot be saved. Delete it instead, or discard the change.");
+        return false;
+      }
+      return save();
+    },
+    discard: () => {
+      if (editing) {
+        cancel();
+        return;
+      }
+      files.forEach(removeFile);
+      setText(initialText);
+      setTitle(suggested);
+      setMood(null);
+      setPicker(null);
+      setFullscreen(false);
+    },
+  });
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (suggestions.onKeyDown(event)) return;
