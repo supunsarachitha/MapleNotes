@@ -51,6 +51,11 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
             throw new ApiValidationException("menuTextSize", $"Choose one of: {string.Join(", ", UserPreferences.MenuTextSizes)}.");
         }
 
+        if (!UserPreferences.NoteTextSizes.Contains(preferences.NoteTextSize, StringComparer.Ordinal))
+        {
+            throw new ApiValidationException("noteTextSize", $"Choose one of: {string.Join(", ", UserPreferences.NoteTextSizes)}.");
+        }
+
         if (!UserPreferences.WeekStarts.Contains(preferences.WeekStart, StringComparer.Ordinal))
         {
             throw new ApiValidationException("weekStart", $"Choose one of: {string.Join(", ", UserPreferences.WeekStarts)}.");

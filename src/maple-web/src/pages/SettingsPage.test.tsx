@@ -249,12 +249,14 @@ describe("Settings", () => {
     expect(screen.queryByRole("textbox", { name: "Display name" })).not.toBeInTheDocument();
   });
 
-  it("changes the menu text size, the first day of the week, the Archive and Tags pages, and Help in the menu", async () => {
+  it("changes the note and menu text sizes, the first day of the week, the Archive and Tags pages, and Help in the menu", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
     renderSettings(idle, user, null, "/settings/appearance");
     const sections = within(screen.getByRole("navigation", { name: "Settings sections" }));
 
-    await userEvent.click(screen.getByRole("radio", { name: "Large" }));
+    await userEvent.click(within(screen.getByRole("group", { name: "Note text size" })).getByRole("radio", { name: "Small" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ noteTextSize: "Small" })));
+    await userEvent.click(within(screen.getByRole("group", { name: "Menu text size" })).getByRole("radio", { name: "Large" }));
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ menuTextSize: "Large" })));
     await userEvent.selectOptions(screen.getByLabelText("Week starts on"), "Monday");
     await userEvent.click(sections.getByRole("link", { name: /^Side menu/ }));
@@ -266,6 +268,7 @@ describe("Settings", () => {
     await waitFor(() =>
       expect(save).toHaveBeenLastCalledWith({
         ...DEFAULT_PREFERENCES,
+        noteTextSize: "Small",
         menuTextSize: "Large",
         weekStart: "Monday",
         archive: false,

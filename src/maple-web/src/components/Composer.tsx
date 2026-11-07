@@ -471,7 +471,7 @@ export function Composer({
           {...suggestions.inputProps}
           className={cn(
             "block w-full resize-none bg-transparent px-1 py-1 leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100",
-            fullscreen ? "min-h-[40vh] flex-1 py-4 font-serif text-lg sm:text-xl sm:leading-loose" : "text-base",
+            fullscreen ? "min-h-[40vh] flex-1 py-4 font-serif text-lg sm:text-xl sm:leading-loose" : "text-(length:--note-input)",
             collapsed && "min-w-0 flex-1 overflow-hidden",
           )}
         />

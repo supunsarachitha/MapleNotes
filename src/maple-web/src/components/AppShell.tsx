@@ -288,7 +288,10 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
   const wide = path === "/settings" || path.startsWith("/settings/");
 
   return (
-    <div className="min-h-dvh bg-stone-100 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
+    <div
+      className="min-h-dvh bg-stone-100 text-stone-900 dark:bg-stone-950 dark:text-stone-100"
+      data-note-text={user.preferences.noteTextSize.toLowerCase()}
+    >
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2">
         Skip to content
       </a>

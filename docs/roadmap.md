@@ -21,8 +21,8 @@ Features most note apps have.
 4. Links between notes (`[[note]]`), with backlinks.
 5. Sort options: the timeline is newest first only; there is no oldest-first or last-edited order.
 6. Search filters: by date range, label, tag, kind, or "has attachment / has image / has link".
-7. Text size and layout: no setting for the note text size, and no compact view, card or grid view, or wider reading
-    width.
+7. Layout: no compact view, card or grid view, or wider reading width. (The note text size can be chosen in Settings
+   → Appearance.)
 8. Colours for notes themselves, as in Keep, rather than only labels.
 9. A drawing or handwriting note.
 10. Voice recording in the app. Audio files can be attached, but not recorded.

@@ -31,6 +31,19 @@
 [data-menu="large"] {
   --menu-scale: 1.14;
 }
+/* Note text size (Settings → Appearance). Text boxes stay at least 16px, or iPhones zoom the page in on focus. */
+:root,
+[data-note-text] {
+  --note-text: 15px;
+  --note-input: 16px;
+}
+[data-note-text="small"] {
+  --note-text: 13px;
+}
+[data-note-text="large"] {
+  --note-text: 17px;
+  --note-input: 18px;
+}
 @media (max-height: 56.25rem) {
   [data-menu] {
     --menu-text: calc(14px * var(--menu-scale));
@@ -128,7 +141,7 @@ body {
 
 /* Rendered note Markdown. Compact, feed-style typography. */
 .markdown {
-  @apply text-[15px] leading-relaxed break-words text-stone-900 dark:text-stone-100;
+  @apply text-(length:--note-text) leading-relaxed break-words text-stone-900 dark:text-stone-100;
 }
 .markdown > * + * {
   @apply mt-3;
@@ -140,14 +153,15 @@ body {
   @apply font-semibold leading-snug;
 }
 .markdown h1 {
-  @apply text-xl;
+  /* Relative to the note text size: 20px, 18px and 16px at Medium, as before. */
+  @apply text-[1.3333em];
 }
 .markdown h2 {
-  @apply text-lg;
+  @apply text-[1.2em];
 }
 .markdown h3,
 .markdown h4 {
-  @apply text-base;
+  @apply text-[1.0667em];
 }
 .markdown a {
   @apply text-maple-700 underline decoration-maple-700/30 underline-offset-2 hover:decoration-maple-700 dark:text-maple-400 dark:decoration-maple-400/40;

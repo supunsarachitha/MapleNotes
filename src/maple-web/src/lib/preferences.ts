@@ -31,6 +31,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   theme: "System",
   accent: "Maple",
   menuTextSize: "Medium",
+  noteTextSize: "Medium",
   weekStart: "Auto",
   menuOrder: "",
   moodTracker: false,

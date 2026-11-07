@@ -296,7 +296,7 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
                       disabled={note.isArchived}
                       title="Edit"
                       className={cn(
-                        "min-w-0 flex-1 break-words py-1 text-left text-[15px]",
+                        "min-w-0 flex-1 break-words py-1 text-left text-(length:--note-text)",
                         item.done && "text-stone-400 line-through dark:text-stone-500",
                       )}
                     >

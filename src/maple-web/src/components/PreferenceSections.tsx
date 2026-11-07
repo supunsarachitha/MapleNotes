@@ -11,6 +11,7 @@ import {
   ACCENTS,
   DATE_FORMATS,
   MENU_TEXT_SIZES,
+  NOTE_TEXT_SIZES,
   PHOTO_SIZES,
   THEMES,
   WEEK_STARTS,
@@ -148,6 +149,37 @@ export function AppearanceSection() {
         </select>
         <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">For the calendars and the weekly habit chart.</p>
       </div>
+        <fieldset className="mt-5">
+        <legend className="mb-2 text-sm font-medium">Note text size</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {NOTE_TEXT_SIZES.map((size) => (
+            <label
+              key={size}
+              className={cn(
+                "flex cursor-pointer items-center justify-center rounded-xl border px-3 py-2.5 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-maple-500",
+                size === "Small" ? "text-[13px]" : size === "Large" ? "text-[17px]" : "text-[15px]",
+                preferences.noteTextSize === size
+                  ? "border-maple-600 bg-maple-50 font-medium text-maple-700 dark:border-maple-500 dark:bg-maple-600/15 dark:text-maple-400"
+                  : "border-stone-200 hover:bg-stone-50 dark:border-stone-700 dark:hover:bg-stone-800",
+              )}
+            >
+              <input
+                type="radio"
+                name="noteTextSize"
+                value={size}
+                checked={preferences.noteTextSize === size}
+                onChange={() => save({ noteTextSize: size })}
+                className="sr-only"
+              />
+              {size}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">
+          The size of your notes, todo items and habits on every device. The box you write in stays large enough for
+          phones not to zoom in.
+        </p>
+      </fieldset>
         <fieldset className="mt-5">
         <legend className="mb-2 text-sm font-medium">Menu text size</legend>
         <div className="grid grid-cols-3 gap-2">
