@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-11-07
+
+One time zone for all your devices, and an audit log for administrators.
+
 ### Added
 
 - **Time zone** (Settings → Appearance): Automatic, as before (each device's own), or one time zone for every
@@ -709,7 +713,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.2...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.19.0...HEAD
+[1.19.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.2...v1.19.0
 [1.18.2]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.1...v1.18.2
 [1.18.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.17.1...v1.18.0

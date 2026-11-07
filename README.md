@@ -706,6 +706,14 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.18 to 1.19
+
+Nothing to do. The migration adds an `AuditEntries` table; the audit log starts empty and fills from the first
+sign-in after the upgrade. Accounts keep using each device's time zone until their owners choose one.
+
+For API clients: preferences gain `timeZone` (an IANA name, or empty for Automatic), and administrators get
+`GET /api/v1/admin/audit`. Nothing was removed or changed in a way that breaks existing clients.
+
 ### From 1.17 to 1.18
 
 Nothing to do. 1.18.2's migration adds a `Passkeys` table, empty until someone adds a passkey; nothing else in the
