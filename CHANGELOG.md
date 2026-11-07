@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.2] - 2026-11-07
+
+Passkeys, a note text size, reordering todo items, printing a note, and a choice of how long the trash keeps notes,
+together with dependency updates. This release was made by the monthly maintenance routine from `main` while these
+features were waiting for a release of their own, so they arrived in a patch version.
+
 ### Added
 
 - **Passkeys**: sign in with a passkey instead of the password. The server checks passkeys with .NET's
@@ -37,8 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **How long the trash keeps notes** (Settings → Notes & files → Keep deleted notes): 7, 14, 30 (as before), 90 days,
   a year, or until you empty it, for each account. A shorter time applies to what is already in the trash at the next
   hourly cleanup. API: preferences gain `trashDays` (0, 7, 14, 30, 90 or 365; 0 keeps notes until the trash is emptied).
-
-## [1.18.2] - 2026-11-07
 
 ### Changed
 
