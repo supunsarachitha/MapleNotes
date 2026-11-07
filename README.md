@@ -712,6 +712,11 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.20 to 1.21
+
+Nothing to do: no migration and no new settings. Ticking a todo item now moves it to the bottom of its list (and saves
+that order); lists that already exist keep their order until items are ticked. Nothing changed for API clients.
+
 ### From 1.19 to 1.20
 
 Nothing to do. The migration adds `NoteReminders` and `PushSubscriptions` tables, empty until someone sets a reminder
