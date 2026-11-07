@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -77,6 +77,45 @@ describe("TodoCard", () => {
 
     await user.click(screen.getByRole("button", { name: "Remove oats" }));
     await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] maple syrup\n- [ ] wild blueberries", [], expect.anything()));
+  });
+
+  it("moves an item with the arrow keys on its handle, saving the new order and keeping focus on it", async () => {
+    const update = vi.spyOn(api, "updateNote").mockImplementation(async (id, content) => ({ ...list, id, content }));
+    const user = userEvent.setup();
+    renderWith(<TodoCard note={list} />);
+
+    screen.getByRole("button", { name: "Move oats" }).focus();
+    await user.keyboard("{ArrowDown}");
+
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] maple syrup\n- [ ] oats", [], expect.anything()));
+    expect(await screen.findByText("oats moved to position 2 of 2.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Move oats" })).toHaveFocus());
+    await user.keyboard("{ArrowDown}"); // already last: nothing changes
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it("moves an item by dragging its handle past the middle of another row", async () => {
+    const update = vi.spyOn(api, "updateNote").mockImplementation(async (id, content) => ({ ...list, id, content }));
+    renderWith(<TodoCard note={list} />);
+    const rows = within(screen.getByRole("list", { name: "Items in Groceries" })).getAllByRole("listitem");
+    rows.forEach((row, i) => {
+      row.getBoundingClientRect = () => ({ top: i * 40, bottom: i * 40 + 40, height: 40, left: 0, right: 300, width: 300, x: 0, y: i * 40, toJSON: () => ({}) });
+    });
+    const handle = screen.getByRole("button", { name: "Move oats" });
+    handle.setPointerCapture = () => {};
+
+    fireEvent.pointerDown(handle, { button: 0, pointerId: 1, clientY: 20 });
+    fireEvent.pointerMove(handle, { pointerId: 1, clientY: 50 }); // above the middle of row 2: no swap yet
+    expect(update).not.toHaveBeenCalled();
+    fireEvent.pointerMove(handle, { pointerId: 1, clientY: 70 });
+    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 70 });
+
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] maple syrup\n- [ ] oats", [], expect.anything()));
+  });
+
+  it("has no move handles on an archived list or one with a single item", () => {
+    renderWith(<TodoCard note={{ ...list, isArchived: true }} />);
+    expect(screen.queryByRole("button", { name: /^Move / })).not.toBeInTheDocument();
   });
 
   it("says why a change could not be saved when the storage is full", async () => {

@@ -82,6 +82,9 @@ names of attached files. Archived notes are not included.`,
 tick them off as you go, and choose an item to change its text. The list's **⋯** menu can rename it, clear the
 ticked items, pin it, archive it or delete it.
 
+To put an item in another place, drag it by the dotted handle on its left. With a keyboard, move to the handle with
+Tab and press the up or down arrow; Home and End move it to the top or the bottom.
+
 To change many items at once, choose **Edit as Markdown** in the list's **⋯** menu. Each item is a line: \`- [ ]\` for
 one to do and \`- [x]\` for one done. Reorder, add or delete lines, or paste a list; lines without a box become items
 to do. Choose **Save**, or press Ctrl+Enter (⌘+Enter on a Mac).

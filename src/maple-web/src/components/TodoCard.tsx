@@ -1,12 +1,13 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Archive, ArchiveRestore, FileText, ListChecks, MoreHorizontal, Pencil, Pin, PinOff, Tag, Trash2, X } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { Archive, ArchiveRestore, FileText, GripVertical, ListChecks, MoreHorizontal, Pencil, Pin, PinOff, Tag, Trash2, X } from "lucide-react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { saveErrorMessage } from "../lib/apiError";
 import { focusAtEnd, focusAtEndRef } from "../lib/focus";
+import { moveItem } from "../lib/menu";
 import { useNoteEditor } from "../lib/noteEditor";
 import { usePreferences } from "../lib/preferences";
 import { usePatchNote } from "../lib/queries";
-import { parseItems, parseTodo, serializeItems, serializeTodo, type TodoList } from "../lib/todo";
+import { parseItems, parseTodo, serializeItems, serializeTodo, type TodoItem, type TodoList } from "../lib/todo";
 import type { Note } from "../lib/types";
 import { LabelChips, LabelPicker } from "./Labels";
 import { MenuItem } from "./NoteCard";
@@ -102,6 +103,61 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
   useEffect(() => {
     if (autoFocus) addInput.current?.focus();
   }, [autoFocus]);
+
+  // Reordering: while an item is dragged by its handle, the order as it is on screen; saved when it is let go. The
+  // handle is also a button that the arrow keys move, which keyboards and screen readers use.
+  const [order, setOrder] = useState<TodoItem[] | null>(null);
+  const [held, setHeld] = useState<number | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const rows = useRef<Array<HTMLLIElement | null>>([]);
+  const handles = useRef<Array<HTMLButtonElement | null>>([]);
+  const shown = order ?? list.items;
+
+  function saveOrder(items: TodoItem[], item: TodoItem) {
+    if (serializeItems(items) === serializeItems(list.items)) return;
+    commit({ ...list, items });
+    setAnnouncement(`${item.text} moved to position ${items.indexOf(item) + 1} of ${items.length}.`);
+  }
+
+  function startDrag(event: PointerEvent<HTMLButtonElement>, index: number) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setHeld(index);
+    setOrder(list.items);
+  }
+
+  function drag(event: PointerEvent<HTMLButtonElement>) {
+    if (held === null || !order) return;
+    for (let to = 0; to < order.length; to++) {
+      const row = rows.current[to];
+      if (to === held || !row) continue;
+      const box = row.getBoundingClientRect();
+      if (event.clientY < box.top || event.clientY > box.bottom) continue;
+      // Past the middle of the row in the direction of travel: the rows swap, without flickering back and forth.
+      const middle = box.top + box.height / 2;
+      if ((to > held && event.clientY > middle) || (to < held && event.clientY < middle)) {
+        setOrder(moveItem(order, held, to));
+        setHeld(to);
+      }
+      break;
+    }
+  }
+
+  function endDrag() {
+    if (held !== null && order) saveOrder(order, order[held]!);
+    setHeld(null);
+    setOrder(null);
+  }
+
+  function moveByKey(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const to = event.key === "ArrowUp" ? index - 1 : event.key === "ArrowDown" ? index + 1 : event.key === "Home" ? 0 : event.key === "End" ? list.items.length - 1 : null;
+    if (to === null) return;
+    event.preventDefault();
+    if (to < 0 || to >= list.items.length || to === index) return;
+    saveOrder(moveItem(list.items, index, to), list.items[index]!);
+    requestAnimationFrame(() => handles.current[to]?.focus()); // the handle keeps focus as its item moves
+  }
 
   const done = list.items.filter((item) => item.done).length;
 
@@ -269,8 +325,36 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
         <>
           {list.items.length > 0 && (
             <ul className="mt-2 flex flex-col" aria-label={`Items in ${list.title}`}>
-              {list.items.map((item, index) => (
-                <li key={index} className="flex min-h-10 items-center gap-3">
+              {shown.map((item, index) => (
+                <li
+                  key={index}
+                  ref={(row) => {
+                    rows.current[index] = row;
+                  }}
+                  className={cn(
+                    "flex min-h-10 items-center gap-3",
+                    held === index && "relative z-10 rounded-lg bg-white shadow-lg ring-2 ring-maple-500 dark:bg-stone-900",
+                  )}
+                >
+                  {!note.isArchived && shown.length > 1 && editing === null && (
+                    <button
+                      type="button"
+                      ref={(handle) => {
+                        handles.current[index] = handle;
+                      }}
+                      aria-label={`Move ${item.text}`}
+                      aria-description="Use the up and down arrow keys, or drag."
+                      title="Drag to move"
+                      onPointerDown={(event) => startDrag(event, index)}
+                      onPointerMove={drag}
+                      onPointerUp={endDrag}
+                      onPointerCancel={endDrag}
+                      onKeyDown={(event) => moveByKey(event, index)}
+                      className="-ml-2 -mr-2 flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-stone-300 outline-none hover:bg-stone-100 hover:text-stone-500 focus-visible:ring-2 focus-visible:ring-maple-500 active:cursor-grabbing dark:text-stone-600 dark:hover:bg-stone-800"
+                    >
+                      <GripVertical className="size-4" aria-hidden="true" />
+                    </button>
+                  )}
                   <input
                     type="checkbox"
                     checked={item.done}
@@ -329,6 +413,9 @@ export function TodoCard({ note, autoFocus = false }: { note: Note; autoFocus?: 
         </>
       )}
 
+      <p className="sr-only" aria-live="polite">
+        {announcement}
+      </p>
       <LabelChips ids={note.labelIds} />
       {removal.dialog}
       {labels && <LabelPicker note={note} open={choosingLabels} onOpenChange={setChoosingLabels} />}
