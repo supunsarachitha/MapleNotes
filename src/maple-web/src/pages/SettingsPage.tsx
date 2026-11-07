@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { retentionText } from "./TrashPage";
 import {
   ChevronLeft,
   ChevronRight,
@@ -184,13 +185,15 @@ function StorageSection() {
 
 /** Where the trash is, since it is not in the side menu, and whether deleting uses it. */
 function TrashSection() {
-  const { trash } = usePreferences();
+  const { trash, trashDays } = usePreferences();
   return (
     <Section
       title="Trash"
       description={
         trash
-          ? "Deleted notes, todo lists and habits wait in the trash for 30 days, then they are deleted for good."
+          ? trashDays > 0
+            ? `Deleted notes, todo lists and habits wait in the trash for ${retentionText(trashDays)}, then they are deleted for good.`
+            : "Deleted notes, todo lists and habits wait in the trash until you empty it."
           : "The trash is turned off in Notes & files: deleting is immediate and permanent."
       }
     >

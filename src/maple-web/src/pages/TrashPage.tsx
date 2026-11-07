@@ -14,16 +14,23 @@ import { useDeleteNote, useInvalidateNotes, useNotes, usePatchNote } from "../li
 import { Link } from "../lib/router";
 import type { Note, NoteKind } from "../lib/types";
 
-/** How long notes stay in the trash; the server deletes them after that (NoteService.TrashRetention). */
-export const TRASH_DAYS = 30;
 
 const KIND_NAMES: Record<NoteKind, string> = { Note: "Note", Todo: "Todo list", Quick: "Quick note", Habit: "Habit" };
 
 const count = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
-/** Days left before a note deleted at this time is deleted for good. */
-export function daysLeft(trashedAtUtc: string, now = Date.now()): number {
-  return Math.max(0, Math.ceil((Date.parse(trashedAtUtc) + TRASH_DAYS * 86_400_000 - now) / 86_400_000));
+/**
+ * Days left before a note deleted at this time is deleted for good, when the trash keeps notes for `days`; null when
+ * it keeps them until it is emptied (0). The server's hourly cleanup uses the same setting (NoteService).
+ */
+export function daysLeft(trashedAtUtc: string, days: number, now = Date.now()): number | null {
+  if (days <= 0) return null;
+  return Math.max(0, Math.ceil((Date.parse(trashedAtUtc) + days * 86_400_000 - now) / 86_400_000));
+}
+
+/** "30 days", "1 year", or "until you empty it", for the trash's retention. */
+export function retentionText(days: number): string {
+  return days <= 0 ? "until you empty it" : days === 365 ? "1 year" : `${days} days`;
 }
 
 /** A note in the trash: what it was, when it was deleted, and Restore or Delete forever. Its files are not loaded. */
@@ -33,7 +40,8 @@ function TrashCard({ note }: { note: Note }) {
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const deletedAt = note.trashedAtUtc ?? note.updatedAtUtc;
-  const left = daysLeft(deletedAt);
+  const { trashDays } = usePreferences();
+  const left = daysLeft(deletedAt, trashDays);
   const habit = note.kind === "Habit" ? parseHabit(note.content) : null;
 
   return (
@@ -45,7 +53,7 @@ function TrashCard({ note }: { note: Note }) {
         <time dateTime={deletedAt} title={formatAbsolute(deletedAt)}>
           Deleted {formatRelative(deletedAt)}
         </time>
-        <span>· {left === 0 ? "deleted for good today" : `deleted for good in ${count(left, "day")}`}</span>
+        {left !== null && <span>· {left === 0 ? "deleted for good soon" : `deleted for good in ${count(left, "day")}`}</span>}
       </header>
 
       {habit ? (
@@ -114,7 +122,7 @@ function TrashCard({ note }: { note: Note }) {
  * recently deleted first, each to restore or delete for good, and Empty trash for all of them.
  */
 export function TrashPage() {
-  const { trash } = usePreferences();
+  const { trash, trashDays } = usePreferences();
   const toast = useToast();
   const invalidate = useInvalidateNotes();
   const [confirming, setConfirming] = useState(false);
@@ -154,8 +162,14 @@ export function TrashPage() {
         )}
       </div>
       <p className="mb-4 text-sm text-stone-600 dark:text-stone-300">
-        Deleted notes wait here for {TRASH_DAYS} days, then they are deleted for good. Restore one to put it back where it was. Notes here still count
-        towards your storage.
+        {trashDays > 0
+          ? `Deleted notes wait here for ${retentionText(trashDays)}, then they are deleted for good.`
+          : "Deleted notes wait here until you empty the trash."}{" "}
+        Restore one to put it back where it was. Notes here still count towards your storage.{" "}
+        <Link href="/settings/notes" className="underline">
+          Change how long
+        </Link>
+        .
       </p>
       {!trash && (
         <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
@@ -170,7 +184,7 @@ export function TrashPage() {
         kinds={ALL_KINDS}
         renderNote={(note) => <TrashCard note={note} />}
         showEndMarker={false}
-        empty={<EmptyState title="The trash is empty">Notes you delete wait here for {TRASH_DAYS} days.</EmptyState>}
+        empty={<EmptyState title="The trash is empty">Notes you delete wait here {trashDays > 0 ? `for ${retentionText(trashDays)}` : "until you empty the trash"}.</EmptyState>}
       />
       <ConfirmDialog
         open={confirming}

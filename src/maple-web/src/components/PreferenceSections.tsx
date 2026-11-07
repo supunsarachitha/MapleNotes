@@ -12,11 +12,13 @@ import {
   DATE_FORMATS,
   MENU_TEXT_SIZES,
   NOTE_TEXT_SIZES,
+  TRASH_DAY_CHOICES,
   PHOTO_SIZES,
   THEMES,
   WEEK_STARTS,
   type DateFormat,
   type PhotoSize,
+  type TrashDays,
   type Preferences,
   type WeekStart,
 } from "../lib/types";
@@ -360,10 +362,32 @@ export function NotesFilesSection() {
         <div className="divide-y divide-stone-100 dark:divide-stone-800">
           <PreferenceSwitch
             label="Trash"
-            description="Deleted notes go to the trash, where you can restore them for 30 days; it is in Settings → Backup & data. Off, deleting is immediate and permanent."
+            description="Deleted notes go to the trash, where you can restore them; it is in Settings → Backup & data. Off, deleting is immediate and permanent."
             checked={preferences.trash}
             onChange={(trash) => save({ trash })}
           />
+          {preferences.trash && (
+            <div className="py-3">
+              <label htmlFor="trash-days" className="text-sm font-medium">
+                Keep deleted notes
+              </label>
+              <select
+                id="trash-days"
+                value={preferences.trashDays}
+                onChange={(event) => save({ trashDays: Number(event.target.value) as TrashDays })}
+                className="mt-1.5 h-11 w-full max-w-xs rounded-xl border border-stone-300 bg-white px-3 text-sm dark:border-stone-700 dark:bg-stone-950"
+              >
+                {TRASH_DAY_CHOICES.map((days) => (
+                  <option key={days} value={days}>
+                    {days === 0 ? "Until I empty the trash" : days === 365 ? "1 year" : `${days} days`}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">
+                Applies to what is already in the trash too: a shorter time deletes older notes there within the hour.
+              </p>
+            </div>
+          )}
           <div className="py-3 first:pt-0 last:pb-0">
             <PreferenceSwitch
               label="Shrink photos before uploading"

@@ -170,6 +170,36 @@ public sealed class TrashTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Each_account_keeps_its_trash_for_as_long_as_it_chose()
+    {
+        using var other = new ApiClient(_app);
+        await other.SignUpAsync("other");
+        var mine = await CreateAsync("Mine, deleted 8 days ago");
+        var theirs = (await (await other.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("Theirs, deleted 400 days ago"))).Content
+            .ReadFromJsonAsync<NoteResponse>(ApiClient.Json, Ct))!;
+        await PatchAsync(mine.Id, new PatchNoteRequest(IsTrashed: true));
+        (await other.PatchJsonAsync($"/api/v1/notes/{theirs.Id}", new PatchNoteRequest(IsTrashed: true))).EnsureSuccessStatusCode();
+        await SetTrashedAtAsync(mine.Id, DateTime.UtcNow.AddDays(-8));
+        await SetTrashedAtAsync(theirs.Id, DateTime.UtcNow.AddDays(-400));
+
+        // Default 30 days for me: kept. Never for them: kept.
+        (await other.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { TrashDays = 0 })).EnsureSuccessStatusCode();
+        Assert.Equal(new EmptyTrashResponse(0, 0), await PurgeAsync());
+
+        // Seven days for me: my 8-day-old note goes; theirs stays.
+        (await _client.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { TrashDays = 7 })).EnsureSuccessStatusCode();
+        Assert.Equal(new EmptyTrashResponse(1, 0), await PurgeAsync());
+        Assert.Empty(await IdsAsync("/api/v1/notes?state=trash"));
+        Assert.Equal([theirs.Id], (await other.GetJsonAsync<NotePageResponse>("/api/v1/notes?state=trash"))!.Items.Select(n => n.Id));
+    }
+
+    private async Task<EmptyTrashResponse> PurgeAsync()
+    {
+        using var scope = _app.Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<NoteService>().PurgeExpiredTrashAsync(Ct);
+    }
+
+    [Fact]
     public async Task Exports_leave_the_trash_out()
     {
         await CreateAsync("Exported");

@@ -85,12 +85,14 @@ export interface Preferences {
   tagSuggestions: boolean;
   /** Coloured labels on notes. */
   labels: boolean;
-  /** Deleting moves notes to the trash, where they stay for 30 days. */
+  /** Deleting moves notes to the trash, where they stay for `trashDays`. */
   trash: boolean;
   theme: Theme;
   accent: Accent;
   /** The side menu's text size. */
   menuTextSize: MenuTextSize;
+  /** Days deleted notes stay in the trash before they are deleted for good; 0 keeps them until it is emptied. */
+  trashDays: TrashDays;
   /** The size of note text in lists and cards (and of the writing box, which stays at least 16px). */
   noteTextSize: NoteTextSize;
   /** The first day of the week in calendars; Auto follows the browser's language settings. */
@@ -107,6 +109,8 @@ export const PHOTO_SIZES = ["Large", "Medium", "Small"] as const;
 export type PhotoSize = (typeof PHOTO_SIZES)[number];
 export const MENU_TEXT_SIZES = ["Small", "Medium", "Large"] as const;
 export type MenuTextSize = (typeof MENU_TEXT_SIZES)[number];
+export const TRASH_DAY_CHOICES = [7, 14, 30, 90, 365, 0] as const;
+export type TrashDays = (typeof TRASH_DAY_CHOICES)[number];
 export const NOTE_TEXT_SIZES = ["Small", "Medium", "Large"] as const;
 export type NoteTextSize = (typeof NOTE_TEXT_SIZES)[number];
 export const WEEK_STARTS = ["Auto", "Sunday", "Monday", "Saturday"] as const;

@@ -210,7 +210,7 @@ volume cannot be used to forge a session.
 
 | Threat | Off / encrypted at rest | End-to-end |
 |---|---|---|
-| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 31). | **Protected**, twice over. |
+| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 30). | **Protected**, twice over. |
 | Someone who knows the master key, or reads the server's memory or data while it runs | **Not protected.** The server holds the keys. | **Protected.** The server never has the key; it sees ciphertext, sizes, timestamps, and which notes share a tag. |
 | Someone who takes over the server and changes the web app it serves | **Not protected.** | **Not protected** once the user signs in or unlocks with the modified app, which could capture the password. See [threat-model.md](threat-model.md). |
 | Tampering with stored ciphertext | **Detected.** Authenticated encryption everywhere. | **Detected**, in the browser. |
@@ -277,7 +277,7 @@ note transaction, and a concurrent edit.
   get the default parameters with a stable pseudo-salt derived from the prelogin key, and are checked against a dummy
   hash. Five consecutive failures lock the account for 15 minutes, and prelogin and the authentication endpoints are
   rate-limited per client IP (`MAPLE_AUTH_RATE_LIMIT`, a separate budget for each). Known gap: unknown names never lock, so a locked account answers 429 where an unknown
-one answers 401, which reveals that the name exists (roadmap item 32).
+one answers 401, which reveals that the name exists (roadmap item 31).
 - Passkeys (`Features/Passkeys`): WebAuthn without attestation, checked with .NET's cryptography (no WebAuthn
   library). `WebAuthn.cs` checks the client data (type, one-time challenge, origin, not cross-origin), the RP ID hash
   (the request's host name), the user-present and user-verified flags, the ES256 or RS256 signature, and the counter.
@@ -522,7 +522,7 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 | `StartupInitializer` | Before anything else starts | Validates settings and the master key, creates the data layout, backs up and migrates the database. Problems stop startup with a one-line message. |
 | `EncryptionMigrationService` | Startup, on a mode change, every 5 minutes | Converts content between `None` and `Server` to match each account's mode. The browser converts to and from end-to-end encryption. |
 | `AttachmentCleanupService` | Startup, then hourly | Removes uploads never attached to a note (after 24 h), orphan files (after 1 h) and interrupted writes. |
-| `TrashCleanupService` | Startup, then hourly | Deletes notes and files that have been in the trash for 30 days. |
+| `TrashCleanupService` | Startup, then hourly | Deletes notes and files that have been in the trash for longer than their owner's `trashDays` preference (30 by default; 0 keeps them). Preferences are a JSON column, so it reads the retention of each account that has something in the trash, then deletes per account in batches. |
 
 ## HTTP hardening
 
@@ -549,7 +549,7 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
     users), isolation between users, notes, attachments, encryption migration with crash simulation, and export across
     every format and layout; preferences, kinds (including habits), daily notes (including two devices at once),
     restoring, storage limits (including two uploads at once), deleting all of an account's content, compacting
-    the database (which must stay encrypted), the trash (lists, restoring, emptying, deleting after 30 days, daily
+    the database (which must stay encrypted), the trash (lists, restoring, emptying, deleting after each account's retention, daily
     notes, exports) and labels (limits, filters, counts, privacy between accounts).
   - End-to-end encryption, with a C# implementation of the browser's side: key setup, unlock, recovery, notes, tags,
     label names and files as ciphertext, conversion in both directions (interrupted, concurrent edits, key cleanup),

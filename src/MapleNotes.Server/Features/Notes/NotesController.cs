@@ -167,7 +167,7 @@ public sealed class NotesController(NoteService notes) : ControllerBase
         await notes.DeleteAsync(User.GetUserId(), id, cancellationToken) ? NoContent() : NotFound();
 
     /// <summary>Empties the trash: permanently deletes every note in it, with their attachments.</summary>
-    /// <remarks>Notes are also deleted for good by themselves once they have been in the trash for 30 days.</remarks>
+    /// <remarks>Notes are also deleted for good by themselves once they have been in the trash for as long as the owner chose (`trashDays`, 30 by default).</remarks>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>How many notes and files were deleted.</returns>
     /// <response code="200">The trash is empty.</response>
