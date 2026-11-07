@@ -32,40 +32,39 @@ Features most note apps have.
 
 12. Recurring todos.
 13. Sub-tasks in todo lists.
-14. Drag-to-reorder todo items.
-15. Habit targets, such as "3 times a week".
-16. Habit reminders.
+14. Habit targets, such as "3 times a week".
+15. Habit reminders.
 
 ## Backup and data
 
-17. Automatic scheduled backups, for example a nightly export to a folder or to S3.
-18. Import from other apps: Google Keep (Takeout), Evernote (`.enex`), Standard Notes, Joplin and Simplenote. Today a
+16. Automatic scheduled backups, for example a nightly export to a folder or to S3.
+17. Import from other apps: Google Keep (Takeout), Evernote (`.enex`), Standard Notes, Joplin and Simplenote. Today a
     restore reads Maple Notes and Falcon Notes exports and single Markdown, text and JSON files.
-19. Export of one note, or a selection, including to PDF or printing.
+18. Export of one note, or a selection, including to PDF or printing.
 
 ## Settings that are fixed today
 
-20. **Trash retention:** fixed at 30 days.
-21. **Signed-in devices:** there is no list of devices to sign out one by one, and "Sign out" does not end the session on
+19. **Trash retention:** fixed at 30 days.
+20. **Signed-in devices:** there is no list of devices to sign out one by one, and "Sign out" does not end the session on
     the server.
-22. **Photo sizes:** three presets; a custom size or quality cannot be set.
-23. **Default view on opening:** the app always starts on Home.
-24. **Language:** the interface is in English only.
-25. **Time zone:** the app always uses the browser's time zone.
+21. **Photo sizes:** three presets; a custom size or quality cannot be set.
+22. **Default view on opening:** the app always starts on Home.
+23. **Language:** the interface is in English only.
+24. **Time zone:** the app always uses the browser's time zone.
 
 ## Administration
 
-26. Sign-in with an existing account system, such as Google or Authelia (OIDC/SSO).
-27. Email: invitations, password-reset links and notices. There is no email support.
-28. API tokens for scripts and integrations: the API works only with the browser's sign-in cookie.
-29. A default storage limit for new accounts, and different limits per account.
-30. An audit log of administrator actions and sign-ins.
+25. Sign-in with an existing account system, such as Google or Authelia (OIDC/SSO).
+26. Email: invitations, password-reset links and notices. There is no email support.
+27. API tokens for scripts and integrations: the API works only with the browser's sign-in cookie.
+28. A default storage limit for new accounts, and different limits per account.
+29. An audit log of administrator actions and sign-ins.
 
 ## Security items still open
 
 From the [October 2026 security audit](security-audit-2026-10.md), where each has a recommended fix.
 
-31. End-to-end tag names and file details do not count toward the storage limit.
-32. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).
-33. The sign-in lockout reveals whether a username exists.
-34. The Nginx Proxy Manager deployment file trusts forwarded addresses from too wide a network.
+30. End-to-end tag names and file details do not count toward the storage limit.
+31. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).
+32. The sign-in lockout reveals whether a username exists.
+33. The Nginx Proxy Manager deployment file trusts forwarded addresses from too wide a network.

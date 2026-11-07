@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Note text size** (Settings → Appearance): small, medium or large text for notes, todo items and habits, saved to
   the account so it applies on every device. Headings in notes grow and shrink with it. The box you write in stays at
   least 16 px so phones do not zoom in. API: preferences gain `noteTextSize` (`Small`, `Medium` or `Large`).
+- **Reorder todo items:** drag an item by the handle on its left, or move the handle with the arrow keys (Home and End
+  go to the top or the bottom); screen readers hear the new position. The order is saved in the list's Markdown.
 
 ## [1.18.1] - 2026-11-06
 
