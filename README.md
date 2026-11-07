@@ -704,6 +704,16 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.17 to 1.18
+
+Nothing to do. 1.18.2's migration adds a `Passkeys` table, empty until someone adds a passkey; nothing else in the
+database changes. Accounts keep a 30-day trash and medium note text until their owners choose otherwise. Passkeys work
+only over HTTPS at the address they were added on (or on `localhost`), so add them at the address you normally use.
+
+For API clients: preferences gained `openFullScreen` (1.18.0), `noteTextSize` and `trashDays` (1.18.2). 1.18.2 adds
+`/api/v1/account/passkeys` and `/api/v1/auth/passkey/options` and `/login` (see docs/e2ee-spec.md §6a for passkeys that
+unlock end-to-end notes). Nothing was removed or changed in a way that breaks existing clients.
+
 ### From 1.16 to 1.17
 
 Nothing to do. The migration adds a mood to each note (none for existing notes) and a sticker flag to each attachment
