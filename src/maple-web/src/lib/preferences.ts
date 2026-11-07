@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { api } from "./api";
-import { weekStartDay } from "./dates";
+import { setTimeZone, weekStartDay } from "./dates";
 import { queryKeys, useAuthStatus } from "./queries";
 import type { AuthStatus, Preferences } from "./types";
 
@@ -34,6 +34,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   noteTextSize: "Medium",
   trashDays: 30,
   weekStart: "Auto",
+  timeZone: "",
   menuOrder: "",
   moodTracker: false,
   stickers: false,
@@ -68,6 +69,11 @@ export function useUpdatePreferences() {
     onMutate: (changes: Partial<Preferences>) => {
       const previous = read();
       write({ ...previous, ...changes });
+      // Days are named in the time zone, so notes by day, calendars and daily notes are asked for again.
+      if (changes.timeZone !== undefined && changes.timeZone !== previous.timeZone) {
+        setTimeZone(changes.timeZone);
+        void client.invalidateQueries({ queryKey: queryKeys.notes });
+      }
       return { previous, id: ++latest.current };
     },
     mutationFn: () => api.setPreferences(read()),

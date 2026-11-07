@@ -97,6 +97,8 @@ export interface Preferences {
   noteTextSize: NoteTextSize;
   /** The first day of the week in calendars; Auto follows the browser's language settings. */
   weekStart: WeekStart;
+  /** IANA time zone for dates, times, daily notes and habits on every device; "" uses each device's own. */
+  timeZone: string;
   /** The side menu's items in the chosen order, separated by commas; empty for the default order (see lib/menu.ts). */
   menuOrder: string;
   /** Offer five smilies where a note or quick note is written; turning it off hides them but keeps the moods. */

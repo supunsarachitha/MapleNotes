@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckSquare, Flame, Repeat, Search, Zap, CalendarRange, Feather } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { api } from "../lib/api";
-import { localDateKey } from "../lib/dates";
+import { calendarDay, currentTimeZone, localDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
@@ -100,12 +100,13 @@ const kbd =
   "rounded border border-stone-300 bg-stone-50 px-1.5 py-0.5 font-sans text-[11px] font-medium text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300";
 
 /** Home's header: the date, writing stats and shortcuts to the other tabs. */
-export function HomeHeader({ now = new Date() }: { now?: Date }) {
+export function HomeHeader({ now: instant = new Date() }: { now?: Date }) {
   useHomeShortcuts();
   const preferences = usePreferences();
   const kinds = useEnabledKinds();
+  const now = calendarDay(instant);
   const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (STATS_DAYS - 1));
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const timeZone = currentTimeZone();
   const days = useQuery({
     queryKey: [...queryKeys.notes, "stats", localDateKey(now), kinds.join(",")],
     queryFn: () => api.calendar(localDateKey(from), localDateKey(now), timeZone, kinds),

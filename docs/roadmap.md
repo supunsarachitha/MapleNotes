@@ -50,21 +50,20 @@ Features most note apps have.
 20. **Photo sizes:** three presets; a custom size or quality cannot be set.
 21. **Default view on opening:** the app always starts on Home.
 22. **Language:** the interface is in English only.
-23. **Time zone:** the app always uses the browser's time zone.
 
 ## Administration
 
-24. Sign-in with an existing account system, such as Google or Authelia (OIDC/SSO).
-25. Email: invitations, password-reset links and notices. There is no email support.
-26. API tokens for scripts and integrations: the API works only with the browser's sign-in cookie.
-27. A default storage limit for new accounts, and different limits per account.
-28. An audit log of administrator actions and sign-ins.
+23. Sign-in with an existing account system, such as Google or Authelia (OIDC/SSO).
+24. Email: invitations, password-reset links and notices. There is no email support.
+25. API tokens for scripts and integrations: the API works only with the browser's sign-in cookie.
+26. A default storage limit for new accounts, and different limits per account.
+27. An audit log of administrator actions and sign-ins.
 
 ## Security items still open
 
 From the [October 2026 security audit](security-audit-2026-10.md), where each has a recommended fix.
 
-29. End-to-end tag names and file details do not count toward the storage limit.
-30. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).
-31. The sign-in lockout reveals whether a username exists.
-32. The Nginx Proxy Manager deployment file trusts forwarded addresses from too wide a network.
+28. End-to-end tag names and file details do not count toward the storage limit.
+29. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).
+30. The sign-in lockout reveals whether a username exists.
+31. The Nginx Proxy Manager deployment file trusts forwarded addresses from too wide a network.

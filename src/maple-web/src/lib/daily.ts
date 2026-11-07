@@ -1,17 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, ApiError } from "./api";
-import { formatDate, localDateKey } from "./dates";
+import { calendarDay, formatDate, localDateKey } from "./dates";
 import { usePreferences } from "./preferences";
 import { joinTitle, splitTitle } from "./titles";
 import type { Note, NoteMood } from "./types";
 
-/** Today's date on this device, updated when the day changes while the app is open. */
+/** Today (a calendar day in the chosen time zone), updated when the day changes while the app is open. */
 export function useToday(): Date {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(() => calendarDay());
   useEffect(() => {
     const timer = setInterval(() => {
-      const next = new Date();
+      const next = calendarDay();
       setNow((current) => (localDateKey(current) === localDateKey(next) ? current : next));
     }, 60_000);
     return () => clearInterval(timer);

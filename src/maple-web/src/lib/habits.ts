@@ -1,4 +1,4 @@
-import { localDateKey } from "./dates";
+import { dateKeyOf } from "./dates";
 import { joinTitle, splitTitle } from "./titles";
 
 // A habit is a note of kind "Habit". Its text is Markdown: the habit's name as a `# title`, then one `- yyyy-MM-dd`
@@ -106,9 +106,9 @@ export function toggleDay(habit: Habit, day: string): Habit {
   return { ...habit, days };
 }
 
-/** The first day a habit counts from: the day it was created on this device, or its first day done if earlier. */
+/** The first day a habit counts from: the day it was created (in the chosen time zone), or its first day done if earlier. */
 export function habitStart(habit: Habit, createdAtUtc: string): string {
-  const created = localDateKey(new Date(createdAtUtc));
+  const created = dateKeyOf(new Date(createdAtUtc));
   const first = habit.days[0];
   return first !== undefined && first < created ? first : created;
 }

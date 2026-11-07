@@ -1,7 +1,22 @@
+import { calendarDay, chosenTimeZone } from "./dates";
+
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-const absolute = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
-const shortDate = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
-const shortDateWithYear = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/** A date formatter in the chosen time zone (made once per zone). */
+function zoned(name: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const timeZone = chosenTimeZone();
+  const key = `${name} ${timeZone ?? ""}`;
+  let format = formatters.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat(undefined, { ...options, timeZone });
+    formatters.set(key, format);
+  }
+  return format;
+}
+const absolute = () => zoned("absolute", { dateStyle: "medium", timeStyle: "short" });
+const shortDate = () => zoned("short", { month: "short", day: "numeric" });
+const shortDateWithYear = () => zoned("shortYear", { dateStyle: "medium" });
 
 /** "just now", "5 min. ago", "yesterday", "Sep 12", "Sep 12, 2024" — compact, feed-style. */
 export function formatRelative(iso: string, now: Date = new Date()): string {
@@ -12,12 +27,14 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
   if (abs < 3600) return relative.format(Math.round(seconds / 60), "minute");
   if (abs < 86400) return relative.format(Math.round(seconds / 3600), "hour");
   if (abs < 7 * 86400) return relative.format(Math.round(seconds / 86400), "day");
-  return date.getFullYear() === now.getFullYear() ? shortDate.format(date) : shortDateWithYear.format(date);
+  return calendarDay(date).getFullYear() === calendarDay(now).getFullYear()
+    ? shortDate().format(date)
+    : shortDateWithYear().format(date);
 }
 
 /** Full date and time, for tooltips. */
 export function formatAbsolute(iso: string): string {
-  return absolute.format(new Date(iso));
+  return absolute().format(new Date(iso));
 }
 
 /** Human-readable byte size: "512 B", "1.4 MB". */

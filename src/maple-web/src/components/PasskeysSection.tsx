@@ -4,7 +4,7 @@ import { KeyRound } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import { auth } from "../lib/auth";
-import { formatDate } from "../lib/dates";
+import { calendarDay, formatDate } from "../lib/dates";
 import { PasskeyCancelled, passkeysSupported, PasskeyUnavailable } from "../lib/passkeys";
 import type { Passkey, PasskeyCreationOptions, User } from "../lib/types";
 import { useToast } from "./Toaster";
@@ -344,7 +344,7 @@ export function PasskeysSection({ user }: { user: User }) {
   const [removing, setRemoving] = useState<Passkey | null>(null);
   const [unlocking, setUnlocking] = useState<Passkey | null>(null);
   const supported = passkeysSupported();
-  const date = (iso: string) => formatDate(new Date(iso), user.preferences.dateFormat);
+  const date = (iso: string) => formatDate(calendarDay(new Date(iso)), user.preferences.dateFormat);
 
   return (
     <Section
