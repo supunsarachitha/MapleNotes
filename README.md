@@ -712,6 +712,17 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.19 to 1.20
+
+Nothing to do. The migration adds `NoteReminders` and `PushSubscriptions` tables, empty until someone sets a reminder
+or turns notifications on. Notifications need the app on HTTPS (or `localhost`), like passkeys, and the server must be
+able to reach the browsers' push services on the internet (Google, Apple, Mozilla, Microsoft) over HTTPS. Optionally set
+`MAPLE_PUSH_CONTACT` to a `mailto:` or `https:` address those services can use to reach you.
+
+For API clients: new `PUT`/`DELETE /api/v1/notes/{id}/reminder`, `GET /api/v1/reminders`, `GET /api/v1/push/key` and
+`/api/v1/account/push-subscriptions`; the side menu order may include `reminders`. Nothing was removed or changed in a
+way that breaks existing clients.
+
 ### From 1.18 to 1.19
 
 Nothing to do. The migration adds an `AuditEntries` table; the audit log starts empty and fills from the first

@@ -2,7 +2,7 @@
 
 Features and settings Maple Notes does not have yet, from a comparison with similar note apps (Google Keep, Memos,
 Standard Notes, Joplin, Obsidian) and a check of the code as of version 1.10.1, kept up to date since (last reviewed for
-1.19.0). Numbers are for reference only; they are not an order of work. The suggested starting point is 1 (offline
+1.20.0). Numbers are for reference only; they are not an order of work. The suggested starting point is 1 (offline
 use), then 2.
 
 ## Biggest gaps

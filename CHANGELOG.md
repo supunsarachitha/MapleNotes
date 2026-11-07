@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-11-07
+
+Reminders on notes, sent as notifications even when the app is closed, and a question before unsaved text is lost.
+
 ### Added
 
 - **Reminders on notes**, sent as notifications even when the app is closed.
@@ -734,7 +738,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.19.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.20.0...HEAD
+[1.20.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.2...v1.19.0
 [1.18.2]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.1...v1.18.2
 [1.18.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.0...v1.18.1
