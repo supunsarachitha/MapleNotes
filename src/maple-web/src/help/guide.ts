@@ -120,6 +120,23 @@ daily template** from its menu, or **Stop using** under Daily notes in [Settings
 to other months. You can turn the calendar off in [Settings → Side menu](/settings/menu).`,
   },
   {
+    id: "reminders",
+    title: "Reminders",
+    body: `To be reminded of a note, choose **Remind me…** in its **⋯** menu: later today, tomorrow morning, next Monday, or
+a date and time of your own, once or every day, week or month. A bell on the note shows when; tap it to change or
+remove the reminder. **Reminders** in the menu lists what is coming up.
+
+Reminders arrive as notifications, even when Maple Notes is closed, on each device where you turn them on in
+[Settings → Notifications](/settings/notifications) (with **Send a test** to check). On iPhone and iPad they work once
+Maple Notes is on the Home Screen (iOS 16.4 or later): tap **Share**, then **Add to Home Screen**, and turn them on from
+there. Times follow your time zone in [Settings → Appearance](/settings/appearance), and a repeating reminder keeps its
+time when the clocks change.
+
+The notification shows the note's first line, so it may appear on a locked screen; with end-to-end encryption the
+server cannot read your notes, and the notification only says to open Maple Notes. Reminders on archived notes or notes
+in the trash are not sent.`,
+  },
+  {
     id: "habits",
     title: "Habits",
     body: `Turn on **Habits** with its eye in [Settings → Side menu](/settings/menu) to get it in the menu. Add a habit, such as "Read 20

@@ -67,7 +67,7 @@ describe("Settings", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeInTheDocument();
     expect(sections.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
-      "/settings/account", "/settings/appearance", "/settings/menu", "/settings/writing", "/settings/notes", "/settings/labels",
+      "/settings/account", "/settings/appearance", "/settings/menu", "/settings/writing", "/settings/notes", "/settings/notifications", "/settings/labels",
       "/settings/data", "/settings/security",
     ]); // no Administration for members
     expect(screen.getByRole("heading", { name: "Profile" })).toBeInTheDocument();
@@ -418,9 +418,9 @@ describe("Settings", () => {
     expect(items()[3]).toContain("Hidden"); // keeps its place for when it is turned on
     await userEvent.click(screen.getByRole("button", { name: "Move Todo up" }));
 
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuOrder: "todo,home,quick,habits,tags,archive,help" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuOrder: "todo,home,quick,habits,reminders,tags,archive,help" }));
     expect(items()[0]).toContain("Todo");
-    expect(screen.getByText("Todo moved to position 1 of 7.")).toBeInTheDocument();
+    expect(screen.getByText("Todo moved to position 1 of 8.")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Back to the usual order" }));
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(DEFAULT_PREFERENCES));

@@ -12,7 +12,8 @@ Features most note apps have.
 1. **Offline use.** Since 1.12 the app opens offline and shows the notes read recently on a device that stays signed in,
    and since 1.15 new notes and edits made offline are saved once the server can be reached again. Searches, files, and other
    changes (pinning, archiving, labels, the trash) still need a connection.
-2. **Reminders and due dates.** Notes, todos and habits have no reminder, due date or notification.
+2. **Reminders and due dates.** Todo lists and habits have no reminder or due date, and todo items have no due date.
+   (Notes and quick notes have reminders, sent as notifications, since 1.20.)
 
 ## Writing and organizing
 

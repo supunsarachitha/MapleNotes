@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { retentionText } from "./TrashPage";
 import {
+  Bell,
   ChevronLeft,
   ChevronRight,
   CircleUserRound,
@@ -25,6 +26,7 @@ import { LabelSettings } from "../components/LabelSettings";
 import { AppearanceSection, EditingSection, MenuSection, NotesFilesSection, WritingExtrasSection, WritingSection } from "../components/PreferenceSections";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
+import { NotificationsSection } from "../components/NotificationsSection";
 import { PasskeysSection } from "../components/PasskeysSection";
 import { TwoFactorSection } from "../components/TwoFactorSection";
 import { VersionNote } from "../components/VersionNote";
@@ -849,6 +851,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "menu", title: "Side menu", summary: "Which pages the menu shows, in what order, and the calendar.", icon: PanelLeft },
   { id: "writing", title: "Writing", summary: "Titles, dates, editing, daily notes, moods and stickers.", icon: PenLine },
   { id: "notes", title: "Notes & files", summary: "The trash, photo uploads and link previews.", icon: FileStack },
+  { id: "notifications", title: "Notifications", summary: "Reminders as notifications on this device and your others.", icon: Bell },
   { id: "labels", title: "Labels", summary: "Coloured labels for your notes.", icon: Tag },
   { id: "data", title: "Backup & data", summary: "Export, restore, the trash and starting over.", icon: DatabaseBackup },
   { id: "security", title: "Privacy & security", summary: "Your password, two-factor sign-in, encryption, recovery key and sessions.", icon: ShieldCheck },
@@ -881,6 +884,8 @@ function SectionContent({ id, user }: { id: string; user: User }) {
           <DeleteContentSection username={user.username} />
         </>
       );
+    case "notifications":
+      return <NotificationsSection />;
     case "security":
       return (
         <>

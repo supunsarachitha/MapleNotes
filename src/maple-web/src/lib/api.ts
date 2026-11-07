@@ -1,6 +1,9 @@
 import type {
   AdminUser,
   AuditFilter,
+  PushDevice,
+  Reminder,
+  ReminderRepeat,
   AuditPage,
   Attachment,
   AttachmentWire,
@@ -539,6 +542,20 @@ export const api = {
     await refreshAntiforgeryToken();
   },
 
+  reminders: {
+    list: () => request<Reminder[]>("GET", "/api/v1/reminders"),
+    set: (noteId: string, at: string, timeZone: string, repeat: ReminderRepeat) =>
+      request<Reminder>("PUT", `/api/v1/notes/${noteId}/reminder`, { at, timeZone, repeat }),
+    remove: (noteId: string) => request<void>("DELETE", `/api/v1/notes/${noteId}/reminder`),
+  },
+  push: {
+    key: () => request<{ publicKey: string }>("GET", "/api/v1/push/key"),
+    devices: () => request<PushDevice[]>("GET", "/api/v1/account/push-subscriptions"),
+    subscribe: (subscription: { endpoint: string; p256dh: string; auth: string; name: string }) =>
+      request<PushDevice>("POST", "/api/v1/account/push-subscriptions", subscription),
+    unsubscribe: (id: string) => request<void>("DELETE", `/api/v1/account/push-subscriptions/${id}`),
+    test: (id: string) => request<void>("POST", `/api/v1/account/push-subscriptions/${id}/test`),
+  },
   admin: {
     settings: () => request<InstanceSettings>("GET", "/api/v1/admin/settings"),
     /** Replaces all the settings, so send every field. */

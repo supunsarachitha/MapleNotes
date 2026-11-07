@@ -270,3 +270,45 @@ describe("printing a note", () => {
     await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
   });
 });
+
+describe("reminders", () => {
+  it("sets a reminder from the menu, shows it on the note, and removes it", async () => {
+    let reminders: Array<{ noteId: string; at: string; timeZone: string; repeat: "None" | "Daily"; nextAtUtc: string; lastSentAtUtc: null }> = [];
+    vi.spyOn(api.reminders, "list").mockImplementation(async () => reminders);
+    const set = vi.spyOn(api.reminders, "set").mockImplementation(async (noteId, at, timeZone, repeat) => {
+      const saved = { noteId, at, timeZone, repeat: repeat as "Daily", nextAtUtc: "2030-01-02T14:00:00Z", lastSentAtUtc: null };
+      reminders = [saved];
+      return saved;
+    });
+    const remove = vi.spyOn(api.reminders, "remove").mockImplementation(async () => {
+      reminders = [];
+    });
+    renderWith(<NoteCard note={note} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Note actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Remind me…" }));
+    const dialog = await screen.findByRole("dialog", { name: "Remind me" });
+    fireEvent.change(within(dialog).getByLabelText("Date"), { target: { value: "2030-01-02" } });
+    fireEvent.change(within(dialog).getByLabelText("Time"), { target: { value: "09:00" } });
+    await userEvent.selectOptions(within(dialog).getByLabelText("Repeat"), "Every day");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(set).toHaveBeenCalledWith(note.id, "2030-01-02T09:00", expect.any(String), "Daily"));
+    const chip = await screen.findByRole("button", { name: /^Reminder: .*every day\. Change it$/ });
+    expect(chip).toHaveTextContent("Every day");
+
+    await userEvent.click(chip);
+    const change = await screen.findByRole("dialog", { name: "Change reminder" });
+    await userEvent.click(within(change).getByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(remove).toHaveBeenCalledWith(note.id));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^Reminder:/ })).not.toBeInTheDocument());
+  });
+
+  it("offers no reminder on todo lists or archived notes", async () => {
+    vi.spyOn(api.reminders, "list").mockResolvedValue([]);
+    renderWith(<NoteCard note={{ ...note, isArchived: true }} />);
+    await userEvent.click(screen.getByRole("button", { name: "Note actions" }));
+    await screen.findAllByRole("menuitem");
+    expect(screen.queryByRole("menuitem", { name: "Remind me…" })).not.toBeInTheDocument();
+  });
+});

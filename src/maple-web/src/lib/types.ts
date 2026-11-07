@@ -342,6 +342,29 @@ export interface InstanceStorage {
   totalBytes: number;
 }
 
+export type ReminderRepeat = "None" | "Daily" | "Weekly" | "Monthly";
+
+/** A note's reminder: the local time it was set for, in its time zone, and when it next goes off. */
+export interface Reminder {
+  noteId: string;
+  /** Local date and time, `yyyy-MM-ddTHH:mm`, in `timeZone`. */
+  at: string;
+  timeZone: string;
+  repeat: ReminderRepeat;
+  nextAtUtc: string;
+  lastSentAtUtc: string | null;
+}
+
+/** A device that receives the account's notifications. */
+export interface PushDevice {
+  id: string;
+  name: string;
+  /** Its push endpoint, so a browser can tell which device is itself. */
+  endpoint: string;
+  createdAtUtc: string;
+  lastSentAtUtc: string | null;
+}
+
 export type AuditEvent = "SignIn" | "SignInFailed" | "SettingsChanged" | "AccountChanged" | "AccountDeleted";
 export type AuditFilter = "All" | "SignIns" | "FailedSignIns" | "Admin";
 

@@ -22,6 +22,8 @@ export const queryKeys = {
   storage: ["notes", "storage"] as const, // under "notes", so it refreshes when notes change
   habits: (state: "active" | "archived") => ["notes", "habits", state] as const,
   instanceStorage: ["admin", "storage"] as const,
+  reminders: ["notes", "reminders"] as const, // under "notes": archiving or deleting a note hides its reminder
+  pushDevices: ["account", "push"] as const,
 };
 
 export const PAGE_SIZE = 20;

@@ -72,7 +72,9 @@ must carry a valid antiforgery token. Both are enforced globally, so a new endpo
 | `Attachment` | Owner, optional note, sanitized file name, content type, size, storage key, `Scheme`, `Revision`, `IsSticker` (a picture from a sticker pack). End-to-end files store a placeholder name and type, and their real ones (and the sticker flag) encrypted in `EncryptedMetadata`. |
 | `Tag` / `NoteTags` | Per-user tags parsed from `#tags` in note text. Tags of end-to-end notes have no name: a blind token (HMAC) and the name encrypted by the browser. |
 | `Label` / `NoteLabels` | Per-user coloured labels put on notes by hand: a name (or, for end-to-end accounts, the name encrypted by the browser for the label's ID) and one of ten colours. At most 100 per account and 20 per note. |
-| `InstanceSetting` | Runtime settings changed by administrators (open registration). |
+| `InstanceSetting` | Runtime settings changed by administrators (open registration), and the server's VAPID key pair for push notifications. |
+| `NoteReminder` | A note's reminder: local start time, time zone, repeat, next time (UTC), last sent. One per note; removed with the note. |
+| `PushSubscription` | A device that receives notifications: push endpoint, browser key and auth secret, a name. At most 20 per account. |
 | `AuditEntry` | The audit log: time, event (`SignIn`, `SignInFailed`, `SettingsChanged`, `AccountChanged`, `AccountDeleted`), the username given or acting (copied, not a foreign key, so it outlives the account), the account acted on, the sign-in method, a one-line description and the client address. Written by `AuditLog` from the sign-in and admin controllers; listed newest first, 50 a page, at `GET /api/v1/admin/audit`. |
 
 All IDs are UUID version 7, so they sort by creation time. Every query that touches notes, tags or attachments filters
@@ -339,6 +341,24 @@ the server and are not in exports: they are not the user's writing. Putting a st
 picture as an ordinary attachment marked as a sticker (the form field `sticker=true`, or `"sticker":1` in the
 encrypted metadata, [e2ee-spec.md §5](e2ee-spec.md#5-attachments)), so the note keeps it when the pack is removed and
 on every device. The server accepts the flag only for images.
+
+## Reminders and push notifications
+
+A note or quick note can have one reminder (`NoteReminders`): the local date and time the user chose, its IANA time
+zone (the app's chosen zone), how it repeats (once, daily, weekly, monthly) and the next time in UTC. Repeats are
+computed in local time from the first one (`ReminderSchedule`), so 09:00 stays 09:00 across daylight-saving changes,
+a time skipped by the change moves an hour later, and a monthly reminder on the 31st falls on the last day of shorter
+months. `ReminderSenderService` checks every 30 seconds, sends what is due to every device of the account, and moves
+each reminder on; one-off reminders are removed once sent. Reminders on archived or trashed notes, or more than 12 hours
+late (the server was off), are not sent.
+
+Notifications use Web Push without a library. `WebPushCrypto` encrypts messages (RFC 8291, `aes128gcm`) and signs the
+VAPID header (RFC 8292, ES256) with .NET's cryptography; the server's VAPID key pair is made once and kept in
+`InstanceSettings`. Each browser that turns notifications on registers its subscription (`PushSubscriptions`: endpoint,
+P-256 key, auth secret, a device name); a push service answering 404 or 410 removes it. Endpoints must be `https` on a
+public named host and are reached through the link-preview `NetworkGuard`. In the browser, `lib/push.ts` subscribes
+through the service worker, which shows each message and opens `/reminders?note=<id>` when it is tapped
+(`sw/notify.ts`). The message is the note's first line, or a fixed text for end-to-end notes.
 
 ## Printing a note
 

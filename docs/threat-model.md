@@ -202,6 +202,19 @@ the password to the server one last time.
   off for the account, after which the password alone signs in again. Administrators should check that such a request
   comes from the account's owner.
 
+### Push notifications
+
+Reminders are sent through the push service of each device's browser (Google's for Chrome and Android, Apple's for
+Safari, Mozilla's for Firefox, Microsoft's for Edge). Each message is encrypted for the device (RFC 8291), so the push
+service sees only its size, its time and which device it is for, not its text. The text is the note's first line, which
+the server reads for notes it can decrypt; for end-to-end notes it cannot, and sends a fixed text instead. A
+notification can appear on a locked screen, depending on the device's settings.
+
+The browser gives the server the endpoint to send to. To keep that from being used to reach the server's own network,
+endpoints must be `https` on a named public host, and the push client connects only to public addresses (the same guard
+as link previews). Messages carry a VAPID signature (RFC 8292) made with a key kept in the database, so a push service
+accepts only this server's messages for its subscriptions.
+
 ## What the server sees in end-to-end mode
 
 | Visible to the server | Hidden from it |
@@ -213,6 +226,7 @@ the password to the server one last time.
 | Which notes are todo lists, quick notes or habits (a habit's update time shows roughly when it was last ticked), and which days have a daily note | Titles, todo items, and habits' names and days (they are part of the note's text) |
 | The account's preferences: which features are on, the date format, theme and accent colour | |
 | The browser's time zone, when the calendar asks for a month | |
+| Which notes have a reminder, when, how it repeats and in which time zone; which devices receive notifications (their push service, from the endpoint address) | |
 | With link previews turned on (off by default): each link in the notes the browser shows, and the linked pages themselves | |
 | Which notes share a tag, and how many notes each tag has (tag tokens are deterministic per account) | The password, the data key, the recovery key |
 | How many labels there are, each one's colour, whether it hides its notes from Home, and which notes carry it | |
