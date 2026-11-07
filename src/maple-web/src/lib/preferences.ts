@@ -32,6 +32,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   accent: "Maple",
   menuTextSize: "Medium",
   noteTextSize: "Medium",
+  trashDays: 30,
   weekStart: "Auto",
   menuOrder: "",
   moodTracker: false,

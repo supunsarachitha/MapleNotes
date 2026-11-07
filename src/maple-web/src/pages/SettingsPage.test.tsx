@@ -571,3 +571,17 @@ describe("passkeys", () => {
     expect(await screen.findByText(/This browser cannot add passkeys here/)).toBeInTheDocument();
   });
 });
+
+describe("trash retention", () => {
+  it("chooses how long deleted notes are kept, and hides the choice while the trash is off", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderSettings(idle, user, null, "/settings/notes");
+
+    await userEvent.selectOptions(screen.getByLabelText("Keep deleted notes"), "Until I empty the trash");
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ trashDays: 0 })));
+    cleanup();
+
+    renderSettings(idle, { ...user, preferences: { ...user.preferences, trash: false } }, null, "/settings/notes");
+    expect(screen.queryByLabelText("Keep deleted notes")).not.toBeInTheDocument();
+  });
+});

@@ -117,7 +117,7 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
                     join.HasIndex("LabelId"); // a label's notes, and its count
                 });
 
-            // Serves emptying the trash after 30 days: WHERE TrashedAtUtc < @cutoff.
+            // Serves emptying the trash after each owner's retention: WHERE TrashedAtUtc < @cutoff.
             note.HasIndex(n => n.TrashedAtUtc);
         });
 

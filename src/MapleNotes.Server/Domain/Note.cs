@@ -48,7 +48,7 @@ public sealed class Note : IRevisioned
 
     /// <summary>
     /// When the note was moved to the trash (UTC); null for notes that are not in it. A note in the trash is listed only
-    /// there, can be restored to where it was, and is deleted for good once it has been in the trash for 30 days.
+    /// there, can be restored to where it was, and is deleted for good once it has been in the trash for the owner's chosen number of days.
     /// </summary>
     public DateTime? TrashedAtUtc { get; set; }
 

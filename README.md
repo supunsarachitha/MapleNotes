@@ -31,8 +31,8 @@
   scroll that stays stable while new notes arrive. Pictures, players and link previews load as they come into view,
   so a long timeline with thousands of notes and files opens as quickly as a short one.
 - **Full note lifecycle.** Create, edit inline (optionally with a double-tap, always with the cursor at the end), pin,
-  label, archive (and restore), print (or save as PDF), and delete into a trash that keeps notes for 30 days, with
-  Undo; or, with the trash off, delete for good after confirming.
+  label, archive (and restore), print (or save as PDF), and delete into a trash that keeps notes for 30 days (or 7, 14,
+  90 days, a year, or until you empty it), with Undo; or, with the trash off, delete for good after confirming.
 - **Titles and dates.** Optionally give notes, and quick notes too, a title, which can start with today's date in the
   format you choose.
 - **Todo lists.** A Todo tab for checklists: add items, tick them off, drag them into order (or move them with the

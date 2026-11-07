@@ -31,6 +31,9 @@ public sealed record UserPreferences
     /// <summary>The text sizes a user can choose for the side menu.</summary>
     public static IReadOnlyList<string> MenuTextSizes { get; } = ["Small", "Medium", "Large"];
 
+    /// <summary>How many days notes can stay in the trash; 0 keeps them until the trash is emptied by hand.</summary>
+    public static IReadOnlyList<int> TrashDayChoices { get; } = [0, 7, 14, 30, 90, 365];
+
     /// <summary>The note text sizes offered in Settings → Appearance.</summary>
     public static IReadOnlyList<string> NoteTextSizes { get; } = ["Small", "Medium", "Large"];
 
@@ -141,10 +144,17 @@ public sealed record UserPreferences
     public bool Stickers { get; init; }
 
     /// <summary>
-    /// Deleting moves notes to the trash, where they can be restored for 30 days; on by default. Off, deleting is
-    /// immediate and permanent.
+    /// Deleting moves notes to the trash, where they can be restored for <see cref="TrashDays"/>; on by default. Off,
+    /// deleting is immediate and permanent.
     /// </summary>
     public bool Trash { get; init; } = true;
+
+    /// <summary>
+    /// How many days deleted notes stay in the trash before they are deleted for good: one of
+    /// <see cref="TrashDayChoices"/>, where 0 keeps them until the trash is emptied by hand. Applies to what is already
+    /// in the trash too.
+    /// </summary>
+    public int TrashDays { get; init; } = 30;
 
     /// <summary>Light or dark: one of <see cref="Themes"/>.</summary>
     public string Theme { get; init; } = "System";

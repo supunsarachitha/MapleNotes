@@ -42,6 +42,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.False(preferences.ShrinkPhotos); // so is shrinking photos, which replaces the original
         Assert.Equal((true, true, "Medium", "Auto"), (preferences.Archive, preferences.Tags, preferences.MenuTextSize, preferences.WeekStart));
         Assert.Equal("Medium", preferences.NoteTextSize);
+        Assert.Equal(30, preferences.TrashDays); // as before the choice existed
         Assert.Equal((false, false), (preferences.QuickNoteTitles, preferences.DoubleTapToEdit)); // both opt-in
         Assert.Equal((false, false, true, ""), (preferences.TagSuggestions, preferences.Labels, preferences.Trash, preferences.MenuOrder));
         Assert.False(preferences.OpenFullScreen); // opt-in
@@ -57,7 +58,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         var wanted = new UserPreferences
         {
             NoteTitles = true, DateInTitles = true, DateFormat = "dddd, d MMMM yyyy", TodoLists = false, QuickNotes = false, DailyNotes = true,
-            HabitTracker = true, ShrinkPhotos = true, Archive = false, Tags = false, MenuTextSize = "Large", NoteTextSize = "Small", WeekStart = "Monday",
+            HabitTracker = true, ShrinkPhotos = true, Archive = false, Tags = false, MenuTextSize = "Large", NoteTextSize = "Small", TrashDays = 90, WeekStart = "Monday",
             QuickNoteTitles = true, DoubleTapToEdit = true, TagSuggestions = true, OpenFullScreen = true, Labels = true, Trash = false, MenuOrder = "help,home,todo",
             HelpMenu = false, PhotoSize = "Small", DailyNoteTemplate = Guid.CreateVersion7().ToString(),
         };
@@ -98,9 +99,11 @@ public sealed class PreferencesTests : IAsyncLifetime
         var size = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { MenuTextSize = "Huge" });
         var week = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { WeekStart = "Wednesday" });
         var noteSize = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { NoteTextSize = "Tiny" });
+        var trashDays = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { TrashDays = 5 });
         var photo = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { PhotoSize = "Tiny" });
 
         Assert.Contains("menuTextSize", (await size.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+        Assert.Contains("trashDays", (await trashDays.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
         Assert.Contains("noteTextSize", (await noteSize.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
         Assert.Contains("weekStart", (await week.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
         Assert.Contains("photoSize", (await photo.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);

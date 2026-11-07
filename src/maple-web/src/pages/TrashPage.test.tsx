@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "../components/Toaster";
@@ -7,7 +7,7 @@ import { api } from "../lib/api";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
 import type { AuthStatus, Note, Preferences } from "../lib/types";
-import { daysLeft, TrashPage } from "./TrashPage";
+import { daysLeft, retentionText, TrashPage } from "./TrashPage";
 
 const day = 86_400_000;
 const deleted = (daysAgo: number) => new Date(Date.now() - daysAgo * day).toISOString();
@@ -67,6 +67,18 @@ describe("Trash", () => {
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings/data");
   });
 
+  it("counts down with the account's own retention, or not at all when the trash is kept until emptied", async () => {
+    renderTrash([report], { trashDays: 7 });
+    expect(await screen.findByText("· deleted for good in 5 days")).toBeInTheDocument();
+    expect(screen.getByText(/Deleted notes wait here for 7 days/)).toBeInTheDocument();
+    cleanup();
+
+    renderTrash([report], { trashDays: 0 });
+    await screen.findAllByRole("article");
+    expect(screen.queryByText(/deleted for good in/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Deleted notes wait here until you empty the trash/)).toBeInTheDocument();
+  });
+
   it("restores a note, or deletes it for good after asking", async () => {
     const patch = vi.spyOn(api, "patchNote").mockResolvedValue({ ...report, trashedAtUtc: null });
     const remove = vi.spyOn(api, "deleteNote").mockResolvedValue();
@@ -105,8 +117,11 @@ describe("Trash", () => {
 
   it("counts the days left from when a note was deleted", () => {
     const now = Date.parse("2026-10-01T12:00:00Z");
-    expect(daysLeft("2026-10-01T12:00:00Z", now)).toBe(30);
-    expect(daysLeft("2026-09-01T13:00:00Z", now)).toBe(1);
-    expect(daysLeft("2026-08-01T00:00:00Z", now)).toBe(0);
+    expect(daysLeft("2026-10-01T12:00:00Z", 30, now)).toBe(30);
+    expect(daysLeft("2026-09-01T13:00:00Z", 30, now)).toBe(1);
+    expect(daysLeft("2026-08-01T00:00:00Z", 30, now)).toBe(0);
+    expect(daysLeft("2026-09-28T12:00:00Z", 7, now)).toBe(4);
+    expect(daysLeft("2020-01-01T00:00:00Z", 0, now)).toBeNull(); // kept until the trash is emptied
+    expect(retentionText(365)).toBe("1 year");
   });
 });

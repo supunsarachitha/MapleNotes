@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Print a note:** **Print…** in a note's or quick note's **⋯** menu prints only that note, black on white even in the
   dark theme, with its title, date, pictures and the names of its other files. The print dialog's **Save as PDF** keeps
   it as a PDF, named after the note's title.
+- **How long the trash keeps notes** (Settings → Notes & files → Keep deleted notes): 7, 14, 30 (as before), 90 days,
+  a year, or until you empty it, for each account. A shorter time applies to what is already in the trash at the next
+  hourly cleanup. API: preferences gain `trashDays` (0, 7, 14, 30, 90 or 365; 0 keeps notes until the trash is emptied).
 
 ## [1.18.1] - 2026-11-06
 

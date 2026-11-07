@@ -1,8 +1,8 @@
 namespace MapleNotes.Server.Features.Notes;
 
 /// <summary>
-/// Deletes notes for good once they have been in the trash for <see cref="NoteService.TrashRetention"/>: at startup and
-/// then every hour.
+/// Deletes notes for good once they have been in the trash for longer than their owner chose
+/// (<see cref="Domain.UserPreferences.TrashDays"/>): at startup and then every hour.
 /// </summary>
 /// <param name="scopes">Creates a service scope per pass.</param>
 /// <param name="logger">Logger.</param>
@@ -21,8 +21,8 @@ internal sealed class TrashCleanupService(IServiceScopeFactory scopes, ILogger<T
                 if (deleted.Notes > 0)
                 {
                     logger.LogInformation(
-                        "Trash cleanup deleted {Notes} note(s) and {Files} file(s) that were in the trash for over {Days} days.",
-                        deleted.Notes, deleted.Files, NoteService.TrashRetention.TotalDays);
+                        "Trash cleanup deleted {Notes} note(s) and {Files} file(s) that were in the trash for longer than their owners chose.",
+                        deleted.Notes, deleted.Files);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

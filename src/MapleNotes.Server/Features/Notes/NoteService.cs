@@ -38,9 +38,6 @@ public sealed class NoteService(
     /// <summary>The most IDs <see cref="FindExistingAsync"/> answers at a time.</summary>
     public const int MaxImportIds = 500;
 
-    /// <summary>How long a note stays in the trash before it is deleted for good.</summary>
-    public static readonly TimeSpan TrashRetention = TimeSpan.FromDays(30);
-
     /// <summary>Shown in place of a note whose text cannot be decrypted (damaged data).</summary>
     public const string UnreadablePlaceholder = "⚠️ This note could not be decrypted. Its stored data may be damaged.";
 
@@ -573,37 +570,53 @@ public sealed class NoteService(
     }
 
     /// <summary>
-    /// Permanently deletes the notes of every account that have been in the trash for longer than
-    /// <see cref="TrashRetention"/>, a batch at a time.
+    /// Permanently deletes the notes that have been in the trash for longer than their owner's
+    /// <see cref="UserPreferences.TrashDays"/> (30 by default; never for 0), a batch at a time.
     /// </summary>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>How many notes and files were deleted.</returns>
     public async Task<EmptyTrashResponse> PurgeExpiredTrashAsync(CancellationToken cancellationToken)
     {
-        var cutoff = time.GetUtcNow().UtcDateTime - TrashRetention;
+        var now = time.GetUtcNow().UtcDateTime;
         var (notes, files) = (0, 0);
-        while (true)
+
+        // Preferences are one JSON column, so each owner's retention is read here rather than in SQL. Only accounts
+        // with something in the trash are read.
+        var owners = await db.Notes.AsNoTracking().Where(n => n.TrashedAtUtc != null).Select(n => n.UserId).Distinct()
+            .ToListAsync(cancellationToken);
+        foreach (var owner in owners)
         {
-            var batch = await db.Notes.AsNoTracking()
-                .Where(n => n.TrashedAtUtc != null && n.TrashedAtUtc < cutoff)
-                .Select(n => new { n.Id, n.UserId })
-                .Take(200)
-                .ToListAsync(cancellationToken);
-            if (batch.Count == 0)
+            var preferences = await db.Users.AsNoTracking().Where(u => u.Id == owner).Select(u => u.Preferences)
+                .SingleOrDefaultAsync(cancellationToken);
+            var days = preferences?.TrashDays ?? 0;
+            if (days <= 0)
             {
-                return new EmptyTrashResponse(notes, files);
+                continue; // kept until the owner empties the trash (or the account is gone)
             }
 
-            var ids = batch.Select(n => n.Id).ToList();
-            // The trash condition is checked again: a note restored since the batch was read stays.
-            var deleted = await DeleteWhereAsync(
-                db.Notes.Where(n => ids.Contains(n.Id) && n.TrashedAtUtc != null && n.TrashedAtUtc < cutoff), cancellationToken);
-            (notes, files) = (notes + deleted.Notes, files + deleted.Files);
-            foreach (var owner in batch.Select(n => n.UserId).Distinct())
+            var cutoff = now - TimeSpan.FromDays(days);
+            while (true)
             {
-                await RemoveUnusedTagsAsync(owner, cancellationToken);
+                var ids = await db.Notes.AsNoTracking()
+                    .Where(n => n.UserId == owner && n.TrashedAtUtc != null && n.TrashedAtUtc < cutoff)
+                    .Select(n => n.Id)
+                    .Take(200)
+                    .ToListAsync(cancellationToken);
+                if (ids.Count == 0)
+                {
+                    break;
+                }
+
+                // The trash condition is checked again: a note restored since the batch was read stays.
+                var deleted = await DeleteWhereAsync(
+                    db.Notes.Where(n => ids.Contains(n.Id) && n.TrashedAtUtc != null && n.TrashedAtUtc < cutoff), cancellationToken);
+                (notes, files) = (notes + deleted.Notes, files + deleted.Files);
             }
+
+            await RemoveUnusedTagsAsync(owner, cancellationToken);
         }
+
+        return new EmptyTrashResponse(notes, files);
     }
 
     /// <summary>Permanently deletes notes and their attachments: the rows, then the stored files.</summary>

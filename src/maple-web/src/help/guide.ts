@@ -238,8 +238,10 @@ Settings itself is the gear at the top right, next to the Online badge.`,
 straight back. The trash is not in the menu: open it from [Settings → Backup & data](/settings/data). There you can
 **Restore** anything to where it was, **Delete forever** one item, or **Empty trash**.
 
-Things stay in the trash for 30 days, then they are deleted for good by themselves. Until then they still count
-towards your storage, and they are left out of your timeline, searches, tags, the calendar and exports.
+Things stay in the trash for 30 days, then they are deleted for good by themselves. To keep them for 7, 14, 90 days or
+a year, or until you empty the trash yourself, choose **Keep deleted notes** in [Settings → Notes & files](/settings/notes).
+A shorter time also applies to what is already there. Until then they still count towards your storage, and they are
+left out of your timeline, searches, tags, the calendar and exports.
 
 If you would rather delete for good at once, turn the **Trash** off in [Settings → Notes & files](/settings/notes);
 deleting then asks first.`,
