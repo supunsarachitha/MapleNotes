@@ -116,7 +116,7 @@
 
 | Mobile | Todo lists | Settings |
 |---|---|---|
-| ![Mobile View](docs/screenshots/mobile-view.png) | ![Todo lists](docs/screenshots/todo.png) | ![Settings](docs/screenshots/settings.png) |
+| ![Mobile View](docs/screenshots/mobile-view.png) | ![Todo lists, with handles to drag items into order](docs/screenshots/todo.png) | ![Settings → Appearance: theme, accent colour, week start, time zone and text sizes](docs/screenshots/settings.png) |
 
 | Habit tracker |
 |---|
