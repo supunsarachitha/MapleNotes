@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { api } from "../lib/api";
 import { useToday } from "../lib/daily";
-import { localDateKey, parseDateKey } from "../lib/dates";
+import { currentTimeZone, localDateKey, parseDateKey } from "../lib/dates";
 import { useEnabledKinds } from "../lib/kinds";
 import { useWeekStart } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
@@ -16,7 +16,7 @@ const dayTitle = new Intl.DateTimeFormat("en", { weekday: "long", day: "numeric"
 
 /**
  * A month calendar for the side menu. Days with active notes (of the kinds that are turned on) get a dot; choosing a day
- * opens its notes on Home (`/?day=yyyy-MM-dd`). Days are this device's calendar days.
+ * opens its notes on Home (`/?day=yyyy-MM-dd`). Days are calendar days in the chosen time zone.
  */
 export function Calendar({ onNavigate }: { onNavigate?: () => void }) {
   const { params } = useLocation();
@@ -31,7 +31,7 @@ export function Calendar({ onNavigate }: { onNavigate?: () => void }) {
   const year = month.getFullYear();
   const index = month.getMonth();
   const last = new Date(year, index + 1, 0);
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const timeZone = currentTimeZone();
   const days = useQuery({
     queryKey: queryKeys.calendar(localDateKey(month), kinds),
     queryFn: () => api.calendar(localDateKey(month), localDateKey(last), timeZone, kinds),

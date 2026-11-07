@@ -585,3 +585,16 @@ describe("trash retention", () => {
     expect(screen.queryByLabelText("Keep deleted notes")).not.toBeInTheDocument();
   });
 });
+
+describe("time zone", () => {
+  it("offers Automatic with this device's zone, and saves a chosen one", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderSettings(idle, user, null, "/settings/appearance");
+
+    const select = screen.getByLabelText("Time zone");
+    expect(select).toHaveValue("");
+    expect(within(select).getByRole("option", { name: /^Automatic \(this device: / })).toBeInTheDocument();
+    await userEvent.selectOptions(select, "Asia/Colombo");
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ timeZone: "Asia/Colombo" })));
+  });
+});

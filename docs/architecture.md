@@ -99,8 +99,15 @@ the page and link previews start only when their note is within 800 px (`useNear
 Searches, tag views, tag counts and the archive cover every kind the user has turned on, except habits: only the
 Habits page lists them, loading them all, oldest first, and it draws the progress chart in the browser from their
 text. The side-menu calendar counts active notes per day with `GET /api/v1/notes/calendar`, which converts creation
-times to the browser's time zone on the server (a month at a time, at most 62 days); a day's notes are the feed
-filtered by `createdFrom`/`createdBefore`, the instants that day starts and ends on the device.
+times to the given time zone on the server (a month at a time, at most 62 days); a day's notes are the feed
+filtered by `createdFrom`/`createdBefore`, the instants that day starts and ends.
+
+Days and times use the account's `timeZone` preference, or the device's own when it is empty (Automatic). The server
+only stores and validates it (an IANA name); the browser does the work. `lib/dates.ts` keeps the chosen zone for the
+whole app (set by `AppShell` before anything renders): calendar days stay local-midnight `Date`s, `calendarDay` turns
+an instant into the day it falls on in the zone, `startOfDay` turns a day into the instant it starts there (checked
+twice, for days next to a daylight-saving change), and `lib/format.ts` formats times with `timeZone` set. The calendar,
+writing stats and exports pass the zone to the server. Changing it refetches notes, since days are named in it.
 
 Search runs over decrypted text, so it cannot use the database. It scans the user's notes in batches of 200 and
 decrypts them in memory, scanning at most 5,000 notes per request. If it reaches that limit it returns what it has
@@ -210,7 +217,7 @@ volume cannot be used to forge a session.
 
 | Threat | Off / encrypted at rest | End-to-end |
 |---|---|---|
-| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 30). | **Protected**, twice over. |
+| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 29). | **Protected**, twice over. |
 | Someone who knows the master key, or reads the server's memory or data while it runs | **Not protected.** The server holds the keys. | **Protected.** The server never has the key; it sees ciphertext, sizes, timestamps, and which notes share a tag. |
 | Someone who takes over the server and changes the web app it serves | **Not protected.** | **Not protected** once the user signs in or unlocks with the modified app, which could capture the password. See [threat-model.md](threat-model.md). |
 | Tampering with stored ciphertext | **Detected.** Authenticated encryption everywhere. | **Detected**, in the browser. |
@@ -277,7 +284,7 @@ note transaction, and a concurrent edit.
   get the default parameters with a stable pseudo-salt derived from the prelogin key, and are checked against a dummy
   hash. Five consecutive failures lock the account for 15 minutes, and prelogin and the authentication endpoints are
   rate-limited per client IP (`MAPLE_AUTH_RATE_LIMIT`, a separate budget for each). Known gap: unknown names never lock, so a locked account answers 429 where an unknown
-one answers 401, which reveals that the name exists (roadmap item 31).
+one answers 401, which reveals that the name exists (roadmap item 30).
 - Passkeys (`Features/Passkeys`): WebAuthn without attestation, checked with .NET's cryptography (no WebAuthn
   library). `WebAuthn.cs` checks the client data (type, one-time challenge, origin, not cross-origin), the RP ID hash
   (the request's host name), the user-present and user-verified flags, the ES256 or RS256 signature, and the counter.

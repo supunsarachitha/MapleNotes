@@ -172,6 +172,13 @@ public sealed record UserPreferences
     public string WeekStart { get; init; } = "Auto";
 
     /// <summary>
+    /// The IANA time zone (such as <c>Asia/Colombo</c>) every device uses for dates, times, daily notes and habits;
+    /// empty for Automatic, where each device uses its own. The server only stores it: days are worked out in the
+    /// browser, which passes its zone to the calendar and export endpoints.
+    /// </summary>
+    public string TimeZone { get; init; } = "";
+
+    /// <summary>
     /// The side menu's items in the order the user chose, separated by commas (<c>todo,home,help</c>): items of
     /// <see cref="MenuItems"/>, each at most once. Items left out follow in their default order, so an empty value (the
     /// default) is the default order. A string rather than a list, so that preferences compare by value.

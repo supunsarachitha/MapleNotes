@@ -3,7 +3,7 @@ import { Paperclip, X, FileText, AlertCircle, Smile, Sticker as StickerIcon, Max
 import { api, ApiError, uploadAttachment } from "../lib/api";
 import { AttachmentThumbnail } from "./AttachmentGallery";
 import { applyFormat, FormatToolbar, shortcutFormat } from "./FormatToolbar";
-import { formatDate } from "../lib/dates";
+import { calendarDay, formatDate } from "../lib/dates";
 import { focusAtEnd } from "../lib/focus";
 import { formatBytes } from "../lib/format";
 import { usePreferences } from "../lib/preferences";
@@ -99,7 +99,7 @@ export function Composer({
 }) {
   const preferences = usePreferences();
   const withTitle = allowTitle && preferences.noteTitles && !daily;
-  const suggestTitle = () => (!note && withTitle && preferences.dateInTitles ? formatDate(new Date(), preferences.dateFormat) : "");
+  const suggestTitle = () => (!note && withTitle && preferences.dateInTitles ? formatDate(calendarDay(), preferences.dateFormat) : "");
   const [initial] = useState(() => (note && withTitle ? splitTitle(note.content) : { title: "", body: note?.content ?? initialText }));
   const [suggested, setSuggested] = useState(suggestTitle);
   const [title, setTitle] = useState(() => initial.title || suggested);

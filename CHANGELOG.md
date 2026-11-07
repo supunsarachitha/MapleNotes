@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Time zone** (Settings → Appearance): Automatic, as before (each device's own), or one time zone for every
+  device. It decides which day a note belongs to in the calendar and on Home, the times shown on notes, when today's
+  daily note starts, which day a habit is ticked for, and the default for exports. API: preferences gain `timeZone`
+  (an IANA name such as `Asia/Colombo`, or empty for Automatic).
+
 ## [1.18.2] - 2026-11-07
 
 Passkeys, a note text size, reordering todo items, printing a note, and a choice of how long the trash keeps notes,

@@ -2,7 +2,7 @@ import { Monitor, Moon, Sun, TriangleAlert } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { ACCENT_COLORS } from "../lib/appearance";
 import { useDailyTemplate } from "../lib/daily";
-import { formatDate } from "../lib/dates";
+import { calendarDay, deviceTimeZone, formatDate } from "../lib/dates";
 import { usePreferences, useUpdatePreferences } from "../lib/preferences";
 import { useAuthStatus } from "../lib/queries";
 import { PHOTO_PRESETS } from "../lib/shrinkPhoto";
@@ -151,6 +151,8 @@ export function AppearanceSection() {
         </select>
         <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">For the calendars and the weekly habit chart.</p>
       </div>
+
+      <TimeZoneSetting value={preferences.timeZone} onChange={(timeZone) => save({ timeZone })} />
         <fieldset className="mt-5">
         <legend className="mb-2 text-sm font-medium">Note text size</legend>
         <div className="grid grid-cols-3 gap-2">
@@ -455,7 +457,7 @@ export function WritingSection() {
   const preferences = usePreferences();
   const save = useSavePreferences();
   const formatId = useId();
-  const today = new Date();
+  const today = calendarDay();
 
   return (
     <Section title="Titles and dates">
@@ -531,5 +533,47 @@ export function EditingSection() {
         />
       </div>
     </Section>
+  );
+}
+
+/** Every IANA time zone this browser knows, or a short list where it cannot list them. */
+function timeZones(): string[] {
+  const list = (Intl as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.("timeZone") ?? [];
+  return list.length > 0 ? list : ["UTC", "Europe/London", "Europe/Paris", "America/New_York", "America/Toronto", "America/Los_Angeles", "Asia/Colombo", "Asia/Tokyo", "Australia/Sydney"];
+}
+
+/** "Asia/Colombo" → "Asia / Colombo", "America/Argentina/Buenos_Aires" → "America / Argentina / Buenos Aires". */
+const zoneName = (zone: string) => zone.replaceAll("_", " ").replaceAll("/", " / ");
+
+/** Automatic (each device's own time zone) or one time zone for every device. */
+function TimeZoneSetting({ value, onChange }: { value: string; onChange: (zone: string) => void }) {
+  const id = useId();
+  const device = deviceTimeZone();
+  const zones = timeZones();
+  // A zone saved on another device that this browser does not list is still shown as the choice.
+  const options = value && !zones.includes(value) ? [value, ...zones] : zones;
+  return (
+    <div className="mt-5">
+      <label htmlFor={id} className="mb-2 block text-sm font-medium">
+        Time zone
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 w-full max-w-xs rounded-xl border border-stone-300 bg-white px-3 text-sm dark:border-stone-700 dark:bg-stone-950"
+      >
+        <option value="">Automatic (this device: {zoneName(device)})</option>
+        {options.map((zone) => (
+          <option key={zone} value={zone}>
+            {zoneName(zone)}
+          </option>
+        ))}
+      </select>
+      <p className="mt-1.5 text-sm text-stone-600 dark:text-stone-300">
+        For dates and times, today's daily note, habits and the calendars. Automatic uses each device's own time zone;
+        choose one to use the same on every device.
+      </p>
+    </div>
   );
 }

@@ -81,11 +81,22 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
             throw new ApiValidationException("dailyNoteTemplate", "Give the ID of a note, or leave it empty for no template.");
         }
 
-        preferences = preferences with { MenuOrder = menuOrder, DailyNoteTemplate = template.ToLowerInvariant() };
+        var timeZone = (preferences.TimeZone ?? "").Trim();
+        if (timeZone.Length > 0 && (timeZone.Length > 64 || !IsIanaTimeZone(timeZone)))
+        {
+            throw new ApiValidationException("timeZone", "Give an IANA time zone such as Europe/Paris, or leave it empty for each device's own.");
+        }
+
+        preferences = preferences with { MenuOrder = menuOrder, DailyNoteTemplate = template.ToLowerInvariant(), TimeZone = timeZone };
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
         user.Preferences = preferences;
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);
         return user.Preferences;
     }
+
+    /// <summary>Whether the name is an IANA time zone this server knows (not a Windows name such as "Pacific Standard Time").</summary>
+    private static bool IsIanaTimeZone(string id) =>
+        TimeZoneInfo.TryFindSystemTimeZoneById(id, out var zone)
+        && (zone.HasIanaId || TimeZoneInfo.TryConvertIanaIdToWindowsId(id, out _));
 }

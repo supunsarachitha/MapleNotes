@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
 import { useId, useState } from "react";
+import { currentTimeZone } from "../lib/dates";
 import type { User } from "../lib/types";
 import { RestorePanel } from "./RestorePanel";
 import { Button, Card, ErrorMessage, cn } from "./ui";
@@ -72,7 +73,7 @@ export function ExportSection({
     layout: "month",
     includeArchived: false,
     includeAttachments: true,
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    timeZone: currentTimeZone(),
   });
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);

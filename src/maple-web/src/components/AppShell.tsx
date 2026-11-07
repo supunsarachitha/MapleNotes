@@ -1,4 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
+import { setTimeZone } from "../lib/dates";
 import { Cloud, CloudOff, EyeOff, Home, LogOut, Menu, Search, Settings, X } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
@@ -286,6 +287,8 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Settings lists its sections beside the open one, so it gets a wider column than the notes.
   const wide = path === "/settings" || path.startsWith("/settings/");
+  // Before anything below renders a day or a time (a module setting, so plain functions such as formatRelative see it).
+  setTimeZone(user.preferences.timeZone);
 
   return (
     <div
