@@ -59,12 +59,13 @@ describe("AppShell", () => {
   });
 
   it("shows the app's name and icon, and sizes the menu as the user chose", () => {
-    const { container } = renderShell({ menuTextSize: "Large" }, { appName: "Family Notes", iconUrl: "/api/v1/branding/icon?v=abc" });
+    const { container } = renderShell({ menuTextSize: "Large", noteTextSize: "Small" }, { appName: "Family Notes", iconUrl: "/api/v1/branding/icon?v=abc" });
 
     expect(screen.getAllByText("Family Notes").length).toBeGreaterThan(0);
     expect(screen.queryByText("Maple Notes")).not.toBeInTheDocument();
     expect(container.querySelector('img[src="/api/v1/branding/icon?v=abc"]')).toBeInTheDocument();
     expect(container.querySelector('[data-menu="large"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-note-text="small"]')).toBeInTheDocument(); // the note text size applies to the page
   });
 
   it("orders the menu as the user chose, leaving out pages that are turned off", () => {

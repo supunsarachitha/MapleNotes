@@ -91,6 +91,8 @@ export interface Preferences {
   accent: Accent;
   /** The side menu's text size. */
   menuTextSize: MenuTextSize;
+  /** The size of note text in lists and cards (and of the writing box, which stays at least 16px). */
+  noteTextSize: NoteTextSize;
   /** The first day of the week in calendars; Auto follows the browser's language settings. */
   weekStart: WeekStart;
   /** The side menu's items in the chosen order, separated by commas; empty for the default order (see lib/menu.ts). */
@@ -105,6 +107,8 @@ export const PHOTO_SIZES = ["Large", "Medium", "Small"] as const;
 export type PhotoSize = (typeof PHOTO_SIZES)[number];
 export const MENU_TEXT_SIZES = ["Small", "Medium", "Large"] as const;
 export type MenuTextSize = (typeof MENU_TEXT_SIZES)[number];
+export const NOTE_TEXT_SIZES = ["Small", "Medium", "Large"] as const;
+export type NoteTextSize = (typeof NOTE_TEXT_SIZES)[number];
 export const WEEK_STARTS = ["Auto", "Sunday", "Monday", "Saturday"] as const;
 export type WeekStart = (typeof WEEK_STARTS)[number];
 

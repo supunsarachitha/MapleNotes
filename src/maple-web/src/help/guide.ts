@@ -175,8 +175,8 @@ do. Your server's administrator may also have switched them off for everyone.`,
     id: "appearance",
     title: "Appearance",
     body: `Under [Settings → Appearance](/settings/appearance), choose **Light**, **Dark**, or **Device** to follow your phone
-or computer, pick an accent colour, choose the day your weeks start on in the calendars, and make the side menu's text
-smaller or larger.
+or computer, pick an accent colour, choose the day your weeks start on in the calendars, and make your notes' text or
+the side menu's text smaller or larger.
 
 Under [Settings → Side menu](/settings/menu), put the menu's items in the order you use them: drag an item by its
 handle, or move it with its arrows. Its eye hides or shows it. Your choices follow you to every device you sign in on.`,

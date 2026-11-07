@@ -31,6 +31,9 @@ public sealed record UserPreferences
     /// <summary>The text sizes a user can choose for the side menu.</summary>
     public static IReadOnlyList<string> MenuTextSizes { get; } = ["Small", "Medium", "Large"];
 
+    /// <summary>The note text sizes offered in Settings → Appearance.</summary>
+    public static IReadOnlyList<string> NoteTextSizes { get; } = ["Small", "Medium", "Large"];
+
     /// <summary>The first days of the week a user can choose; <c>Auto</c> follows the browser's language settings.</summary>
     public static IReadOnlyList<string> WeekStarts { get; } = ["Auto", "Sunday", "Monday", "Saturday"];
 
@@ -151,6 +154,9 @@ public sealed record UserPreferences
 
     /// <summary>The side menu's text size: one of <see cref="MenuTextSizes"/>.</summary>
     public string MenuTextSize { get; init; } = "Medium";
+
+    /// <summary>The size of note text: one of <see cref="NoteTextSizes"/>.</summary>
+    public string NoteTextSize { get; init; } = "Medium";
 
     /// <summary>The first day of the week in the calendars and the weekly habit chart: one of <see cref="WeekStarts"/>.</summary>
     public string WeekStart { get; init; } = "Auto";
