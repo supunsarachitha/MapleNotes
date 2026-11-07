@@ -380,6 +380,11 @@ visitors create accounts, limit how much each account can store, disable or remo
 administrators. **Turn off two-factor** helps someone who lost both their phone and their recovery codes; their
 password is still needed, so check first that the request really comes from them. **Compact database** gives the space that deleted notes leave in the database back to the disk, and
 **Name and icon** gives the app your own name and picture, on the sign-in page too. Administrators manage accounts, but they can never read anyone's notes through the app, nor see how
-much an account stores.`,
+much an account stores.
+
+The **Audit log** at the bottom of the page lists, newest first, who signed in (with a password or a passkey), sign-ins
+that were refused and why, and what administrators changed: the server's settings and other accounts. Each entry has
+its time and the address it came from; choose **Failed sign-ins** to spot someone guessing passwords. Entries are kept
+for 180 days.`,
   },
 ];

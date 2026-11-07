@@ -1,5 +1,6 @@
 using MapleNotes.Server.Features.Admin;
 using MapleNotes.Server.Features.Attachments;
+using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Features.EndToEnd;
@@ -28,6 +29,9 @@ internal static class FeatureServiceCollectionExtensions
         services.AddScoped<AccountDeletionService>();
         services.AddScoped<InstanceSettingsService>();
         services.AddScoped<UserAdministrationService>();
+        services.AddHttpContextAccessor();
+        services.AddScoped<AuditLog>();
+        services.AddHostedService<AuditLogCleanupService>();
         services.AddScoped<PreferencesService>();
         services.AddScoped<StorageService>();
         services.AddScoped<StorageQuota>();

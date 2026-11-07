@@ -17,6 +17,7 @@ export const queryKeys = {
   labelList: (kinds: NoteKind[]) => ["labels", kinds.join(",")] as const,
   adminSettings: ["admin", "settings"] as const,
   adminUsers: ["admin", "users"] as const,
+  adminAudit: (filter: string) => ["admin", "audit", filter] as const,
   encryption: ["account", "encryption"] as const,
   storage: ["notes", "storage"] as const, // under "notes", so it refreshes when notes change
   habits: (state: "active" | "archived") => ["notes", "habits", state] as const,

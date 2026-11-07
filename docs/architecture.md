@@ -73,6 +73,7 @@ must carry a valid antiforgery token. Both are enforced globally, so a new endpo
 | `Tag` / `NoteTags` | Per-user tags parsed from `#tags` in note text. Tags of end-to-end notes have no name: a blind token (HMAC) and the name encrypted by the browser. |
 | `Label` / `NoteLabels` | Per-user coloured labels put on notes by hand: a name (or, for end-to-end accounts, the name encrypted by the browser for the label's ID) and one of ten colours. At most 100 per account and 20 per note. |
 | `InstanceSetting` | Runtime settings changed by administrators (open registration). |
+| `AuditEntry` | The audit log: time, event (`SignIn`, `SignInFailed`, `SettingsChanged`, `AccountChanged`, `AccountDeleted`), the username given or acting (copied, not a foreign key, so it outlives the account), the account acted on, the sign-in method, a one-line description and the client address. Written by `AuditLog` from the sign-in and admin controllers; listed newest first, 50 a page, at `GET /api/v1/admin/audit`. |
 
 All IDs are UUID version 7, so they sort by creation time. Every query that touches notes, tags or attachments filters
 by the signed-in owner; requests for another user's items return 404, never 403, so their existence is not revealed.
@@ -217,7 +218,7 @@ volume cannot be used to forge a session.
 
 | Threat | Off / encrypted at rest | End-to-end |
 |---|---|---|
-| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 29). | **Protected**, twice over. |
+| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 28). | **Protected**, twice over. |
 | Someone who knows the master key, or reads the server's memory or data while it runs | **Not protected.** The server holds the keys. | **Protected.** The server never has the key; it sees ciphertext, sizes, timestamps, and which notes share a tag. |
 | Someone who takes over the server and changes the web app it serves | **Not protected.** | **Not protected** once the user signs in or unlocks with the modified app, which could capture the password. See [threat-model.md](threat-model.md). |
 | Tampering with stored ciphertext | **Detected.** Authenticated encryption everywhere. | **Detected**, in the browser. |
@@ -284,7 +285,7 @@ note transaction, and a concurrent edit.
   get the default parameters with a stable pseudo-salt derived from the prelogin key, and are checked against a dummy
   hash. Five consecutive failures lock the account for 15 minutes, and prelogin and the authentication endpoints are
   rate-limited per client IP (`MAPLE_AUTH_RATE_LIMIT`, a separate budget for each). Known gap: unknown names never lock, so a locked account answers 429 where an unknown
-one answers 401, which reveals that the name exists (roadmap item 30).
+one answers 401, which reveals that the name exists (roadmap item 29).
 - Passkeys (`Features/Passkeys`): WebAuthn without attestation, checked with .NET's cryptography (no WebAuthn
   library). `WebAuthn.cs` checks the client data (type, one-time challenge, origin, not cross-origin), the RP ID hash
   (the request's host name), the user-present and user-verified flags, the ES256 or RS256 signature, and the counter.
@@ -528,6 +529,7 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 |---|---|---|
 | `StartupInitializer` | Before anything else starts | Validates settings and the master key, creates the data layout, backs up and migrates the database. Problems stop startup with a one-line message. |
 | `EncryptionMigrationService` | Startup, on a mode change, every 5 minutes | Converts content between `None` and `Server` to match each account's mode. The browser converts to and from end-to-end encryption. |
+| `AuditLogCleanupService` | Startup, then hourly | Deletes audit entries older than 180 days. |
 | `AttachmentCleanupService` | Startup, then hourly | Removes uploads never attached to a note (after 24 h), orphan files (after 1 h) and interrupted writes. |
 | `TrashCleanupService` | Startup, then hourly | Deletes notes and files that have been in the trash for longer than their owner's `trashDays` preference (30 by default; 0 keeps them). Preferences are a JSON column, so it reads the retention of each account that has something in the trash, then deletes per account in batches. |
 

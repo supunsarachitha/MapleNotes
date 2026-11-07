@@ -342,6 +342,28 @@ export interface InstanceStorage {
   totalBytes: number;
 }
 
+export type AuditEvent = "SignIn" | "SignInFailed" | "SettingsChanged" | "AccountChanged" | "AccountDeleted";
+export type AuditFilter = "All" | "SignIns" | "FailedSignIns" | "Admin";
+
+/** One line of the audit log (administrators only). */
+export interface AuditEntry {
+  id: number;
+  atUtc: string;
+  event: AuditEvent;
+  /** Who signed in, tried to, or acted; empty for a passkey nobody owns. */
+  username: string;
+  /** The account an administrator changed or deleted. */
+  targetUsername: string | null;
+  method: "Password" | "Passkey" | null;
+  detail: string;
+  ipAddress: string | null;
+}
+
+export interface AuditPage {
+  items: AuditEntry[];
+  nextCursor: number | null;
+}
+
 export interface AdminUser {
   id: string;
   username: string;

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Admin;
+using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Features.EndToEnd;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Infrastructure.Web;
@@ -32,11 +33,13 @@ namespace MapleNotes.Server.Features.Auth;
 /// <param name="antiforgery">Antiforgery token service.</param>
 /// <param name="time">Clock.</param>
 /// <param name="options">Instance settings (whether link previews are allowed).</param>
+/// <param name="audit">The audit log (sign-ins and administrators' actions).</param>
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
 public sealed class AuthController(
-    AccountService accounts, InstanceSettingsService instanceSettings, IAntiforgery antiforgery, TimeProvider time, MapleOptions options)
+    AccountService accounts, InstanceSettingsService instanceSettings, IAntiforgery antiforgery, TimeProvider time, MapleOptions options,
+    AuditLog audit)
     : ControllerBase
 {
     /// <summary>Returns the visitor's sign-in state and what the instance allows.</summary>
@@ -158,20 +161,33 @@ public sealed class AuthController(
     public async Task<ActionResult<UserResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
         var result = await accounts.ValidateCredentialsAsync(request, cancellationToken);
+        // The audit log names the account by the username given (it may not exist); a sign-in that only still needs
+        // its two-factor code is not recorded until the code is sent.
+        Task Failed(string detail) => audit.RecordAsync(AuditEvent.SignInFailed, request.Username, detail, cancellationToken, method: "Password");
         switch (result.Error)
         {
             case AccountError.None:
                 await SignInAsync(result.User!, request.RememberMe);
+                await audit.RecordAsync(
+                    AuditEvent.SignIn, result.User!.Username,
+                    result.User.TwoFactorSecret is null ? "Signed in with the password." : "Signed in with the password and a two-factor code.",
+                    cancellationToken, method: "Password");
                 return UserResponse.From(result.User!);
             case AccountError.InvalidInput:
                 return ValidationProblem(new ValidationProblemDetails(result.ValidationErrors!.ToDictionary()));
             case AccountError.LockedOut:
+                await Failed("Too many failed attempts: the account is locked for a while.");
                 return LockedOut(this, result, time);
             case AccountError.Disabled:
+                await Failed("The account is disabled.");
                 return Problem(statusCode: StatusCodes.Status403Forbidden, title: "This account has been disabled by an administrator.");
-            case AccountError.TwoFactorRequired or AccountError.InvalidTwoFactorCode:
+            case AccountError.TwoFactorRequired:
+                return TwoFactorProblem(this, result.Error);
+            case AccountError.InvalidTwoFactorCode:
+                await Failed("The two-factor code was wrong.");
                 return TwoFactorProblem(this, result.Error);
             default:
+                await Failed("Wrong username or password.");
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Incorrect username or password.");
         }
     }

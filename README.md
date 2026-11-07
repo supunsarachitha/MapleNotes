@@ -94,7 +94,8 @@
   account becomes the
   administrator, who can give the app its own name and icon, open registration, limit each account's storage, choose
   how long devices stay signed in (30 to 400 days), disable or remove accounts, turn off two-factor sign-in for someone
-  who lost their phone, and appoint other administrators. Administrators never see anyone's notes.
+  who lost their phone, and appoint other administrators. An audit log shows sign-ins (made and refused, by password
+  or passkey) and what administrators changed, for 180 days. Administrators never see anyone's notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
   in its own window, with the app's name and icon (or the ones an administrator chose).

@@ -1,4 +1,5 @@
 using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Persistence;
 using MapleNotes.Server.Infrastructure.Web;
@@ -23,7 +24,8 @@ public enum UserUpdateResult
 /// <param name="db">Database context.</param>
 /// <param name="deletion">Deletes accounts with all their content.</param>
 /// <param name="time">Clock.</param>
-public sealed class UserAdministrationService(MapleDbContext db, AccountDeletionService deletion, TimeProvider time)
+/// <param name="audit">The audit log (sign-ins and administrators' actions).</param>
+public sealed class UserAdministrationService(MapleDbContext db, AccountDeletionService deletion, TimeProvider time, AuditLog audit)
 {
     /// <summary>Permanently deletes another account with all of its notes and files.</summary>
     /// <param name="actingAdminId">The administrator making the change.</param>
@@ -37,12 +39,15 @@ public sealed class UserAdministrationService(MapleDbContext db, AccountDeletion
             return UserUpdateResult.CannotChangeSelf;
         }
 
-        if (!await db.Users.AnyAsync(u => u.Id == userId, cancellationToken))
+        var target = await db.Users.AsNoTracking().Where(u => u.Id == userId).Select(u => u.Username).SingleOrDefaultAsync(cancellationToken);
+        if (target is null)
         {
             return UserUpdateResult.NotFound;
         }
 
         await deletion.DeleteAsync(userId, cancellationToken);
+        await audit.RecordAsync(AuditEvent.AccountDeleted, await UsernameAsync(actingAdminId, cancellationToken),
+            "Deleted the account, with its notes and files.", cancellationToken, target);
         return UserUpdateResult.Updated;
     }
 
@@ -83,8 +88,10 @@ public sealed class UserAdministrationService(MapleDbContext db, AccountDeletion
             return UserUpdateResult.NotFound;
         }
 
+        var changes = new List<string>();
         if (request.IsDisabled is { } disabled && disabled != user.IsDisabled)
         {
+            changes.Add(disabled ? "Disabled the account (and signed it out everywhere)." : "Enabled the account.");
             user.IsDisabled = disabled;
             if (disabled)
             {
@@ -92,18 +99,29 @@ public sealed class UserAdministrationService(MapleDbContext db, AccountDeletion
             }
         }
 
-        if (request.Role is { } role)
+        if (request.Role is { } role && role != user.Role)
         {
+            changes.Add($"Role: {user.Role} → {role}.");
             user.Role = role;
         }
 
-        if (request.TurnOffTwoFactor == true)
+        if (request.TurnOffTwoFactor == true && user.TwoFactorSecret is not null)
         {
+            changes.Add("Turned off two-factor sign-in.");
             TwoFactorService.Clear(user);
         }
 
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);
+        if (changes.Count > 0)
+        {
+            await audit.RecordAsync(
+                AuditEvent.AccountChanged, await UsernameAsync(actingAdminId, cancellationToken), string.Join(" ", changes), cancellationToken, user.Username);
+        }
         return UserUpdateResult.Updated;
     }
+
+    /// <summary>The acting administrator's username, for the audit log.</summary>
+    private Task<string?> UsernameAsync(Guid userId, CancellationToken cancellationToken) =>
+        db.Users.AsNoTracking().Where(u => u.Id == userId).Select(u => u.Username).SingleOrDefaultAsync(cancellationToken);
 }
