@@ -35,6 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dark theme, with its title, date, pictures and the names of its other files. The print dialog's **Save as PDF** keeps
   it as a PDF, named after the note's title.
 
+## [1.18.2] - 2026-11-07
+
+### Changed
+
+- Dependency updates: .NET packages 10.0.12 → 10.0.14 (and the `dotnet-ef` tool), Scalar.AspNetCore 2.17.14 → 2.19.0,
+  and patch and minor updates to the web app's libraries (React 19.3.1, Vite 8.3.6, Vitest 5.1.0, Radix UI,
+  TanStack Query, Tailwind CSS 4.3.5, lucide-react 1.70.0 and others). No change in behaviour.
+
 ## [1.18.1] - 2026-11-06
 
 ### Changed
@@ -681,7 +689,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.1...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.2...HEAD
+[1.18.2]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.1...v1.18.2
 [1.18.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.17.1...v1.18.0
 [1.17.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.17.0...v1.17.1
