@@ -222,3 +222,71 @@ body {
   content-visibility: auto;
   contain-intrinsic-size: auto 10rem;
 }
+
+/* Printing one note (components/PrintNote.tsx): only it is printed, black on white whatever the theme. */
+#print-note {
+  display: none;
+}
+@media print {
+  @page {
+    margin: 18mm;
+  }
+  body.printing-note > :not(#print-note) {
+    display: none !important;
+  }
+  body.printing-note {
+    background: #fff !important;
+  }
+  body.printing-note #print-note {
+    display: block;
+    font-size: 12pt;
+  }
+  #print-note,
+  #print-note * {
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #ccc !important;
+  }
+  #print-note .markdown {
+    --note-text: 12pt;
+  }
+  #print-note .markdown a {
+    text-decoration: underline;
+  }
+  /* Task boxes: a plain black box, ticked with a black check, instead of the browser's pale disabled look. */
+  #print-note input[type="checkbox"] {
+    appearance: none;
+    width: 10pt;
+    height: 10pt;
+    border: 1pt solid #000 !important;
+    border-radius: 2pt;
+    vertical-align: -1pt;
+    opacity: 1;
+  }
+  #print-note input[type="checkbox"]:checked {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3.2 3L13 4.5' fill='none' stroke='%23000' stroke-width='2.2'/%3E%3C/svg%3E") center / 100% no-repeat !important;
+  }
+  #print-note .print-date {
+    margin-bottom: 4pt;
+    font-size: 9pt;
+    color: #555 !important;
+  }
+  #print-note .print-title {
+    margin-bottom: 8pt;
+    font-size: 18pt;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  #print-note .print-pictures img {
+    display: block;
+    max-width: 100%;
+    max-height: 60vh;
+    margin-top: 10pt;
+    break-inside: avoid;
+  }
+  #print-note .print-files {
+    margin-top: 10pt;
+    font-size: 9pt;
+  }
+}
+

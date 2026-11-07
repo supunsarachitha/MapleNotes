@@ -40,7 +40,8 @@ Features most note apps have.
 16. Automatic scheduled backups, for example a nightly export to a folder or to S3.
 17. Import from other apps: Google Keep (Takeout), Evernote (`.enex`), Standard Notes, Joplin and Simplenote. Today a
     restore reads Maple Notes and Falcon Notes exports and single Markdown, text and JSON files.
-18. Export of one note, or a selection, including to PDF or printing.
+18. Export of one note, or a selection, as a file (Markdown or text). (Printing a note, which also saves it as a PDF,
+    can be done from a note’s menu.)
 
 ## Settings that are fixed today
 
