@@ -33,7 +33,7 @@ Stolen disks, a leaked backup, a cloud snapshot, a decommissioned drive.
 - **Encrypted at rest and end-to-end:** protected. The database is encrypted with a key derived from the master key,
   and so are the attachment files (per account) and the Data Protection key ring that signs sessions. The master key is
   never stored in the data volume.
-- **Off:** the database and key ring are encrypted, but attachment files are plaintext on disk (roadmap item 33). Use
+- **Off:** the database and key ring are encrypted, but attachment files are plaintext on disk (roadmap item 32). Use
   an encrypted mode if files must be protected from a disk copy.
 - **What leaks:** the number and approximate sizes of files in `attachments/`, and file times.
 
@@ -162,11 +162,23 @@ server is one of the adversaries above.
   master key and bound to the account, and keeps recovery codes only as HMACs under that key, so a copy of the
   database without the master key gives neither. Someone with the master key and the database can make codes, as
   they can already read every account's sessions.
+- **Passkeys** are optional and sign in instead of the password. The server keeps only each passkey's public key; a
+  sign-in must sign a one-time challenge (single use, five minutes) for this site's address, with the user verified
+  (fingerprint, face or PIN), so a passkey cannot be phished by another site, replayed or guessed. That is why a
+  passkey sign-in skips the two-factor code, and why its failures do not count toward the password lockout. A passkey
+  that a password manager syncs is as safe as that manager's account. Removing a passkey does not end the sessions it
+  started; "sign out everywhere" does.
+- **Passkeys that unlock notes:** with end-to-end encryption, a passkey that supports the PRF extension unwraps a copy
+  of the data key (e2ee-spec.md §6a). The PRF output never reaches the server, so the server, the database and backups
+  gain nothing from the copy. Anyone who can use the passkey can read the notes, which makes the passkey (and the sync
+  account behind it) as important as the password. Storing a copy needs the password, so a stolen session cannot plant
+  a key of its own, and a browser checks the unwrapped key against the account's sealed mode record where there is
+  one. Accounts from before mode records rely on the password check alone.
 - Two-factor sign-in protects sign-in, not content: end-to-end encryption still rests on the password alone, and a
-  compromised server gains nothing from the code.
+  compromised server gains nothing from the code. The same holds for a passkey that only signs in.
 - Unknown usernames receive the same answer as real ones (default parameters and a stable pseudo-salt), so they
   cannot be told apart, with two exceptions: the legacy upgrade (below), and the lockout, which a real account triggers
-  after five wrong sign-ins and an unknown name never does (roadmap item 34).
+  after five wrong sign-ins and an unknown name never does (roadmap item 33).
 
 ### Legacy accounts
 

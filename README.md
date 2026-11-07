@@ -89,7 +89,9 @@
   account sees its own usage against it; anything that would pass it is refused, and nothing already stored is lost.
 - **Help built in.** A user guide in the app explains every feature, and works offline.
 - **Accounts.** Multiple users with secure authentication, each with a display name of their choice, and optional
-  two-factor sign-in with an authenticator app and single-use recovery codes. The first account becomes the
+  two-factor sign-in with an authenticator app and single-use recovery codes. Passkeys sign in with a fingerprint,
+  face or device PIN instead of the password, and on most current devices also unlock end-to-end notes. The first
+  account becomes the
   administrator, who can give the app its own name and icon, open registration, limit each account's storage, choose
   how long devices stay signed in (30 to 400 days), disable or remove accounts, turn off two-factor sign-in for someone
   who lost their phone, and appoint other administrators. Administrators never see anyone's notes.
@@ -627,6 +629,7 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 | End-to-end keys | Created in the browser and stored on the server only in wrapped form: once under a key derived from your password, once under a recovery key that is shown to you once. An open session keeps the key in the browser as a non-extractable key, sealed with a secret that lives in the session cookie. |
 | Passwords | Never leave the browser: it derives a sign-in key with Argon2id (64 MiB), and the server stores only a PBKDF2-HMAC-SHA512 hash of that key (210,000 iterations). Lockout after 5 failed attempts; rate limiting. |
 | Two-factor sign-in | Optional, per account: a code from an authenticator app (TOTP) or a single-use recovery code after the password. The secret is stored encrypted with a key derived from the master key, recovery codes only as HMACs; wrong codes count toward the lockout. |
+| Passkeys | Optional, per account (WebAuthn, checked with .NET's own cryptography): the server keeps only each passkey's public key, and every use needs the fingerprint, face or PIN, so a passkey replaces both the password and the two-factor code. With end-to-end encryption, a passkey that supports the PRF extension also unwraps the data key from a copy wrapped under a secret only that passkey produces ([e2ee-spec.md §6a](docs/e2ee-spec.md#6a-passkeys-that-unlock)); storing that copy needs the password. |
 | Sessions | HttpOnly, SameSite=Strict cookies, checked on every request, so a password change or "sign out everywhere" takes effect at once. |
 | Web | Strict Content-Security-Policy, antiforgery tokens, API responses never cached by the browser, and uploaded files never run as web content. |
 

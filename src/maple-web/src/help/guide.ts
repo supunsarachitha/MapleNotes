@@ -292,6 +292,27 @@ off; both need your password and a code. If you lose both your phone and your re
 turn it off for you.`,
   },
   {
+    id: "passkeys",
+    title: "Passkeys",
+    body: `A passkey signs you in with your fingerprint, face or device PIN instead of your password. Your phone, computer or
+password manager keeps it, and it works only on this site, so it cannot be guessed or phished.
+
+1. In [Settings → Privacy & security](/settings/security), choose **Add a passkey**.
+2. Give it a name if you like, such as "Phone", and enter your password.
+3. Confirm with your fingerprint, face or PIN when your device asks.
+
+On the sign-in page, choose **Sign in with a passkey**; some browsers also offer your passkeys when you tap the
+username. A passkey sign-in does not ask for a two-factor code.
+
+With end-to-end encryption, a passkey can also unlock your notes, so you need no password at all. Most current phones,
+computers and password managers support this. Passkeys that do are marked **Unlocks notes**; for others choose
+**Unlock notes…**. Anyone who can use such a passkey can read your notes, so keep it on devices you trust. The unlock
+screen then offers **Unlock with a passkey** too.
+
+Passkeys need the site's HTTPS address. Removing one there stops it working here; delete it from your device or
+password manager as well.`,
+  },
+  {
     id: "backup",
     title: "Backing up and restoring",
     body: `Under [Settings → Backup & data](/settings/data), **Export** downloads your notes as a ZIP file of Markdown, plain
