@@ -43,6 +43,15 @@ public sealed class MapleOptions
     /// </summary>
     public const string LinkPreviewsKey = "MAPLE_LINK_PREVIEWS";
 
+    /// <summary>
+    /// Environment variable with a contact the push services (Google, Apple, Mozilla, Microsoft) can reach about this
+    /// server's notifications: a <c>mailto:</c> or <c>https:</c> URL. Defaults to <see cref="DefaultPushContact"/>.
+    /// </summary>
+    public const string PushContactKey = "MAPLE_PUSH_CONTACT";
+
+    /// <summary>The push contact when none is set: the project's page.</summary>
+    public const string DefaultPushContact = "https://github.com/supunsarachitha/MapleNotes";
+
     /// <summary>Absolute path of the directory holding the database, attachments, key ring and backups.</summary>
     public required string DataDirectory { get; init; }
 
@@ -69,6 +78,9 @@ public sealed class MapleOptions
 
     /// <summary>Whether accounts may turn on link previews, which make the server fetch the pages linked from notes.</summary>
     public bool LinkPreviews { get; init; } = true;
+
+    /// <summary>Contact sent to push services with each notification (see <see cref="PushContactKey"/>).</summary>
+    public string PushContact { get; init; } = DefaultPushContact;
 
     /// <summary>Path of the encrypted SQLite database file.</summary>
     public string DatabasePath => Path.Combine(DataDirectory, "maple.db");
@@ -106,6 +118,10 @@ public sealed class MapleOptions
             TrustedProxies = ReadNetworks(configuration, TrustedProxiesKey),
             AuthenticationRateLimit = ReadInteger(configuration, AuthenticationRateLimitKey, defaultValue: 10, min: 1, max: 10_000),
             LinkPreviews = ReadBoolean(configuration, LinkPreviewsKey, defaultValue: true),
+            PushContact = configuration[PushContactKey]?.Trim() is { } contact
+                && (contact.StartsWith("mailto:", StringComparison.Ordinal) || contact.StartsWith("https://", StringComparison.Ordinal))
+                ? contact
+                : DefaultPushContact,
         };
     }
 

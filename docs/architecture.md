@@ -532,6 +532,7 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 | `AuditLogCleanupService` | Startup, then hourly | Deletes audit entries older than 180 days. |
 | `AttachmentCleanupService` | Startup, then hourly | Removes uploads never attached to a note (after 24 h), orphan files (after 1 h) and interrupted writes. |
 | `TrashCleanupService` | Startup, then hourly | Deletes notes and files that have been in the trash for longer than their owner's `trashDays` preference (30 by default; 0 keeps them). Preferences are a JSON column, so it reads the retention of each account that has something in the trash, then deletes per account in batches. |
+| `ReminderSenderService` | Startup, then every 30 seconds | Sends reminders that are due as Web Push notifications to every device of the account and moves each on: a repeating one to its next local time, a one-off one is removed. Reminders on archived or trashed notes, or more than 12 hours late, are not sent. |
 
 ## HTTP hardening
 

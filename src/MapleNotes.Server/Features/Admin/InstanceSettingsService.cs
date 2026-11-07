@@ -46,6 +46,7 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
     public const int MaxIconBytes = 256 * 1024;
 
     private const string AppNameKey = "AppName";
+    private const string VapidKey = "VapidKeys";
     private const string IconKey = "AppIcon";
     private const string IconTypeKey = "AppIconType";
     private const string IconVersionKey = "AppIconVersion";
@@ -219,6 +220,36 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
         await SetAsync(IconTypeKey, null, cancellationToken);
         await SetAsync(IconVersionKey, null, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// This server's VAPID key pair for push notifications (RFC 8292), made the first time it is needed and kept with the
+    /// other settings, so every subscription stays valid across restarts.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The public key (65 bytes) and the private scalar (32 bytes).</returns>
+    public async Task<(byte[] PublicKey, byte[] PrivateKey)> GetVapidKeysAsync(CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            if ((await FindAsync(VapidKey, cancellationToken))?.Value is { } saved)
+            {
+                var parts = saved.Split('.');
+                return (Convert.FromBase64String(parts[0]), Convert.FromBase64String(parts[1]));
+            }
+
+            var (publicKey, privateKey) = MapleNotes.Server.Features.Push.WebPushCrypto.GenerateKeys();
+            db.InstanceSettings.Add(new InstanceSetting { Key = VapidKey, Value = $"{Convert.ToBase64String(publicKey)}.{Convert.ToBase64String(privateKey)}" });
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return (publicKey, privateKey);
+            }
+            catch (DbUpdateException) when (attempt == 0)
+            {
+                db.ChangeTracker.Clear(); // another request made them first: read theirs
+            }
+        }
     }
 
     private Task<InstanceSetting?> FindAsync(string key, CancellationToken cancellationToken) =>
