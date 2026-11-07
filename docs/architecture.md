@@ -360,6 +360,15 @@ public named host and are reached through the link-preview `NetworkGuard`. In th
 through the service worker, which shows each message and opens `/reminders?note=<id>` when it is tapped
 (`sw/notify.ts`). The message is the note's first line, or a fixed text for end-to-end notes.
 
+## Leaving with unsaved text
+
+The app has its own small router (`lib/router.tsx`). A composer with unsaved text registers a leave guard
+(`useLeaveGuard`: dirty, save, discard). `navigate()` and in-app links then wait for the answer in `LeaveDialog`
+(Save, Discard, Keep editing). A Back press has already changed the address when `popstate` fires, so the router's own
+listener, registered before any other, pushes the page back at once (the app never re-renders) and replays
+`history.back()` after Save or Discard. `beforeunload` shows the browser's prompt for closing or reloading the tab. In
+the installed app, Back on Home already stays on Home (`useStayOnHome`), so nothing is asked there.
+
 ## Printing a note
 
 `components/PrintNote.tsx` renders the note into a layer that is a direct child of `body` and hidden on screen. While

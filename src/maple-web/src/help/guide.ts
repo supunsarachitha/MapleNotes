@@ -25,7 +25,10 @@ it is empty the box stays one line; it opens when you tap it. Your newest notes 
   **Archive**, where you can restore them, and deleted ones in the [trash](/trash). To edit a note faster, turn on
   **Double-tap to edit** in [Settings → Writing](/settings/writing), then double-tap the note (or double-click it).
 - **Printing a note.** Choose **Print…** in its **⋯** menu. Only that note is printed, black on white, with its pictures
-  and the names of its other files. To keep it as a PDF, choose **Save as PDF** in the print dialog.`,
+  and the names of its other files. To keep it as a PDF, choose **Save as PDF** in the print dialog.
+- **Leaving before saving.** If you go back, or to another page, while a new note or an edit is not saved yet, Maple
+  Notes asks whether to **Save** it, **Discard** it, or **Keep editing**. Closing or reloading the tab gets your
+  browser's own "Leave site?" question.`,
   },
   {
     id: "titles",

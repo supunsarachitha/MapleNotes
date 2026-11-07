@@ -33,6 +33,7 @@
 - **Full note lifecycle.** Create, edit inline (optionally with a double-tap, always with the cursor at the end), pin,
   label, archive (and restore), print (or save as PDF), and delete into a trash that keeps notes for 30 days (or 7, 14,
   90 days, a year, or until you empty it), with Undo; or, with the trash off, delete for good after confirming.
+  Leaving a note you have not saved (Back, a link, closing the tab) asks first, so a draft is never lost by accident.
 - **Reminders.** Ask to be reminded of a note or quick note, once or every day, week or month. Reminders arrive as
   notifications on every device where you turn them on, even when the app is closed (on iPhone and iPad, once it is on
   the Home Screen), and a Reminders page lists what is coming up. The server sends them itself (Web Push), with no

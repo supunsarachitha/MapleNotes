@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `GET`/`POST /api/v1/account/push-subscriptions`, `DELETE .../{id}`, `POST .../{id}/test`. The side menu order may
     include `reminders`.
   - Database: new `NoteReminders` and `PushSubscriptions` tables, created when the server starts.
+- **Asks before leaving unsaved text.** Going back (browser or phone Back, the back gesture) or to another page while a
+  new note, quick note, daily note or an edit has unsaved text asks **Save**, **Discard** or **Keep editing**; Back is
+  undone while it asks. Closing or reloading the tab shows the browser's own "Leave site?" prompt. Nothing is asked when
+  there is nothing new.
 
 ## [1.19.0] - 2026-11-07
 
