@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseItems, parseTodo, serializeItems, serializeTodo } from "./todo";
+import { addItem, parseItems, parseTodo, serializeItems, serializeTodo, toggleItem } from "./todo";
 
 describe("todo lists", () => {
   it("reads the title and the items", () => {
@@ -44,5 +44,24 @@ describe("todo lists", () => {
     ]);
     expect(serializeItems(items)).toBe("- [x] tent\n- [ ] sleeping bag\n- [ ] stove");
     expect(serializeItems([])).toBe("");
+  });
+
+  it("moves a ticked item to the bottom and an unticked one back above the ticked items", () => {
+    const items = parseItems("- [ ] tent\n- [ ] stove\n- [ ] map\n- [x] torch");
+
+    const ticked = toggleItem(items, 0);
+    expect(serializeItems(ticked)).toBe("- [ ] stove\n- [ ] map\n- [x] torch\n- [x] tent");
+
+    const unticked = toggleItem(ticked, 3);
+    expect(serializeItems(unticked)).toBe("- [ ] stove\n- [ ] map\n- [ ] tent\n- [x] torch");
+
+    expect(serializeItems(toggleItem(parseItems("- [x] torch\n- [x] tent"), 1))).toBe("- [ ] tent\n- [x] torch");
+    expect(toggleItem(items, 9)).toBe(items);
+  });
+
+  it("adds a new item after the open items, above the ticked ones", () => {
+    expect(serializeItems(addItem(parseItems("- [ ] tent\n- [x] torch"), "stove"))).toBe("- [ ] tent\n- [ ] stove\n- [x] torch");
+    expect(serializeItems(addItem(parseItems("- [x] torch"), "stove"))).toBe("- [ ] stove\n- [x] torch");
+    expect(serializeItems(addItem([], "stove"))).toBe("- [ ] stove");
   });
 });

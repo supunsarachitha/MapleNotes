@@ -64,19 +64,19 @@ describe("TodoCard", () => {
     renderWith(<TodoCard note={list} />);
 
     await user.click(screen.getByRole("checkbox", { name: "oats" }));
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [x] maple syrup", [], expect.anything()));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] maple syrup\n- [x] oats", [], expect.anything()));
 
     await user.type(screen.getByRole("textbox", { name: "Add an item to Groceries" }), "blueberries{Enter}");
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [x] maple syrup\n- [ ] blueberries", [], expect.anything()));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [ ] blueberries\n- [x] maple syrup\n- [x] oats", [], expect.anything()));
 
     await user.click(screen.getByRole("button", { name: "blueberries" }));
     const edit = screen.getByRole("textbox", { name: "Edit item" });
     await user.clear(edit);
     await user.type(edit, "wild blueberries{Enter}");
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] oats\n- [x] maple syrup\n- [ ] wild blueberries", [], expect.anything()));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [ ] wild blueberries\n- [x] maple syrup\n- [x] oats", [], expect.anything()));
 
     await user.click(screen.getByRole("button", { name: "Remove oats" }));
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [x] maple syrup\n- [ ] wild blueberries", [], expect.anything()));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [ ] wild blueberries\n- [x] maple syrup", [], expect.anything()));
   });
 
   it("moves an item with the arrow keys on its handle, saving the new order and keeping focus on it", async () => {
@@ -190,6 +190,24 @@ describe("TodoCard", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
+  it("moves a ticked item to the bottom, keeps focus on it and announces the move", async () => {
+    const shopping: Note = { ...list, content: "# Groceries\n\n- [ ] oats\n- [ ] flour\n- [x] maple syrup" };
+    const update = vi.spyOn(api, "updateNote").mockImplementation(async (id, content) => ({ ...shopping, id, content }));
+    const user = userEvent.setup();
+    renderWith(<TodoCard note={shopping} />);
+
+    await user.click(screen.getByRole("checkbox", { name: "oats" }));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [ ] flour\n- [x] maple syrup\n- [x] oats", [], expect.anything()));
+    expect(screen.getAllByRole("checkbox").map((box) => box.getAttribute("aria-label"))).toEqual(["flour", "maple syrup", "oats"]);
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "oats" })).toHaveFocus());
+    expect(screen.getByText("oats moved to the bottom.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "oats" }));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith("t1", "# Groceries\n\n- [ ] flour\n- [ ] oats\n- [x] maple syrup", [], expect.anything()));
+    await waitFor(() => expect(screen.getByRole("checkbox", { name: "oats" })).toHaveFocus());
+    expect(screen.getByText("oats moved above the ticked items.")).toBeInTheDocument();
+  });
+
   it("sends quick changes one after another, in order", async () => {
     const answers: Array<() => void> = [];
     const update = vi.spyOn(api, "updateNote").mockImplementation(
@@ -204,7 +222,7 @@ describe("TodoCard", () => {
     expect(screen.getByRole("checkbox", { name: "maple syrup" })).not.toBeChecked(); // shown at once
     answers[0]!();
     await waitFor(() => expect(update).toHaveBeenCalledTimes(2));
-    expect(update.mock.calls[1]![1]).toBe("# Groceries\n\n- [x] oats\n- [ ] maple syrup");
+    expect(update.mock.calls[1]![1]).toBe("# Groceries\n\n- [ ] maple syrup\n- [x] oats");
     answers[1]!();
   });
 });

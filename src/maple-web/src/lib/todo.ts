@@ -38,6 +38,33 @@ export function serializeItems(items: TodoItem[]): string {
     .join("\n");
 }
 
+/** Where a new open item goes: after the last open item, so ticked items stay at the bottom. */
+function openEnd(items: TodoItem[]): number {
+  let end = items.length;
+  while (end > 0 && items[end - 1]!.done) end--;
+  return end;
+}
+
+/** Adds an open item after the other open items, above the ticked ones. */
+export function addItem(items: TodoItem[], text: string): TodoItem[] {
+  const at = openEnd(items);
+  return [...items.slice(0, at), { text, done: false }, ...items.slice(at)];
+}
+
+/**
+ * Ticks or unticks an item. A ticked item moves to the bottom of the list; an unticked one goes back to the end of the
+ * open items, just above the ticked ones.
+ */
+export function toggleItem(items: TodoItem[], index: number): TodoItem[] {
+  const item = items[index];
+  if (!item) return items;
+  const toggled = { ...item, done: !item.done };
+  const rest = items.filter((_, i) => i !== index);
+  if (toggled.done) return [...rest, toggled];
+  const at = openEnd(rest);
+  return [...rest.slice(0, at), toggled, ...rest.slice(at)];
+}
+
 /** Reads a todo list from its Markdown: the title, then the items (see parseItems). */
 export function parseTodo(content: string): TodoList {
   const { title, body } = splitTitle(content);

@@ -40,8 +40,8 @@
   third-party account to set up.
 - **Titles and dates.** Optionally give notes, and quick notes too, a title, which can start with today's date in the
   format you choose.
-- **Todo lists.** A Todo tab for checklists: add items, tick them off, drag them into order (or move them with the
-  arrow keys), edit them all at once as Markdown, rename, pin and archive lists.
+- **Todo lists.** A Todo tab for checklists: add items, tick them off (ticked items move to the bottom), drag them
+  into order (or move them with the arrow keys), edit them all at once as Markdown, rename, pin and archive lists.
 - **Quick notes.** A scratchpad tab for short notes that stay out of your timeline; move one to Home when it is worth
   keeping.
 - **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.

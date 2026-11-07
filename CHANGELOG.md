@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Todo lists keep ticked items at the bottom.** Ticking an item moves it to the bottom of the list, unticking it puts
+  it back at the end of the open items, and new items are added above the ticked ones. Focus follows the item, and
+  screen readers hear where it went. Items can still be dragged anywhere.
+
 ## [1.20.0] - 2026-11-07
 
 Reminders on notes, sent as notifications even when the app is closed, and a question before unsaved text is lost.
