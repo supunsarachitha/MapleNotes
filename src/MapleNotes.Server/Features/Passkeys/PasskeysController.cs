@@ -58,6 +58,36 @@ public sealed class PasskeysController(PasskeyService passkeys, InstanceSettings
     public async Task<ActionResult<PasskeyResponse>> Add(AddPasskeyRequest request, CancellationToken cancellationToken) =>
         StatusCode(StatusCodes.Status201Created, await passkeys.AddAsync(User.GetUserId(), request, cancellationToken));
 
+    /// <summary>Lets a passkey unlock the end-to-end notes: stores the data key wrapped for it.</summary>
+    /// <remarks>
+    /// The browser derives the wrapping key from the passkey's PRF output, which never reaches the server
+    /// (docs/e2ee-spec.md §6a). Proof of the password is required so that a stolen session cannot store a key of its
+    /// own choosing, which the account's browsers would then use for new notes.
+    /// </remarks>
+    /// <param name="id">The passkey.</param>
+    /// <param name="request">Proof of the password and the wrapped key.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The passkey.</returns>
+    /// <response code="200">Stored.</response>
+    /// <response code="400">The password is wrong, the account has no end-to-end key, or the key is malformed.</response>
+    /// <response code="404">The account has no such passkey.</response>
+    [HttpPut("{id:guid}/e2ee")]
+    [EnableRateLimiting(RateLimitPolicies.Authentication)]
+    [ProducesResponseType<PasskeyResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PasskeyResponse>> SetUnlockKey(Guid id, PasskeyUnlockRequest request, CancellationToken cancellationToken) =>
+        await passkeys.SetUnlockKeyAsync(User.GetUserId(), id, request, cancellationToken) is { } passkey ? passkey : NotFound();
+
+    /// <summary>Lists the passkeys that unlock the notes, with their wrapped keys, for the unlock screen.</summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The keys.</returns>
+    /// <response code="200">The keys (empty when no passkey unlocks the notes).</response>
+    [HttpGet("e2ee")]
+    [ProducesResponseType<IReadOnlyList<PasskeyUnlockKey>>(StatusCodes.Status200OK)]
+    public Task<IReadOnlyList<PasskeyUnlockKey>> ListUnlockKeys(CancellationToken cancellationToken) =>
+        passkeys.ListUnlockKeysAsync(User.GetUserId(), cancellationToken);
+
     /// <summary>Renames a passkey.</summary>
     /// <param name="id">The passkey.</param>
     /// <param name="request">The new name.</param>
@@ -120,7 +150,7 @@ public sealed class PasskeySignInController(PasskeyService passkeys) : Controlle
     /// </remarks>
     /// <param name="request">The challenge handle, the answer, and whether to keep the session.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>The signed-in account.</returns>
+    /// <returns>The signed-in account, the passkey, and the data key wrapped for it when it unlocks the notes.</returns>
     /// <response code="200">Signed in; the session cookie is set.</response>
     /// <response code="401">The passkey is unknown, the challenge expired, or the signature is not valid.</response>
     /// <response code="403">The account is disabled.</response>
@@ -128,17 +158,17 @@ public sealed class PasskeySignInController(PasskeyService passkeys) : Controlle
     [HttpPost("login")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
-    [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<PasskeySignInResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<UserResponse>> Login(PasskeyLoginRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<PasskeySignInResponse>> Login(PasskeyLoginRequest request, CancellationToken cancellationToken)
     {
-        var result = await passkeys.SignInAsync(request, cancellationToken);
+        var (result, passkey) = await passkeys.SignInAsync(request, cancellationToken);
         switch (result.Error)
         {
             case AccountError.None:
                 await SessionSignIn.SignInAsync(HttpContext, result.User!, request.RememberMe);
-                return UserResponse.From(result.User!);
+                return new PasskeySignInResponse(UserResponse.From(result.User!), passkey!.Id, passkey.E2eeWrappedKey);
             case AccountError.Disabled:
                 return Problem(statusCode: StatusCodes.Status403Forbidden, title: "This account has been disabled by an administrator.");
             default:

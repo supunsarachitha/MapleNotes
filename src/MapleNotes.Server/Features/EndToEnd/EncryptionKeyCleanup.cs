@@ -36,6 +36,10 @@ public sealed class EncryptionKeyCleanup(MapleDbContext db)
             user.E2eeRecoveryWrappedKey = null;
             user.E2eeModeRecord = null;
             user.RecoveryKeyHash = null;
+            foreach (var passkey in await db.Passkeys.Where(p => p.UserId == userId && p.E2eeWrappedKey != null).ToListAsync(cancellationToken))
+            {
+                passkey.E2eeWrappedKey = null; // wraps the key that is going away
+            }
         }
 
         await db.SaveChangesAsync(cancellationToken);

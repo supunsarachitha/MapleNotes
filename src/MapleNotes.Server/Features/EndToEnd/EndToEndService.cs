@@ -81,6 +81,11 @@ public sealed class EndToEndService(
         user.E2eeModeRecord = request.ModeRecord;
         user.RecoveryKeyHash = credentials.HashRecoveryKey(user, request.RecoveryAuthKey);
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;
+        foreach (var passkey in await db.Passkeys.Where(p => p.UserId == userId && p.E2eeWrappedKey != null).ToListAsync(cancellationToken))
+        {
+            passkey.E2eeWrappedKey = null; // a new data key: anything wrapped before wraps another key
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         await cleanup.RunAsync(userId, cancellationToken); // an account with nothing server-encrypted drops the server's key now
         signal.Notify();

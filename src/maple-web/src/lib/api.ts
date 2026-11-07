@@ -34,6 +34,7 @@ import type {
   Passkey,
   PasskeyCreationOptions,
   PasskeyRequestOptions,
+  PasskeyUnlockKey,
   TwoFactorSetup,
   TwoFactorStatus,
   User,
@@ -495,11 +496,14 @@ export const api = {
     rename: (id: string, name: string) => request<Passkey>("PATCH", `/api/v1/account/passkeys/${id}`, { name }),
     remove: (id: string, proof: CredentialProof) => request<void>("DELETE", `/api/v1/account/passkeys/${id}`, { proof }),
     signInOptions: () => request<PasskeyRequestOptions>("POST", "/api/v1/auth/passkey/options"),
-    async signIn(body: { challengeId: string; credential: PasskeyAssertionWire; rememberMe: boolean }): Promise<User> {
-      const user = await request<User>("POST", "/api/v1/auth/passkey/login", body);
+    async signIn(body: { challengeId: string; credential: PasskeyAssertionWire; rememberMe: boolean }) {
+      const answer = await request<{ user: User; passkeyId: string; wrappedKey: string | null }>("POST", "/api/v1/auth/passkey/login", body);
       await refreshAntiforgeryToken();
-      return user;
+      return answer;
     },
+    setUnlockKey: (id: string, body: { proof: CredentialProof; wrappedKey: string }) =>
+      request<Passkey>("PUT", `/api/v1/account/passkeys/${id}/e2ee`, body),
+    unlockKeys: () => request<PasskeyUnlockKey[]>("GET", "/api/v1/account/passkeys/e2ee"),
   },
 
   /** Optional two-factor sign-in with an authenticator app. */

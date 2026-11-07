@@ -515,7 +515,9 @@ describe("Settings", () => {
 });
 
 describe("passkeys", () => {
-  const passkey: Passkey = { id: "p1", name: "Phone", backedUp: true, createdAtUtc: "2026-11-01T10:00:00Z", lastUsedAtUtc: null };
+  const passkey: Passkey = {
+    id: "p1", name: "Phone", backedUp: true, createdAtUtc: "2026-11-01T10:00:00Z", lastUsedAtUtc: null, credentialId: "AQ==", unlocksNotes: false,
+  };
   const options: PasskeyCreationOptions = {
     challengeId: "c1", challenge: "AQ==", rp: { id: "localhost", name: "Maple Notes" },
     user: { id: "AQ==", name: "maple", displayName: "Maple" }, algorithms: [-7], excludeCredentials: [], timeoutMs: 1000,
@@ -529,7 +531,7 @@ describe("passkeys", () => {
     Object.defineProperty(navigator, "credentials", { value: { create: vi.fn(), get: vi.fn() }, configurable: true });
     vi.spyOn(api.passkeys, "list").mockResolvedValueOnce([]).mockResolvedValue([passkey]);
     vi.spyOn(api.passkeys, "creationOptions").mockResolvedValue(options);
-    const add = vi.spyOn(auth, "addPasskey").mockResolvedValue(passkey);
+    const add = vi.spyOn(auth, "addPasskey").mockResolvedValue({ passkey, canUnlockWithTap: false });
     renderSettings(idle, user, null, "/settings/security");
 
     await userEvent.click(await screen.findByRole("button", { name: "Add a passkey…" }));

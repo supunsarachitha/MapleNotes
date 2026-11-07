@@ -10,12 +10,15 @@ import {
   type DataKeys,
 } from "../crypto/datakey";
 import { fromBase64, toBase64, type Bytes } from "../crypto/encoding";
+import { openModeRecord } from "../crypto/content";
 import { DecryptionError } from "../crypto/envelope";
+import { passkeyContext, passkeyWrapKey } from "../crypto/passkey";
 import { forgetLocalKeys, loadLocalKey, saveLocalKey } from "../crypto/keystore";
 import { deriveRecoveryKeys, formatRecoveryKey, generateRecoveryKey, parseRecoveryKey } from "../crypto/recovery";
 import { api, ApiError } from "./api";
 import { deriveForAccount, deriveForNewPassword, validateNewPassword, wrongPassword } from "./credentials";
 import { shareKeysWithMediaWorker } from "./mediaWorker";
+import { PasskeyUnavailable } from "./passkeys";
 import { sealFirstMode } from "./modeRecord";
 import type { EncryptionStatus, User } from "./types";
 
@@ -108,6 +111,42 @@ export const e2ee = {
   async unlock(user: User, password: string): Promise<DataKeys> {
     const { keys } = await deriveForAccount(user.username, password);
     return e2ee.unlockWithWrapKey(user.id, keys.wrapKey);
+  },
+
+  /**
+   * Wraps the data key for a passkey (docs/e2ee-spec.md §6a): unwraps it with the password's wrapping key, then wraps
+   * it with the key derived from the passkey's PRF output, checking that the result opens again.
+   */
+  async wrapForPasskey(userId: string, wrapKey: CryptoKey, passkeyId: string, prfOutput: Uint8Array): Promise<Bytes> {
+    const { raw } = await unwrapAccountKey(userId, wrapKey, "password");
+    try {
+      return await wrapChecked(await passkeyWrapKey(prfOutput), raw, passkeyContext(userId, passkeyId));
+    } finally {
+      raw.fill(0);
+    }
+  },
+
+  /**
+   * Unlocks with a passkey's PRF output and the key wrapped for that passkey. When the account has a mode record, the
+   * key must also open it, so a key the server substituted is never used for new notes.
+   */
+  async unlockWithPasskey(user: User, passkeyId: string, wrappedKey: string, prfOutput: Uint8Array): Promise<DataKeys> {
+    let unwrapped: { raw: Bytes; version: number };
+    try {
+      unwrapped = await unwrapRawDataKey(await passkeyWrapKey(prfOutput), fromBase64(wrappedKey), passkeyContext(user.id, passkeyId));
+    } catch (error) {
+      throw error instanceof DecryptionError ? new PasskeyUnavailable("This passkey could not unlock your notes. Use your password instead.") : error;
+    }
+    if (user.endToEndModeRecord) {
+      const keys = await importDataKey(unwrapped.raw, unwrapped.version);
+      try {
+        await openModeRecord(keys, user.id, fromBase64(user.endToEndModeRecord));
+      } catch {
+        unwrapped.raw.fill(0);
+        throw new PasskeyUnavailable("The key stored for this passkey is not your account's key. Use your password instead.");
+      }
+    }
+    return adopt(user.id, unwrapped.raw, unwrapped.version);
   },
 
   /** Re-wraps the data key from the current password's wrapping key to a new password's. */

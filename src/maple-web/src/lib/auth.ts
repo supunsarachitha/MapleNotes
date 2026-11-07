@@ -3,8 +3,8 @@ import { api } from "./api";
 import { isTwoFactorRequired } from "./apiError";
 import { deriveForAccount, deriveForNewPassword, rememberKeyDerived } from "./credentials";
 import { e2ee } from "./e2ee";
-import { createPasskey, getPasskey } from "./passkeys";
-import type { CredentialProof, Passkey, PasskeyCreationOptions, PasskeyRequestOptions, User } from "./types";
+import { createPasskey, evaluatePasskey, getPasskey, PasskeyUnavailable } from "./passkeys";
+import type { CredentialProof, Passkey, PasskeyCreationOptions, PasskeyRequestOptions, PasskeyUnlockKey, User } from "./types";
 
 // Key-derived sign-in (docs/e2ee-spec.md §1). The password never leaves the browser: Argon2id turns it into an
 // authentication key, which is all the server receives, and a wrapping key, which stays on this page and protects the
@@ -56,20 +56,68 @@ export const auth = {
     { options, autofill = false, signal }: { options?: PasskeyRequestOptions; autofill?: boolean; signal?: AbortSignal } = {},
   ): Promise<User> {
     const request = options ?? (await api.passkeys.signInOptions());
-    const credential = await getPasskey(request, { autofill, signal });
-    const user = await api.passkeys.signIn({ challengeId: request.challengeId, credential, rememberMe });
-    await rememberKeyDerived(user.username);
-    return user;
+    const { credential, prfOutput } = await getPasskey(request, { autofill, signal });
+    try {
+      const { user, passkeyId, wrappedKey } = await api.passkeys.signIn({ challengeId: request.challengeId, credential, rememberMe });
+      await rememberKeyDerived(user.username);
+      if (user.hasEndToEndKey && wrappedKey && prfOutput) {
+        // Unlocks too where the passkey can; otherwise, or if this fails, the unlock screen asks for the password.
+        await e2ee.unlockWithPasskey(user, passkeyId, wrappedKey, prfOutput).catch(() => undefined);
+      }
+      return user;
+    } finally {
+      prfOutput?.fill(0);
+    }
   },
 
   /**
    * Creates a passkey on this device with `options` fetched beforehand (so the prompt opens straight from the tap),
    * then proves the password and adds the passkey to the account.
    */
-  async addPasskey(user: User, password: string, options: PasskeyCreationOptions, name?: string): Promise<Passkey> {
-    const credential = await createPasskey(options);
-    const proof = await auth.proveIdentity(user.username, password);
-    return api.passkeys.add({ proof, challengeId: options.challengeId, credential, ...(name ? { name } : {}) });
+  async addPasskey(
+    user: User,
+    password: string,
+    options: PasskeyCreationOptions,
+    name?: string,
+  ): Promise<{ passkey: Passkey; canUnlockWithTap: boolean }> {
+    const created = await createPasskey(options);
+    const { proof, keys } = await deriveForAccount(user.username, password);
+    let passkey = await api.passkeys.add({ proof, challengeId: options.challengeId, credential: created.credential, ...(name ? { name } : {}) });
+    const output = created.prf.output;
+    if (user.hasEndToEndKey && output) {
+      try {
+        const wrapped = await e2ee.wrapForPasskey(user.id, keys.wrapKey, passkey.id, output);
+        passkey = await api.passkeys.setUnlockKey(passkey.id, { proof, wrappedKey: toBase64(wrapped) });
+      } finally {
+        output.fill(0);
+      }
+    }
+    // Some devices give the PRF output only when the passkey is used: one more tap sets up unlocking then.
+    return { passkey, canUnlockWithTap: user.hasEndToEndKey && created.prf.enabled && !passkey.unlocksNotes };
+  },
+
+  /** Lets an existing passkey unlock the notes: asks it for its PRF output (one tap), then proves the password. */
+  async enablePasskeyUnlock(user: User, password: string, passkey: Passkey): Promise<Passkey> {
+    const { prfOutput } = await evaluatePasskey([passkey.credentialId]);
+    try {
+      const { proof, keys } = await deriveForAccount(user.username, password);
+      const wrapped = await e2ee.wrapForPasskey(user.id, keys.wrapKey, passkey.id, prfOutput);
+      return await api.passkeys.setUnlockKey(passkey.id, { proof, wrappedKey: toBase64(wrapped) });
+    } finally {
+      prfOutput.fill(0);
+    }
+  },
+
+  /** Unlocks the notes with one of the account's passkeys that can (the unlock screen). */
+  async unlockWithPasskey(user: User, unlockKeys: PasskeyUnlockKey[]): Promise<void> {
+    const { id, prfOutput } = await evaluatePasskey(unlockKeys.map((key) => key.credentialId));
+    try {
+      const key = unlockKeys.find((candidate) => candidate.credentialId === id);
+      if (!key) throw new PasskeyUnavailable("This passkey cannot unlock your notes. Use your password instead.");
+      await e2ee.unlockWithPasskey(user, key.id, key.wrappedKey, prfOutput);
+    } finally {
+      prfOutput.fill(0);
+    }
   },
 
   async register(username: string, password: string, displayName?: string): Promise<User> {

@@ -9,16 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Passkeys** (in progress): sign in with a passkey instead of the password. The server checks passkeys with .NET's
+- **Passkeys**: sign in with a passkey instead of the password. The server checks passkeys with .NET's
   own cryptography, without a new library. Passkeys ask for a fingerprint, face or PIN, so an account with an
   authenticator app is not asked for its code when it signs in with one.
   - **Settings → Privacy & security → Passkeys:** add a passkey (with your password), see which are synced and when
     each was last used, rename and remove them.
   - **Sign in with a passkey** on the sign-in page; browsers that support it also offer your passkeys in the username
     field's suggestions.
+  - **End-to-end notes:** where the device supports it (the passkey PRF extension, on recent Chrome, Edge, Safari and
+    Android), a passkey also unlocks your notes, so signing in with it needs no password at all. Settings marks such
+    passkeys **Unlocks notes**, and offers **Unlock notes…** for the others; the unlock screen gains **Unlock with a
+    passkey**. Anyone who can use the passkey can then read the notes. See docs/e2ee-spec.md §6a.
   - API: `GET /api/v1/account/passkeys` lists the account's passkeys; `POST .../options` and `POST` add one (with a
     password proof); `PATCH`/`DELETE .../{id}` rename and remove one (removing needs a password proof).
-    `POST /api/v1/auth/passkey/options` and `POST /api/v1/auth/passkey/login` sign in.
+    `POST /api/v1/auth/passkey/options` and `POST /api/v1/auth/passkey/login` sign in (the answer has `user`,
+    `passkeyId` and `wrappedKey`). `PUT .../{id}/e2ee` stores the data key wrapped for a passkey (with a password
+    proof); `GET .../e2ee` lists those keys for the unlock screen. Passkeys gain `credentialId` and `unlocksNotes`.
   - Database: a new `Passkeys` table, created when the server starts.
 
 ## [1.18.1] - 2026-11-06

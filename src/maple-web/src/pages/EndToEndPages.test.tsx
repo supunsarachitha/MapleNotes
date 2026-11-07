@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { api, ApiError } from "../lib/api";
+import { auth } from "../lib/auth";
 import { e2ee } from "../lib/e2ee";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import type { User } from "../lib/types";
@@ -115,5 +116,31 @@ describe("password reset with the recovery key", () => {
 
     expect(await screen.findByRole("button", { name: "Continue to my notes" })).toBeInTheDocument();
     expect(recover).toHaveBeenLastCalledWith("maple", "7k3m qx2p ....", "a brand new passphrase", "123456");
+  });
+});
+
+describe("unlocking with a passkey", () => {
+  it("offers the passkeys that can unlock, and unlocks with one", async () => {
+    vi.stubGlobal("PublicKeyCredential", class {});
+    vi.stubGlobal("isSecureContext", true);
+    Object.defineProperty(navigator, "credentials", { value: { create: vi.fn(), get: vi.fn() }, configurable: true });
+    const keys = [{ id: "p1", credentialId: "AQ==", wrappedKey: "AA==" }];
+    vi.spyOn(api.passkeys, "unlockKeys").mockResolvedValue(keys);
+    const unlock = vi.spyOn(auth, "unlockWithPasskey").mockResolvedValue();
+    render(withQueries(<UnlockPage user={user} />));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Unlock with a passkey" }));
+
+    expect(unlock).toHaveBeenCalledWith(user, keys);
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("shows only the password where no passkey can unlock", async () => {
+    vi.spyOn(api.passkeys, "unlockKeys").mockResolvedValue([]);
+    render(withQueries(<UnlockPage user={user} />));
+    expect(await screen.findByRole("button", { name: "Unlock" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Unlock with a passkey" })).not.toBeInTheDocument();
+    vi.restoreAllMocks();
   });
 });

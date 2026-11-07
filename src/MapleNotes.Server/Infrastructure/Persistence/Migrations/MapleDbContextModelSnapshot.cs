@@ -209,6 +209,10 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1023)
                         .HasColumnType("BLOB");
 
+                    b.Property<byte[]>("E2eeWrappedKey")
+                        .HasMaxLength(62)
+                        .HasColumnType("BLOB");
+
                     b.Property<DateTime?>("LastUsedAtUtc")
                         .HasColumnType("TEXT");
 

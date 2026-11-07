@@ -43,6 +43,12 @@ public sealed class Passkey
     /// <summary>Gets or sets the transports the browser reported, comma-separated (for example <c>internal,hybrid</c>).</summary>
     public string? Transports { get; set; }
 
+    /// <summary>
+    /// Gets or sets the account's end-to-end data key wrapped with a key derived from the passkey's PRF output
+    /// (docs/e2ee-spec.md §6a), or null when the passkey does not unlock the notes.
+    /// </summary>
+    public byte[]? E2eeWrappedKey { get; set; }
+
     /// <summary>Gets when it was added.</summary>
     public DateTime CreatedAtUtc { get; init; }
 

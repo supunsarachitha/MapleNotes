@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fromBase64, toBase64 } from "../crypto/encoding";
-import { createPasskey, getPasskey, PasskeyCancelled, passkeysSupported, PasskeyUnavailable } from "./passkeys";
+import { createPasskey, evaluatePasskey, getPasskey, PasskeyCancelled, passkeysSupported, PasskeyUnavailable } from "./passkeys";
 import type { PasskeyCreationOptions, PasskeyRequestOptions } from "./types";
 
 class FakeCredential {
@@ -56,7 +56,7 @@ describe("passkeys in the browser", () => {
       }),
     );
 
-    const wire = await createPasskey(creation);
+    const { credential: wire, prf } = await createPasskey(creation);
 
     const { publicKey } = create.mock.calls[0]![0] as { publicKey: PublicKeyCredentialCreationOptions };
     expect(new Uint8Array(publicKey.challenge as ArrayBuffer)).toEqual(new Uint8Array([1, 2, 3]));
@@ -64,6 +64,8 @@ describe("passkeys in the browser", () => {
     expect(publicKey.pubKeyCredParams).toEqual([{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }]);
     expect(publicKey.authenticatorSelection).toMatchObject({ residentKey: "required", userVerification: "required" });
     expect(publicKey.attestation).toBe("none");
+    expect((publicKey.extensions as { prf?: unknown }).prf).toBeDefined();
+    expect(prf).toEqual({ enabled: false, output: null });
     expect(new Uint8Array(publicKey.excludeCredentials![0]!.id as ArrayBuffer)).toEqual(new Uint8Array([7]));
     expect(wire).toEqual({
       id: toBase64(new Uint8Array([0xaa])),
@@ -86,7 +88,8 @@ describe("passkeys in the browser", () => {
     );
     const controller = new AbortController();
 
-    const wire = await getPasskey(request, { autofill: true, signal: controller.signal });
+    const { credential: wire, prfOutput } = await getPasskey(request, { autofill: true, signal: controller.signal });
+    expect(prfOutput).toBeNull();
 
     const options = get.mock.calls[0]![0] as CredentialRequestOptions;
     expect(options.mediation).toBe("conditional");
@@ -103,5 +106,28 @@ describe("passkeys in the browser", () => {
 
     create.mockRejectedValue(new DOMException("exists", "InvalidStateError"));
     await expect(createPasskey(creation)).rejects.toThrow("This device already has a passkey for your account.");
+  });
+});
+
+describe("the PRF extension", () => {
+  it("returns a passkey's 32-byte PRF output, on creation and on use", async () => {
+    const output = new Uint8Array(32).fill(7);
+    const withPrf = (response: object) =>
+      Object.assign(new FakeCredential(bytes(1), response), { getClientExtensionResults: () => ({ prf: { enabled: true, results: { first: output.buffer } } }) });
+    create.mockResolvedValue(withPrf({
+      clientDataJSON: bytes(1), getAuthenticatorData: () => bytes(2), getPublicKey: () => bytes(3), getPublicKeyAlgorithm: () => -7,
+    }));
+    get.mockResolvedValue(withPrf({ clientDataJSON: bytes(1), authenticatorData: bytes(2), signature: bytes(3), userHandle: null }));
+
+    expect((await createPasskey(creation)).prf).toEqual({ enabled: true, output });
+    expect((await getPasskey(request)).prfOutput).toEqual(output);
+  });
+
+  it("asks only the given passkeys when unlocking, and refuses one without PRF", async () => {
+    get.mockResolvedValue(new FakeCredential(bytes(5), { clientDataJSON: bytes(1), authenticatorData: bytes(2), signature: bytes(3), userHandle: null }));
+
+    await expect(evaluatePasskey([toBase64(new Uint8Array([5]))])).rejects.toBeInstanceOf(PasskeyUnavailable);
+    const { publicKey } = get.mock.calls[0]![0] as { publicKey: PublicKeyCredentialRequestOptions };
+    expect(new Uint8Array(publicKey.allowCredentials![0]!.id as ArrayBuffer)).toEqual(new Uint8Array([5]));
   });
 });

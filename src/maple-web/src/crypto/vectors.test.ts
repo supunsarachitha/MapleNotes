@@ -19,6 +19,7 @@ import { dataKeyContext, importDataKey, recoveryContext, unwrapDataKey, wrapData
 import { fromBase64, toBase64, toHex, uuidv7 } from "./encoding";
 import { DecryptionError } from "./envelope";
 import { hkdfBytes, importAesKey } from "./kdf";
+import { PASSKEY_PRF_SALT, passkeyContext, passkeyWrapKey } from "./passkey";
 import { deriveRecoveryKeys, formatRecoveryKey, parseRecoveryKey } from "./recovery";
 import v from "./test-vectors.json";
 
@@ -91,6 +92,15 @@ describe("E2EE test vectors", () => {
     expect(toBase64(derived.authKey)).toBe(v.recovery.authKeyB64);
     const wrapped = await wrapDataKey(derived.wrapKey, b(v.dataKeyB64), recoveryContext(v.ids.userId), b(v.recovery.nonceB64));
     expect(toBase64(wrapped)).toBe(v.recovery.wrappedDataKeyB64);
+  });
+
+  it("wrap the data key for a passkey from its PRF output", async () => {
+    expect(new TextDecoder().decode(PASSKEY_PRF_SALT)).toBe(v.passkey.prfSalt);
+    expect(toBase64(await hkdfBytes(b(v.passkey.prfOutputB64), "maple-notes/v2/passkey/wrap"))).toBe(v.passkey.wrapKeyB64);
+    const wrapKey = await passkeyWrapKey(b(v.passkey.prfOutputB64));
+    const context = passkeyContext(v.ids.userId, v.passkey.passkeyId);
+    expect(toBase64(await wrapDataKey(wrapKey, b(v.dataKeyB64), context, b(v.passkey.nonceB64)))).toBe(v.passkey.wrappedDataKeyB64);
+    await expect(unwrapDataKey(wrapKey, b(v.passkey.wrappedDataKeyB64), dataKeyContext(v.ids.userId))).rejects.toBeInstanceOf(DecryptionError);
   });
 
   it("reject malformed recovery keys", () => {

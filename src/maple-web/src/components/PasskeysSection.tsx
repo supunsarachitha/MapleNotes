@@ -28,6 +28,8 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
   const [error, setError] = useState<ApiError | null>(null);
   // Fetched when the dialog opens, so the device's prompt opens straight from the tap (Safari needs that).
   const [options, setOptions] = useState<PasskeyCreationOptions | null>(null);
+  // Added, but the device gives the PRF output only when the passkey is used: offer one more tap to unlock notes.
+  const [needsTap, setNeedsTap] = useState<Passkey | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -47,8 +49,25 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
       setPassword("");
       setError(null);
       setOptions(null);
+      setNeedsTap(null);
     }
     onOpenChange(next);
+  }
+
+  async function enableUnlock() {
+    if (!needsTap) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await auth.enablePasskeyUnlock(user, password, needsTap);
+      toast.info("This passkey now unlocks your notes too.");
+      void queryClient.invalidateQueries({ queryKey: passkeysKey });
+      change(false);
+    } catch (caught) {
+      if (!(caught instanceof PasskeyCancelled)) setError(asError(caught));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function submit(event: FormEvent) {
@@ -57,9 +76,15 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
     setBusy(true);
     setError(null);
     try {
-      await auth.addPasskey(user, password, options, name.trim() || undefined);
-      toast.info("Passkey added. You can sign in with it now.");
+      const { passkey, canUnlockWithTap } = await auth.addPasskey(user, password, options, name.trim() || undefined);
       void queryClient.invalidateQueries({ queryKey: passkeysKey });
+      if (canUnlockWithTap) {
+        setNeedsTap(passkey);
+        return;
+      }
+      toast.info(
+        passkey.unlocksNotes ? "Passkey added. It signs you in and unlocks your notes." : "Passkey added. You can sign in with it now.",
+      );
       change(false);
     } catch (caught) {
       if (!(caught instanceof PasskeyCancelled)) setError(asError(caught));
@@ -69,6 +94,27 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
     } finally {
       setBusy(false);
     }
+  }
+
+  if (needsTap) {
+    return (
+      <DialogShell open={open} onOpenChange={change} title="Unlock your notes with it too?">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-stone-600 dark:text-stone-300">
+            The passkey is added and signs you in. To also unlock your end-to-end notes with it, use it once more now.
+          </p>
+          {error && <ErrorMessage>{error.message}</ErrorMessage>}
+          <div className="flex justify-end gap-2">
+            <Dialog.Close asChild>
+              <Button variant="ghost">Not now</Button>
+            </Dialog.Close>
+            <Button busy={busy} onClick={() => void enableUnlock()}>
+              Use passkey
+            </Button>
+          </div>
+        </div>
+      </DialogShell>
+    );
   }
 
   return (
@@ -163,6 +209,70 @@ function RenameDialog({ passkey, onOpenChange }: { passkey: Passkey | null; onOp
   );
 }
 
+/** Lets an existing passkey unlock the notes: the password, then one use of the passkey. */
+function UnlockDialog({ user, passkey, onOpenChange }: { user: User; passkey: Passkey | null; onOpenChange: (open: boolean) => void }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
+
+  function change(next: boolean) {
+    if (!next) {
+      setPassword("");
+      setError(null);
+    }
+    onOpenChange(next);
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!passkey) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await auth.enablePasskeyUnlock(user, password, passkey);
+      toast.info("This passkey now unlocks your notes too.");
+      void queryClient.invalidateQueries({ queryKey: passkeysKey });
+      change(false);
+    } catch (caught) {
+      if (!(caught instanceof PasskeyCancelled)) setError(asError(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <DialogShell open={passkey !== null} onOpenChange={change} title="Unlock notes with this passkey?">
+      <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">
+        <p className="text-sm text-stone-600 dark:text-stone-300">
+          Signing in with “{passkey?.name}” will then also unlock your end-to-end notes, without the password. Anyone who
+          can use this passkey can read your notes, so use it only on devices you trust. Not every device supports this.
+        </p>
+        {error && !error.fieldError("password") && <ErrorMessage>{error.message}</ErrorMessage>}
+        <TextField
+          label="Your password"
+          type="password"
+          autoComplete="current-password"
+          autoFocus
+          required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          error={error?.fieldError("password")}
+        />
+        <div className="flex justify-end gap-2">
+          <Dialog.Close asChild>
+            <Button variant="ghost">Cancel</Button>
+          </Dialog.Close>
+          <Button type="submit" busy={busy} disabled={!password}>
+            Continue
+          </Button>
+        </div>
+      </form>
+    </DialogShell>
+  );
+}
+
 function RemoveDialog({ user, passkey, onOpenChange }: { user: User; passkey: Passkey | null; onOpenChange: (open: boolean) => void }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -232,13 +342,18 @@ export function PasskeysSection({ user }: { user: User }) {
   const [adding, setAdding] = useState(false);
   const [renaming, setRenaming] = useState<Passkey | null>(null);
   const [removing, setRemoving] = useState<Passkey | null>(null);
+  const [unlocking, setUnlocking] = useState<Passkey | null>(null);
   const supported = passkeysSupported();
   const date = (iso: string) => formatDate(new Date(iso), user.preferences.dateFormat);
 
   return (
     <Section
       title="Passkeys"
-      description="Sign in with your fingerprint, face or device PIN instead of your password. A passkey cannot be guessed or phished, so it is not asked for a two-factor code."
+      description={
+        user.hasEndToEndKey
+          ? "Sign in with your fingerprint, face or device PIN instead of your password. A passkey cannot be guessed or phished, so it is not asked for a two-factor code. Where the device supports it, a passkey can also unlock your end-to-end notes."
+          : "Sign in with your fingerprint, face or device PIN instead of your password. A passkey cannot be guessed or phished, so it is not asked for a two-factor code."
+      }
     >
       <div className="flex flex-col gap-3">
         {list.isError && <ErrorMessage>Your passkeys could not be loaded.</ErrorMessage>}
@@ -256,9 +371,19 @@ export function PasskeysSection({ user }: { user: User }) {
                     <span className="whitespace-nowrap">
                       {passkey.lastUsedAtUtc ? `Last used ${date(passkey.lastUsedAtUtc)}` : "Not used yet"}
                     </span>
+                    {user.hasEndToEndKey && passkey.unlocksNotes && (
+                      <>
+                        {" "}· <span className="whitespace-nowrap font-medium text-emerald-700 dark:text-emerald-400">Unlocks notes</span>
+                      </>
+                    )}
                   </p>
                 </div>
-                <div className="ml-auto flex shrink-0 gap-1">
+                <div className="ml-auto flex min-w-0 max-w-full flex-wrap justify-end gap-1">
+                  {user.hasEndToEndKey && !passkey.unlocksNotes && supported && (
+                    <Button variant="ghost" onClick={() => setUnlocking(passkey)} aria-label={`Unlock notes with ${passkey.name}`}>
+                      Unlock notes…
+                    </Button>
+                  )}
                   <Button variant="ghost" onClick={() => setRenaming(passkey)} aria-label={`Rename ${passkey.name}`}>
                     Rename
                   </Button>
@@ -284,6 +409,7 @@ export function PasskeysSection({ user }: { user: User }) {
       </div>
       <AddDialog user={user} open={adding} onOpenChange={setAdding} />
       <RenameDialog passkey={renaming} onOpenChange={(open) => !open && setRenaming(null)} />
+      <UnlockDialog user={user} passkey={unlocking} onOpenChange={(open) => !open && setUnlocking(null)} />
       <RemoveDialog user={user} passkey={removing} onOpenChange={(open) => !open && setRemoving(null)} />
     </Section>
   );
