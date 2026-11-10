@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace MapleNotes.Server.Infrastructure.Web;
 
@@ -17,6 +19,38 @@ public static class RateLimitPolicies
     /// <see cref="Authentication"/> but a separate budget, since every sign-in makes one of each.
     /// </summary>
     public const string Prelogin = "prelogin";
+
+    /// <summary>
+    /// Requests to <see cref="Authentication"/> and <see cref="Prelogin"/> endpoints that may run at once across all
+    /// clients: one per processor (at least four). Each such request runs PBKDF2 for 100 to 200 ms, so without a shared
+    /// cap many addresses together (a botnet) could keep every core busy although each stays within its own budget.
+    /// </summary>
+    public static int GlobalConcurrencyLimit => Math.Max(4, Environment.ProcessorCount);
+
+    /// <summary>
+    /// Requests that may wait for a free slot under <see cref="GlobalConcurrencyLimit"/>; beyond that the server answers
+    /// 429 at once instead of building a backlog.
+    /// </summary>
+    public const int GlobalQueueLimit = 100;
+
+    /// <summary>
+    /// The limiter that runs before the per-address policies: it caps how many requests to endpoints with the
+    /// <see cref="Authentication"/> or <see cref="Prelogin"/> policy run at once, all clients together, and lets every
+    /// other request through.
+    /// </summary>
+    /// <param name="permitLimit">Requests that may run at once.</param>
+    /// <param name="queueLimit">Requests that may wait for a slot, oldest first.</param>
+    /// <returns>The limiter.</returns>
+    public static PartitionedRateLimiter<HttpContext> CreateGlobalLimiter(int permitLimit, int queueLimit) =>
+        PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            context.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName is Authentication or Prelogin
+                ? RateLimitPartition.GetConcurrencyLimiter("authentication", _ => new ConcurrencyLimiterOptions
+                {
+                    PermitLimit = permitLimit,
+                    QueueLimit = queueLimit,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                })
+                : RateLimitPartition.GetNoLimiter(string.Empty));
 
     /// <summary>Limits link previews per signed-in user per minute (60), bounding the requests the server makes for them.</summary>
     public const string LinkPreview = "link-preview";

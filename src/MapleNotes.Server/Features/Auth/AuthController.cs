@@ -288,14 +288,27 @@ public sealed class AuthController(
     /// <param name="result">The refusal, with the end of the lockout.</param>
     /// <param name="time">Clock.</param>
     /// <returns>A 429 problem.</returns>
-    internal static ObjectResult LockedOut(ControllerBase controller, AccountResult result, TimeProvider time)
+    internal static ObjectResult LockedOut(ControllerBase controller, AccountResult result, TimeProvider time) =>
+        LockedOut(controller.Response, result.LockedUntilUtc!.Value, time);
+
+    /// <summary>The 429 answer for a locked account, shared by sign-ins and password confirmations.</summary>
+    /// <param name="response">The response, which gets the Retry-After header.</param>
+    /// <param name="lockedUntilUtc">When the lockout ends.</param>
+    /// <param name="time">Clock.</param>
+    /// <returns>A 429 problem.</returns>
+    internal static ObjectResult LockedOut(HttpResponse response, DateTime lockedUntilUtc, TimeProvider time)
     {
-        var seconds = Math.Max(1, (int)Math.Ceiling((result.LockedUntilUtc!.Value - time.GetUtcNow().UtcDateTime).TotalSeconds));
-        controller.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
-        return controller.Problem(
-            statusCode: StatusCodes.Status429TooManyRequests,
-            title: "Too many failed sign-in attempts.",
-            detail: $"Try again in {Math.Ceiling(seconds / 60.0)} minute(s).");
+        var seconds = Math.Max(1, (int)Math.Ceiling((lockedUntilUtc - time.GetUtcNow().UtcDateTime).TotalSeconds));
+        response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+        return new ObjectResult(new ProblemDetails
+        {
+            Status = StatusCodes.Status429TooManyRequests,
+            Title = "Too many failed sign-in attempts.",
+            Detail = $"Try again in {Math.Ceiling(seconds / 60.0)} minute(s).",
+        })
+        {
+            StatusCode = StatusCodes.Status429TooManyRequests,
+        };
     }
 
     /// <summary>

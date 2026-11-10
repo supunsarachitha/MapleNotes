@@ -25,6 +25,7 @@ internal static class FeatureServiceCollectionExtensions
     public static IServiceCollection AddMapleFeatures(this IServiceCollection services)
     {
         services.AddScoped<AccountService>();
+        services.AddSingleton<UnknownUsernameLockout>();
         services.AddScoped<TwoFactorService>();
         services.AddScoped<PasskeyService>();
         services.AddSingleton<PasskeyChallenges>();

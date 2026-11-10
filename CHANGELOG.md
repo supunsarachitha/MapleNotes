@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carry an SBOM and a full build provenance attestation; the README shows how to check them with `cosign verify`. The
   `Dockerfile` pins its base images by digest, and `scripts/refresh-base-images.py` refreshes those digests
   ([#127](https://github.com/supunsarachitha/MapleNotes/issues/127)).
+- Unknown usernames now lock after five failed sign-ins like real accounts, so the lockout no longer reveals which
+  usernames exist. Wrong passwords given to confirm an action (changing the password or the encryption mode, deleting
+  the account or its content, two-factor sign-in, passkeys, the recovery key) now count toward the sign-in lockout, and
+  a locked account refuses them with 429. Sign-in, prelogin, registration and recovery also share a global
+  concurrency cap across all clients, so many addresses together cannot keep the server's processors busy
+  ([#128](https://github.com/supunsarachitha/MapleNotes/issues/128)).
 
 ## [1.21.1] - 2026-11-07
 

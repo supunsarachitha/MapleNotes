@@ -65,7 +65,7 @@ public sealed class EndToEndService(
         ThrowIfAny(errors);
 
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        VerifyProof(user, request.Proof);
+        await VerifyProofAsync(user, request.Proof, cancellationToken);
         if (user.E2eeWrappedKey is not null)
         {
             await db.SaveChangesAsync(cancellationToken); // keeps a legacy credential upgrade
@@ -106,7 +106,7 @@ public sealed class EndToEndService(
         ThrowIfAny(errors);
 
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        VerifyProof(user, request.Proof);
+        await VerifyProofAsync(user, request.Proof, cancellationToken);
         if (user.E2eeWrappedKey is null)
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -226,9 +226,9 @@ public sealed class EndToEndService(
         return db.Users.SingleOrDefaultAsync(u => u.NormalizedUsername == normalizedUsername, cancellationToken);
     }
 
-    private void VerifyProof(User user, CredentialProof? proof)
+    private async Task VerifyProofAsync(User user, CredentialProof? proof, CancellationToken cancellationToken)
     {
-        if (!credentials.Verify(user, proof?.AuthKey, proof?.Password))
+        if (!await AccountService.ConfirmPasswordAsync(db, credentials, user, proof, time.GetUtcNow().UtcDateTime, cancellationToken))
         {
             throw new ApiValidationException("password", "The password is not correct.");
         }

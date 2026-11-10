@@ -157,7 +157,17 @@ database. Changes to one's own password, two-factor sign-in and passkeys are not
 ### Password guessing through the app
 
 - Five failed attempts lock an account for 15 minutes, and sign-in, prelogin and recovery are rate-limited per client
-  IP.
+  IP. Wrong password confirmations made inside a session (changing the password or the encryption mode, deleting the
+  account, two-factor and passkey changes) count toward the same lockout, so a stolen session cannot guess the
+  password faster than sign-in can; the price is that such a session can lock its owner out of sign-in for 15 minutes.
+  A right confirmation does not reset the count; only a complete sign-in does.
+- Unknown usernames lock too, after the same five failures, so a locked account and an unknown name answer alike. The
+  counts for unknown names are kept in memory for at most 10,000 names, least recently failed first out; telling an
+  evicted name from a real one takes more than 10,000 failed sign-ins in between, which the rate limits make slow. A
+  restart forgets them, which a remote client cannot cause.
+- Requests that run PBKDF2 without a session (sign-in, prelogin, registration, recovery) also share one global
+  concurrency cap: one per processor, at least four, run at once, 100 more wait, and the rest get 429. Many addresses
+  together can make sign-in slow or refused for a while, but cannot keep every core busy.
 - **Two-factor sign-in** is optional. With it on, the right password alone gets only the request for a code: a code
   from an authenticator app (TOTP, 30-second steps, one step of tolerance either side) or one of ten single-use
   recovery codes. A wrong code counts toward the same lockout as a wrong password, and only a complete sign-in resets
@@ -183,8 +193,7 @@ database. Changes to one's own password, two-factor sign-in and passkeys are not
 - Two-factor sign-in protects sign-in, not content: end-to-end encryption still rests on the password alone, and a
   compromised server gains nothing from the code. The same holds for a passkey that only signs in.
 - Unknown usernames receive the same answer as real ones (default parameters and a stable pseudo-salt), so they
-  cannot be told apart, with two exceptions: the legacy upgrade (below), and the lockout, which a real account triggers
-  after five wrong sign-ins and an unknown name never does (roadmap item 29).
+  cannot be told apart, with one exception: the legacy upgrade (below). The lockout answers the same way for both.
 
 ### Legacy accounts
 
