@@ -10,7 +10,7 @@ against the running app. Each fix on this branch comes with a test that fails wi
 
 > **Status (November 2026 docs check):** the fixes under "Fixed on this branch" shipped in 1.11.0 ([CHANGELOG.md](../CHANGELOG.md)).
 > The "Open" findings were checked against the 1.21.0 code and are still open, except those marked "Fixed" below;
-> [roadmap.md](roadmap.md) items 27 to 29 track the three Medium ones still open. The rest of this document is the record as written.
+> [roadmap.md](roadmap.md) items 26 and 27 track the Medium ones still open. The rest of this document is the record as written.
 
 ## Summary
 
@@ -70,7 +70,8 @@ end-to-end encryption, since the record's key is what is missing.
 
 ### Low
 
-- ~~**Signing out does not end the session on the server.**~~ Fixed in PR #137: sessions are stored on the server,
+- ~~**Signing out does not end the session on the server.**~~ Fixed in PR #137 (and PR #138, the device list in
+  Settings): sessions are stored on the server,
   the cookie carries the session's ID, "Sign out" deletes it, and every session ends 90 days after sign-in. (A copied
   cookie used to keep working after "Sign out", sliding 30 days; only "Sign out everywhere" and password changes
   revoked.)

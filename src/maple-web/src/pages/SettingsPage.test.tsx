@@ -7,7 +7,7 @@ import { api } from "../lib/api";
 import { auth } from "../lib/auth";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
-import type { AuthStatus, EncryptionStatus, InstanceSettings, Label, Passkey, PasskeyCreationOptions, User } from "../lib/types";
+import type { AuthStatus, EncryptionStatus, InstanceSettings, Label, Passkey, PasskeyCreationOptions, SignedInSession, User } from "../lib/types";
 import { SettingsPage } from "./SettingsPage";
 
 const user: User = {
@@ -26,6 +26,7 @@ function renderSettings(status: EncryptionStatus, account: User = user, quotaByt
   window.history.replaceState(null, "", path);
   vi.spyOn(api, "encryption").mockResolvedValue(status);
   if (!vi.isMockFunction(api.passkeys.list)) vi.spyOn(api.passkeys, "list").mockResolvedValue([]);
+  if (!vi.isMockFunction(api.sessions)) vi.spyOn(api, "sessions").mockResolvedValue([]);
   vi.spyOn(api.twoFactor, "status").mockResolvedValue({ enabled: account.twoFactorEnabled ?? false, recoveryCodesLeft: account.twoFactorEnabled ? 10 : 0 });
   vi.spyOn(api, "storage").mockResolvedValue({
     notesBytes: 3 * 1024, noteCount: 12, filesBytes: 5 * 1024 * 1024, fileCount: 4, totalBytes: 5 * 1024 * 1024 + 3 * 1024, quotaBytes,
@@ -596,5 +597,58 @@ describe("time zone", () => {
     expect(within(select).getByRole("option", { name: /^Automatic \(this device: / })).toBeInTheDocument();
     await userEvent.selectOptions(select, "Asia/Colombo");
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ timeZone: "Asia/Colombo" })));
+  });
+});
+
+describe("signed-in devices", () => {
+  const sessions: SignedInSession[] = [
+    {
+      id: "s-here", device: "Firefox on Linux", ipAddress: "203.0.113.5", createdAtUtc: "2026-11-01T08:00:00Z",
+      lastSeenAtUtc: "2026-11-10T08:00:00Z", expiresAtUtc: "2027-01-30T08:00:00Z", current: true,
+    },
+    {
+      id: "s-phone", device: "Safari on iOS", ipAddress: null, createdAtUtc: "2026-10-20T08:00:00Z",
+      lastSeenAtUtc: "2026-11-09T08:00:00Z", expiresAtUtc: "2027-01-18T08:00:00Z", current: false,
+    },
+  ];
+
+  it("lists every signed-in device and marks this one", async () => {
+    vi.spyOn(api, "sessions").mockResolvedValue(sessions);
+    renderSettings(idle, user, null, "/settings/security");
+
+    const list = await screen.findByRole("list", { name: "Signed-in devices" });
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!).toHaveTextContent("Firefox on LinuxThis device");
+    expect(rows[0]!).toHaveTextContent("203.0.113.5");
+    expect(within(rows[1]!).queryByText("This device")).not.toBeInTheDocument();
+    expect(within(rows[1]!).getByRole("button", { name: "Sign out Safari on iOS" })).toBeInTheDocument();
+  });
+
+  it("signs another device out and refreshes the list", async () => {
+    const list = vi.spyOn(api, "sessions").mockResolvedValueOnce(sessions).mockResolvedValue([sessions[0]!]);
+    const end = vi.spyOn(api, "endSession").mockResolvedValue(undefined);
+    const logout = vi.spyOn(api, "logout").mockResolvedValue(undefined);
+    renderSettings(idle, user, null, "/settings/security");
+
+    await userEvent.click(await screen.findByRole("button", { name: "Sign out Safari on iOS" }));
+
+    expect(end).toHaveBeenCalledWith("s-phone");
+    expect(logout).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText("Safari on iOS")).not.toBeInTheDocument());
+    expect(list).toHaveBeenCalledTimes(2);
+  });
+
+  it("signs this device out through the normal sign-out", async () => {
+    vi.spyOn(api, "sessions").mockResolvedValue(sessions);
+    const end = vi.spyOn(api, "endSession").mockResolvedValue(undefined);
+    const logout = vi.spyOn(api, "logout").mockResolvedValue(undefined);
+    vi.spyOn(api, "status").mockResolvedValue({ setupRequired: false, registrationOpen: false, user: null });
+    renderSettings(idle, user, null, "/settings/security");
+
+    await userEvent.click(await screen.findByRole("button", { name: "Sign out Firefox on Linux (this device)" }));
+
+    await waitFor(() => expect(logout).toHaveBeenCalledOnce());
+    expect(end).not.toHaveBeenCalled();
   });
 });

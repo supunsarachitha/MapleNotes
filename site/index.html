@@ -193,7 +193,8 @@
         <ul class="checks">
           <li>Your password never leaves the browser. It is turned into a key with Argon2id, and the server keeps only
             a hash of that key.</li>
-          <li>A strict Content-Security-Policy, antiforgery tokens, and sessions checked on every request.</li>
+          <li>A strict Content-Security-Policy, antiforgery tokens, and sessions kept on the server and checked on every
+            request. Settings lists every signed-in device, and each can be signed out on its own.</li>
           <li>One small container: a chiseled image running as a non-root user, with a read-only filesystem and no
             Linux capabilities in the provided setups.</li>
         </ul>

@@ -302,7 +302,10 @@ devices.
 - **Forgot your password?** With end-to-end encryption, choose **Forgot your password?** on the sign-in page and enter
   your recovery key. Without end-to-end encryption, a forgotten password cannot be reset, so keep it in a password
   manager.
-- **Lost a device?** Use **Sign out everywhere** in the same place to end every session at once.
+- **Signed-in devices.** The same page lists every browser and device signed in to your account, with **This device**
+  marking the one you are using, and when each signed in and was last used. **Sign out** next to one ends that session
+  only: a copy of its cookie stops working too. Every session ends 90 days after its sign-in, however often it is used.
+- **Lost a device?** Sign it out from the list, or use **Sign out everywhere** to end every session at once.
 - **Locked out for a while?** Five wrong passwords in a row lock the account for 15 minutes. This counts wrong
   passwords typed to confirm a change in Settings too, not only at sign-in.`,
   },

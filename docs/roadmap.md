@@ -46,22 +46,20 @@ Features most note apps have.
 
 ## Settings that are fixed today
 
-19. **Signed-in devices:** the server keeps a list of signed-in devices that can be signed out one by one
-    (`GET`/`DELETE /api/v1/auth/sessions`), but the web app does not show it yet.
-20. **Photo sizes:** three presets; a custom size or quality cannot be set.
-21. **Default view on opening:** the app always starts on Home.
-22. **Language:** the interface is in English only.
+19. **Photo sizes:** three presets; a custom size or quality cannot be set.
+20. **Default view on opening:** the app always starts on Home.
+21. **Language:** the interface is in English only.
 
 ## Administration
 
-23. Sign-in with an existing account system, such as Google or Authelia (OIDC/SSO).
-24. Email: invitations, password-reset links and notices. There is no email support.
-25. API tokens for scripts and integrations: the API works only with the browser's sign-in cookie.
-26. A default storage limit for new accounts, and different limits per account.
+22. Sign-in with an existing account system, such as Google or Authelia (OIDC/SSO).
+23. Email: invitations, password-reset links and notices. There is no email support.
+24. API tokens for scripts and integrations: the API works only with the browser's sign-in cookie.
+25. A default storage limit for new accounts, and different limits per account.
 
 ## Security items still open
 
 From the [October 2026 security audit](security-audit-2026-10.md), where each has a recommended fix.
 
-27. End-to-end tag names and file details do not count toward the storage limit.
-28. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).
+26. End-to-end tag names and file details do not count toward the storage limit.
+27. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).

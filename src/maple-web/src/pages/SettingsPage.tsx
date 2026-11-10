@@ -42,7 +42,7 @@ import { squareIcon } from "../lib/icon";
 import { usePreferences } from "../lib/preferences";
 import { queryKeys, useAuthStatus, useSignedOut } from "../lib/queries";
 import { Link, useLocation } from "../lib/router";
-import type { AdminUser, AuthStatus, InstanceSettings, User } from "../lib/types";
+import type { AdminUser, AuthStatus, InstanceSettings, SignedInSession, User } from "../lib/types";
 
 /**
  * A bar split between notes and files, with the numbers beside it. With a storage limit, the bar is the limit and shows
@@ -297,13 +297,73 @@ function RecoverySection({ user }: { user: User }) {
   );
 }
 
+/** The account's signed-in browsers and devices, each with its own Sign out, plus Sign out everywhere. */
 function SessionsSection() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const signedOut = useSignedOut();
   const [confirm, setConfirm] = useState(false);
+  const sessions = useQuery({ queryKey: queryKeys.sessions, queryFn: api.sessions });
   const signOut = useMutation({ mutationFn: api.signOutEverywhere, onSuccess: signedOut });
+  const end = useMutation({
+    mutationFn: async (session: SignedInSession) => {
+      // This browser signs out the usual way, so its unsent changes and saved key are forgotten too.
+      if (session.current) await api.logout();
+      else await api.endSession(session.id);
+    },
+    onSuccess: (_, session) => {
+      if (session.current) signedOut();
+      else void queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
+    },
+    onError: (error, session) => {
+      // Already ended elsewhere (or by its own sign-out): refresh the list rather than report a failure.
+      if (error instanceof ApiError && error.status === 404) void queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
+      else toast.error(session.current ? "Could not sign out. Please try again." : "Could not sign that device out. Please try again.");
+    },
+  });
 
   return (
-    <Section title="Sessions" description="Lost a device? Sign out everywhere, including here.">
+    <Section
+      title="Sessions"
+      description="Browsers and devices signed in to your account. Sign out any you do not recognise, or every one at once if you lost a device."
+    >
+      {sessions.isPending ? (
+        <Spinner />
+      ) : sessions.isError ? (
+        <ErrorMessage>Could not load the signed-in devices.</ErrorMessage>
+      ) : (
+        <ul className="mb-4 divide-y divide-stone-100 dark:divide-stone-800" aria-label="Signed-in devices">
+          {sessions.data.map((session) => (
+            <li key={session.id} className="flex flex-wrap items-center gap-2 py-2">
+              <div className="min-w-0 flex-1 basis-48">
+                <p className="text-sm">
+                  {session.device}
+                  {session.current && (
+                    <span className="ml-2 whitespace-nowrap rounded-full bg-maple-50 px-2 py-0.5 text-xs font-medium text-maple-700 dark:bg-maple-600/15 dark:text-maple-400">
+                      This device
+                    </span>
+                  )}
+                </p>
+                {/* One fact per line: joined with dots they wrap mid-list on phones and start lines with a dot. */}
+                <p className="text-xs text-stone-500 dark:text-stone-400">
+                  <span className="block">Signed in {formatAbsolute(session.createdAtUtc)}</span>
+                  <span className="block">Last used {formatAbsolute(session.lastSeenAtUtc)}</span>
+                  {session.ipAddress && <span className="block break-all">From {session.ipAddress}</span>}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                className="ml-auto shrink-0"
+                aria-label={`Sign out ${session.device}${session.current ? " (this device)" : ""}`}
+                busy={end.isPending && end.variables?.id === session.id}
+                onClick={() => end.mutate(session)}
+              >
+                Sign out
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
       <Button variant="secondary" onClick={() => setConfirm(true)}>
         Sign out everywhere
       </Button>

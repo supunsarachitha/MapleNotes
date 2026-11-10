@@ -2,6 +2,7 @@ import type {
   AdminUser,
   AuditFilter,
   PushDevice,
+  SignedInSession,
   Reminder,
   ReminderRepeat,
   AuditPage,
@@ -277,6 +278,12 @@ export const api = {
 
   /** This session's secret (see crypto/keystore.ts). */
   sessionKey: () => request<{ key: string }>("GET", "/api/v1/auth/session-key"),
+
+  /** The account's signed-in browsers and devices, most recently used first. */
+  sessions: () => request<SignedInSession[]>("GET", "/api/v1/auth/sessions"),
+
+  /** Signs another browser or device out (this one signs out with logout). */
+  endSession: (id: string) => request<void>("DELETE", `/api/v1/auth/sessions/${id}`),
 
   async signOutEverywhere(): Promise<void> {
     await request<void>("POST", "/api/v1/auth/sign-out-everywhere");

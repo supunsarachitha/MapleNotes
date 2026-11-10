@@ -356,6 +356,20 @@ export interface Reminder {
 }
 
 /** A device that receives the account's notifications. */
+/** A signed-in browser or device of the account (Settings → Security). */
+export interface SignedInSession {
+  id: string;
+  /** A short description such as "Firefox on Windows". */
+  device: string;
+  ipAddress: string | null;
+  createdAtUtc: string;
+  lastSeenAtUtc: string;
+  /** When it ends at the latest, however often it is used. */
+  expiresAtUtc: string;
+  /** Whether this is the browser making the request. */
+  current: boolean;
+}
+
 export interface PushDevice {
   id: string;
   name: string;

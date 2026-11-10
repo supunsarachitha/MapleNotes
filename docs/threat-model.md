@@ -33,7 +33,7 @@ Stolen disks, a leaked backup, a cloud snapshot, a decommissioned drive.
 - **Encrypted at rest and end-to-end:** protected. The database is encrypted with a key derived from the master key,
   and so are the attachment files (per account) and the Data Protection key ring that signs sessions. The master key is
   never stored in the data volume.
-- **Off:** the database and key ring are encrypted, but attachment files are plaintext on disk (roadmap item 28). Use
+- **Off:** the database and key ring are encrypted, but attachment files are plaintext on disk (roadmap item 27). Use
   an encrypted mode if files must be protected from a disk copy.
 - **What leaks:** the number and approximate sizes of files in `attachments/`, and file times.
 
@@ -119,7 +119,8 @@ A lost or stolen phone or laptop, or a shared computer.
   changing the password there, ends every other session at once, and the saved key becomes useless with it. A
   session ends for good 90 days after its sign-in (`MAPLE_SESSION_MAX_DAYS`), however often it is used.
 - **A copied session cookie** works only while its server-side session exists: signing out on the device, or signing
-  that one session out from another device, ends it on the server, and the copy is refused from then on.
+  that one session out from another device (Settings → Privacy & security lists them), ends it on the server, and the
+  copy is refused from then on.
 - **Without a live session,** the browser holds nothing useful, unless the session was started with "keep me signed
   in" and ended without this browser noticing (see offline reading below). The key saved in IndexedDB is sealed with a
   secret that exists only in the session, and API responses are sent with `Cache-Control: no-store`.
