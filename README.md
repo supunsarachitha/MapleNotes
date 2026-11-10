@@ -664,6 +664,7 @@ All settings are environment variables.
 | `MAPLE_MAX_UPLOAD_MB` | `25` | Largest attachment, 1–2048 MB. |
 | `MAPLE_TRUSTED_PROXIES` | — | Reverse proxy addresses or CIDR ranges whose `X-Forwarded-*` headers are trusted, e.g. `172.16.0.0/12`. |
 | `MAPLE_AUTH_RATE_LIMIT` | `10` | Sign-in, registration and password attempts per client IP per minute (prelogin has a separate budget of the same size). |
+| `MAPLE_SESSION_MAX_DAYS` | `90` | Days after sign-in when a session ends however often it is used (1 to 3650). The session length in Settings → Administration is the idle limit within it. |
 | `MAPLE_LINK_PREVIEWS` | `true` | Let accounts turn on link previews, for which the server fetches linked pages (public addresses only). Set to `false` to keep the server from fetching anything. |
 | `MAPLE_PUSH_CONTACT` | the project page | A `mailto:` or `https:` address the push services (Google, Apple, Mozilla, Microsoft) can use to reach whoever runs this server about its reminder notifications. |
 | `MAPLE_API_DOCS` | `false` | Publish the OpenAPI document (`/openapi/v1.json`) and API reference (`/scalar`). |

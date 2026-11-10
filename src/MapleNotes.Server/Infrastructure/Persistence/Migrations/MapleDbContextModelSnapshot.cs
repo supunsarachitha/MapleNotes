@@ -369,6 +369,45 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("PushSubscriptions", (string)null);
                 });
 
+            modelBuilder.Entity("MapleNotes.Server.Domain.Session", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Device")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastSeenAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Sessions", (string)null);
+                });
+
             modelBuilder.Entity("MapleNotes.Server.Domain.Tag", b =>
                 {
                     b.Property<Guid>("Id")
@@ -597,6 +636,15 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("MapleNotes.Server.Domain.PushSubscription", b =>
+                {
+                    b.HasOne("MapleNotes.Server.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MapleNotes.Server.Domain.Session", b =>
                 {
                     b.HasOne("MapleNotes.Server.Domain.User", null)
                         .WithMany()

@@ -34,12 +34,13 @@ namespace MapleNotes.Server.Features.Auth;
 /// <param name="time">Clock.</param>
 /// <param name="options">Instance settings (whether link previews are allowed).</param>
 /// <param name="audit">The audit log (sign-ins and administrators' actions).</param>
+/// <param name="sessions">The server-side sessions (signed-in devices).</param>
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
 public sealed class AuthController(
     AccountService accounts, InstanceSettingsService instanceSettings, IAntiforgery antiforgery, TimeProvider time, MapleOptions options,
-    AuditLog audit)
+    AuditLog audit, SessionService sessions)
     : ControllerBase
 {
     /// <summary>Returns the visitor's sign-in state and what the instance allows.</summary>
@@ -192,7 +193,7 @@ public sealed class AuthController(
         }
     }
 
-    /// <summary>Signs out of the current session.</summary>
+    /// <summary>Signs out of the current session and ends it on the server, so a copy of the cookie stops working.</summary>
     /// <returns>No content.</returns>
     /// <response code="204">Signed out (also returned when not signed in).</response>
     [HttpPost("logout")]
@@ -200,7 +201,7 @@ public sealed class AuthController(
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Logout()
     {
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        await SessionSignIn.SignOutAsync(HttpContext);
         return NoContent();
     }
 
@@ -238,15 +239,14 @@ public sealed class AuthController(
         }
 
         // Same session, same secret: the key this browser saved stays usable, while every other session ends.
-        var current = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        await SessionSignIn.SignInAsync(HttpContext, result.User!, current.Properties?.IsPersistent ?? false, User.GetSessionKey());
+        await SessionSignIn.ReissueAsync(HttpContext, result.User!);
         return NoContent();
     }
 
     /// <summary>Returns this session's secret, which the browser uses to keep its unlocked end-to-end key encrypted.</summary>
     /// <remarks>
-    /// The secret lives only in the encrypted, HttpOnly session cookie. A key saved in the browser under it becomes
-    /// useless when the session ends, and the server alone has nothing to decrypt. A session from before version 1.1
+    /// The secret lives only in the encrypted, HttpOnly session cookie, and is handed out only while the server-side
+    /// session exists. A key saved in the browser under it becomes useless when the session ends, and the server alone has nothing to decrypt. A session from before version 1.1
     /// gets a secret now.
     /// </remarks>
     /// <returns>The secret.</returns>
@@ -260,11 +260,10 @@ public sealed class AuthController(
     {
         if (User.GetSessionKey() is not { } sessionKey)
         {
-            var current = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             var user = await accounts.FindAsync(User.GetUserId(), HttpContext.RequestAborted)
                 ?? throw new InvalidOperationException("The signed-in account no longer exists.");
             sessionKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
-            await SessionSignIn.SignInAsync(HttpContext, user, current.Properties?.IsPersistent ?? false, sessionKey);
+            await SessionSignIn.ReissueAsync(HttpContext, user, sessionKey);
         }
 
         return new SessionKeyResponse(Convert.FromBase64String(sessionKey));
@@ -279,7 +278,52 @@ public sealed class AuthController(
     public async Task<IActionResult> SignOutEverywhere(CancellationToken cancellationToken)
     {
         await accounts.RevokeSessionsAsync(User.GetUserId(), cancellationToken);
+        await sessions.EndAllAsync(User.GetUserId(), cancellationToken);
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return NoContent();
+    }
+
+    /// <summary>Lists the account's signed-in browsers and devices, most recently used first.</summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The live sessions; the one making the request has <c>current: true</c>.</returns>
+    /// <response code="200">The sessions (never cached).</response>
+    /// <response code="401">Not signed in.</response>
+    [HttpGet("sessions")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<IReadOnlyList<SessionResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IReadOnlyList<SessionResponse>>> ListSessions(CancellationToken cancellationToken)
+    {
+        if (await accounts.FindAsync(User.GetUserId(), cancellationToken) is not { } user)
+        {
+            return Unauthorized();
+        }
+
+        var current = User.GetSessionId();
+        return (await sessions.ListAsync(user, cancellationToken)).Select(s => SessionResponse.From(s, s.Id == current)).ToList();
+    }
+
+    /// <summary>Signs one of the account's sessions out. Ending the current one also clears this browser's cookie.</summary>
+    /// <param name="id">The session.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>No content.</returns>
+    /// <response code="204">The session was ended.</response>
+    /// <response code="404">The account has no such session.</response>
+    [HttpDelete("sessions/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EndSession(Guid id, CancellationToken cancellationToken)
+    {
+        if (!await sessions.EndAsync(User.GetUserId(), id, cancellationToken))
+        {
+            return Problem(statusCode: StatusCodes.Status404NotFound, title: "That session has already ended.");
+        }
+
+        if (User.GetSessionId() == id)
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        }
+
         return NoContent();
     }
 

@@ -115,3 +115,22 @@ public sealed record BrandingResponse(string AppName, string? IconUrl);
 /// <param name="Token">Token value.</param>
 /// <param name="HeaderName">Header to send it in.</param>
 public sealed record AntiforgeryTokenResponse(string Token, string HeaderName);
+
+/// <summary>A signed-in browser or device.</summary>
+/// <param name="Id">The session's ID (for signing it out).</param>
+/// <param name="Device">A short description of the browser, such as "Firefox on Windows".</param>
+/// <param name="IpAddress">The address it was last used from, when known.</param>
+/// <param name="CreatedAtUtc">When it signed in.</param>
+/// <param name="LastSeenAtUtc">When it was last used (to within a few minutes).</param>
+/// <param name="ExpiresAtUtc">When it ends at the latest, however often it is used.</param>
+/// <param name="Current">Whether this is the session making the request.</param>
+public sealed record SessionResponse(
+    Guid Id, string Device, string? IpAddress, DateTime CreatedAtUtc, DateTime LastSeenAtUtc, DateTime ExpiresAtUtc, bool Current)
+{
+    /// <summary>Builds the response for <paramref name="session"/>.</summary>
+    /// <param name="session">The session.</param>
+    /// <param name="current">Whether it is the requesting session.</param>
+    /// <returns>The response.</returns>
+    public static SessionResponse From(Session session, bool current) =>
+        new(session.Id, session.Device, session.IpAddress, session.CreatedAtUtc, session.LastSeenAtUtc, session.ExpiresAtUtc, current);
+}

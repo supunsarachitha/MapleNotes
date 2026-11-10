@@ -52,8 +52,7 @@ public sealed class TwoFactorController(TwoFactorService twoFactor) : Controller
         var (user, codes) = await twoFactor.EnableAsync(User.GetUserId(), request, cancellationToken);
 
         // Same session, same secret, so a key this browser saved under it stays usable; other sessions end.
-        var current = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        await SessionSignIn.SignInAsync(HttpContext, user, current.Properties?.IsPersistent ?? false, User.GetSessionKey());
+        await SessionSignIn.ReissueAsync(HttpContext, user);
         return codes;
     }
 

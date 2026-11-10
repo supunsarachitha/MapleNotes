@@ -28,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   concurrency cap across all clients, so many addresses together cannot keep the server's processors busy
   ([#128](https://github.com/supunsarachitha/MapleNotes/issues/128)).
 
+### Added
+
+- Sessions are now kept on the server (a new `Sessions` table). "Sign out" ends the session there too, so a copy of
+  the cookie stops working, and the key saved for the session can no longer be opened. Every session ends 90 days
+  after its sign-in, however often it is used (`MAPLE_SESSION_MAX_DAYS`); the session length administrators choose
+  stays the idle limit. `GET /api/v1/auth/sessions` lists the account's signed-in devices and
+  `DELETE /api/v1/auth/sessions/{id}` signs one out. Sessions from before the upgrade keep working: each gets a server
+  record on its first request, and its 90 days count from then
+  ([#124](https://github.com/supunsarachitha/MapleNotes/issues/124)).
+
 ## [1.21.1] - 2026-11-07
 
 Dependency update.
