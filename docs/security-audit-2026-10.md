@@ -9,8 +9,8 @@ Findings were confirmed by reading the code paths end to end and, where it matte
 against the running app. Each fix on this branch comes with a test that fails without it.
 
 > **Status (November 2026 docs check):** the fixes under "Fixed on this branch" shipped in 1.11.0 ([CHANGELOG.md](../CHANGELOG.md)).
-> The "Open" findings were checked against the 1.21.0 code and are still open; [roadmap.md](roadmap.md) items 27 to 29
-> track the four Medium ones. The rest of this document is the record as written.
+> The "Open" findings were checked against the 1.21.0 code and are still open, except those marked "Fixed" below;
+> [roadmap.md](roadmap.md) items 27 to 29 track the three Medium ones still open. The rest of this document is the record as written.
 
 ## Summary
 
@@ -65,7 +65,7 @@ end-to-end encryption, since the record's key is what is missing.
 |---|---|---|
 | **End-to-end tag names and file metadata are not counted against the storage limit.** A note counted as 31 bytes carried 9 KB of encrypted tag names. | `StorageService.GetUsageAsync`, `NoteService.SetEncryptedTagsAsync` | Count tag `EncryptedName` and attachment `EncryptedMetadata` bytes and a fixed cost per row; claim new tag bytes on create, update and import. |
 | **In "Off" mode, attachments are plaintext on the data volume**, while architecture.md and threat-model.md say files are ciphertext in all modes. Someone with a disk copy but no master key reads them. | `AttachmentService.cs` | Encrypt Off-mode files with an instance key derived from the master key, or correct the documents. |
-| **`portainer-stack-npm.yml` trusts `172.16.0.0/12` and publishes port 8088 on all interfaces.** A client reaching 8088 directly from such a network (many LANs, or through Docker's userland proxy) can send its own `X-Forwarded-For` and get a new rate-limit budget per request. | `deploy/portainer-stack-npm.yml` | Put the app on NPM's Docker network with `expose` (as the Caddy stack does) and trust only that network, or bind the port to the address NPM uses. |
+| **`portainer-stack-npm.yml` trusts `172.16.0.0/12` and publishes port 8088 on all interfaces.** A client reaching 8088 directly from such a network (many LANs, or through Docker's userland proxy) can send its own `X-Forwarded-For` and get a new rate-limit budget per request. | `deploy/portainer-stack-npm.yml` | Put the app on NPM's Docker network with `expose` (as the Caddy stack does) and trust only that network, or bind the port to the address NPM uses. **Fixed** in [#134](https://github.com/supunsarachitha/MapleNotes/pull/134): the stack joins NPM's network and trusts only its subnet. |
 | **Usernames can be confirmed through the lockout**: five wrong sign-ins give 429 for a real account and 401 forever for an unknown one (and lock the real user out). | `AccountService.ValidateCredentialsAsync` | Count failures for unknown names too (in memory), or never reveal the lockout and answer 401. |
 
 ### Low
@@ -90,7 +90,8 @@ end-to-end encryption, since the record's key is what is missing.
 - **PBKDF2 on unauthenticated endpoints** costs 100–200 ms each with only per-address limits; a botnet can saturate the
   CPU. Add a global concurrency limit on the authentication policies.
 - **Caddy's `on_demand_tls` asks `/healthz`**, which always says yes, so any hostname gets a certificate
-  (`portainer-stack-https.yml`). Use an ask endpoint that allows only the expected names.
+  (`portainer-stack-https.yml`). Use an ask endpoint that allows only the expected names. **Fixed** in
+  [#134](https://github.com/supunsarachitha/MapleNotes/pull/134): Caddy serves one fixed address from `MAPLE_HOSTNAME`.
 - **The label limit and the daily-note import can race** (more than 100 labels; a 500 instead of a 409). Owner-only.
 
 ## Hardening backlog

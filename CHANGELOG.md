@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- The Nginx Proxy Manager stack (`deploy/portainer-stack-npm.yml`) no longer publishes port 8088 or trusts forwarded
+  headers from all of `172.16.0.0/12`, so a client that reached the port directly could pick its own address for the
+  rate limits. Maple Notes now joins NPM's Docker network and trusts only that network's subnet. Redeploying it needs
+  two new stack variables, `NPM_NETWORK` and `MAPLE_TRUSTED_PROXIES`, and the Proxy Host must forward to
+  `maple-notes`, port 8080 ([#126](https://github.com/supunsarachitha/MapleNotes/issues/126)).
+- The HTTPS-by-IP stack (`deploy/portainer-stack-https.yml`) no longer uses Caddy's on-demand TLS, which made a
+  certificate for any name pointed at the server. Caddy now serves the one address set in the new `MAPLE_HOSTNAME`
+  stack variable ([#126](https://github.com/supunsarachitha/MapleNotes/issues/126)).
+
 ## [1.21.1] - 2026-11-07
 
 Dependency update.
