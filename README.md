@@ -287,6 +287,30 @@ docker run -d --name maple-notes \
 To use a Docker secret instead of an environment variable, set `MAPLE_MASTER_KEY_FILE` to the secret's path
 (see the commented example in `docker-compose.yml`).
 
+### Checking an image
+
+Every image CI publishes to `ghcr.io/supunsarachitha/maplenotes` is signed with [cosign](https://docs.sigstore.dev/)
+without a long-lived key: the signature's certificate names the workflow and the branch or tag that built it, and is
+recorded in Sigstore's public transparency log. To check that an image came from this repository's CI (cosign 3 or
+later):
+
+```sh
+cosign verify ghcr.io/supunsarachitha/maplenotes:latest \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/supunsarachitha/MapleNotes/\.github/workflows/ci\.yml@refs/(heads/main|tags/v[0-9.]+)$'
+```
+
+Replace `latest` with a release tag such as `v1.22.0` to check a release. The images also carry an SBOM (SPDX) and a
+build provenance attestation, which list the packages inside and the exact commit and base images used:
+
+```sh
+docker buildx imagetools inspect ghcr.io/supunsarachitha/maplenotes:latest --format '{{ json .SBOM }}'
+docker buildx imagetools inspect ghcr.io/supunsarachitha/maplenotes:latest --format '{{ json .Provenance }}'
+```
+
+The base images in the `Dockerfile` are pinned by digest, so a release always builds from the same upstream images
+until a commit here changes them.
+
 ### Portainer
 
 Paste this stack into Portainer (**Stacks → Add stack → Web editor**) and deploy it without changes. It pulls the
@@ -660,6 +684,7 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 | Passkeys | Optional, per account (WebAuthn, checked with .NET's own cryptography): the server keeps only each passkey's public key, and every use needs the fingerprint, face or PIN, so a passkey replaces both the password and the two-factor code. With end-to-end encryption, a passkey that supports the PRF extension also unwraps the data key from a copy wrapped under a secret only that passkey produces ([e2ee-spec.md §6a](docs/e2ee-spec.md#6a-passkeys-that-unlock)); storing that copy needs the password. |
 | Sessions | HttpOnly, SameSite=Strict cookies, checked on every request, so a password change or "sign out everywhere" takes effect at once. |
 | Web | Strict Content-Security-Policy, antiforgery tokens, API responses never cached by the browser, and uploaded files never run as web content. |
+| Images | Base images pinned by digest. Published images are signed by CI (cosign, keyless) and carry an SBOM and build provenance; see [Checking an image](#checking-an-image). |
 
 **What this protects:**
 - Anyone who gets a copy of your disk, volume or backups without the master key sees only ciphertext.

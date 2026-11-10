@@ -278,7 +278,9 @@ encrypted ([e2ee-spec.md](e2ee-spec.md) §4a).
 - Serve Maple Notes only over HTTPS, and set `MAPLE_TRUSTED_PROXIES` to the proxy's address.
 - Keep the master key out of the data volume and away from backups (a password manager or a Docker secret).
 - Treat shell access to the host and the ability to change the container image as full access to every account's
-  sessions. Limit who has them, and build images from a source you trust.
+  sessions. Limit who has them, and build images from a source you trust. When you pull the published image, check
+  its signature first (`cosign verify`, see "Checking an image" in the README): it proves the image was built by this
+  repository's CI from `main` or a release tag, not pushed by someone who only got hold of the registry.
 - Keep the instance up to date, and rotate old backups: they keep deleted accounts and pre-switch content.
 
 **Users**
