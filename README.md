@@ -375,9 +375,10 @@ volumes:
 > the stack that follows.
 
 **HTTPS by IP address, without a domain name.** This stack adds [Caddy](https://caddyserver.com) in front of Maple
-Notes, serving it at `https://<server-ip>:8443` with a certificate from Caddy's own local authority, made for whatever
-address you open it by. The browser warns once that it does not know that authority; accept it (or install the
-authority's root certificate on your devices), and everything works. It is also in the repository as
+Notes, serving it at `https://<server-ip>:8443` with a certificate from Caddy's own local authority, made for the one
+address you set in `MAPLE_HOSTNAME` (an environment variable you add under Portainer's editor), and for no other
+name. The browser warns once that it does not know that authority; accept it (or install the authority's root
+certificate on your devices), and everything works. It is also in the repository as
 [`deploy/portainer-stack-https.yml`](deploy/portainer-stack-https.yml).
 
 <details>
@@ -389,9 +390,11 @@ authority's root certificate on your devices), and everything works. It is also 
 #
 # Browsers only allow the encryption Maple Notes does in the page on HTTPS (or localhost), so plain
 # http://<server-ip> cannot sign anyone in. Here Caddy serves Maple Notes over HTTPS on port 8443 with a certificate
-# from its own local authority, made for whatever address you open it by. Open https://<server-ip>:8443 and accept
-# the browser's warning once (the authority is this server's own, not a public one). With a real domain name, use a
-# normal reverse proxy with a public certificate instead (see the README).
+# from its own local authority, made for the one address you open it by. Before deploying, add an environment variable
+# under the editor: MAPLE_HOSTNAME = the server's IP address (e.g. 192.168.1.20) or its local name. Caddy makes a
+# certificate for that address only. Open https://<that address>:8443 and accept the browser's warning once (the
+# authority is this server's own, not a public one). With a real domain name, use a normal reverse proxy with a public
+# certificate instead (see the README).
 #
 # BACK UP THE MASTER KEY right after the first start (it encrypts everything; without it the data is lost):
 #   docker run --rm -v maple-notes-key:/key:ro alpine cat /key/master.key
@@ -424,7 +427,7 @@ services:
       MAPLE_MAX_UPLOAD_MB: "25"
       MAPLE_DEFAULT_ENCRYPTION: "true"
       MAPLE_LINK_PREVIEWS: "true"
-      MAPLE_TRUSTED_PROXIES: "172.16.0.0/12" # Caddy, on Docker's network
+      MAPLE_TRUSTED_PROXIES: "172.16.0.0/12" # Caddy: only it shares this stack's network, and no port is published
     volumes:
       - maple-notes-data:/app/data
       - maple-notes-key:/run/maple-key:ro
@@ -445,18 +448,17 @@ services:
     ports:
       - "8443:443"
     environment:
+      MAPLE_HOSTNAME: ${MAPLE_HOSTNAME:?Set MAPLE_HOSTNAME to the address you open Maple Notes by, e.g. 192.168.1.20}
+      # One fixed site address, so Caddy makes a certificate for no other name. default_sni covers browsers that send
+      # no server name, as they do when the page is opened by IP address.
       CADDYFILE: |
         {
         	local_certs
         	skip_install_trust
-        	on_demand_tls {
-        		ask http://maple-notes:8080/healthz
-        	}
+        	default_sni {$$MAPLE_HOSTNAME}
         }
-        https:// {
-        	tls internal {
-        		on_demand
-        	}
+        https://{$$MAPLE_HOSTNAME} {
+        	tls internal
         	reverse_proxy maple-notes:8080
         }
     command:
@@ -477,8 +479,10 @@ volumes:
 
 </details>
 
-**Behind Nginx Proxy Manager, with a domain name.** Deploy this stack in Portainer, then add a Proxy Host in NPM
-as described at the top of the stack, and paste
+**Behind Nginx Proxy Manager, with a domain name.** Maple Notes joins NPM's Docker network without publishing a port,
+and trusts forwarded headers only from that network, so no other client can pick its own address for the rate limits.
+Add the `NPM_NETWORK` and `MAPLE_TRUSTED_PROXIES` environment variables under Portainer's editor, deploy this stack,
+then add a Proxy Host in NPM as described at the top of the stack (forward to `maple-notes`, port 8080), and paste
 [`deploy/nginx-proxy-manager.conf`](deploy/nginx-proxy-manager.conf) on its **Advanced** tab. Without that
 configuration nginx refuses attachments over 1 MB.
 
@@ -487,11 +491,19 @@ configuration nginx refuses attachments over 1 MB.
 
 ```yaml
 # Maple Notes behind Nginx Proxy Manager (NPM) with a domain name: a stack to paste into Portainer
-# (Stacks > Add stack > Web editor) and deploy as is.
+# (Stacks > Add stack > Web editor).
+#
+# Maple Notes joins NPM's Docker network and publishes no port, so only containers on that network can reach it, and it
+# trusts forwarded headers only from that network. Before deploying, add two environment variables under the editor:
+#   NPM_NETWORK:           the name of NPM's network (Portainer > Networks; often npm_default)
+#   MAPLE_TRUSTED_PROXIES: that network's IPv4 subnet, shown on its page (e.g. 172.19.0.0/16), or printed by
+#                          docker network inspect npm_default --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+# If NPM runs on another machine, publish a port instead (ports: - "8088:8080", without the networks lines) and set
+# MAPLE_TRUSTED_PROXIES to NPM's own IP address only, so no other client can send its own forwarded headers.
 #
 # Then, in Nginx Proxy Manager, add a Proxy Host:
 #   Details:  Domain Names: your domain (e.g. notes.example.com) | Scheme: http
-#             Forward Hostname / IP: this server's IP address | Forward Port: 8088
+#             Forward Hostname / IP: maple-notes | Forward Port: 8080
 #             Cache Assets: off | Block Common Exploits: off | Websockets Support: off
 #   SSL:      Request a new SSL certificate (Let's Encrypt) | Force SSL: on | HTTP/2 Support: on
 #   Advanced: paste the "Custom Nginx Configuration" from deploy/nginx-proxy-manager.conf (uploads above nginx's 1 MB
@@ -521,8 +533,8 @@ services:
     depends_on:
       maple-notes-key:
         condition: service_completed_successfully
-    ports:
-      - "8088:8080"
+    expose:
+      - "8080" # reachable only from NPM's network
     environment:
       MAPLE_MASTER_KEY_FILE: /run/maple-key/master.key
       MAPLE_ALLOW_REGISTRATION: "false"
@@ -530,8 +542,8 @@ services:
       MAPLE_DEFAULT_ENCRYPTION: "true"
       MAPLE_LINK_PREVIEWS: "true"
       # Trust Nginx Proxy Manager's forwarded headers, so Maple Notes sees HTTPS (secure cookies) and real client
-      # addresses (rate limiting). Docker networks are usually in 172.16.0.0/12; if NPM's is not, put its address here.
-      MAPLE_TRUSTED_PROXIES: "172.16.0.0/12"
+      # addresses (rate limiting). Only NPM's network: a wider range would let other clients set their own address.
+      MAPLE_TRUSTED_PROXIES: ${MAPLE_TRUSTED_PROXIES:?Set MAPLE_TRUSTED_PROXIES to the subnet of NPM's network}
     volumes:
       - maple-notes-data:/app/data
       - maple-notes-key:/run/maple-key:ro
@@ -542,6 +554,13 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    networks:
+      - npm
+
+networks:
+  npm:
+    external: true
+    name: ${NPM_NETWORK:?Set NPM_NETWORK to the name of Nginx Proxy Manager's Docker network}
 
 volumes:
   maple-notes-data:
@@ -557,7 +576,8 @@ volumes:
 
 ```nginx
 # Maple Notes: "Custom Nginx Configuration" for its Proxy Host in Nginx Proxy Manager (Advanced tab).
-# NPM already forwards the Host, X-Forwarded-For and X-Forwarded-Proto headers that Maple Notes needs.
+# NPM already forwards the Host, X-Forwarded-For and X-Forwarded-Proto headers that Maple Notes needs. Maple Notes
+# trusts them only from MAPLE_TRUSTED_PROXIES, so set that to NPM's network or address, never a wide range.
 
 # Attachments up to MAPLE_MAX_UPLOAD_MB (25 MB by default) plus a little overhead; nginx allows only 1 MB by default.
 # Raise this together with MAPLE_MAX_UPLOAD_MB.
