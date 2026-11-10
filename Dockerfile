@@ -9,12 +9,13 @@
 #
 # Multi-architecture: the build stages run on the builder's native platform and cross-publish for $TARGETARCH,
 # so `docker buildx build --platform linux/amd64,linux/arm64 .` works without emulating the SDK.
-
-ARG DOTNET_VERSION=10.0
-ARG NODE_VERSION=24
+#
+# Base images are pinned by digest as well as tag, so a re-pushed tag cannot change what goes into a release without a
+# commit here. The digest is the multi-architecture index, so every platform still resolves. The monthly maintenance
+# routine refreshes them with `python3 scripts/refresh-base-images.py`, which looks up each tag's current digest.
 
 # ---------------------------------------------------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
+FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8 AS web
 WORKDIR /src
 COPY src/maple-web/package.json src/maple-web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -22,7 +23,7 @@ COPY src/maple-web/ ./
 RUN npm run build
 
 # ---------------------------------------------------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-noble AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-noble@sha256:212fe4cb74627d5adf9817a4088906ae3edff1bd853bb27565d4b46731efe61e AS build
 ARG TARGETARCH
 WORKDIR /src
 
@@ -39,7 +40,7 @@ RUN dotnet publish src/MapleNotes.Server/MapleNotes.Server.csproj \
 
 # ---------------------------------------------------------------------------------------------------------------------
 # "-extra" adds ICU and time-zone data, needed to export notes grouped by the user's local dates.
-FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-noble-chiseled-extra AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:a9298ccc39c6258ae71228479e2f3f8d2ceb6639a9927262a4b0ff7d319a0e7e AS runtime
 
 LABEL org.opencontainers.image.title="Maple Notes" \
       org.opencontainers.image.description="Self-hosted micro-note taking, encrypted at rest or end to end" \

@@ -615,6 +615,13 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
   copy of the database while the server runs. Copy `backups/`, `attachments/` and `keys/` from the volume. Store the
   master key separately from these files.
 - **Upgrades:** schema migrations run automatically at startup, after an automatic encrypted backup.
+- **Published images:** the `container` job in `.github/workflows/ci.yml` builds for amd64 and arm64 on every pull
+  request, and on pushes to `main` and tags also publishes to `ghcr.io/supunsarachitha/maplenotes` with an SBOM and a
+  `mode=max` provenance attestation. A separate `sign` job, the only one allowed to request a GitHub OIDC token and
+  never run for pull requests, signs the pushed index digest with cosign (keyless, recorded in Sigstore's
+  transparency log). The `Dockerfile` pins each base image as `tag@sha256:digest`; `scripts/refresh-base-images.py`
+  moves the digests to the tags' current images and `--check` reports stale ones, which the monthly maintenance
+  routine runs.
 - **Key rotation:** not implemented. The formats are versioned (key version bytes in every envelope and file header)
   so rotation can be added without migrating the format. Changing the password re-wraps an end-to-end data key but
   does not replace it.

@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The HTTPS-by-IP stack (`deploy/portainer-stack-https.yml`) no longer uses Caddy's on-demand TLS, which made a
   certificate for any name pointed at the server. Caddy now serves the one address set in the new `MAPLE_HOSTNAME`
   stack variable ([#126](https://github.com/supunsarachitha/MapleNotes/issues/126)).
+- Published images are signed with cosign (keyless, through GitHub's OIDC token and Sigstore's transparency log) and
+  carry an SBOM and a full build provenance attestation; the README shows how to check them with `cosign verify`. The
+  `Dockerfile` pins its base images by digest, and `scripts/refresh-base-images.py` refreshes those digests
+  ([#127](https://github.com/supunsarachitha/MapleNotes/issues/127)).
 
 ## [1.21.1] - 2026-11-07
 

@@ -99,6 +99,9 @@ end-to-end encryption, since the record's key is what is missing.
 - CSP: drop `img-src data:` and `font-src data:` if unused; consider removing `style-src 'unsafe-inline'`.
 - HSTS: one year and configurable (the default is 30 days).
 - GitHub Actions: pin actions and base images by digest; do not grant `packages: write` to pull-request runs.
+  **Partly fixed** in [#135](https://github.com/supunsarachitha/MapleNotes/pull/135): actions were already pinned
+  by commit; base images are now pinned by digest, and published images are signed (cosign, keyless) with an SBOM and
+  provenance. Pull-request runs still get `packages: write` (they never log in or push).
 - `master.key` is created with `umask 022` in the Portainer stacks; prefer 0440 for the app's group.
 - Backups (`data/backups`) keep deleted notes and accounts until rotated out; say so in the threat model.
 - Recovery-key endpoints skip the account lockout (recovery keys are 256 random bits, so this is defence in depth).
