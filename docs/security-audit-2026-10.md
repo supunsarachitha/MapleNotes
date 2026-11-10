@@ -66,7 +66,7 @@ end-to-end encryption, since the record's key is what is missing.
 | **End-to-end tag names and file metadata are not counted against the storage limit.** A note counted as 31 bytes carried 9 KB of encrypted tag names. | `StorageService.GetUsageAsync`, `NoteService.SetEncryptedTagsAsync` | Count tag `EncryptedName` and attachment `EncryptedMetadata` bytes and a fixed cost per row; claim new tag bytes on create, update and import. |
 | **In "Off" mode, attachments are plaintext on the data volume**, while architecture.md and threat-model.md say files are ciphertext in all modes. Someone with a disk copy but no master key reads them. | `AttachmentService.cs` | Encrypt Off-mode files with an instance key derived from the master key, or correct the documents. |
 | **`portainer-stack-npm.yml` trusts `172.16.0.0/12` and publishes port 8088 on all interfaces.** A client reaching 8088 directly from such a network (many LANs, or through Docker's userland proxy) can send its own `X-Forwarded-For` and get a new rate-limit budget per request. | `deploy/portainer-stack-npm.yml` | Put the app on NPM's Docker network with `expose` (as the Caddy stack does) and trust only that network, or bind the port to the address NPM uses. **Fixed** in [#134](https://github.com/supunsarachitha/MapleNotes/pull/134): the stack joins NPM's network and trusts only its subnet. |
-| **Usernames can be confirmed through the lockout**: five wrong sign-ins give 429 for a real account and 401 forever for an unknown one (and lock the real user out). | `AccountService.ValidateCredentialsAsync` | Count failures for unknown names too (in memory), or never reveal the lockout and answer 401. |
+| **Usernames can be confirmed through the lockout**: five wrong sign-ins give 429 for a real account and 401 forever for an unknown one (and lock the real user out). | `AccountService.ValidateCredentialsAsync` | Count failures for unknown names too (in memory), or never reveal the lockout and answer 401. **Fixed** in [#136](https://github.com/supunsarachitha/MapleNotes/pull/136): unknown names are counted in memory and lock alike. |
 
 ### Low
 
@@ -86,9 +86,11 @@ end-to-end encryption, since the record's key is what is missing.
 - **Two admins deleting at the same time can leave no administrator** (and reopen first-user setup). Run the check and
   the delete in one transaction.
 - **Password confirmations (change password, delete account, change mode) have no lockout**, only the per-address limit.
-  Share the sign-in lockout counter.
+  Share the sign-in lockout counter. **Fixed** in [#136](https://github.com/supunsarachitha/MapleNotes/pull/136): they
+  count toward the sign-in lockout, and a locked account refuses them.
 - **PBKDF2 on unauthenticated endpoints** costs 100–200 ms each with only per-address limits; a botnet can saturate the
-  CPU. Add a global concurrency limit on the authentication policies.
+  CPU. Add a global concurrency limit on the authentication policies. **Fixed** in
+  [#136](https://github.com/supunsarachitha/MapleNotes/pull/136): a global concurrency limiter caps them across all clients.
 - **Caddy's `on_demand_tls` asks `/healthz`**, which always says yes, so any hostname gets a certificate
   (`portainer-stack-https.yml`). Use an ask endpoint that allows only the expected names. **Fixed** in
   [#134](https://github.com/supunsarachitha/MapleNotes/pull/134): Caddy serves one fixed address from `MAPLE_HOSTNAME`.

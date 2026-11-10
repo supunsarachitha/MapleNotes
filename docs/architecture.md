@@ -285,9 +285,14 @@ note transaction, and a concurrent edit.
   password once with the new key.
 - Prelogin and sign-in answer identically for unknown users and wrong passwords, including timing: unknown usernames
   get the default parameters with a stable pseudo-salt derived from the prelogin key, and are checked against a dummy
-  hash. Five consecutive failures lock the account for 15 minutes, and prelogin and the authentication endpoints are
-  rate-limited per client IP (`MAPLE_AUTH_RATE_LIMIT`, a separate budget for each). Known gap: unknown names never lock, so a locked account answers 429 where an unknown
-one answers 401, which reveals that the name exists (roadmap item 29).
+  hash. Five failures lock the account for 15 minutes; unknown names are counted the same way in memory
+  (`UnknownUsernameLockout`, at most 10,000 names), so the lockout does not reveal which names exist. Password
+  confirmations (changing the password, two-factor sign-in, passkeys, the encryption mode or the recovery key, deleting
+  the account or its content) share the account's counter through `AccountService.ConfirmPasswordAsync`, and a locked
+  account refuses them with the same 429. Prelogin and the authentication endpoints are rate-limited per client IP
+  (`MAPLE_AUTH_RATE_LIMIT`, a separate budget for each) and, all clients together, by a global concurrency limiter
+  (`RateLimitPolicies.CreateGlobalLimiter`: one request per processor, at least four, with 100 waiting), so many
+  addresses cannot keep every core busy with PBKDF2.
 - Passkeys (`Features/Passkeys`): WebAuthn without attestation, checked with .NET's cryptography (no WebAuthn
   library). `WebAuthn.cs` checks the client data (type, one-time challenge, origin, not cross-origin), the RP ID hash
   (the request's host name), the user-present and user-verified flags, the ES256 or RS256 signature, and the counter.

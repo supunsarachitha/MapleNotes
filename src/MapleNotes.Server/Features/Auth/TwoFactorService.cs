@@ -204,7 +204,7 @@ public sealed class TwoFactorService(
 
     private async Task ProvePasswordAsync(User user, CredentialProof? proof, CancellationToken cancellationToken)
     {
-        if (!credentials.Verify(user, proof?.AuthKey, proof?.Password))
+        if (!await AccountService.ConfirmPasswordAsync(db, credentials, user, proof, time.GetUtcNow().UtcDateTime, cancellationToken))
         {
             throw new ApiValidationException("password", "The password is not correct.");
         }

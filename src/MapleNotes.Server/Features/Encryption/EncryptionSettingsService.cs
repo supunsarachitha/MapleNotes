@@ -83,7 +83,7 @@ public sealed class EncryptionSettingsService(
         }
 
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        if (!credentials.Verify(user, request.Proof?.AuthKey, request.Proof?.Password))
+        if (!await AccountService.ConfirmPasswordAsync(db, credentials, user, request.Proof, time.GetUtcNow().UtcDateTime, cancellationToken))
         {
             throw new ApiValidationException("password", "The password is not correct.");
         }

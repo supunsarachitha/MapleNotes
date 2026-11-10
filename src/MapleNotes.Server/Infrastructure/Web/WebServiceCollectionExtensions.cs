@@ -101,6 +101,7 @@ internal static class WebServiceCollectionExtensions
         services.AddOptions<RateLimiterOptions>().Configure<MapleOptions>((limiter, options) =>
         {
             limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            limiter.GlobalLimiter = RateLimitPolicies.CreateGlobalLimiter(RateLimitPolicies.GlobalConcurrencyLimit, RateLimitPolicies.GlobalQueueLimit);
             foreach (var policy in new[] { RateLimitPolicies.Authentication, RateLimitPolicies.Prelogin })
             {
                 limiter.AddPolicy(policy, context => RateLimitPartition.GetFixedWindowLimiter(

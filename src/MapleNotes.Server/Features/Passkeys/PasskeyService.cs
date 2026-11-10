@@ -68,7 +68,7 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
         // Taken first, so a wrong password also uses it up: every attempt needs fresh options.
         var ceremony = challenges.Take(request.ChallengeId, PasskeyChallenges.Purpose.Register, userId);
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        if (!credentials.Verify(user, request.Proof?.AuthKey, request.Proof?.Password))
+        if (!await AccountService.ConfirmPasswordAsync(db, credentials, user, request.Proof, time.GetUtcNow().UtcDateTime, cancellationToken))
         {
             throw new ApiValidationException("password", "The password is not correct.");
         }
@@ -148,7 +148,7 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
     public async Task<bool> RemoveAsync(Guid userId, Guid id, RemovePasskeyRequest request, CancellationToken cancellationToken)
     {
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        if (!credentials.Verify(user, request.Proof?.AuthKey, request.Proof?.Password))
+        if (!await AccountService.ConfirmPasswordAsync(db, credentials, user, request.Proof, time.GetUtcNow().UtcDateTime, cancellationToken))
         {
             throw new ApiValidationException("password", "The password is not correct.");
         }
@@ -173,7 +173,7 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
     public async Task<PasskeyResponse?> SetUnlockKeyAsync(Guid userId, Guid id, PasskeyUnlockRequest request, CancellationToken cancellationToken)
     {
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        if (!credentials.Verify(user, request.Proof?.AuthKey, request.Proof?.Password))
+        if (!await AccountService.ConfirmPasswordAsync(db, credentials, user, request.Proof, time.GetUtcNow().UtcDateTime, cancellationToken))
         {
             throw new ApiValidationException("password", "The password is not correct.");
         }

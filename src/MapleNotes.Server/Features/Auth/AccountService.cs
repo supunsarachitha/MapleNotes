@@ -78,6 +78,7 @@ public sealed record AccountResult(
 /// <param name="keys">Instance keys (for prelogin pseudo-salts).</param>
 /// <param name="dataKeys">Creates each new account's data key.</param>
 /// <param name="instanceSettings">Instance settings (open registration).</param>
+/// <param name="unknownNames">Failed sign-ins for usernames without an account.</param>
 /// <param name="options">Instance settings from the environment.</param>
 /// <param name="deletion">Deletes accounts with all their content.</param>
 /// <param name="twoFactor">Checks two-factor codes.</param>
@@ -88,6 +89,7 @@ public sealed class AccountService(
     KeyMaterial keys,
     DataKeyService dataKeys,
     InstanceSettingsService instanceSettings,
+    UnknownUsernameLockout unknownNames,
     MapleOptions options,
     AccountDeletionService deletion,
     TwoFactorService twoFactor,
@@ -235,6 +237,38 @@ public sealed class AccountService(
     }
 
     /// <summary>
+    /// Checks a password confirmation (changing the password, deleting the account, changing the encryption mode and
+    /// the other actions that ask for the password again). It shares the sign-in lockout: a locked account is refused
+    /// even with the right password, and a wrong one counts as a failed sign-in. A right one does not reset the count,
+    /// which only a complete sign-in does, so confirmations cannot be used to buy more sign-in guesses.
+    /// </summary>
+    /// <param name="db">Database context.</param>
+    /// <param name="credentials">Checks the proof.</param>
+    /// <param name="user">The tracked account; a legacy credential upgrade is left for the caller to save.</param>
+    /// <param name="proof">Proof of the password, if sent.</param>
+    /// <param name="now">The current time.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>Whether the password is right.</returns>
+    /// <exception cref="AccountLockedException">The account is locked, or this failure locked it.</exception>
+    internal static async Task<bool> ConfirmPasswordAsync(
+        MapleDbContext db, CredentialVerifier credentials, User user, CredentialProof? proof, DateTime now, CancellationToken cancellationToken)
+    {
+        if (user.LockoutEndUtc > now)
+        {
+            throw new AccountLockedException(user.LockoutEndUtc.Value);
+        }
+
+        if (credentials.Verify(user, proof?.AuthKey, proof?.Password))
+        {
+            return true;
+        }
+
+        return await RecordFailedAttemptAsync(db, user.Id, now, cancellationToken)
+            ? throw new AccountLockedException(now + LockoutDuration)
+            : false;
+    }
+
+    /// <summary>
     /// Checks sign-in credentials, applying lockout after repeated failures. A legacy account is upgraded to
     /// key-derived sign-in when the request also carries its correct password.
     /// </summary>
@@ -253,8 +287,16 @@ public sealed class AccountService(
         var user = await db.Users.SingleOrDefaultAsync(u => u.NormalizedUsername == normalizedUsername, cancellationToken);
         if (user is null)
         {
+            // Unknown names lock like real accounts, so the lockout does not tell which names exist.
+            if (unknownNames.LockedUntil(normalizedUsername) is { } lockedUntil)
+            {
+                return new AccountResult(null, AccountError.LockedOut, LockedUntilUtc: lockedUntil);
+            }
+
             credentials.SimulateCheck();
-            return AccountResult.Fail(AccountError.InvalidCredentials);
+            return unknownNames.RecordFailure(normalizedUsername) is { } lockoutEnd
+                ? new AccountResult(null, AccountError.LockedOut, LockedUntilUtc: lockoutEnd)
+                : AccountResult.Fail(AccountError.InvalidCredentials);
         }
 
         var now = time.GetUtcNow().UtcDateTime;
@@ -351,7 +393,7 @@ public sealed class AccountService(
         }
 
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        if (!credentials.Verify(user, request.Current?.AuthKey, request.Current?.Password))
+        if (!await ConfirmPasswordAsync(db, credentials, user, request.Current, time.GetUtcNow().UtcDateTime, cancellationToken))
         {
             return new AccountResult(null, AccountError.InvalidInput,
                 new Dictionary<string, string[]> { ["currentPassword"] = ["The current password is not correct."] });
@@ -404,7 +446,7 @@ public sealed class AccountService(
     public async Task<AccountResult> DeleteOwnAccountAsync(Guid userId, CredentialProof? proof, CancellationToken cancellationToken)
     {
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        if (!credentials.Verify(user, proof?.AuthKey, proof?.Password))
+        if (!await ConfirmPasswordAsync(db, credentials, user, proof, time.GetUtcNow().UtcDateTime, cancellationToken))
         {
             return new AccountResult(null, AccountError.InvalidInput,
                 new Dictionary<string, string[]> { ["password"] = ["The password is not correct."] });
@@ -455,7 +497,7 @@ public sealed class AccountService(
     public async Task<DeletedContentResponse> DeleteOwnContentAsync(Guid userId, CredentialProof? proof, CancellationToken cancellationToken)
     {
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
-        if (!credentials.Verify(user, proof?.AuthKey, proof?.Password))
+        if (!await ConfirmPasswordAsync(db, credentials, user, proof, time.GetUtcNow().UtcDateTime, cancellationToken))
         {
             throw new ApiValidationException("password", "The password is not correct.");
         }

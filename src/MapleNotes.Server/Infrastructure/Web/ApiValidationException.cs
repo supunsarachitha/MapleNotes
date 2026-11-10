@@ -1,3 +1,4 @@
+using MapleNotes.Server.Features.Auth;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +35,8 @@ public sealed class ApiProblemException(int statusCode, string title, string? de
 
 /// <summary>
 /// Turns expected service exceptions into problem responses: <see cref="ApiValidationException"/> into HTTP 400,
-/// <see cref="ApiProblemException"/> into its status, and optimistic-concurrency conflicts (the same note or file
+/// <see cref="ApiProblemException"/> into its status, <see cref="AccountLockedException"/> into HTTP 429 (as a locked
+/// sign-in), and optimistic-concurrency conflicts (the same note or file
 /// changed at the same moment) into HTTP 409.
 /// </summary>
 internal sealed class ApiExceptionFilter : IExceptionFilter
@@ -63,6 +65,12 @@ internal sealed class ApiExceptionFilter : IExceptionFilter
                 {
                     StatusCode = problem.StatusCode,
                 };
+                context.ExceptionHandled = true;
+                break;
+
+            case AccountLockedException locked:
+                context.Result = AuthController.LockedOut(
+                    context.HttpContext.Response, locked.LockedUntilUtc, context.HttpContext.RequestServices.GetRequiredService<TimeProvider>());
                 context.ExceptionHandled = true;
                 break;
 
