@@ -3,9 +3,11 @@
 #
 # Browsers only allow the encryption Maple Notes does in the page on HTTPS (or localhost), so plain
 # http://<server-ip> cannot sign anyone in. Here Caddy serves Maple Notes over HTTPS on port 8443 with a certificate
-# from its own local authority, made for whatever address you open it by. Open https://<server-ip>:8443 and accept
-# the browser's warning once (the authority is this server's own, not a public one). With a real domain name, use a
-# normal reverse proxy with a public certificate instead (see the README).
+# from its own local authority, made for the one address you open it by. Before deploying, add an environment variable
+# under the editor: MAPLE_HOSTNAME = the server's IP address (e.g. 192.168.1.20) or its local name. Caddy makes a
+# certificate for that address only. Open https://<that address>:8443 and accept the browser's warning once (the
+# authority is this server's own, not a public one). With a real domain name, use a normal reverse proxy with a public
+# certificate instead (see the README).
 #
 # BACK UP THE MASTER KEY right after the first start (it encrypts everything; without it the data is lost):
 #   docker run --rm -v maple-notes-key:/key:ro alpine cat /key/master.key
@@ -38,7 +40,7 @@ services:
       MAPLE_MAX_UPLOAD_MB: "25"
       MAPLE_DEFAULT_ENCRYPTION: "true"
       MAPLE_LINK_PREVIEWS: "true"
-      MAPLE_TRUSTED_PROXIES: "172.16.0.0/12" # Caddy, on Docker's network
+      MAPLE_TRUSTED_PROXIES: "172.16.0.0/12" # Caddy: only it shares this stack's network, and no port is published
     volumes:
       - maple-notes-data:/app/data
       - maple-notes-key:/run/maple-key:ro
@@ -59,18 +61,17 @@ services:
     ports:
       - "8443:443"
     environment:
+      MAPLE_HOSTNAME: ${MAPLE_HOSTNAME:?Set MAPLE_HOSTNAME to the address you open Maple Notes by, e.g. 192.168.1.20}
+      # One fixed site address, so Caddy makes a certificate for no other name. default_sni covers browsers that send
+      # no server name, as they do when the page is opened by IP address.
       CADDYFILE: |
         {
         	local_certs
         	skip_install_trust
-        	on_demand_tls {
-        		ask http://maple-notes:8080/healthz
-        	}
+        	default_sni {$$MAPLE_HOSTNAME}
         }
-        https:// {
-        	tls internal {
-        		on_demand
-        	}
+        https://{$$MAPLE_HOSTNAME} {
+        	tls internal
         	reverse_proxy maple-notes:8080
         }
     command:

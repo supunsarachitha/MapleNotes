@@ -66,4 +66,3 @@ From the [October 2026 security audit](security-audit-2026-10.md), where each ha
 27. End-to-end tag names and file details do not count toward the storage limit.
 28. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).
 29. The sign-in lockout reveals whether a username exists.
-30. The Nginx Proxy Manager deployment file trusts forwarded addresses from too wide a network.
