@@ -368,11 +368,12 @@ sessionKey  = 32 random bytes, created at sign-in and carried in the encrypted, 
 saved       = envelope(sessionKey, dataKey, context "maple-notes/v2/local/{userId}", key version = data-key version)
 ```
 
-`GET /api/v1/auth/session-key` returns `sessionKey` to its own session only, with `Cache-Control: no-store`. The saved
-copy is therefore useless once the session ends (sign-out, expiry, "sign out everywhere", a password change or reset
-elsewhere, a disabled account), and the server alone has nothing to open either. A copy that no longer opens is
-deleted; the browser then asks for the password (the unlock screen). Signing out, or finding the session gone, deletes
-all saved copies.
+`GET /api/v1/auth/session-key` returns `sessionKey` to its own session only, with `Cache-Control: no-store`, and only
+while that session's server-side record exists (version 1.22 on). The saved copy is therefore useless once the session
+ends (sign-out, which deletes the record, signing the session out from another device, the 90-day absolute lifetime,
+expiry, "sign out everywhere", a password change or reset elsewhere, a disabled account), and the server alone has
+nothing to open either. A copy that no longer opens is deleted; the browser then asks for the password (the unlock
+screen). Signing out, or finding the session gone, deletes all saved copies.
 
 Offline, `sessionKey` cannot be fetched and is never kept, so the app opens on the unlock screen. When the session was
 started with "keep me signed in", the service worker keeps the account's prelogin answer and wrapped key, and the

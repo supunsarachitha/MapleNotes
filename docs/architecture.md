@@ -305,6 +305,16 @@ note transaction, and a concurrent edit.
   (`SessionDays` in `InstanceSettings`); it is set when the session signs in, and renewal keeps it, so a new length
   applies from each device's next sign-in. It is validated against the database on **every** request, so a
   password change, "sign out everywhere", disabling or deleting an account takes effect immediately.
+- Server-side sessions (`Sessions` table, `SessionService`): every sign-in adds a row (ID, account, sign-in time, last
+  use, absolute expiry, the account's security stamp, a short device description such as "Firefox on Windows", and the
+  client address after trusted proxies), and the cookie carries its ID beside the account claims. A request is accepted
+  only while the row exists, carries the account's current stamp, has been used within the idle length above, and is
+  before its absolute expiry: 90 days after sign-in (`MAPLE_SESSION_MAX_DAYS`), however often it is renewed. "Sign
+  out" deletes the row, so a copy of the cookie stops working too, and with it the session's secret ([e2ee-spec.md
+  §7](e2ee-spec.md#7-keeping-the-key-in-the-browser)) is never handed out again. `GET /api/v1/auth/sessions` lists the
+  account's live sessions (the requesting one marked `current`), and `DELETE /api/v1/auth/sessions/{id}` ends one. The
+  last-use time is written at most every five minutes. Rows that have ended are deleted at the account's next sign-in
+  or device list. A cookie from before 1.22 gets a row on its first request, so the upgrade signs nobody out.
 - CSRF: `SameSite=Strict`, plus an antiforgery token in the `X-XSRF-TOKEN` header on every state-changing
   request. The export download is a GET that changes nothing, and a cross-site request never carries the
   SameSite=Strict cookie.

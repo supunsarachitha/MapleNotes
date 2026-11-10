@@ -40,6 +40,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
     /// <summary>Devices that receive push notifications.</summary>
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
+    /// <summary>Signed-in browsers and devices.</summary>
+    public DbSet<Session> Sessions => Set<Session>();
+
     /// <summary>Reminders on notes.</summary>
     public DbSet<NoteReminder> NoteReminders => Set<NoteReminder>();
 
@@ -185,6 +188,16 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             subscription.Property(p => p.P256dh).HasMaxLength(65);
             subscription.Property(p => p.Auth).HasMaxLength(16);
             subscription.Property(p => p.Name).HasMaxLength(PushSubscription.MaxNameLength);
+        });
+
+        modelBuilder.Entity<Session>(session =>
+        {
+            session.ToTable("Sessions");
+            session.HasOne<User>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+            session.HasIndex(s => s.UserId);
+            session.Property(s => s.SecurityStamp).HasMaxLength(64);
+            session.Property(s => s.Device).HasMaxLength(Session.MaxDeviceLength);
+            session.Property(s => s.IpAddress).HasMaxLength(Session.MaxIpAddressLength);
         });
 
         modelBuilder.Entity<NoteReminder>(reminder =>

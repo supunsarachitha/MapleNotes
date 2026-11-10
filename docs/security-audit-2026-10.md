@@ -70,9 +70,10 @@ end-to-end encryption, since the record's key is what is missing.
 
 ### Low
 
-- **Signing out does not end the session on the server.** A copied cookie keeps working after "Sign out" (sliding 30
-  days); only "Sign out everywhere" and password changes revoke. Add a session ID and revoke it on sign-out, and an
-  absolute session lifetime.
+- ~~**Signing out does not end the session on the server.**~~ Fixed in PR #137: sessions are stored on the server,
+  the cookie carries the session's ID, "Sign out" deletes it, and every session ends 90 days after sign-in. (A copied
+  cookie used to keep working after "Sign out", sliding 30 days; only "Sign out everywhere" and password changes
+  revoked.)
 - **Another account's note, file or label ID can be confirmed** by importing or creating with that ID (409, or a
   silently replaced ID). IDs cannot be guessed (74 random bits), so the attacker must already know one. Make IDs unique
   per account, or answer identically whoever holds the ID.

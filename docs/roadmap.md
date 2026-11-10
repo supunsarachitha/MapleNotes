@@ -46,8 +46,8 @@ Features most note apps have.
 
 ## Settings that are fixed today
 
-19. **Signed-in devices:** there is no list of devices to sign out one by one, and "Sign out" does not end the session on
-    the server.
+19. **Signed-in devices:** the server keeps a list of signed-in devices that can be signed out one by one
+    (`GET`/`DELETE /api/v1/auth/sessions`), but the web app does not show it yet.
 20. **Photo sizes:** three presets; a custom size or quality cannot be set.
 21. **Default view on opening:** the app always starts on Home.
 22. **Language:** the interface is in English only.

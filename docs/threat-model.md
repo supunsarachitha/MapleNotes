@@ -12,7 +12,7 @@ server is in [architecture.md](architecture.md#cryptography).
 | Note text, tags, label names, file names, types and contents | The database and the `attachments/` directory, plus the browser while it shows them. |
 | Passwords | Only in the browser. The server receives a key derived from the password, never the password itself (except once for accounts created by 1.0, see [Legacy accounts](#legacy-accounts)). |
 | Recovery keys | With the user, shown once. The server stores a hash of a key derived from it. |
-| Sessions | An HttpOnly cookie in the browser, checked against the database on every request. |
+| Sessions | An HttpOnly cookie in the browser naming a server-side session, checked against the database on every request. |
 
 ## The three modes
 
@@ -116,7 +116,10 @@ A lost or stolen phone or laptop, or a shared computer.
 
 - **With a live session** (the browser was left signed in, or "keep me signed in" was used, which lasts 30 days after
   the last use, or up to 400 if administrators chose so), the app opens and, for end-to-end accounts, unlocks by itself. Signing out everywhere from another device, or
-  changing the password there, ends every other session at once, and the saved key becomes useless with it.
+  changing the password there, ends every other session at once, and the saved key becomes useless with it. A
+  session ends for good 90 days after its sign-in (`MAPLE_SESSION_MAX_DAYS`), however often it is used.
+- **A copied session cookie** works only while its server-side session exists: signing out on the device, or signing
+  that one session out from another device, ends it on the server, and the copy is refused from then on.
 - **Without a live session,** the browser holds nothing useful, unless the session was started with "keep me signed
   in" and ended without this browser noticing (see offline reading below). The key saved in IndexedDB is sealed with a
   secret that exists only in the session, and API responses are sent with `Cache-Control: no-store`.
