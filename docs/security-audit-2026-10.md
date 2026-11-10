@@ -70,7 +70,7 @@ end-to-end encryption, since the record's key is what is missing.
 
 ### Low
 
-- ~~**Signing out does not end the session on the server.**~~ Fixed in PR #PRNUM: sessions are stored on the server,
+- ~~**Signing out does not end the session on the server.**~~ Fixed in PR #137: sessions are stored on the server,
   the cookie carries the session's ID, "Sign out" deletes it, and every session ends 90 days after sign-in. (A copied
   cookie used to keep working after "Sign out", sliding 30 days; only "Sign out everywhere" and password changes
   revoked.)
