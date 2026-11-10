@@ -24,6 +24,7 @@ export const queryKeys = {
   instanceStorage: ["admin", "storage"] as const,
   reminders: ["notes", "reminders"] as const, // under "notes": archiving or deleting a note hides its reminder
   pushDevices: ["account", "push"] as const,
+  sessions: ["account", "sessions"] as const,
 };
 
 export const PAGE_SIZE = 20;

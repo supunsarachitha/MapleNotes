@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DELETE /api/v1/auth/sessions/{id}` signs one out. Sessions from before the upgrade keep working: each gets a server
   record on its first request, and its 90 days count from then
   ([#124](https://github.com/supunsarachitha/MapleNotes/issues/124)).
+- Settings → Privacy & security lists the browsers and devices signed in to the account, with this one marked, when
+  each signed in and was last used, and a **Sign out** button on each, so a lost device can be signed out on its own
+  without ending every session ([#124](https://github.com/supunsarachitha/MapleNotes/issues/124)).
 
 ## [1.21.1] - 2026-11-07
 

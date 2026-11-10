@@ -220,7 +220,7 @@ volume cannot be used to forge a session.
 
 | Threat | Off / encrypted at rest | End-to-end |
 |---|---|---|
-| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 28). | **Protected**, twice over. |
+| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 27). | **Protected**, twice over. |
 | Someone who knows the master key, or reads the server's memory or data while it runs | **Not protected.** The server holds the keys. | **Protected.** The server never has the key; it sees ciphertext, sizes, timestamps, and which notes share a tag. |
 | Someone who takes over the server and changes the web app it serves | **Not protected.** | **Not protected** once the user signs in or unlocks with the modified app, which could capture the password. See [threat-model.md](threat-model.md). |
 | Tampering with stored ciphertext | **Detected.** Authenticated encryption everywhere. | **Detected**, in the browser. |
@@ -312,7 +312,9 @@ note transaction, and a concurrent edit.
   before its absolute expiry: 90 days after sign-in (`MAPLE_SESSION_MAX_DAYS`), however often it is renewed. "Sign
   out" deletes the row, so a copy of the cookie stops working too, and with it the session's secret ([e2ee-spec.md
   §7](e2ee-spec.md#7-keeping-the-key-in-the-browser)) is never handed out again. `GET /api/v1/auth/sessions` lists the
-  account's live sessions (the requesting one marked `current`), and `DELETE /api/v1/auth/sessions/{id}` ends one. The
+  account's live sessions (the requesting one marked `current`), and `DELETE /api/v1/auth/sessions/{id}` ends one;
+  Settings → Privacy & security shows that list, and signs the current browser out through the normal sign-out so its
+  unsent changes and saved key are forgotten too. The
   last-use time is written at most every five minutes. Rows that have ended are deleted at the account's next sign-in
   or device list. A cookie from before 1.22 gets a row on its first request, so the upgrade signs nobody out.
 - CSRF: `SameSite=Strict`, plus an antiforgery token in the `X-XSRF-TOKEN` header on every state-changing
