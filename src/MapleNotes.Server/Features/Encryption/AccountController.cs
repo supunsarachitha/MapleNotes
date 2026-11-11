@@ -1,3 +1,5 @@
+using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.AspNetCore.Authentication;
@@ -22,10 +24,11 @@ public sealed record DeleteContentRequest(CredentialProof Proof);
 /// <summary>The signed-in user's account: encryption mode, deleting its content, and deleting the account.</summary>
 /// <param name="accounts">Account operations.</param>
 /// <param name="encryption">Encryption-at-rest setting.</param>
+/// <param name="audit">The audit log.</param>
 [ApiController]
 [Route("api/v1/account")]
 [Produces("application/json")]
-public sealed class AccountController(AccountService accounts, EncryptionSettingsService encryption) : ControllerBase
+public sealed class AccountController(AccountService accounts, EncryptionSettingsService encryption, AuditLog audit) : ControllerBase
 {
     /// <summary>Returns the encryption mode and how far converting existing content has progressed.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -53,8 +56,27 @@ public sealed class AccountController(AccountService accounts, EncryptionSetting
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType<EncryptionStatusResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-    public Task<EncryptionStatusResponse> SetEncryption(UpdateEncryptionRequest request, CancellationToken cancellationToken) =>
-        encryption.SetModeAsync(User.GetUserId(), request, cancellationToken);
+    public async Task<EncryptionStatusResponse> SetEncryption(UpdateEncryptionRequest request, CancellationToken cancellationToken)
+    {
+        var before = (await encryption.GetStatusAsync(User.GetUserId(), cancellationToken)).Mode;
+        var status = await encryption.SetModeAsync(User.GetUserId(), request, cancellationToken);
+        if (status.Mode != before)
+        {
+            await audit.RecordAsync(
+                AuditEvent.EncryptionChanged, User.Identity?.Name, $"Encryption: {Describe(before)} → {Describe(status.Mode)}.", cancellationToken);
+        }
+
+        return status;
+    }
+
+    /// <summary>A mode as the app names it, for the audit log.</summary>
+    private static string Describe(EncryptionMode mode) => mode switch
+    {
+        EncryptionMode.Off => "off",
+        EncryptionMode.AtRest => "at rest",
+        EncryptionMode.EndToEnd => "end-to-end",
+        _ => mode.ToString(),
+    };
 
     /// <summary>Changes the name the app shows for the signed-in account.</summary>
     /// <param name="request">The new name; empty goes back to the username.</param>

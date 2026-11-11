@@ -1,3 +1,5 @@
+using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Features.Encryption;
 using MapleNotes.Server.Infrastructure.Web;
@@ -8,10 +10,11 @@ namespace MapleNotes.Server.Features.EndToEnd;
 
 /// <summary>The signed-in account's end-to-end encryption key material (docs/e2ee-spec.md).</summary>
 /// <param name="endToEnd">End-to-end key operations.</param>
+/// <param name="audit">The audit log.</param>
 [ApiController]
 [Route("api/v1/account/e2ee")]
 [Produces("application/json")]
-public sealed class EndToEndController(EndToEndService endToEnd) : ControllerBase
+public sealed class EndToEndController(EndToEndService endToEnd, AuditLog audit) : ControllerBase
 {
     /// <summary>Returns the account's end-to-end data key, wrapped with the key derived from the password.</summary>
     /// <remarks>The browser unwraps it after deriving the wrapping key from the password; the server cannot.</remarks>
@@ -44,8 +47,12 @@ public sealed class EndToEndController(EndToEndService endToEnd) : ControllerBas
     [ProducesResponseType<EncryptionStatusResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    public Task<EncryptionStatusResponse> Enable(EnableEndToEndRequest request, CancellationToken cancellationToken) =>
-        endToEnd.EnableAsync(User.GetUserId(), request, cancellationToken);
+    public async Task<EncryptionStatusResponse> Enable(EnableEndToEndRequest request, CancellationToken cancellationToken)
+    {
+        var status = await endToEnd.EnableAsync(User.GetUserId(), request, cancellationToken);
+        await audit.RecordAsync(AuditEvent.EncryptionChanged, User.Identity?.Name, "Turned on end-to-end encryption.", cancellationToken);
+        return status;
+    }
 
     /// <summary>Replaces the recovery key. The previous recovery key stops working.</summary>
     /// <param name="request">Proof of the password and the new recovery material.</param>
@@ -62,6 +69,7 @@ public sealed class EndToEndController(EndToEndService endToEnd) : ControllerBas
     public async Task<IActionResult> ReplaceRecoveryKey(ReplaceRecoveryKeyRequest request, CancellationToken cancellationToken)
     {
         await endToEnd.ReplaceRecoveryKeyAsync(User.GetUserId(), request, cancellationToken);
+        await audit.RecordAsync(AuditEvent.RecoveryKeyReplaced, User.Identity?.Name, "Replaced the recovery key; the old one no longer works.", cancellationToken);
         return NoContent();
     }
 }

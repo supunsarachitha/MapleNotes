@@ -56,6 +56,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and **Sign out**; the app opens once one is saved, and a session restricted while the app is open switches to that
   screen on its next request. After first-run setup, Settings → Administration suggests requiring a second factor for
   administrators ([#125](https://github.com/supunsarachitha/MapleNotes/issues/125)).
+- The audit log now records people's own security changes: password changed (or reset with the recovery key),
+  two-factor sign-in on or off, recovery codes replaced, passkey added or removed, recovery key replaced, encryption
+  mode changed, and "sign out everywhere" (new `event` values; no secrets, codes or keys are stored). The new
+  `Security` filter of `GET /api/v1/admin/audit` lists them, and `Admin` now lists administrators' actions only
+  ([#129](https://github.com/supunsarachitha/MapleNotes/issues/129)).
+- Audit entries are hash-chained: each stores an HMAC, under a key derived from the master key, of the previous
+  entry's hash and its own content, and pruning keeps a sealed anchor so the chain still verifies.
+  `GET /api/v1/admin/audit/verify` reports whether the chain is intact and the first entry that was changed or follows
+  a deleted one. A migration adds the `Hash` column and an `AuditChainAnchor` table; entries from before the upgrade
+  are counted as not covered and age out after 180 days. `MAPLE_AUDIT_STDOUT=true` also writes each entry to standard
+  output as a JSON line, for syslog or a SIEM ([#129](https://github.com/supunsarachitha/MapleNotes/issues/129)).
 
 ## [1.21.1] - 2026-11-07
 

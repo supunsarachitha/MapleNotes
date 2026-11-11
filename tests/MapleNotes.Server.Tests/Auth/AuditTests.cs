@@ -5,6 +5,7 @@ using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Configuration;
 using MapleNotes.Server.Tests.TestSupport;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MapleNotes.Server.Tests.Auth;
@@ -87,15 +88,14 @@ public sealed class AuditTests : IAsyncLifetime
 
         using (var scope = _app.Services.CreateScope())
         {
+            // Pruning removes a run of the oldest entries, so make the first two old.
             var db = scope.ServiceProvider.GetRequiredService<MapleNotes.Server.Infrastructure.Persistence.MapleDbContext>();
-            db.AuditEntries.Add(new AuditEntry
-            {
-                AtUtc = DateTime.UtcNow.AddDays(-AuditEntry.RetentionDays - 1), Event = AuditEvent.SignIn, Username = "old", Detail = "Long ago.",
-            });
-            await db.SaveChangesAsync(Ct);
-            Assert.Equal(1, await scope.ServiceProvider.GetRequiredService<AuditLog>().PruneAsync(Ct));
+            var oldest = await db.AuditEntries.OrderBy(e => e.Id).Take(2).Select(e => e.Id).ToListAsync(Ct);
+            await db.AuditEntries.Where(e => oldest.Contains(e.Id))
+                .ExecuteUpdateAsync(e => e.SetProperty(x => x.AtUtc, DateTime.UtcNow.AddDays(-AuditEntry.RetentionDays - 1)), Ct);
+            Assert.Equal(2, await scope.ServiceProvider.GetRequiredService<AuditLog>().PruneAsync(Ct));
         }
 
-        Assert.DoesNotContain((await ListAsync())!.Items, e => e.Username == "old");
+        Assert.Single((await ListAsync())!.Items);
     }
 }

@@ -77,7 +77,8 @@ session that must still set up a second factor (see below), so a new endpoint is
 | `InstanceSetting` | Runtime settings changed by administrators (open registration), and the server's VAPID key pair for push notifications. |
 | `NoteReminder` | A note's reminder: local start time, time zone, repeat, next time (UTC), last sent. One per note; removed with the note. |
 | `PushSubscription` | A device that receives notifications: push endpoint, browser key and auth secret, a name. At most 20 per account. |
-| `AuditEntry` | The audit log: time, event (`SignIn`, `SignInFailed`, `SettingsChanged`, `AccountChanged`, `AccountDeleted`), the username given or acting (copied, not a foreign key, so it outlives the account), the account acted on, the sign-in method, a one-line description and the client address. Written by `AuditLog` from the sign-in and admin controllers; listed newest first, 50 a page, at `GET /api/v1/admin/audit`. |
+| `AuditEntry` | The audit log: time, event (`SignIn`, `SignInFailed`, `SettingsChanged`, `AccountChanged`, `AccountDeleted`, and people's own changes: `PasswordChanged`, `TwoFactorEnabled`, `TwoFactorDisabled`, `RecoveryCodesReplaced`, `PasskeyAdded`, `PasskeyRemoved`, `RecoveryKeyReplaced`, `EncryptionChanged`, `SignedOutEverywhere`), the username given or acting (copied, not a foreign key, so it outlives the account), the account acted on, the sign-in method, a one-line description, the client address, and `Hash`: HMAC-SHA256 under the audit key of the previous entry's hash and this entry's fields (`AuditChain`). Written by `AuditLog` from the sign-in, account and admin controllers under one process-wide lock, so each entry links to the one before; listed newest first, 50 a page, at `GET /api/v1/admin/audit` (filter `Security` for people's own changes); checked at `GET /api/v1/admin/audit/verify`, which names the first entry whose link does not match. With `MAPLE_AUDIT_STDOUT=true` each entry is also printed as a JSON line. |
+| `AuditChainAnchor` | One row: where the chain starts. `LegacyThroughId` is the newest entry written before 1.22 (not covered), `PrunedThroughId` and `Hash` are the last entry pruning deleted and its hash, which the oldest kept entry must link to, and `Mac` is an HMAC over these fields, so the anchor cannot be moved to hide deleted entries. |
 
 All IDs are UUID version 7, so they sort by creation time. Every query that touches notes, tags or attachments filters
 by the signed-in owner; requests for another user's items return 404, never 403, so their existence is not revealed.
@@ -144,6 +145,7 @@ flowchart TD
     mk -- HKDF-SHA256 --> dpk["Data Protection wrapping key"]
     mk -- HKDF-SHA256 --> pk["Prelogin key<br/>(pseudo-salts for unknown usernames)"]
     mk -- HKDF-SHA256 --> tfk["Two-factor key<br/>(seals authenticator secrets, keys recovery-code HMACs)"]
+    mk -- HKDF-SHA256 --> ak["Audit key<br/>(keys the audit log's hash chain)"]
     mk -- HKDF-SHA256 --> fp["Fingerprint<br/>(8 hex chars, safe to log)"]
     kek -- "AES-256-GCM wrap<br/>bound to the user ID" --> dek["Per-user data key<br/>(stored wrapped in Users)"]
     dek -- "AES-256-GCM envelope" --> notes["Note text"]
@@ -588,7 +590,7 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 |---|---|---|
 | `StartupInitializer` | Before anything else starts | Validates settings and the master key, creates the data layout, backs up and migrates the database. Problems stop startup with a one-line message. |
 | `EncryptionMigrationService` | Startup, on a mode change, every 5 minutes | Converts content between `None` and `Server` to match each account's mode. The browser converts to and from end-to-end encryption. |
-| `AuditLogCleanupService` | Startup, then hourly | Deletes audit entries older than 180 days. |
+| `AuditLogCleanupService` | Startup, then hourly | Deletes audit entries older than 180 days (only the run at the start of the log, so the chain has no holes) and moves the chain's anchor to the last one deleted. |
 | `AttachmentCleanupService` | Startup, then hourly | Removes uploads never attached to a note (after 24 h), orphan files (after 1 h) and interrupted writes. |
 | `TrashCleanupService` | Startup, then hourly | Deletes notes and files that have been in the trash for longer than their owner's `trashDays` preference (30 by default; 0 keeps them). Preferences are a JSON column, so it reads the retention of each account that has something in the trash, then deletes per account in batches. |
 | `ReminderSenderService` | Startup, then every 30 seconds | Sends reminders that are due as Web Push notifications to every device of the account and moves each on: a repeating one to its next local time, a one-off one is removed. Reminders on archived or trashed notes, or more than 12 hours late, are not sent. |

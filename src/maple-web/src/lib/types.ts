@@ -393,8 +393,22 @@ export interface PushDevice {
   lastSentAtUtc: string | null;
 }
 
-export type AuditEvent = "SignIn" | "SignInFailed" | "SettingsChanged" | "AccountChanged" | "AccountDeleted";
-export type AuditFilter = "All" | "SignIns" | "FailedSignIns" | "Admin";
+export type AuditEvent =
+  | "SignIn"
+  | "SignInFailed"
+  | "SettingsChanged"
+  | "AccountChanged"
+  | "AccountDeleted"
+  | "PasswordChanged"
+  | "TwoFactorEnabled"
+  | "TwoFactorDisabled"
+  | "RecoveryCodesReplaced"
+  | "PasskeyAdded"
+  | "PasskeyRemoved"
+  | "RecoveryKeyReplaced"
+  | "EncryptionChanged"
+  | "SignedOutEverywhere";
+export type AuditFilter = "All" | "SignIns" | "FailedSignIns" | "Admin" | "Security";
 
 /** One line of the audit log (administrators only). */
 export interface AuditEntry {

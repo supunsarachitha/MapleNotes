@@ -37,6 +37,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
     /// <summary>Sign-ins and administrators' actions.</summary>
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
+    /// <summary>Where the audit chain starts after pruning (at most one row).</summary>
+    public DbSet<AuditChainAnchor> AuditChainAnchors => Set<AuditChainAnchor>();
+
     /// <summary>Devices that receive push notifications.</summary>
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
@@ -221,7 +224,15 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             entry.Property(e => e.Method).HasMaxLength(16);
             entry.Property(e => e.Detail).HasMaxLength(AuditEntry.MaxDetailLength);
             entry.Property(e => e.IpAddress).HasMaxLength(64);
+            entry.Property(e => e.Hash).HasMaxLength(32);
             entry.HasIndex(e => e.AtUtc); // for pruning
+        });
+
+        modelBuilder.Entity<AuditChainAnchor>(anchor =>
+        {
+            anchor.ToTable("AuditChainAnchor");
+            anchor.Property(a => a.Id).ValueGeneratedNever();
+            anchor.Property(a => a.Hash).HasMaxLength(32);
         });
 
         modelBuilder.Entity<InstanceSetting>(setting =>
