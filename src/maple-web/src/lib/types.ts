@@ -19,7 +19,19 @@ export interface User {
   endToEndModeRecord?: string | null;
   /** Signing in needs a code from an authenticator app as well as the password. */
   twoFactorEnabled?: boolean;
+  /**
+   * The server requires a second factor for this account and it has none: until it sets up two-factor sign-in or a
+   * passkey, every other API call answers 403 with the code {@link SECOND_FACTOR_ENROLMENT_REQUIRED}.
+   */
+  secondFactorEnrolmentRequired?: boolean;
 }
+
+/** The problem `code` of the 403 a session gets while it must set up a second factor first. */
+export const SECOND_FACTOR_ENROLMENT_REQUIRED = "second_factor_enrolment_required";
+
+/** Who must sign in with two-factor sign-in or a passkey (an instance setting). */
+export const SECOND_FACTOR_RULES = ["Off", "Administrators", "Everyone"] as const;
+export type SecondFactorRule = (typeof SECOND_FACTOR_RULES)[number];
 
 /** The date formats offered in Settings, as .NET-style patterns (formatted by lib/dates.ts). */
 export const DATE_FORMATS = [
@@ -331,6 +343,8 @@ export interface InstanceSettings {
   appName: string | null;
   /** How many days a session lasts after it was last used (1 to 400). */
   sessionDays: number;
+  /** Who must sign in with two-factor sign-in or a passkey. Leaving it out of a save keeps the current rule. */
+  requireSecondFactor?: SecondFactorRule;
 }
 
 /** What the instance stores on its data volume, for administrators (totals only). */
@@ -411,6 +425,8 @@ export interface AdminUser {
   createdAtUtc: string;
   /** The account signs in with an authenticator code as well as the password. */
   twoFactorEnabled?: boolean;
+  /** The account has at least one passkey. */
+  hasPasskey?: boolean;
 }
 
 /** Whether two-factor sign-in is on, and how many recovery codes are left. */
@@ -511,4 +527,6 @@ export interface ProblemDetails {
   errors?: Record<string, string[]>;
   /** The password (or recovery key) was right, and a two-factor code is needed or was wrong. */
   twoFactorRequired?: boolean;
+  /** A machine-readable reason, such as {@link SECOND_FACTOR_ENROLMENT_REQUIRED}. */
+  code?: string;
 }

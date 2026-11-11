@@ -1,11 +1,12 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import { auth } from "../lib/auth";
 import { calendarDay, formatDate } from "../lib/dates";
 import { PasskeyCancelled, passkeysSupported, PasskeyUnavailable } from "../lib/passkeys";
+import { queryKeys } from "../lib/queries";
 import type { Passkey, PasskeyCreationOptions, User } from "../lib/types";
 import { useToast } from "./Toaster";
 import { DialogShell } from "./TwoFactorSection";
@@ -30,6 +31,9 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
   const [options, setOptions] = useState<PasskeyCreationOptions | null>(null);
   // Added, but the device gives the PRF output only when the passkey is used: offer one more tap to unlock notes.
   const [needsTap, setNeedsTap] = useState<Passkey | null>(null);
+  // A new passkey can lift the server's second-factor requirement; the account is fetched again once the dialog closes,
+  // not at once, which would swap the set-up screen for the app while the dialog still offers its last step.
+  const added = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -50,6 +54,8 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
       setError(null);
       setOptions(null);
       setNeedsTap(null);
+      if (added.current || user.secondFactorEnrolmentRequired) void queryClient.invalidateQueries({ queryKey: queryKeys.status });
+      added.current = false;
     }
     onOpenChange(next);
   }
@@ -77,6 +83,7 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
     setError(null);
     try {
       const { passkey, canUnlockWithTap } = await auth.addPasskey(user, password, options, name.trim() || undefined);
+      added.current = true;
       void queryClient.invalidateQueries({ queryKey: passkeysKey });
       if (canUnlockWithTap) {
         setNeedsTap(passkey);

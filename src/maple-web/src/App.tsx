@@ -3,7 +3,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { BrandMark } from "./components/BrandMark";
 import { Button, Spinner } from "./components/ui";
-import { api } from "./lib/api";
+import { api, ENROLMENT_REQUIRED_EVENT } from "./lib/api";
 import { useAppearance } from "./lib/appearance";
 import { applyBranding, useBranding } from "./lib/branding";
 import { useConversionRunner } from "./lib/conversion";
@@ -17,6 +17,7 @@ import { hasWebCrypto } from "./lib/secureContext";
 import { queryKeys, useAuthStatus, useSignedOut } from "./lib/queries";
 import { useLocation } from "./lib/router";
 import { AuthPage } from "./pages/AuthPage";
+import { EnrolmentPage } from "./pages/EnrolmentPage";
 import { ArchivePage, HomePage } from "./pages/HomePage";
 import { RecoverPage } from "./pages/RecoverPage";
 import { HabitsPage } from "./pages/HabitsPage";
@@ -140,8 +141,19 @@ export function App() {
   // The mode this browser encrypts for: the server's word is not enough to leave end-to-end mode (lib/modeRecord.ts).
   const trusted = useTrustedMode(user, keys);
 
+  // A session the server restricts until the account sets up a second factor reaches nothing but that set-up.
+  const enrolling = user?.secondFactorEnrolmentRequired === true;
+
   // Converts existing content to or from end-to-end encryption while the app is open (lib/conversion.ts).
-  useConversionRunner(user, keys.status === "unlocked", trusted?.mode);
+  useConversionRunner(user, keys.status === "unlocked" && !enrolling, trusted?.mode);
+
+  // The server can start requiring a second factor while the app is open (an administrator changed the rule): a refused
+  // request fetches the account again, which then shows the set-up screen.
+  useEffect(() => {
+    const refetch = () => void client.invalidateQueries({ queryKey: queryKeys.status });
+    window.addEventListener(ENROLMENT_REQUIRED_EVENT, refetch);
+    return () => window.removeEventListener(ENROLMENT_REQUIRED_EVENT, refetch);
+  }, [client]);
 
   // A key saved during a session that has ended cannot be opened any more; remove it.
   useEffect(() => {
@@ -165,7 +177,8 @@ export function App() {
   // Unlocking offline needs the password settings and the wrapped key, which a session that restored its key never
   // asks for: fetch them once per visit, through the worker, which keeps them when this device keeps notes.
   const unlockSaved = useRef<string | null>(null);
-  const keepsNotes = status.data?.sessionPersistent === true && user?.hasEndToEndKey === true && keys.status === "unlocked";
+  const keepsNotes =
+    status.data?.sessionPersistent === true && user?.hasEndToEndKey === true && keys.status === "unlocked" && !enrolling;
   useEffect(() => {
     if (!keepsNotes || !user || offline || unlockSaved.current === user.id) return;
     unlockSaved.current = user.id;
@@ -205,6 +218,11 @@ export function App() {
   if (!user) {
     const mode = setupRequired ? "setup" : path === "/register" && registrationOpen ? "register" : "login";
     return <AuthPage mode={mode} registrationOpen={registrationOpen} />;
+  }
+
+  // Before the unlock screen: the end-to-end key cannot be fetched from a restricted session anyway.
+  if (enrolling) {
+    return <EnrolmentPage user={user} />;
   }
 
   if (keys.status === "checking") {

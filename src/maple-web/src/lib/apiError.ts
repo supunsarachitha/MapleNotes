@@ -1,4 +1,4 @@
-import type { ProblemDetails } from "./types";
+import { SECOND_FACTOR_ENROLMENT_REQUIRED, type ProblemDetails } from "./types";
 
 /** HTTP 507: the change does not fit in the account's storage limit. */
 export const STORAGE_FULL = 507;
@@ -38,4 +38,9 @@ export function saveErrorMessage(error: unknown, fallback: string): string {
 /** Whether sign-in (or a reset with the recovery key) needs a two-factor code: none was sent, or it was wrong. */
 export function isTwoFactorRequired(error: unknown): error is ApiError {
   return error instanceof ApiError && error.status === 401 && error.problem.twoFactorRequired === true;
+}
+
+/** Whether a request was refused because the account must set up two-factor sign-in or a passkey first. */
+export function isEnrolmentRequired(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 403 && error.problem.code === SECOND_FACTOR_ENROLMENT_REQUIRED;
 }

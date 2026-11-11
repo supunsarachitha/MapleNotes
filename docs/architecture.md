@@ -327,7 +327,9 @@ note transaction, and a concurrent edit.
   signs in, but until it sets one up every endpoint except `GET /auth/me`, `GET /auth/session-key`, sign-out, sign-out
   everywhere and the two-factor and passkey setup endpoints answers 403 with the problem `code`
   `second_factor_enrolment_required`; `UserResponse.secondFactorEnrolmentRequired` tells the web app to show the
-  enrolment prompt. The check runs on each request rather than being stamped on the session, so turning the rule on
+  enrolment prompt (`pages/EnrolmentPage.tsx`, chosen in `App.tsx` before the unlock screen, since the end-to-end key
+  cannot be fetched from such a session). The API client fires a window event on that 403, so a session restricted
+  while the app is open fetches the account again and switches to the prompt. The check runs on each request rather than being stamped on the session, so turning the rule on
   restricts sessions that already exist, and enrolling lifts it without signing in again. The administrator saving a
   rule that covers them must already have a second factor (409 otherwise), and an administrator cannot turn off
   two-factor sign-in for a covered account that has no passkey (409). Changes to the rule are in the audit log.

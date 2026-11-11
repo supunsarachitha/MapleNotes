@@ -47,7 +47,7 @@ import type {
   UserRole,
 } from "./types";
 import { moodAllowed } from "./types";
-import { ApiError } from "./apiError";
+import { ApiError, isEnrolmentRequired } from "./apiError";
 import type { NewPasskeyWire, PasskeyAssertionWire } from "./passkeys";
 import { noteApiResponse } from "./offline";
 import {
@@ -80,6 +80,9 @@ import {
 } from "./noteCrypto";
 
 export { ApiError } from "./apiError";
+
+/** Fired on `window` when a request is refused because the account must set up a second factor first. */
+export const ENROLMENT_REQUIRED_EVENT = "maple:second-factor-required";
 
 // State-changing requests must carry an antiforgery token (see AuthController on the server). Tokens are bound to
 // the signed-in user, so a new one is fetched after signing in or out.
@@ -142,7 +145,11 @@ export async function request<T>(method: Method, path: string, body?: unknown, r
       await refreshAntiforgeryToken();
       return request<T>(method, path, body, false);
     }
-    throw new ApiError(response.status, problem);
+    const error = new ApiError(response.status, problem);
+    // The server started requiring a second factor while the app was open: let the app fetch the account again and
+    // show the set-up screen (App.tsx) instead of failing request by request.
+    if (isEnrolmentRequired(error)) window.dispatchEvent(new Event(ENROLMENT_REQUIRED_EVENT));
+    throw error;
   }
 
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);

@@ -8,6 +8,7 @@ import { auth, MIN_PASSWORD_LENGTH, TwoFactorRequired, validateNewPassword } fro
 import { useBranding } from "../lib/branding";
 import { autofillSupported, PasskeyCancelled, passkeysSupported, PasskeyUnavailable } from "../lib/passkeys";
 import { queryKeys } from "../lib/queries";
+import { suggestSecondFactor } from "../lib/secondFactor";
 import type { PasskeyRequestOptions } from "../lib/types";
 import { Link, navigate } from "../lib/router";
 
@@ -16,7 +17,8 @@ export type AuthMode = "setup" | "login" | "register";
 const titles: Record<AuthMode, { heading: string; intro: string; action: string }> = {
   setup: {
     heading: "Welcome to {app}",
-    intro: "Create the first account. It becomes the administrator of this instance.",
+    intro:
+      "Create the first account. It becomes the administrator of this instance. Afterwards, Settings → Administration suggests requiring two-factor sign-in or a passkey for administrators.",
     action: "Create account",
   },
   login: { heading: "Sign in", intro: "Your notes, on your own server.", action: "Sign in" },
@@ -133,6 +135,8 @@ export function AuthPage({ mode, registrationOpen }: { mode: AuthMode; registrat
     try {
       if (mode === "login") await auth.signIn(username, password, rememberMe);
       else await auth.register(username, password, displayName || undefined);
+      // The first account runs a new server: Settings → Administration then suggests requiring a second factor there.
+      if (mode === "setup") suggestSecondFactor();
       await signedIn();
     } catch (caught) {
       if (caught instanceof TwoFactorRequired) {
