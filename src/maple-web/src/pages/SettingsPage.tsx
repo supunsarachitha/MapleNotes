@@ -717,7 +717,7 @@ function SessionLengthSetting({
         value={settings.sessionDays}
         disabled={saving}
         onChange={(event) => onSave({ ...settings, sessionDays: Number(event.target.value) })}
-        className="mt-2 h-11 rounded-xl border border-stone-300 bg-white px-3 text-sm dark:border-stone-700 dark:bg-stone-950"
+        className="mt-2 h-11 max-w-full rounded-xl border border-stone-300 bg-white px-3 text-sm dark:border-stone-700 dark:bg-stone-950"
       >
         {options.map((length) => (
           <option key={length.days} value={length.days}>
@@ -808,7 +808,7 @@ function SecondFactorRuleSetting({
         value={rule}
         disabled={saving}
         onChange={(event) => choose(event.target.value as SecondFactorRule)}
-        className="mt-2 h-11 rounded-xl border border-stone-300 bg-white px-3 text-sm dark:border-stone-700 dark:bg-stone-950"
+        className="mt-2 h-11 max-w-full rounded-xl border border-stone-300 bg-white px-3 text-sm dark:border-stone-700 dark:bg-stone-950"
       >
         {SECOND_FACTOR_CHOICES.map((choice) => (
           <option key={choice.rule} value={choice.rule} disabled={choice.rule !== "Off" && choice.rule !== rule && ownFactor === false}>
@@ -938,11 +938,11 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
                     {account.displayName} <span className="font-normal text-stone-500">@{account.username}</span>
                   </p>
                   <p className="text-xs text-stone-500 dark:text-stone-400">
-                    {account.role === "Admin" ? "Administrator" : "Member"} · {account.noteCount} notes
-                    {account.twoFactorEnabled && <span className="ml-1">· Two-factor</span>}
-                    {account.hasPasskey && <span className="ml-1">· Passkey</span>}
+                    {account.role === "Admin" ? "Administrator" : "Member"} · <span className="whitespace-nowrap">{account.noteCount} notes</span>
+                    {account.twoFactorEnabled && <span className="ml-1 whitespace-nowrap">· Two-factor</span>}
+                    {account.hasPasskey && <span className="ml-1 whitespace-nowrap">· Passkey</span>}
                     {ruleCovers(rule, account.role) && !account.twoFactorEnabled && !account.hasPasskey && (
-                      <span className="ml-1 text-amber-700 dark:text-amber-400">· Must set up a second factor</span>
+                      <span className="ml-1 whitespace-nowrap text-amber-700 dark:text-amber-400">· Must set up a second factor</span>
                     )}
                     {account.isDisabled && <span className="ml-1 font-medium text-red-700 dark:text-red-400">· Disabled</span>}
                   </p>
@@ -954,7 +954,7 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
                   )}
                 </div>
                 {!self && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2 [&>button]:whitespace-nowrap">
                     <Button
                       variant="secondary"
                       className="h-8 px-3 text-xs"
