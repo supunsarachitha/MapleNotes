@@ -302,7 +302,7 @@ export function TwoFactorSection({ user }: { user: User }) {
   return (
     <Section
       title="Two-factor sign-in"
-      description="Optional. Signing in then needs a code from an authenticator app on your phone as well as your password, so a stolen password alone is not enough."
+      description={`${user.secondFactorEnrolmentRequired ? "" : "Optional. "}Signing in then needs a code from an authenticator app on your phone as well as your password, so a stolen password alone is not enough.`}
     >
       {enabled ? (
         <div className="flex flex-col gap-3">

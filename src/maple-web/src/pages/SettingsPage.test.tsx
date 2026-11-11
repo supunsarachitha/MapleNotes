@@ -7,7 +7,7 @@ import { api } from "../lib/api";
 import { auth } from "../lib/auth";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
-import type { AuthStatus, EncryptionStatus, InstanceSettings, Label, Passkey, PasskeyCreationOptions, SignedInSession, User } from "../lib/types";
+import type { AdminUser, AuthStatus, EncryptionStatus, InstanceSettings, Label, Passkey, PasskeyCreationOptions, SignedInSession, User } from "../lib/types";
 import { SettingsPage } from "./SettingsPage";
 
 const user: User = {
@@ -650,5 +650,87 @@ describe("signed-in devices", () => {
 
     await waitFor(() => expect(logout).toHaveBeenCalledOnce());
     expect(end).not.toHaveBeenCalled();
+  });
+});
+
+describe("second-factor rule", () => {
+  const admin: User = { ...user, role: "Admin" };
+  const self: AdminUser = {
+    id: admin.id, username: "maple", displayName: "Maple", role: "Admin", isDisabled: false, noteCount: 0, createdAtUtc: "2026-09-29T08:00:00Z",
+  };
+  const base: InstanceSettings = { allowRegistration: false, storageQuotaMb: null, appName: null, sessionDays: 30, requireSecondFactor: "Off" };
+
+  afterEach(() => localStorage.clear());
+
+  it("lets administrators with a second factor require one for everyone", async () => {
+    mockAdmin(base);
+    vi.spyOn(api.admin, "users").mockResolvedValue([{ ...self, twoFactorEnabled: true }]);
+    const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
+    renderSettings(idle, admin, null, "/settings/admin");
+
+    const rule = await screen.findByRole("combobox", { name: "Require two-factor sign-in or a passkey for" });
+    expect(rule).toHaveValue("Off");
+    await waitFor(() => expect(within(rule).getByRole("option", { name: "Everyone" })).toBeEnabled());
+    await userEvent.selectOptions(rule, "Everyone");
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ ...base, requireSecondFactor: "Everyone" }));
+    expect(await screen.findByText("Every account now needs two-factor sign-in or a passkey.")).toBeInTheDocument();
+  });
+
+  it("explains that an administrator needs a second factor of their own first", async () => {
+    mockAdmin(base);
+    vi.spyOn(api.admin, "users").mockResolvedValue([self]);
+    renderSettings(idle, admin, null, "/settings/admin");
+
+    const rule = await screen.findByRole("combobox", { name: "Require two-factor sign-in or a passkey for" });
+    await waitFor(() => expect(within(rule).getByRole("option", { name: "Administrators" })).toBeDisabled());
+    expect(within(rule).getByRole("option", { name: "Everyone" })).toBeDisabled();
+    expect(screen.getByText(/You need one on your own account before you can require it/)).toBeInTheDocument();
+  });
+
+  it("explains why two-factor sign-in cannot be turned off for an account the rule covers", async () => {
+    mockAdmin({ ...base, requireSecondFactor: "Everyone" });
+    vi.spyOn(api.admin, "users").mockResolvedValue([
+      { ...self, twoFactorEnabled: true },
+      { ...self, id: "a", username: "alder", displayName: "Alder", role: "User", twoFactorEnabled: true },
+      { ...self, id: "b", username: "birch", displayName: "Birch", role: "User", twoFactorEnabled: true, hasPasskey: true },
+      { ...self, id: "c", username: "cedar", displayName: "Cedar", role: "User" },
+    ]);
+    renderSettings(idle, admin, null, "/settings/admin");
+
+    const alder = (await screen.findByText("@alder")).closest("li")!;
+    expect(within(alder).queryByRole("button", { name: "Turn off two-factor" })).not.toBeInTheDocument();
+    expect(within(alder).getByText(/cannot be turned off here: this server requires a second factor/)).toBeInTheDocument();
+    // A passkey is a second factor too, so two-factor sign-in is not the last one.
+    const birch = screen.getByText("@birch").closest("li")!;
+    expect(within(birch).getByRole("button", { name: "Turn off two-factor" })).toBeInTheDocument();
+    expect(within(birch).getByText("· Passkey")).toBeInTheDocument();
+    expect(within(screen.getByText("@cedar").closest("li")!).getByText("· Must set up a second factor")).toBeInTheDocument();
+  });
+
+  it("suggests requiring it for administrators on a server this device just set up", async () => {
+    localStorage.setItem("maple.suggestSecondFactor", "1");
+    mockAdmin(base);
+    vi.spyOn(api.admin, "users").mockResolvedValue([{ ...self, hasPasskey: true }]);
+    const save = vi.spyOn(api.admin, "updateSettings").mockImplementation(async (settings) => settings);
+    renderSettings(idle, admin, null, "/settings/admin");
+
+    expect(await screen.findByText("Suggested for a new server: require a second factor for administrators.")).toBeInTheDocument();
+    const accept = screen.getByRole("button", { name: "Require for administrators" });
+    await waitFor(() => expect(accept).toBeEnabled());
+    await userEvent.click(accept);
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ ...base, requireSecondFactor: "Administrators" }));
+    expect(screen.queryByText(/Suggested for a new server/)).not.toBeInTheDocument();
+    expect(localStorage.getItem("maple.suggestSecondFactor")).toBeNull();
+  });
+
+  it("does not suggest it elsewhere", async () => {
+    mockAdmin(base);
+    vi.spyOn(api.admin, "users").mockResolvedValue([self]);
+    renderSettings(idle, admin, null, "/settings/admin");
+
+    await screen.findByRole("combobox", { name: "Require two-factor sign-in or a passkey for" });
+    expect(screen.queryByText(/Suggested for a new server/)).not.toBeInTheDocument();
   });
 });

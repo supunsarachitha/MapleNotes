@@ -99,8 +99,9 @@
   lists every signed-in browser and device, each of which can be signed out on its own. The first
   account becomes the
   administrator, who can give the app its own name and icon, open registration, limit each account's storage, choose
-  how long devices stay signed in (30 to 400 days), disable or remove accounts, turn off two-factor sign-in for someone
-  who lost their phone, and appoint other administrators. An audit log shows sign-ins (made and refused, by password
+  how long devices stay signed in (30 to 400 days), require two-factor sign-in or a passkey for administrators or for
+  everyone, disable or remove accounts, turn off two-factor sign-in for someone who lost their phone, and appoint other
+  administrators. An audit log shows sign-ins (made and refused, by password
   or passkey) and what administrators changed, for 180 days. Administrators never see anyone's notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
@@ -682,7 +683,7 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 | Notes and attachments | Each account chooses a mode in Settings. **Encrypted at rest** (the default): notes and files are also encrypted with the account's own key, which the server holds (AES-256-GCM). **End-to-end**: the browser encrypts notes, file names and files with a key the server never sees (AES-256-GCM), and tags become keyed tokens. **Off**: only the database encryption applies. |
 | End-to-end keys | Created in the browser and stored on the server only in wrapped form: once under a key derived from your password, once under a recovery key that is shown to you once. An open session keeps the key in the browser as a non-extractable key, sealed with a secret that lives in the session cookie. |
 | Passwords | Never leave the browser: it derives a sign-in key with Argon2id (64 MiB), and the server stores only a PBKDF2-HMAC-SHA512 hash of that key (210,000 iterations). Lockout after 5 failed attempts, which also counts wrong password confirmations and treats unknown usernames alike; rate limiting per client IP and a global cap on concurrent sign-ins. |
-| Two-factor sign-in | Optional, per account: a code from an authenticator app (TOTP) or a single-use recovery code after the password. The secret is stored encrypted with a key derived from the master key, recovery codes only as HMACs; wrong codes count toward the lockout. |
+| Two-factor sign-in | Optional, per account, unless administrators require a second factor (two-factor sign-in or a passkey) for administrators or everyone; a covered account without one can only set one up or sign out: a code from an authenticator app (TOTP) or a single-use recovery code after the password. The secret is stored encrypted with a key derived from the master key, recovery codes only as HMACs; wrong codes count toward the lockout. |
 | Passkeys | Optional, per account (WebAuthn, checked with .NET's own cryptography): the server keeps only each passkey's public key, and every use needs the fingerprint, face or PIN, so a passkey replaces both the password and the two-factor code. With end-to-end encryption, a passkey that supports the PRF extension also unwraps the data key from a copy wrapped under a secret only that passkey produces ([e2ee-spec.md §6a](docs/e2ee-spec.md#6a-passkeys-that-unlock)); storing that copy needs the password. |
 | Sessions | HttpOnly, SameSite=Strict cookies naming a session kept on the server and checked on every request, so signing out (one device or everywhere) or a password change takes effect at once, and a copied cookie stops working. Every session ends 90 days after sign-in at the latest. |
 | Web | Strict Content-Security-Policy, antiforgery tokens, API responses never cached by the browser, and uploaded files never run as web content. |

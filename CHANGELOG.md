@@ -49,6 +49,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the rule are in the audit log. Leaving `requireSecondFactor` out of `PUT /api/v1/admin/settings` keeps the current
   rule. The admin account list also says which accounts have a passkey (`hasPasskey`)
   ([#125](https://github.com/supunsarachitha/MapleNotes/issues/125)).
+- Settings → Administration has the choice **Require two-factor sign-in or a passkey for** (Nobody, Administrators,
+  Everyone). Choices that would cover an administrator without a second factor of their own are greyed out with the
+  reason, and an account whose only second factor the rule protects says why **Turn off two-factor** is missing. An
+  account the rule covers that has neither sees a set-up screen instead of the app, with two-factor sign-in, passkeys
+  and **Sign out**; the app opens once one is saved, and a session restricted while the app is open switches to that
+  screen on its next request. After first-run setup, Settings → Administration suggests requiring a second factor for
+  administrators ([#125](https://github.com/supunsarachitha/MapleNotes/issues/125)).
 
 ## [1.21.1] - 2026-11-07
 

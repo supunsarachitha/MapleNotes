@@ -42,7 +42,8 @@ import { squareIcon } from "../lib/icon";
 import { usePreferences } from "../lib/preferences";
 import { queryKeys, useAuthStatus, useSignedOut } from "../lib/queries";
 import { Link, useLocation } from "../lib/router";
-import type { AdminUser, AuthStatus, InstanceSettings, SignedInSession, User } from "../lib/types";
+import { dismissSecondFactorSuggestion, ruleCovers, secondFactorSuggested } from "../lib/secondFactor";
+import type { AdminUser, AuthStatus, InstanceSettings, SecondFactorRule, SignedInSession, User } from "../lib/types";
 
 /**
  * A bar split between notes and files, with the numbers beside it. With a storage limit, the bar is the limit and shows
@@ -728,6 +729,97 @@ function SessionLengthSetting({
   );
 }
 
+const SECOND_FACTOR_CHOICES: { rule: SecondFactorRule; label: string }[] = [
+  { rule: "Off", label: "Nobody (optional for everyone)" },
+  { rule: "Administrators", label: "Administrators" },
+  { rule: "Everyone", label: "Everyone" },
+];
+
+/**
+ * Who must sign in with two-factor sign-in or a passkey. Covered accounts without either can still sign in, but can
+ * only set one up or sign out until they have. The server refuses a rule that covers the administrator saving it
+ * while they have neither, so the setting says so before they try.
+ */
+function SecondFactorRuleSetting({
+  settings,
+  saving,
+  ownFactor,
+  onSave,
+}: {
+  settings: InstanceSettings;
+  saving: boolean;
+  /** Whether the administrator has two-factor sign-in or a passkey; undefined while the account list loads. */
+  ownFactor: boolean | undefined;
+  onSave: (settings: InstanceSettings) => void;
+}) {
+  const id = useId();
+  const [suggested, setSuggested] = useState(() => secondFactorSuggested() && (settings.requireSecondFactor ?? "Off") === "Off");
+  const rule = settings.requireSecondFactor ?? "Off";
+  const choose = (next: SecondFactorRule) => {
+    dismissSecondFactorSuggestion();
+    setSuggested(false);
+    onSave({ ...settings, requireSecondFactor: next });
+  };
+  return (
+    <div className="mt-5 border-t border-stone-100 pt-5 dark:border-stone-800">
+      {suggested && (
+        <div role="note" className="mb-4 rounded-xl bg-maple-50 px-3 py-3 text-sm text-maple-700 dark:bg-maple-600/15 dark:text-maple-100">
+          <p className="font-medium">Suggested for a new server: require a second factor for administrators.</p>
+          <p className="mt-1">
+            An administrator's password alone then cannot open the administration.{" "}
+            {ownFactor === false && (
+              <>
+                First set up two-factor sign-in or a passkey for your own account in{" "}
+                <Link href="/settings/security" className="font-medium underline underline-offset-2">
+                  Privacy & security
+                </Link>
+                .
+              </>
+            )}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button className="h-8 px-3 text-xs" disabled={saving || ownFactor !== true} onClick={() => choose("Administrators")}>
+              Require for administrators
+            </Button>
+            <Button
+              variant="secondary"
+              className="h-8 px-3 text-xs"
+              onClick={() => {
+                dismissSecondFactorSuggestion();
+                setSuggested(false);
+              }}
+            >
+              Not now
+            </Button>
+          </div>
+        </div>
+      )}
+      <label htmlFor={id} className="text-sm font-medium">
+        Require two-factor sign-in or a passkey for
+      </label>
+      <p id={`${id}-hint`} className="text-sm text-stone-600 dark:text-stone-300">
+        An account this covers that has neither can still sign in, but can only set one up or sign out until it has. It
+        applies at once, also to devices already signed in.
+        {ownFactor === false && " You need one on your own account before you can require it for administrators."}
+      </p>
+      <select
+        id={id}
+        aria-describedby={`${id}-hint`}
+        value={rule}
+        disabled={saving}
+        onChange={(event) => choose(event.target.value as SecondFactorRule)}
+        className="mt-2 h-11 rounded-xl border border-stone-300 bg-white px-3 text-sm dark:border-stone-700 dark:bg-stone-950"
+      >
+        {SECOND_FACTOR_CHOICES.map((choice) => (
+          <option key={choice.rule} value={choice.rule} disabled={choice.rule !== "Off" && choice.rule !== rule && ownFactor === false}>
+            {choice.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function AdminSection({ currentUserId }: { currentUserId: string }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -735,6 +827,8 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
   const users = useQuery({ queryKey: queryKeys.adminUsers, queryFn: api.admin.users });
   const [toDelete, setToDelete] = useState<AdminUser | null>(null);
   const [twoFactorOff, setTwoFactorOff] = useState<AdminUser | null>(null);
+  const ownAccount = users.data?.find((account) => account.id === currentUserId);
+  const rule = settings.data?.requireSecondFactor;
   const deleteUser = useMutation({
     mutationFn: (id: string) => api.admin.deleteUser(id),
     onSuccess: () => {
@@ -757,6 +851,16 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
       }
       if (before && before.sessionDays !== saved.sessionDays) {
         toast.info(`Devices that sign in from now on stay signed in for ${saved.sessionDays} days after they were last used.`);
+      }
+      if (before && (before.requireSecondFactor ?? "Off") !== (saved.requireSecondFactor ?? "Off")) {
+        toast.info(
+          saved.requireSecondFactor === "Everyone"
+            ? "Every account now needs two-factor sign-in or a passkey."
+            : saved.requireSecondFactor === "Administrators"
+              ? "Administrators now need two-factor sign-in or a passkey."
+              : "Two-factor sign-in and passkeys are optional again.",
+        );
+        void queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
       }
       if (before && before.storageQuotaMb !== saved.storageQuotaMb) {
         toast.info(
@@ -803,6 +907,14 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
         <SessionLengthSetting settings={settings.data} saving={updateSettings.isPending} onSave={(next) => updateSettings.mutate(next)} />
       )}
       {settings.data && (
+        <SecondFactorRuleSetting
+          settings={settings.data}
+          saving={updateSettings.isPending}
+          ownFactor={ownAccount && (ownAccount.twoFactorEnabled === true || ownAccount.hasPasskey === true)}
+          onSave={(next) => updateSettings.mutate(next)}
+        />
+      )}
+      {settings.data && (
         <BrandingSetting
           key={settings.data.appName ?? ""}
           settings={settings.data}
@@ -816,6 +928,9 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
         <ul className="divide-y divide-stone-200 rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
           {users.data.map((account) => {
             const self = account.id === currentUserId;
+            // Two-factor sign-in is this account's only second factor and the rule needs one: the server refuses to turn
+            // it off, so the button is replaced by the reason.
+            const lastFactor = account.twoFactorEnabled === true && account.hasPasskey !== true && ruleCovers(rule, account.role);
             return (
               <li key={account.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-3">
                 <div className="min-w-0 flex-1">
@@ -825,8 +940,18 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
                   <p className="text-xs text-stone-500 dark:text-stone-400">
                     {account.role === "Admin" ? "Administrator" : "Member"} · {account.noteCount} notes
                     {account.twoFactorEnabled && <span className="ml-1">· Two-factor</span>}
+                    {account.hasPasskey && <span className="ml-1">· Passkey</span>}
+                    {ruleCovers(rule, account.role) && !account.twoFactorEnabled && !account.hasPasskey && (
+                      <span className="ml-1 text-amber-700 dark:text-amber-400">· Must set up a second factor</span>
+                    )}
                     {account.isDisabled && <span className="ml-1 font-medium text-red-700 dark:text-red-400">· Disabled</span>}
                   </p>
+                  {!self && lastFactor && (
+                    <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                      Two-factor sign-in cannot be turned off here: this server requires a second factor for this account
+                      and it has no passkey. Change who must use one above first.
+                    </p>
+                  )}
                 </div>
                 {!self && (
                   <div className="flex gap-2">
@@ -844,7 +969,7 @@ function AdminSection({ currentUserId }: { currentUserId: string }) {
                     >
                       {account.isDisabled ? "Enable" : "Disable"}
                     </Button>
-                    {account.twoFactorEnabled && (
+                    {account.twoFactorEnabled && !lastFactor && (
                       <Button variant="secondary" className="h-8 px-3 text-xs" onClick={() => setTwoFactorOff(account)}>
                         Turn off two-factor
                       </Button>

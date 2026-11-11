@@ -312,7 +312,7 @@ devices.
   {
     id: "two-factor",
     title: "Two-factor sign-in",
-    body: `Two-factor sign-in is optional. With it on, signing in needs a code from an authenticator app on your phone as well
+    body: `Two-factor sign-in is optional, unless your server requires it (below). With it on, signing in needs a code from an authenticator app on your phone as well
 as your password, so a stolen password alone is not enough.
 
 1. In [Settings → Privacy & security](/settings/security), choose **Turn on two-factor sign-in**.
@@ -326,7 +326,13 @@ a recovery code there if your phone is not at hand. A password reset with the re
 
 In the same place you can create new recovery codes, which makes the old ones stop working, or turn two-factor sign-in
 off; both need your password and a code. If you lose both your phone and your recovery codes, an administrator can
-turn it off for you.`,
+turn it off for you.
+
+**When the server requires it.** Administrators can require two-factor sign-in or a passkey for administrators or for
+everyone. If your account has neither, signing in shows **Add a second sign-in step** instead of your notes: turn on
+two-factor sign-in or add a passkey there, and the app opens. One of the two is enough. Until then you can only set one
+up or sign out; your notes stay as they are. While the server requires it, an administrator cannot turn off your
+two-factor sign-in unless you also have a passkey.`,
   },
   {
     id: "passkeys",
@@ -404,7 +410,14 @@ when it is almost full. Once it is full, new files, notes and longer edits are n
     body: `The first account on a server is its administrator. Under [Settings → Administration](/settings/admin) you can let
 visitors create accounts, limit how much each account can store, disable or remove accounts, and make others
 administrators. **Turn off two-factor** helps someone who lost both their phone and their recovery codes; their
-password is still needed, so check first that the request really comes from them. **Compact database** gives the space that deleted notes leave in the database back to the disk, and
+password is still needed, so check first that the request really comes from them.
+
+**Require two-factor sign-in or a passkey for** chooses who must have a second factor: nobody, administrators or
+everyone. It applies at once, also to devices already signed in: an account it covers that has neither can only set
+one up or sign out until it has. To require it for administrators, set one up on your own account first. While it
+applies to an account whose only second factor is two-factor sign-in, **Turn off two-factor** is not offered for it;
+change the rule first, or let the owner add a passkey. A new server suggests requiring it for administrators after the
+first account is created, and changes to the rule are in the audit log. **Compact database** gives the space that deleted notes leave in the database back to the disk, and
 **Name and icon** gives the app your own name and picture, on the sign-in page too. Administrators manage accounts, but they can never read anyone's notes through the app, nor see how
 much an account stores.
 

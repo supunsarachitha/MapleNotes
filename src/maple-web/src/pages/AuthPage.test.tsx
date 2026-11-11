@@ -112,3 +112,41 @@ describe("sign-in with a passkey", () => {
     expect(screen.queryByRole("button", { name: "Sign in with a passkey" })).not.toBeInTheDocument();
   });
 });
+
+describe("first-run setup", () => {
+  afterEach(() => localStorage.clear());
+
+  it("marks this device to suggest requiring a second factor for administrators", async () => {
+    vi.spyOn(auth, "register").mockResolvedValue(user);
+    const person = userEvent.setup();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AuthPage mode="setup" registrationOpen />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText(/Settings → Administration suggests requiring two-factor sign-in or a passkey/)).toBeInTheDocument();
+    await person.type(screen.getByLabelText("Username"), "maple");
+    await person.type(screen.getByLabelText(/^Password/), "correct horse battery staple");
+    await person.click(screen.getByRole("button", { name: "Create account" }));
+
+    await waitFor(() => expect(localStorage.getItem("maple.suggestSecondFactor")).toBe("1"));
+  });
+
+  it("does not mark devices that only register an account", async () => {
+    vi.spyOn(auth, "register").mockResolvedValue(user);
+    const person = userEvent.setup();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AuthPage mode="register" registrationOpen />
+      </QueryClientProvider>,
+    );
+
+    await person.type(screen.getByLabelText("Username"), "maple");
+    await person.type(screen.getByLabelText(/^Password/), "correct horse battery staple");
+    await person.click(screen.getByRole("button", { name: "Create account" }));
+
+    await waitFor(() => expect(auth.register).toHaveBeenCalled());
+    expect(localStorage.getItem("maple.suggestSecondFactor")).toBeNull();
+  });
+});
