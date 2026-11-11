@@ -80,9 +80,13 @@ public sealed record ChangePasswordRequest(
 /// <param name="EndToEndModeRecord">For an account with an end-to-end key, the mode its owner chose, sealed by the
 /// browser (docs/e2ee-spec.md §3a); the server cannot read or forge it.</param>
 /// <param name="TwoFactorEnabled">Whether signing in needs a code from an authenticator app as well as the password.</param>
+/// <param name="SecondFactorEnrolmentRequired">True when the server requires a second factor for this account and it has
+/// none: until it sets up two-factor sign-in or a passkey, every other API call answers 403 with the code
+/// <c>second_factor_enrolment_required</c>.</param>
 public sealed record UserResponse(
     Guid Id, string Username, string DisplayName, UserRole Role, EncryptionMode EncryptionMode, bool HasEndToEndKey,
-    DateTime CreatedAtUtc, UserPreferences Preferences, byte[]? EndToEndModeRecord = null, bool TwoFactorEnabled = false)
+    DateTime CreatedAtUtc, UserPreferences Preferences, byte[]? EndToEndModeRecord = null, bool TwoFactorEnabled = false,
+    bool SecondFactorEnrolmentRequired = false)
 {
     /// <summary>Maps an account entity to its API representation.</summary>
     /// <param name="user">The account.</param>

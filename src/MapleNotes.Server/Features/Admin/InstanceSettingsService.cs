@@ -45,6 +45,9 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
     /// <summary>The largest custom icon, in bytes.</summary>
     public const int MaxIconBytes = 256 * 1024;
 
+    /// <summary>Database key of who must sign in with a second factor; absent for <see cref="SecondFactorRule.Off"/>.</summary>
+    public const string SecondFactorRuleKey = "RequireSecondFactor";
+
     private const string AppNameKey = "AppName";
     private const string VapidKey = "VapidKeys";
     private const string IconKey = "AppIcon";
@@ -78,6 +81,15 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
         return setting is null ? DefaultSessionDays : int.Parse(setting.Value, CultureInfo.InvariantCulture);
     }
 
+    /// <summary>Returns who must sign in with a second factor (an authenticator code or a passkey).</summary>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The rule; <see cref="SecondFactorRule.Off"/> unless administrators chose otherwise.</returns>
+    public async Task<SecondFactorRule> GetSecondFactorRuleAsync(CancellationToken cancellationToken) =>
+        (await FindAsync(SecondFactorRuleKey, cancellationToken))?.Value is { } value
+        && Enum.TryParse<SecondFactorRule>(value, out var rule) && Enum.IsDefined(rule)
+            ? rule
+            : SecondFactorRule.Off;
+
     /// <summary>Returns the name administrators gave the app.</summary>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The name, or null for the default (<see cref="DefaultAppName"/>).</returns>
@@ -100,10 +112,14 @@ public sealed class InstanceSettingsService(MapleDbContext db, MapleOptions opti
     /// <param name="storageQuotaMb">The storage limit per account in megabytes, or null for none.</param>
     /// <param name="appName">The app's name (see <see cref="TryNormalizeAppName"/>), or null for the default.</param>
     /// <param name="sessionDays">How many days a session lasts after it was last used (1 to <see cref="MaxSessionDays"/>).</param>
+    /// <param name="secondFactorRule">Who must sign in with a second factor.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>A task that completes when the settings are saved.</returns>
-    public async Task SaveAsync(bool allowRegistration, int? storageQuotaMb, string? appName, int sessionDays, CancellationToken cancellationToken)
+    public async Task SaveAsync(
+        bool allowRegistration, int? storageQuotaMb, string? appName, int sessionDays, SecondFactorRule secondFactorRule,
+        CancellationToken cancellationToken)
     {
+        await SetAsync(SecondFactorRuleKey, secondFactorRule == SecondFactorRule.Off ? null : secondFactorRule.ToString(), cancellationToken);
         await SetAsync(SessionDaysKey, sessionDays == DefaultSessionDays ? null : sessionDays.ToString(CultureInfo.InvariantCulture), cancellationToken);
         await SetAsync(AllowRegistrationKey, allowRegistration.ToString(), cancellationToken);
         await SetAsync(StorageQuotaKey, storageQuotaMb?.ToString(CultureInfo.InvariantCulture), cancellationToken);

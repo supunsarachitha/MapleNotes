@@ -8,7 +8,11 @@ namespace MapleNotes.Server.Features.Admin;
 /// there is no limit.</param>
 /// <param name="AppName">The name the app shows, if administrators chose one; null for "Maple Notes".</param>
 /// <param name="SessionDays">How many days a session lasts after it was last used.</param>
-public sealed record InstanceSettingsResponse(bool AllowRegistration, int? StorageQuotaMb, string? AppName = null, int SessionDays = 30);
+/// <param name="RequireSecondFactor">Who must sign in with two-factor sign-in or a passkey: <c>Off</c>,
+/// <c>Administrators</c> or <c>Everyone</c>.</param>
+public sealed record InstanceSettingsResponse(
+    bool AllowRegistration, int? StorageQuotaMb, string? AppName = null, int SessionDays = 30,
+    SecondFactorRule RequireSecondFactor = SecondFactorRule.Off);
 
 /// <summary>Request to change instance settings. It replaces them all: a field left out takes its default.</summary>
 /// <param name="AllowRegistration">Whether visitors can create accounts.</param>
@@ -19,7 +23,13 @@ public sealed record InstanceSettingsResponse(bool AllowRegistration, int? Stora
 /// line), or null for "Maple Notes".</param>
 /// <param name="SessionDays">How many days a session lasts after it was last used, 1 to 400 (null for 30). Using the
 /// app renews it. New sign-ins get the new length; sessions already signed in keep theirs until they sign in again.</param>
-public sealed record UpdateInstanceSettingsRequest(bool AllowRegistration, int? StorageQuotaMb = null, string? AppName = null, int? SessionDays = null);
+/// <param name="RequireSecondFactor">Who must sign in with two-factor sign-in or a passkey (<c>Off</c>,
+/// <c>Administrators</c> or <c>Everyone</c>). Unlike the other fields, leaving it out keeps the current rule, so a client
+/// that does not know it cannot switch it off by accident. An account the rule covers that has neither can still sign
+/// in, but can only set one up or sign out until it has. The administrator saving the rule must already have one.</param>
+public sealed record UpdateInstanceSettingsRequest(
+    bool AllowRegistration, int? StorageQuotaMb = null, string? AppName = null, int? SessionDays = null,
+    SecondFactorRule? RequireSecondFactor = null);
 
 /// <summary>An account as seen by an administrator.</summary>
 /// <param name="Id">Account ID.</param>
@@ -30,15 +40,17 @@ public sealed record UpdateInstanceSettingsRequest(bool AllowRegistration, int? 
 /// <param name="NoteCount">Number of notes (content is never shown to administrators).</param>
 /// <param name="CreatedAtUtc">When the account was created.</param>
 /// <param name="TwoFactorEnabled">Whether the account signs in with an authenticator code as well as the password.</param>
+/// <param name="HasPasskey">Whether the account has at least one passkey.</param>
 public sealed record AdminUserResponse(
     Guid Id, string Username, string DisplayName, UserRole Role, bool IsDisabled, int NoteCount, DateTime CreatedAtUtc,
-    bool TwoFactorEnabled = false);
+    bool TwoFactorEnabled = false, bool HasPasskey = false);
 
 /// <summary>Changes an administrator can make to another account. Omitted fields are left unchanged.</summary>
 /// <param name="IsDisabled">Block or allow sign-in. Disabling signs the user out everywhere.</param>
 /// <param name="Role">New role.</param>
 /// <param name="TurnOffTwoFactor">
 /// True turns off the account's two-factor sign-in, for an owner who lost both the authenticator app and the recovery
-/// codes. The password is still needed to sign in.
+/// codes. The password is still needed to sign in. Refused while the second-factor rule covers the account and it has
+/// no passkey, since that would leave it without the factor the rule requires.
 /// </param>
 public sealed record UpdateUserRequest(bool? IsDisabled = null, UserRole? Role = null, bool? TurnOffTwoFactor = null);

@@ -28,6 +28,7 @@ public sealed class PasskeysController(PasskeyService passkeys, InstanceSettings
     /// <returns>The passkeys, oldest first.</returns>
     /// <response code="200">The passkeys.</response>
     [HttpGet]
+    [AllowDuringEnrolment]
     [ProducesResponseType<IReadOnlyList<PasskeyResponse>>(StatusCodes.Status200OK)]
     public Task<IReadOnlyList<PasskeyResponse>> List(CancellationToken cancellationToken) =>
         passkeys.ListAsync(User.GetUserId(), cancellationToken);
@@ -38,6 +39,7 @@ public sealed class PasskeysController(PasskeyService passkeys, InstanceSettings
     /// <response code="200">The options.</response>
     /// <response code="400">The account already has the most passkeys allowed.</response>
     [HttpPost("options")]
+    [AllowDuringEnrolment]
     [ProducesResponseType<PasskeyCreationOptions>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<PasskeyCreationOptions> CreateOptions(CancellationToken cancellationToken)
@@ -54,6 +56,7 @@ public sealed class PasskeysController(PasskeyService passkeys, InstanceSettings
     /// <response code="201">Added.</response>
     /// <response code="400">The password is wrong, the challenge expired, or the passkey is not valid.</response>
     [HttpPost]
+    [AllowDuringEnrolment]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType<PasskeyResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]

@@ -172,7 +172,7 @@ database. Changes to one's own password, two-factor sign-in and passkeys are not
 - Requests that run PBKDF2 without a session (sign-in, prelogin, registration, recovery) also share one global
   concurrency cap: one per processor, at least four, run at once, 100 more wait, and the rest get 429. Many addresses
   together can make sign-in slow or refused for a while, but cannot keep every core busy.
-- **Two-factor sign-in** is optional. With it on, the right password alone gets only the request for a code: a code
+- **Two-factor sign-in** is optional unless administrators require a second factor (below). With it on, the right password alone gets only the request for a code: a code
   from an authenticator app (TOTP, 30-second steps, one step of tolerance either side) or one of ten single-use
   recovery codes. A wrong code counts toward the same lockout as a wrong password, and only a complete sign-in resets
   the count, so knowing the password gives five guesses at a code per 15 minutes. Each authenticator code is accepted
@@ -194,6 +194,15 @@ database. Changes to one's own password, two-factor sign-in and passkeys are not
   account behind it) as important as the password. Storing a copy needs the password, so a stolen session cannot plant
   a key of its own, and a browser checks the unwrapped key against the account's sealed mode record where there is
   one. Accounts from before mode records rely on the password check alone.
+- **Required second factor:** administrators can require two-factor sign-in or a passkey for administrators or for
+  everyone (off by default, so an upgrade locks nobody out). A covered account without either can still sign in with
+  its password, but that session can only set one up or sign out: every other endpoint answers 403, so a stolen
+  password alone reaches no notes, files or administration. The window that remains is the first enrolment: someone
+  who has the password before the owner enrols can enrol their own authenticator or passkey. The rule is checked on
+  each request, so it applies at once to sessions that already exist. An administrator cannot turn off two-factor
+  sign-in for a covered account that has no passkey, and cannot switch the rule on without a second factor of their
+  own. An administrator can still change the rule or the account's role first; both are in the audit log. The rule
+  is enforced by the server, so a compromised server can ignore it; it protects sign-in, not end-to-end content.
 - Two-factor sign-in protects sign-in, not content: end-to-end encryption still rests on the password alone, and a
   compromised server gains nothing from the code. The same holds for a passkey that only signs in.
 - Unknown usernames receive the same answer as real ones (default parameters and a stable pseudo-salt), so they
@@ -212,7 +221,8 @@ the password to the server one last time.
 - **Other accounts:** Maple Notes sends no email and administrators cannot reset passwords, so there is currently no
   reset.
 - **Lost authenticator:** a recovery code signs in instead. Without one, an administrator can turn two-factor sign-in
-  off for the account, after which the password alone signs in again. Administrators should check that such a request
+  off for the account, after which the password alone signs in again. Where a second factor is required, that is
+  refused unless the account still has a passkey; the administrator must first take the account out of the rule. Administrators should check that such a request
   comes from the account's owner.
 
 ### Push notifications

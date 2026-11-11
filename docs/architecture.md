@@ -59,7 +59,9 @@ flowchart LR
 HSTS (HTTPS only) → static files → routing → authentication → rate limiter → authorization → controllers. The rate limiter runs after
 authentication, so per-user policies see the signed-in user.
 Every controller action requires a signed-in user unless marked `[AllowAnonymous]`, and every state-changing request
-must carry a valid antiforgery token. Both are enforced globally, so a new endpoint is secure by default.
+must carry a valid antiforgery token. Both are enforced globally, so a new endpoint is secure by default. A third
+global filter (`SecondFactorEnrolmentFilter`) closes every signed-in endpoint not marked `[AllowDuringEnrolment]` to a
+session that must still set up a second factor (see below), so a new endpoint is closed to such sessions too.
 
 ## Data
 
@@ -320,6 +322,15 @@ note transaction, and a concurrent edit.
 - CSRF: `SameSite=Strict`, plus an antiforgery token in the `X-XSRF-TOKEN` header on every state-changing
   request. The export download is a GET that changes nothing, and a cross-site request never carries the
   SameSite=Strict cookie.
+- Required second factor (`SecondFactorPolicy`, the `RequireSecondFactor` instance setting: `Off`, `Administrators`
+  or `Everyone`, default `Off`): an account the rule covers that has neither two-factor sign-in nor a passkey still
+  signs in, but until it sets one up every endpoint except `GET /auth/me`, `GET /auth/session-key`, sign-out, sign-out
+  everywhere and the two-factor and passkey setup endpoints answers 403 with the problem `code`
+  `second_factor_enrolment_required`; `UserResponse.secondFactorEnrolmentRequired` tells the web app to show the
+  enrolment prompt. The check runs on each request rather than being stamped on the session, so turning the rule on
+  restricts sessions that already exist, and enrolling lifts it without signing in again. The administrator saving a
+  rule that covers them must already have a second factor (409 otherwise), and an administrator cannot turn off
+  two-factor sign-in for a covered account that has no passkey (409). Changes to the rule are in the audit log.
 - The first account becomes the administrator. The last active administrator cannot delete their own account,
   because the next visitor could otherwise claim the instance by creating the first account.
 

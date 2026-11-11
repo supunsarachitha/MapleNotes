@@ -18,6 +18,12 @@ public enum UserUpdateResult
 
     /// <summary>Administrators cannot disable or demote themselves, which could leave the instance without one.</summary>
     CannotChangeSelf,
+
+    /// <summary>
+    /// The change would turn off the last second factor of an account the second-factor rule covers. Nothing was
+    /// saved.
+    /// </summary>
+    LastSecondFactor,
 }
 
 /// <summary>Account management for administrators. Administrators never see note content.</summary>
@@ -25,7 +31,9 @@ public enum UserUpdateResult
 /// <param name="deletion">Deletes accounts with all their content.</param>
 /// <param name="time">Clock.</param>
 /// <param name="audit">The audit log (sign-ins and administrators' actions).</param>
-public sealed class UserAdministrationService(MapleDbContext db, AccountDeletionService deletion, TimeProvider time, AuditLog audit)
+/// <param name="settings">Instance settings (the second-factor rule).</param>
+public sealed class UserAdministrationService(
+    MapleDbContext db, AccountDeletionService deletion, TimeProvider time, AuditLog audit, InstanceSettingsService settings)
 {
     /// <summary>Permanently deletes another account with all of its notes and files.</summary>
     /// <param name="actingAdminId">The administrator making the change.</param>
@@ -59,7 +67,8 @@ public sealed class UserAdministrationService(MapleDbContext db, AccountDeletion
             .OrderBy(u => u.CreatedAtUtc)
             .Select(u => new AdminUserResponse(
                 u.Id, u.Username, u.DisplayName, u.Role, u.IsDisabled,
-                db.Notes.Count(n => n.UserId == u.Id), u.CreatedAtUtc, u.TwoFactorSecret != null))
+                db.Notes.Count(n => n.UserId == u.Id), u.CreatedAtUtc, u.TwoFactorSecret != null,
+                db.Passkeys.Any(p => p.UserId == u.Id)))
             .ToListAsync(cancellationToken);
 
     /// <summary>Applies an administrator's changes to an account.</summary>
@@ -107,6 +116,13 @@ public sealed class UserAdministrationService(MapleDbContext db, AccountDeletion
 
         if (request.TurnOffTwoFactor == true && user.TwoFactorSecret is not null)
         {
+            // Judged with the role as it will be after this change, so promoting and turning off at once is refused too.
+            if (SecondFactorPolicy.Covers(await settings.GetSecondFactorRuleAsync(cancellationToken), user.Role)
+                && !await db.Passkeys.AnyAsync(p => p.UserId == user.Id, cancellationToken))
+            {
+                return UserUpdateResult.LastSecondFactor;
+            }
+
             changes.Add("Turned off two-factor sign-in.");
             TwoFactorService.Clear(user);
         }
