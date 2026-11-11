@@ -32,6 +32,7 @@ internal static class FeatureServiceCollectionExtensions
         services.AddSingleton<PasskeyChallenges>();
         services.AddScoped<AccountDeletionService>();
         services.AddScoped<InstanceSettingsService>();
+        services.AddScoped<SecondFactorPolicy>();
         services.AddScoped<UserAdministrationService>();
         services.AddHttpContextAccessor();
         services.AddScoped<AuditLog>();

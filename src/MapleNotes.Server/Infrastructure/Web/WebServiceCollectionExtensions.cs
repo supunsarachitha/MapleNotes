@@ -37,6 +37,9 @@ internal static class WebServiceCollectionExtensions
                 // Secure by default: every API endpoint requires a signed-in user unless marked [AllowAnonymous],
                 // and every state-changing request must carry a valid antiforgery token.
                 mvc.Filters.Add(new AuthorizeFilter());
+
+                // A session the second-factor rule restricts reaches only endpoints marked [AllowDuringEnrolment].
+                mvc.Filters.Add<SecondFactorEnrolmentFilter>();
                 mvc.Filters.Add<AntiforgeryValidationFilter>();
                 mvc.Filters.Add<ApiExceptionFilter>();
             })

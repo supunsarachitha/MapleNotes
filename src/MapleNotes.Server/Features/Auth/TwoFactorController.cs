@@ -24,6 +24,7 @@ public sealed class TwoFactorController(TwoFactorService twoFactor) : Controller
     /// <returns>The status.</returns>
     /// <response code="200">The status.</response>
     [HttpGet]
+    [AllowDuringEnrolment]
     [ProducesResponseType<TwoFactorStatusResponse>(StatusCodes.Status200OK)]
     public Task<TwoFactorStatusResponse> GetStatus(CancellationToken cancellationToken) =>
         twoFactor.GetStatusAsync(User.GetUserId(), cancellationToken);
@@ -33,6 +34,7 @@ public sealed class TwoFactorController(TwoFactorService twoFactor) : Controller
     /// <returns>The secret and its <c>otpauth://</c> link.</returns>
     /// <response code="200">A new secret.</response>
     [HttpPost("setup")]
+    [AllowDuringEnrolment]
     [ProducesResponseType<TwoFactorSetupResponse>(StatusCodes.Status200OK)]
     public Task<TwoFactorSetupResponse> Setup(CancellationToken cancellationToken) =>
         twoFactor.CreateSetupAsync(User.GetUserId(), cancellationToken);
@@ -44,6 +46,7 @@ public sealed class TwoFactorController(TwoFactorService twoFactor) : Controller
     /// <response code="200">Two-factor sign-in is on.</response>
     /// <response code="400">The password or code is wrong, the secret is malformed, or it is already on.</response>
     [HttpPost]
+    [AllowDuringEnrolment]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType<RecoveryCodesResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]

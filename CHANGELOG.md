@@ -40,6 +40,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings → Privacy & security lists the browsers and devices signed in to the account, with this one marked, when
   each signed in and was last used, and a **Sign out** button on each, so a lost device can be signed out on its own
   without ending every session ([#124](https://github.com/supunsarachitha/MapleNotes/issues/124)).
+- Administrators can require two-factor sign-in or a passkey for administrators or for everyone (a new
+  `requireSecondFactor` instance setting: `Off`, `Administrators` or `Everyone`; `Off` by default, so upgrading locks
+  nobody out). An account the rule covers that has neither can still sign in, but can only set one up or sign out
+  until it has: other API calls answer 403 with the problem `code` `second_factor_enrolment_required`, and
+  `secondFactorEnrolmentRequired` in the account response says so. An administrator cannot switch the rule on without
+  a second factor of their own, nor turn off two-factor sign-in for a covered account that has no passkey. Changes to
+  the rule are in the audit log. Leaving `requireSecondFactor` out of `PUT /api/v1/admin/settings` keeps the current
+  rule. The admin account list also says which accounts have a passkey (`hasPasskey`)
+  ([#125](https://github.com/supunsarachitha/MapleNotes/issues/125)).
 
 ## [1.21.1] - 2026-11-07
 

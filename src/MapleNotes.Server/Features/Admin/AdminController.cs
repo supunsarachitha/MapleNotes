@@ -11,11 +11,15 @@ namespace MapleNotes.Server.Features.Admin;
 /// <param name="instanceSettings">Instance settings.</param>
 /// <param name="users">Account administration.</param>
 /// <param name="audit">The audit log (sign-ins and administrators' actions).</param>
+/// <param name="secondFactor">The second-factor rule.</param>
+/// <param name="accounts">Account lookups.</param>
 [ApiController]
 [Route("api/v1/admin")]
 [Authorize(Roles = nameof(UserRole.Admin))]
 [Produces("application/json")]
-public sealed class AdminController(InstanceSettingsService instanceSettings, UserAdministrationService users, AuditLog audit) : ControllerBase
+public sealed class AdminController(
+    InstanceSettingsService instanceSettings, UserAdministrationService users, AuditLog audit, SecondFactorPolicy secondFactor,
+    AccountService accounts) : ControllerBase
 {
     /// <summary>Returns the instance settings.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -29,19 +33,23 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
             await instanceSettings.IsRegistrationOpenAsync(cancellationToken),
             await instanceSettings.GetStorageQuotaMbAsync(cancellationToken),
             await instanceSettings.GetAppNameAsync(cancellationToken),
-            await instanceSettings.GetSessionDaysAsync(cancellationToken));
+            await instanceSettings.GetSessionDaysAsync(cancellationToken),
+            await instanceSettings.GetSecondFactorRuleAsync(cancellationToken));
 
     /// <summary>Changes the instance settings.</summary>
     /// <param name="request">New values; they replace all the settings.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The saved settings.</returns>
     /// <response code="200">The saved settings.</response>
-    /// <response code="400">The storage limit or session length is out of range, or the app name is too long or not on
-    /// one line.</response>
+    /// <response code="400">The storage limit or session length is out of range, the app name is too long or not on
+    /// one line, or the second-factor rule is unknown.</response>
+    /// <response code="409">The second-factor rule would cover the administrator saving it, who has no second factor
+    /// yet.</response>
     [HttpPut("settings")]
     [ProducesResponseType<InstanceSettingsResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-    public async Task<InstanceSettingsResponse> UpdateSettings(UpdateInstanceSettingsRequest request, CancellationToken cancellationToken)
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<InstanceSettingsResponse>> UpdateSettings(UpdateInstanceSettingsRequest request, CancellationToken cancellationToken)
     {
         if (request.StorageQuotaMb is < 1 or > InstanceSettingsService.MaxStorageQuotaMb)
         {
@@ -58,10 +66,27 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
             throw new ApiValidationException("sessionDays", $"Choose from 1 to {InstanceSettingsService.MaxSessionDays} days.");
         }
 
+        if (request.RequireSecondFactor is { } requested && !Enum.IsDefined(requested))
+        {
+            // JSON accepts any number for an enum; an unknown value would be saved and then read back as Off.
+            throw new ApiValidationException("requireSecondFactor", $"Choose one of: {string.Join(", ", Enum.GetNames<SecondFactorRule>())}.");
+        }
+
         var sessionDays = request.SessionDays ?? InstanceSettingsService.DefaultSessionDays;
         var before = await GetSettings(cancellationToken);
-        await instanceSettings.SaveAsync(request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays, cancellationToken);
-        var after = new InstanceSettingsResponse(request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays);
+        var rule = request.RequireSecondFactor ?? before.RequireSecondFactor;
+        if (rule != before.RequireSecondFactor && SecondFactorPolicy.Covers(rule, UserRole.Admin)
+            && (await accounts.FindAsync(User.GetUserId(), cancellationToken) is not { } self
+                || !await secondFactor.HasSecondFactorAsync(self, cancellationToken)))
+        {
+            // Otherwise saving would restrict the administrator's own session at once.
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Set up two-factor sign-in or a passkey on your own account first.");
+        }
+
+        await instanceSettings.SaveAsync(request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays, rule, cancellationToken);
+        var after = new InstanceSettingsResponse(request.AllowRegistration, request.StorageQuotaMb, appName, sessionDays, rule);
         if (SettingsChanges(before, after) is { Length: > 0 } changes)
         {
             await audit.RecordAsync(AuditEvent.SettingsChanged, User.Identity?.Name, changes, cancellationToken);
@@ -99,7 +124,8 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
     /// <returns>No content.</returns>
     /// <response code="204">The account was updated.</response>
     /// <response code="404">No such account.</response>
-    /// <response code="409">Administrators cannot disable or demote themselves.</response>
+    /// <response code="409">Administrators cannot disable or demote themselves, nor turn off two-factor sign-in for an
+    /// account the second-factor rule covers that has no passkey.</response>
     [HttpPatch("users/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -109,6 +135,10 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
         {
             UserUpdateResult.Updated => NoContent(),
             UserUpdateResult.NotFound => NotFound(),
+            UserUpdateResult.LastSecondFactor => Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "This server requires a second factor for this account, and two-factor sign-in is its only one.",
+                detail: "Change who must use a second factor in the settings first, or let the owner add a passkey."),
             _ => Problem(statusCode: StatusCodes.Status409Conflict, title: "You cannot disable or demote your own account."),
         };
 
@@ -139,6 +169,12 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
     {
         static string Open(bool open) => open ? "open" : "closed";
         static string Quota(int? mb) => mb is { } value ? $"{value} MB" : "no limit";
+        static string Rule(SecondFactorRule rule) => rule switch
+        {
+            SecondFactorRule.Administrators => "administrators",
+            SecondFactorRule.Everyone => "everyone",
+            _ => "nobody",
+        };
         static string Name(string? name) => string.IsNullOrEmpty(name) ? "the default" : $"\"{name}\"";
         var changes = new List<string>();
         if (before.AllowRegistration != after.AllowRegistration)
@@ -159,6 +195,11 @@ public sealed class AdminController(InstanceSettingsService instanceSettings, Us
         if (before.SessionDays != after.SessionDays)
         {
             changes.Add($"Sessions last: {before.SessionDays} → {after.SessionDays} days.");
+        }
+
+        if (before.RequireSecondFactor != after.RequireSecondFactor)
+        {
+            changes.Add($"Second factor required for: {Rule(before.RequireSecondFactor)} → {Rule(after.RequireSecondFactor)}.");
         }
 
         return string.Join(" ", changes);

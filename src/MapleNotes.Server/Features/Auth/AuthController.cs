@@ -35,12 +35,13 @@ namespace MapleNotes.Server.Features.Auth;
 /// <param name="options">Instance settings (whether link previews are allowed).</param>
 /// <param name="audit">The audit log (sign-ins and administrators' actions).</param>
 /// <param name="sessions">The server-side sessions (signed-in devices).</param>
+/// <param name="secondFactor">The second-factor rule.</param>
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
 public sealed class AuthController(
     AccountService accounts, InstanceSettingsService instanceSettings, IAntiforgery antiforgery, TimeProvider time, MapleOptions options,
-    AuditLog audit, SessionService sessions)
+    AuditLog audit, SessionService sessions, SecondFactorPolicy secondFactor)
     : ControllerBase
 {
     /// <summary>Returns the visitor's sign-in state and what the instance allows.</summary>
@@ -56,7 +57,7 @@ public sealed class AuthController(
         var persistent = false;
         if (User.Identity?.IsAuthenticated == true && await accounts.FindAsync(User.GetUserId(), cancellationToken) is { } user)
         {
-            current = UserResponse.From(user);
+            current = await DescribeAsync(user, cancellationToken);
             var session = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             persistent = session.Properties?.IsPersistent ?? false;
         }
@@ -173,7 +174,7 @@ public sealed class AuthController(
                     AuditEvent.SignIn, result.User!.Username,
                     result.User.TwoFactorSecret is null ? "Signed in with the password." : "Signed in with the password and a two-factor code.",
                     cancellationToken, method: "Password");
-                return UserResponse.From(result.User!);
+                return await DescribeAsync(result.User!, cancellationToken);
             case AccountError.InvalidInput:
                 return ValidationProblem(new ValidationProblemDetails(result.ValidationErrors!.ToDictionary()));
             case AccountError.LockedOut:
@@ -211,10 +212,15 @@ public sealed class AuthController(
     /// <response code="200">The account.</response>
     /// <response code="401">Not signed in.</response>
     [HttpGet("me")]
+    [AllowDuringEnrolment]
     [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<UserResponse>> GetCurrentUser(CancellationToken cancellationToken) =>
-        await accounts.FindAsync(User.GetUserId(), cancellationToken) is { } user ? UserResponse.From(user) : Unauthorized();
+        await accounts.FindAsync(User.GetUserId(), cancellationToken) is { } user ? await DescribeAsync(user, cancellationToken) : Unauthorized();
+
+    /// <summary>The account as the API shows it, with whether it must still set up a second factor.</summary>
+    private async Task<UserResponse> DescribeAsync(User user, CancellationToken cancellationToken) =>
+        UserResponse.From(user) with { SecondFactorEnrolmentRequired = await secondFactor.IsEnrolmentRequiredAsync(user, cancellationToken) };
 
     /// <summary>Changes the password. Every other session of the account is signed out; this one stays signed in.</summary>
     /// <remarks>
@@ -253,6 +259,7 @@ public sealed class AuthController(
     /// <response code="200">The secret (never cached).</response>
     /// <response code="401">Not signed in.</response>
     [HttpGet("session-key")]
+    [AllowDuringEnrolment]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<SessionKeyResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -274,6 +281,7 @@ public sealed class AuthController(
     /// <returns>No content.</returns>
     /// <response code="204">All sessions were ended.</response>
     [HttpPost("sign-out-everywhere")]
+    [AllowDuringEnrolment]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> SignOutEverywhere(CancellationToken cancellationToken)
     {
