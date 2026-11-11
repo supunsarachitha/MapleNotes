@@ -11,6 +11,7 @@ const FILTERS: Record<AuditFilter, string> = {
   SignIns: "Sign-ins",
   FailedSignIns: "Failed sign-ins",
   Admin: "Administrators' actions",
+  Security: "Security changes",
 };
 
 const EVENT_TITLES: Record<AuditEntry["event"], string> = {
@@ -19,6 +20,15 @@ const EVENT_TITLES: Record<AuditEntry["event"], string> = {
   SettingsChanged: "Changed the server's settings",
   AccountChanged: "Changed an account",
   AccountDeleted: "Deleted an account",
+  PasswordChanged: "Changed the password",
+  TwoFactorEnabled: "Turned on two-factor sign-in",
+  TwoFactorDisabled: "Turned off two-factor sign-in",
+  RecoveryCodesReplaced: "Replaced the recovery codes",
+  PasskeyAdded: "Added a passkey",
+  PasskeyRemoved: "Removed a passkey",
+  RecoveryKeyReplaced: "Replaced the recovery key",
+  EncryptionChanged: "Changed the encryption",
+  SignedOutEverywhere: "Signed out everywhere",
 };
 
 /** Who, and to whom: "maple", "admin → member", or "an unknown passkey". */
@@ -27,7 +37,10 @@ function who(entry: AuditEntry): string {
   return entry.targetUsername ? `${actor} → ${entry.targetUsername}` : actor;
 }
 
-/** The audit log, for administrators: sign-ins (made and refused) and administrators' actions, newest first. */
+/**
+ * The audit log, for administrators, newest first: sign-ins (made and refused), people's changes to their own sign-in
+ * and encryption, and administrators' actions.
+ */
 export function AuditLogSection() {
   const id = useId();
   const [filter, setFilter] = useState<AuditFilter>("All");

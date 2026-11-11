@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Features.Auth;
 using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.AspNetCore.Authorization;
@@ -13,11 +15,12 @@ namespace MapleNotes.Server.Features.EndToEnd;
 /// </summary>
 /// <param name="endToEnd">End-to-end key operations.</param>
 /// <param name="time">Clock.</param>
+/// <param name="audit">The audit log.</param>
 [ApiController]
 [Route("api/v1/auth/recovery")]
 [Produces("application/json")]
 [AllowAnonymous]
-public sealed class RecoveryController(EndToEndService endToEnd, TimeProvider time) : ControllerBase
+public sealed class RecoveryController(EndToEndService endToEnd, TimeProvider time, AuditLog audit) : ControllerBase
 {
     private const string WrongKeyTitle = "Incorrect username or recovery key.";
 
@@ -64,6 +67,8 @@ public sealed class RecoveryController(EndToEndService endToEnd, TimeProvider ti
         {
             case AccountError.None:
                 await SessionSignIn.SignInAsync(HttpContext, result.User!, isPersistent: false);
+                await audit.RecordAsync(
+                    AuditEvent.PasswordChanged, result.User!.Username, "Reset the password with the recovery key (other sessions were signed out).", cancellationToken);
                 return UserResponse.From(result.User!);
             case AccountError.InvalidInput:
                 return ValidationProblem(new ValidationProblemDetails(result.ValidationErrors!.ToDictionary()));

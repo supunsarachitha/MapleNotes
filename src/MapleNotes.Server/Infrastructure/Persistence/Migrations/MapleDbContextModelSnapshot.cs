@@ -75,6 +75,37 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("Attachments", (string)null);
                 });
 
+            modelBuilder.Entity("MapleNotes.Server.Domain.AuditChainAnchor", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("Hash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("BLOB");
+
+                    b.Property<long>("LegacyThroughId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("Mac")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
+
+                    b.Property<DateTime?>("PrunedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("PrunedThroughId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AuditChainAnchor", (string)null);
+                });
+
             modelBuilder.Entity("MapleNotes.Server.Domain.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -93,6 +124,10 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("Hash")
+                        .HasMaxLength(32)
+                        .HasColumnType("BLOB");
 
                     b.Property<string>("IpAddress")
                         .HasMaxLength(64)

@@ -422,8 +422,12 @@ first account is created, and changes to the rule are in the audit log. **Compac
 much an account stores.
 
 The **Audit log** at the bottom of the page lists, newest first, who signed in (with a password or a passkey), sign-ins
-that were refused and why, and what administrators changed: the server's settings and other accounts. Each entry has
-its time and the address it came from; choose **Failed sign-ins** to spot someone guessing passwords. Entries are kept
-for 180 days.`,
+that were refused and why, what administrators changed (the server's settings and other accounts), and the changes
+people made to their own sign-in: a new password, two-factor sign-in turned on or off, new recovery codes, passkeys
+added or removed, a new recovery key, a different encryption mode, and signing out everywhere. Each entry has its time
+and the address it came from; choose **Failed sign-ins** to spot someone guessing passwords, or **Security changes**
+for people's own changes. Entries are kept for 180 days. Each entry is sealed together with the one before it, so an
+entry changed or deleted directly in the database can be found; whoever runs the server can also have every entry
+copied to the server's output as it happens.`,
   },
 ];

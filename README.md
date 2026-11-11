@@ -102,7 +102,10 @@
   how long devices stay signed in (30 to 400 days), require two-factor sign-in or a passkey for administrators or for
   everyone, disable or remove accounts, turn off two-factor sign-in for someone who lost their phone, and appoint other
   administrators. An audit log shows sign-ins (made and refused, by password
-  or passkey) and what administrators changed, for 180 days. Administrators never see anyone's notes.
+  or passkey), changes people make to their own password, two-factor sign-in, passkeys, recovery key and encryption,
+  and what administrators changed, for 180 days. Its entries are hash-chained under a key derived from the master key,
+  so an edit or deletion made directly in the database shows up, and they can also be written to standard output for
+  a log collector. Administrators never see anyone's notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
   in its own window, with the app's name and icon (or the ones an administrator chose).
@@ -667,6 +670,7 @@ All settings are environment variables.
 | `MAPLE_TRUSTED_PROXIES` | — | Reverse proxy addresses or CIDR ranges whose `X-Forwarded-*` headers are trusted, e.g. `172.16.0.0/12`. |
 | `MAPLE_AUTH_RATE_LIMIT` | `10` | Sign-in, registration and password attempts per client IP per minute (prelogin has a separate budget of the same size). |
 | `MAPLE_SESSION_MAX_DAYS` | `90` | Days after sign-in when a session ends however often it is used (1 to 3650). The session length in Settings → Administration is the idle limit within it. |
+| `MAPLE_AUDIT_STDOUT` | `false` | Also write every audit log entry to standard output as one JSON line (`"type":"maple-audit"`), for syslog or a SIEM. |
 | `MAPLE_LINK_PREVIEWS` | `true` | Let accounts turn on link previews, for which the server fetches linked pages (public addresses only). Set to `false` to keep the server from fetching anything. |
 | `MAPLE_PUSH_CONTACT` | the project page | A `mailto:` or `https:` address the push services (Google, Apple, Mozilla, Microsoft) can use to reach whoever runs this server about its reminder notifications. |
 | `MAPLE_API_DOCS` | `false` | Publish the OpenAPI document (`/openapi/v1.json`) and API reference (`/scalar`). |

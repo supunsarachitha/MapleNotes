@@ -246,6 +246,7 @@ public sealed class AuthController(
 
         // Same session, same secret: the key this browser saved stays usable, while every other session ends.
         await SessionSignIn.ReissueAsync(HttpContext, result.User!);
+        await audit.RecordAsync(AuditEvent.PasswordChanged, result.User!.Username, "Changed the password (other sessions were signed out).", cancellationToken);
         return NoContent();
     }
 
@@ -287,6 +288,7 @@ public sealed class AuthController(
     {
         await accounts.RevokeSessionsAsync(User.GetUserId(), cancellationToken);
         await sessions.EndAllAsync(User.GetUserId(), cancellationToken);
+        await audit.RecordAsync(AuditEvent.SignedOutEverywhere, User.Identity?.Name, "Signed out of every browser and device.", cancellationToken);
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return NoContent();
     }

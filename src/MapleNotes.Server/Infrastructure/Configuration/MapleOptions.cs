@@ -34,6 +34,9 @@ public sealed class MapleOptions
     /// <summary>Configuration key for <see cref="SessionMaxDays"/>.</summary>
     public const string SessionMaxDaysKey = "MAPLE_SESSION_MAX_DAYS";
 
+    /// <summary>Configuration key for <see cref="AuditStdout"/>.</summary>
+    public const string AuditStdoutKey = "MAPLE_AUDIT_STDOUT";
+
     /// <summary>
     /// Configuration key that, when <c>true</c>, publishes the OpenAPI document (<c>/openapi/v1.json</c>) and the
     /// interactive API reference (<c>/scalar</c>) outside Development. Read directly when the pipeline is built.
@@ -85,6 +88,12 @@ public sealed class MapleOptions
     /// </summary>
     public int SessionMaxDays { get; init; } = 90;
 
+    /// <summary>
+    /// Whether every audit entry is also written to standard output as one JSON line, so operators can ship the log to
+    /// syslog or a SIEM, where it is out of reach of anyone who later changes the database.
+    /// </summary>
+    public bool AuditStdout { get; init; }
+
     /// <summary>Whether accounts may turn on link previews, which make the server fetch the pages linked from notes.</summary>
     public bool LinkPreviews { get; init; } = true;
 
@@ -127,6 +136,7 @@ public sealed class MapleOptions
             TrustedProxies = ReadNetworks(configuration, TrustedProxiesKey),
             AuthenticationRateLimit = ReadInteger(configuration, AuthenticationRateLimitKey, defaultValue: 10, min: 1, max: 10_000),
             SessionMaxDays = ReadInteger(configuration, SessionMaxDaysKey, defaultValue: 90, min: 1, max: 3650),
+            AuditStdout = ReadBoolean(configuration, AuditStdoutKey, defaultValue: false),
             LinkPreviews = ReadBoolean(configuration, LinkPreviewsKey, defaultValue: true),
             PushContact = configuration[PushContactKey]?.Trim() is { } contact
                 && (contact.StartsWith("mailto:", StringComparison.Ordinal) || contact.StartsWith("https://", StringComparison.Ordinal))

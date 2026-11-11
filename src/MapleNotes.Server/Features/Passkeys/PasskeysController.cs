@@ -17,11 +17,12 @@ namespace MapleNotes.Server.Features.Passkeys;
 /// </remarks>
 /// <param name="passkeys">Passkey operations.</param>
 /// <param name="instanceSettings">Instance settings (the app's name).</param>
+/// <param name="audit">The audit log.</param>
 [ApiController]
 [Route("api/v1/account/passkeys")]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class PasskeysController(PasskeyService passkeys, InstanceSettingsService instanceSettings) : ControllerBase
+public sealed class PasskeysController(PasskeyService passkeys, InstanceSettingsService instanceSettings, AuditLog audit) : ControllerBase
 {
     /// <summary>Lists the account's passkeys.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -60,8 +61,12 @@ public sealed class PasskeysController(PasskeyService passkeys, InstanceSettings
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType<PasskeyResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<PasskeyResponse>> Add(AddPasskeyRequest request, CancellationToken cancellationToken) =>
-        StatusCode(StatusCodes.Status201Created, await passkeys.AddAsync(User.GetUserId(), request, cancellationToken));
+    public async Task<ActionResult<PasskeyResponse>> Add(AddPasskeyRequest request, CancellationToken cancellationToken)
+    {
+        var passkey = await passkeys.AddAsync(User.GetUserId(), request, cancellationToken);
+        await audit.RecordAsync(AuditEvent.PasskeyAdded, User.Identity?.Name, $"Added the passkey \"{passkey.Name}\".", cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, passkey);
+    }
 
     /// <summary>Lets a passkey unlock the end-to-end notes: stores the data key wrapped for it.</summary>
     /// <remarks>
@@ -121,8 +126,17 @@ public sealed class PasskeysController(PasskeyService passkeys, InstanceSettings
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Remove(Guid id, RemovePasskeyRequest request, CancellationToken cancellationToken) =>
-        await passkeys.RemoveAsync(User.GetUserId(), id, request, cancellationToken) ? NoContent() : NotFound();
+    public async Task<IActionResult> Remove(Guid id, RemovePasskeyRequest request, CancellationToken cancellationToken)
+    {
+        var name = (await passkeys.ListAsync(User.GetUserId(), cancellationToken)).FirstOrDefault(p => p.Id == id)?.Name;
+        if (!await passkeys.RemoveAsync(User.GetUserId(), id, request, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        await audit.RecordAsync(AuditEvent.PasskeyRemoved, User.Identity?.Name, $"Removed the passkey \"{name}\".", cancellationToken);
+        return NoContent();
+    }
 }
 
 /// <summary>Signing in with a passkey.</summary>

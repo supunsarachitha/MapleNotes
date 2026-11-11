@@ -1,3 +1,5 @@
+using MapleNotes.Server.Domain;
+using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Infrastructure.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -13,11 +15,12 @@ namespace MapleNotes.Server.Features.Auth;
 /// with <c>twoFactorRequired: true</c> until the request carries <c>twoFactorCode</c>.
 /// </remarks>
 /// <param name="twoFactor">Two-factor operations.</param>
+/// <param name="audit">The audit log.</param>
 [ApiController]
 [Route("api/v1/account/two-factor")]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class TwoFactorController(TwoFactorService twoFactor) : ControllerBase
+public sealed class TwoFactorController(TwoFactorService twoFactor, AuditLog audit) : ControllerBase
 {
     /// <summary>Returns whether two-factor sign-in is on and how many recovery codes are left.</summary>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -56,6 +59,7 @@ public sealed class TwoFactorController(TwoFactorService twoFactor) : Controller
 
         // Same session, same secret, so a key this browser saved under it stays usable; other sessions end.
         await SessionSignIn.ReissueAsync(HttpContext, user);
+        await audit.RecordAsync(AuditEvent.TwoFactorEnabled, user.Username, "Turned on two-factor sign-in (other sessions were signed out).", cancellationToken);
         return codes;
     }
 
@@ -72,6 +76,7 @@ public sealed class TwoFactorController(TwoFactorService twoFactor) : Controller
     public async Task<IActionResult> Disable(TwoFactorConfirmation request, CancellationToken cancellationToken)
     {
         await twoFactor.DisableAsync(User.GetUserId(), request, cancellationToken);
+        await audit.RecordAsync(AuditEvent.TwoFactorDisabled, User.Identity?.Name, "Turned off two-factor sign-in.", cancellationToken);
         return NoContent();
     }
 
@@ -85,6 +90,10 @@ public sealed class TwoFactorController(TwoFactorService twoFactor) : Controller
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType<RecoveryCodesResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
-    public Task<RecoveryCodesResponse> ReplaceRecoveryCodes(TwoFactorConfirmation request, CancellationToken cancellationToken) =>
-        twoFactor.ReplaceRecoveryCodesAsync(User.GetUserId(), request, cancellationToken);
+    public async Task<RecoveryCodesResponse> ReplaceRecoveryCodes(TwoFactorConfirmation request, CancellationToken cancellationToken)
+    {
+        var codes = await twoFactor.ReplaceRecoveryCodesAsync(User.GetUserId(), request, cancellationToken);
+        await audit.RecordAsync(AuditEvent.RecoveryCodesReplaced, User.Identity?.Name, "Replaced the two-factor recovery codes.", cancellationToken);
+        return codes;
+    }
 }

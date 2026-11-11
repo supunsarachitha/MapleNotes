@@ -59,4 +59,18 @@ describe("audit log", () => {
     await userEvent.selectOptions(screen.getByLabelText("Show"), "Failed sign-ins");
     expect(audit).toHaveBeenLastCalledWith("FailedSignIns", null);
   });
+
+  it("names people's own security changes and filters to them", async () => {
+    const audit = vi.spyOn(api.admin, "audit").mockResolvedValue({
+      items: [entry(5, { event: "PasskeyAdded", method: null, detail: 'Added the passkey "Laptop".' })],
+      nextCursor: null,
+    });
+    renderLog();
+
+    const list = await screen.findByRole("list", { name: "Audit log entries" });
+    expect(within(list).getByRole("listitem")).toHaveTextContent("Added a passkey");
+    expect(within(list).getByRole("listitem")).toHaveTextContent('Added the passkey "Laptop".');
+    await userEvent.selectOptions(screen.getByLabelText("Show"), "Security changes");
+    expect(audit).toHaveBeenLastCalledWith("Security", null);
+  });
 });

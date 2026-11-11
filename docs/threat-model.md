@@ -152,11 +152,21 @@ not how much it stores: storage usage is shown only to the account itself, and a
 only. They can set a storage limit for every account, but not see who reaches it. An administrator who also runs the
 server is one of the adversaries above.
 
-The audit log lets administrators see sign-ins, refused sign-ins and other administrators' changes, with the time and
-the address each request came from (after trusted proxies), for 180 days. It holds no note content, passwords, keys or
-two-factor codes: a refused sign-in records the username that was typed (even when no such account exists) and why it
-was refused. It is evidence for an honest administrator, not protection against a dishonest one, who can edit the
-database. Changes to one's own password, two-factor sign-in and passkeys are not recorded.
+The audit log lets administrators see sign-ins, refused sign-ins, other administrators' changes and the changes people
+make to their own password, two-factor sign-in, recovery codes, passkeys, recovery key and encryption mode (and "sign
+out everywhere"), with the time and the address each request came from (after trusted proxies), for 180 days. It holds
+no note content, passwords, keys or two-factor codes: a refused sign-in records the username that was typed (even when
+no such account exists) and why it was refused.
+
+Entries are hash-chained: each stores an HMAC-SHA256, under a key derived from the master key, of the previous entry's
+hash and its own fields. Someone who can write to the database but holds neither the master key nor the audit key
+derived from it (with the database key alone, or through a bug that lets them change rows) cannot edit or delete an
+entry without the chain check (`GET /api/v1/admin/audit/verify`) naming the first entry whose link fails. Pruning
+after 180 days moves an anchor, itself sealed with an HMAC, to the last deleted entry, so the chain still verifies and
+the anchor cannot be moved to hide a deletion. What the chain cannot show: entries removed from the newest end, a whole
+log rewritten by someone who also holds the master key (the operator, or an attacker running code in the server), and
+entries written before version 1.22, which are counted as not covered. For those cases, `MAPLE_AUDIT_STDOUT=true` writes
+every entry to standard output as it happens, so a log collector holds a copy the server cannot later change.
 
 ### Password guessing through the app
 

@@ -13,6 +13,7 @@ using MapleNotes.Server.Features.Preferences;
 using MapleNotes.Server.Features.Push;
 using MapleNotes.Server.Features.Reminders;
 using MapleNotes.Server.Features.Storage;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace MapleNotes.Server.Features;
 
@@ -36,6 +37,7 @@ internal static class FeatureServiceCollectionExtensions
         services.AddScoped<UserAdministrationService>();
         services.AddHttpContextAccessor();
         services.AddScoped<AuditLog>();
+        services.TryAddSingleton<AuditStdout>();
         services.AddHostedService<AuditLogCleanupService>();
         services.AddScoped<PreferencesService>();
         services.AddScoped<StorageService>();

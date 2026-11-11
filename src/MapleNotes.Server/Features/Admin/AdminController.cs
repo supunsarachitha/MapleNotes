@@ -95,8 +95,24 @@ public sealed class AdminController(
         return after;
     }
 
-    /// <summary>Lists the audit log, newest first: sign-ins (made and refused) and administrators' actions.</summary>
-    /// <param name="filter">Which entries: <c>All</c>, <c>SignIns</c>, <c>FailedSignIns</c> or <c>Admin</c>.</param>
+    /// <summary>Checks the audit log's hash chain and names the first entry that was changed or follows a deleted one.</summary>
+    /// <remarks>
+    /// Each entry carries an HMAC of the previous entry's hash and its own content, under a key derived from the master
+    /// key, so changes made directly in the database show here. Entries written before version 1.22 are not covered.
+    /// </remarks>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>Whether the chain is intact, and where it breaks.</returns>
+    /// <response code="200">The result.</response>
+    [HttpGet("audit/verify")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<AuditVerifyResponse>(StatusCodes.Status200OK)]
+    public Task<AuditVerifyResponse> VerifyAudit(CancellationToken cancellationToken) => audit.VerifyAsync(cancellationToken);
+
+    /// <summary>Lists the audit log, newest first.</summary>
+    /// <remarks>Filters: <c>All</c>, <c>SignIns</c>, <c>FailedSignIns</c>, <c>Admin</c> (administrators' actions) and
+    /// <c>Security</c> (people's changes to their own password, two-factor sign-in, passkeys, recovery key and
+    /// encryption, and "sign out everywhere").</remarks>
+    /// <param name="filter">Which entries.</param>
     /// <param name="before">The previous page's <c>nextCursor</c>.</param>
     /// <param name="limit">Page size, 1 to 100.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
