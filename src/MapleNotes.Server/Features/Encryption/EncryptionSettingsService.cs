@@ -47,19 +47,14 @@ public sealed class EncryptionSettingsService(
     public async Task<EncryptionStatusResponse> GetStatusAsync(Guid userId, CancellationToken cancellationToken)
     {
         var mode = await db.Users.Where(u => u.Id == userId).Select(u => u.EncryptionMode).SingleAsync(cancellationToken);
-        var target = mode switch
-        {
-            EncryptionMode.Off => ContentScheme.None,
-            EncryptionMode.AtRest => ContentScheme.Server,
-            _ => ContentScheme.EndToEnd,
-        };
+        var (target, attachmentTarget) = ContentSchemes.Targets(mode);
         var notes = await db.Notes.CountAsync(n => n.UserId == userId, cancellationToken);
         var attachments = await db.Attachments.CountAsync(a => a.UserId == userId, cancellationToken);
         var labels = await db.Labels.CountAsync(l => l.UserId == userId, cancellationToken);
         var endToEnd = target == ContentScheme.EndToEnd;
         var remaining =
             await db.Notes.CountAsync(n => n.UserId == userId && n.Scheme != target, cancellationToken)
-            + await db.Attachments.CountAsync(a => a.UserId == userId && a.Scheme != target, cancellationToken)
+            + await db.Attachments.CountAsync(a => a.UserId == userId && a.Scheme != attachmentTarget, cancellationToken)
             + await db.Labels.CountAsync(l => l.UserId == userId && (endToEnd ? l.Name != null : l.EncryptedName != null), cancellationToken);
         return new EncryptionStatusResponse(mode, remaining > 0, notes + attachments + labels, remaining);
     }

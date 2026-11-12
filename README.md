@@ -77,6 +77,8 @@
   - The database is always encrypted.
   - **Encrypted at rest** (the default): each account's notes and files are also encrypted with its own key, which
     the server holds.
+  - **Off**: only the database encryption for notes. Attached files are still encrypted on disk, with a key derived
+    from the master key, since they live outside the database.
   - **End-to-end**: your browser encrypts notes, tags, label names, file names and files with a key only you hold. The server
     stores ciphertext it cannot read, and a recovery key lets you reset a forgotten password.
   - Changing mode converts existing notes and files safely, resuming if it is interrupted.

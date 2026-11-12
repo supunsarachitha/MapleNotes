@@ -146,15 +146,25 @@ flowchart TD
     mk -- HKDF-SHA256 --> pk["Prelogin key<br/>(pseudo-salts for unknown usernames)"]
     mk -- HKDF-SHA256 --> tfk["Two-factor key<br/>(seals authenticator secrets, keys recovery-code HMACs)"]
     mk -- HKDF-SHA256 --> ak["Audit key<br/>(keys the audit log's hash chain)"]
+    mk -- HKDF-SHA256 --> iak["Instance attachment key<br/>(files of accounts with encryption off)"]
     mk -- HKDF-SHA256 --> fp["Fingerprint<br/>(8 hex chars, safe to log)"]
     kek -- "AES-256-GCM wrap<br/>bound to the user ID" --> dek["Per-user data key<br/>(stored wrapped in Users)"]
     dek -- "AES-256-GCM envelope" --> notes["Note text"]
     dek -- "HKDF per file → chunked AES-256-GCM" --> att["Attachment files"]
+    iak -- "HKDF per file → chunked AES-256-GCM" --> att
     dpk -- "AES-256-GCM" --> ring["Data Protection keys<br/>(sign session cookies)"]
 ```
 
 Each derived key uses its own HKDF label (`maple-notes/v1/...`), so learning one key reveals nothing about the others
 or the master key.
+
+Attachment files are always encrypted on disk, whatever the account's mode, because they live outside the encrypted
+database. With encryption off they use the instance attachment key (`ContentScheme.Instance`, label
+`maple-notes/v1/instance-attachment`, key version 0 in the file header) in the same chunked format, so range requests
+work the same. Each file still gets its own key and is bound to its owner's and its own ID. Files stored as plaintext
+before 1.22 keep `ContentScheme.None` until the encryption migration worker, which already converts content when an
+account changes mode, rewrites them; it finds them in every mode, writes the encrypted copy under a new storage key and
+switches the row before deleting the old file, so it can be interrupted at any point.
 
 Accounts with end-to-end encryption have a second hierarchy that lives in the browser. Its root is independent of the
 master key, and the server only ever sees it wrapped ([e2ee-spec.md](e2ee-spec.md) §1, §3, §6):
@@ -224,7 +234,7 @@ volume cannot be used to forge a session.
 
 | Threat | Off / encrypted at rest | End-to-end |
 |---|---|---|
-| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database and key ring. Attachment files are ciphertext in encrypted-at-rest mode, but plaintext in Off mode (roadmap item 27). | **Protected**, twice over. |
+| Stolen disk, copied volume or leaked backup (without the master key) | **Protected** for the database, the key ring and attachment files: in Off mode files are encrypted with the instance attachment key, in encrypted-at-rest mode with the account's data key. | **Protected**, twice over. |
 | Someone who knows the master key, or reads the server's memory or data while it runs | **Not protected.** The server holds the keys. | **Protected.** The server never has the key; it sees ciphertext, sizes, timestamps, and which notes share a tag. |
 | Someone who takes over the server and changes the web app it serves | **Not protected.** | **Not protected** once the user signs in or unlocks with the modified app, which could capture the password. See [threat-model.md](threat-model.md). |
 | Tampering with stored ciphertext | **Detected.** Authenticated encryption everywhere. | **Detected**, in the browser. |

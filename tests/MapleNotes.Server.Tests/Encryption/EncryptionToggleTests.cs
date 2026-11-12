@@ -72,9 +72,10 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
             Assert.Equal(note.Content, Encoding.UTF8.GetString(stored.Content));
         }
 
+        // Files live outside the encrypted database, so with encryption off they move to the instance key, not to plaintext.
         var storedFile = await StoredAttachmentAsync(file.Id);
-        Assert.Equal(ContentScheme.None, storedFile.Scheme);
-        Assert.Equal(fileContent, await File.ReadAllBytesAsync(StoredPath(storedFile.StorageKey), Ct));
+        Assert.Equal(ContentScheme.Instance, storedFile.Scheme);
+        Assert.True(AttachmentCipher.HasEncryptedHeader(await File.ReadAllBytesAsync(StoredPath(storedFile.StorageKey), Ct)));
         Assert.Equal(fileContent, await _client.Http.GetByteArrayAsync(file.Url, Ct));
         Assert.Single(AllStoredFiles()); // the encrypted original was removed
     }
@@ -121,7 +122,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
         var rerun = await MigrateAsync();
 
         Assert.True(rerun.Completed);
-        Assert.Equal(ContentScheme.None, (await StoredAttachmentAsync(file.Id)).Scheme);
+        Assert.Equal(ContentScheme.Instance, (await StoredAttachmentAsync(file.Id)).Scheme);
         Assert.Equal(fileContent, await _client.Http.GetByteArrayAsync(file.Url, Ct));
 
         // The stray copy from the crash is an orphan and is removed by the regular cleanup.
@@ -255,7 +256,7 @@ public sealed class EncryptionToggleTests : IAsyncLifetime
         }
 
         await using var db = new MapleDbContext(options.Options);
-        using var keys = new UserContentKeys(db, services.GetRequiredService<DataKeyService>());
+        using var keys = new UserContentKeys(db, services.GetRequiredService<DataKeyService>(), services.GetRequiredService<KeyMaterial>());
         var migrator = new EncryptionMigrator(db, keys, services.GetRequiredService<AttachmentStore>(), NullLogger<EncryptionMigrator>.Instance);
         configure?.Invoke(migrator);
         return await migrator.MigrateUserAsync(_user.Id, Ct);

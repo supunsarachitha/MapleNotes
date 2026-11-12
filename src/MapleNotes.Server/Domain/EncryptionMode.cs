@@ -30,4 +30,11 @@ public enum ContentScheme
 
     /// <summary>Encrypted by the owner's browser (format version 2); the server cannot decrypt it.</summary>
     EndToEnd = 2,
+
+    /// <summary>
+    /// Attachment files only: encrypted by the server with the instance attachment key, derived from the master key
+    /// (same file format as <see cref="Server"/>). Used when encryption is off, because attachment files live outside
+    /// the encrypted database and would otherwise sit on disk as plaintext. Notes never use it.
+    /// </summary>
+    Instance = 3,
 }

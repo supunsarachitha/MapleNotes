@@ -14,8 +14,10 @@ namespace MapleNotes.Server.Features.Encryption;
 public sealed record MigrationRunResult(int ProcessedItems, bool Completed);
 
 /// <summary>
-/// Converts a user's existing notes and attachments between <see cref="ContentScheme.None"/> and
-/// <see cref="ContentScheme.Server"/> to match their encryption mode (off or at rest).
+/// Converts a user's existing notes between <see cref="ContentScheme.None"/> and <see cref="ContentScheme.Server"/>,
+/// and attachment files between <see cref="ContentScheme.Instance"/> and <see cref="ContentScheme.Server"/>, to match
+/// their encryption mode (off or at rest). Plaintext files from before 1.22 (<see cref="ContentScheme.None"/>) are
+/// encrypted in every mode, so no attachment stays on disk as plaintext.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -23,7 +25,8 @@ public sealed record MigrationRunResult(int ProcessedItems, bool Completed);
 /// note and attachment records its own <see cref="ContentScheme"/>. The work is therefore resumable and idempotent:
 /// after a crash, a restart or the user flipping the setting back mid-way, the next run simply converts whatever does
 /// not match yet. End-to-end content, and the content of end-to-end accounts, is left alone: only the owner's browser
-/// can convert it.
+/// can convert it. The one exception is a plaintext file of an end-to-end account that the browser has not converted
+/// yet: it is encrypted with the instance key meanwhile, which the browser's conversion reads like any other file.
 /// </para>
 /// <para>
 /// Crash safety. Notes are converted in batches saved in one transaction, so a batch is either fully converted or
@@ -71,9 +74,10 @@ public sealed class EncryptionMigrator(MapleDbContext db, UserContentKeys keys, 
     public async Task<IReadOnlyList<Guid>> FindPendingUsersAsync(CancellationToken cancellationToken) =>
         await db.Users.AsNoTracking()
             .Where(u =>
-                (u.EncryptionMode == EncryptionMode.AtRest
+                db.Attachments.Any(a => a.UserId == u.Id && a.Scheme == ContentScheme.None)
+                || (u.EncryptionMode == EncryptionMode.AtRest
                     && (db.Notes.Any(n => n.UserId == u.Id && n.Scheme == ContentScheme.None)
-                        || db.Attachments.Any(a => a.UserId == u.Id && a.Scheme == ContentScheme.None)))
+                        || db.Attachments.Any(a => a.UserId == u.Id && a.Scheme == ContentScheme.Instance)))
                 || (u.EncryptionMode == EncryptionMode.Off
                     && (db.Notes.Any(n => n.UserId == u.Id && n.Scheme == ContentScheme.Server)
                         || db.Attachments.Any(a => a.UserId == u.Id && a.Scheme == ContentScheme.Server))))
@@ -93,25 +97,28 @@ public sealed class EncryptionMigrator(MapleDbContext db, UserContentKeys keys, 
                 .Where(u => u.Id == userId)
                 .Select(u => (EncryptionMode?)u.EncryptionMode)
                 .SingleOrDefaultAsync(cancellationToken);
-            if (mode is null || ContentSchemes.ServerTarget(mode.Value) is not { } target)
+            if (mode is null)
             {
-                return new MigrationRunResult(processed, Completed: true); // deleted, or only the browser can convert
+                return new MigrationRunResult(processed, Completed: true); // deleted meanwhile
             }
 
-            var encrypt = target == ContentScheme.Server;
-            var notes = await ConvertNoteBatchAsync(userId, encrypt, cancellationToken);
-            if (notes < 0)
+            // Null for end-to-end accounts, whose notes only the browser can convert.
+            if (ContentSchemes.ServerTarget(mode.Value) is { } target)
             {
-                return new MigrationRunResult(processed, Completed: false);
+                var notes = await ConvertNoteBatchAsync(userId, target == ContentScheme.Server, cancellationToken);
+                if (notes < 0)
+                {
+                    return new MigrationRunResult(processed, Completed: false);
+                }
+
+                if (notes > 0)
+                {
+                    processed += notes;
+                    continue;
+                }
             }
 
-            if (notes > 0)
-            {
-                processed += notes;
-                continue;
-            }
-
-            var (attachments, conflicts) = await ConvertAttachmentBatchAsync(userId, encrypt, cancellationToken);
+            var (attachments, conflicts) = await ConvertAttachmentBatchAsync(userId, mode.Value, cancellationToken);
             processed += attachments;
             if (conflicts > 0 && attachments == conflicts)
             {
@@ -182,12 +189,15 @@ public sealed class EncryptionMigrator(MapleDbContext db, UserContentKeys keys, 
     }
 
     /// <returns>Attachments examined, and how many of them hit a concurrent change.</returns>
-    private async Task<(int Processed, int Conflicts)> ConvertAttachmentBatchAsync(Guid userId, bool encrypt, CancellationToken cancellationToken)
+    private async Task<(int Processed, int Conflicts)> ConvertAttachmentBatchAsync(Guid userId, EncryptionMode mode, CancellationToken cancellationToken)
     {
         var skip = _unconvertible.ToList();
-        var source = encrypt ? ContentScheme.None : ContentScheme.Server;
+        var target = ContentSchemes.AttachmentServerTarget(mode);
+        var serverConverts = mode != EncryptionMode.EndToEnd; // end-to-end accounts: only plaintext files
         var batch = await db.Attachments
-            .Where(a => a.UserId == userId && a.Scheme == source && !skip.Contains(a.Id))
+            .Where(a => a.UserId == userId && !skip.Contains(a.Id)
+                && (a.Scheme == ContentScheme.None
+                    || (serverConverts && a.Scheme != target && a.Scheme != ContentScheme.EndToEnd)))
             .OrderBy(a => a.CreatedAtUtc)
             .Take(AttachmentBatchSize)
             .ToListAsync(cancellationToken);
@@ -196,13 +206,12 @@ public sealed class EncryptionMigrator(MapleDbContext db, UserContentKeys keys, 
             return (0, 0);
         }
 
-        var key = await keys.GetKeyAsync(userId, cancellationToken);
         var conflicts = 0;
         try
         {
             foreach (var attachment in batch)
             {
-                if (!await ConvertAttachmentAsync(attachment, encrypt, key, cancellationToken))
+                if (!await ConvertAttachmentAsync(attachment, target, cancellationToken))
                 {
                     conflicts++;
                 }
@@ -217,17 +226,20 @@ public sealed class EncryptionMigrator(MapleDbContext db, UserContentKeys keys, 
     }
 
     /// <returns>False when a concurrent change prevented the switch (the new copy is discarded).</returns>
-    private async Task<bool> ConvertAttachmentAsync(Attachment attachment, bool encrypt, UserDataKey key, CancellationToken cancellationToken)
+    private async Task<bool> ConvertAttachmentAsync(Attachment attachment, ContentScheme target, CancellationToken cancellationToken)
     {
         var oldStorageKey = attachment.StorageKey;
         var newStorageKey = AttachmentStore.CreateStorageKey(attachment.Id);
+        var targetKey = await keys.GetAttachmentKeyAsync(attachment.UserId, target, cancellationToken);
+        var sourceKey = attachment.Scheme == ContentScheme.None
+            ? null
+            : await keys.GetAttachmentKeyAsync(attachment.UserId, attachment.Scheme, cancellationToken);
 
         try
         {
-            await using var source = OpenPlaintext(attachment, key);
-            await store.WriteAsync(newStorageKey, (file, ct) => encrypt
-                ? AttachmentCipher.EncryptAsync(source, file, key, attachment.UserId, attachment.Id, ct)
-                : source.CopyToAsync(file, ct), cancellationToken: cancellationToken);
+            await using var source = OpenPlaintext(attachment, sourceKey);
+            await store.WriteAsync(newStorageKey, (file, ct) =>
+                AttachmentCipher.EncryptAsync(source, file, targetKey, attachment.UserId, attachment.Id, ct), cancellationToken: cancellationToken);
         }
         catch (Exception ex) when (ex is CryptographicException or FileNotFoundException or DirectoryNotFoundException)
         {
@@ -243,7 +255,7 @@ public sealed class EncryptionMigrator(MapleDbContext db, UserContentKeys keys, 
         }
 
         attachment.StorageKey = newStorageKey;
-        attachment.Scheme = encrypt ? ContentScheme.Server : ContentScheme.None;
+        attachment.Scheme = target;
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -259,10 +271,10 @@ public sealed class EncryptionMigrator(MapleDbContext db, UserContentKeys keys, 
         return true;
     }
 
-    private Stream OpenPlaintext(Attachment attachment, UserDataKey key)
+    private Stream OpenPlaintext(Attachment attachment, UserDataKey? key)
     {
         var file = store.OpenRead(attachment.StorageKey);
-        if (attachment.Scheme == ContentScheme.None)
+        if (key is null)
         {
             return file;
         }

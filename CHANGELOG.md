@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a locked account refuses them with 429. Sign-in, prelogin, registration and recovery also share a global
   concurrency cap across all clients, so many addresses together cannot keep the server's processors busy
   ([#128](https://github.com/supunsarachitha/MapleNotes/issues/128)).
+- Attachment files of accounts with encryption off are now encrypted on disk too, with an instance key derived from
+  the master key, so a copy of the disk or a backup without the master key reveals no file in any mode. Files stored
+  as plaintext by earlier versions are encrypted by the background migration after the upgrade; it resumes where it
+  stopped if the server restarts. Downloads and range requests work as before [#130](https://github.com/supunsarachitha/MapleNotes/issues/130).
 
 ### Added
 

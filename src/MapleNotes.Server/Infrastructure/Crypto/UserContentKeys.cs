@@ -13,9 +13,36 @@ namespace MapleNotes.Server.Infrastructure.Crypto;
 /// </remarks>
 /// <param name="db">Database context.</param>
 /// <param name="dataKeys">Unwraps stored data keys.</param>
-public sealed class UserContentKeys(MapleDbContext db, DataKeyService dataKeys) : IDisposable
+/// <param name="keyMaterial">The instance keys, for <see cref="ContentScheme.Instance"/> attachment files.</param>
+public sealed class UserContentKeys(MapleDbContext db, DataKeyService dataKeys, KeyMaterial keyMaterial) : IDisposable
 {
+    /// <summary>
+    /// The key version written into instance-encrypted files. Data keys start at version 1, so a file header alone
+    /// already shows which kind of key it needs.
+    /// </summary>
+    public const byte InstanceKeyVersion = 0;
+
     private readonly Dictionary<Guid, UserDataKey> _keys = [];
+    private UserDataKey? _instanceKey;
+
+    /// <summary>
+    /// The instance attachment key as a data key (a copy, wiped when the scope ends). Do not dispose it; the scope owns
+    /// it.
+    /// </summary>
+    public UserDataKey InstanceAttachmentKey => _instanceKey ??= new UserDataKey(keyMaterial.AttachmentKey.ToArray(), InstanceKeyVersion);
+
+    /// <summary>Returns the key that encrypts an attachment file stored under <paramref name="scheme"/>.</summary>
+    /// <param name="userId">The owner.</param>
+    /// <param name="scheme"><see cref="ContentScheme.Server"/> or <see cref="ContentScheme.Instance"/>.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The key; the scope owns it.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The server holds no key for this scheme.</exception>
+    public async Task<UserDataKey> GetAttachmentKeyAsync(Guid userId, ContentScheme scheme, CancellationToken cancellationToken) => scheme switch
+    {
+        ContentScheme.Server => await GetKeyAsync(userId, cancellationToken),
+        ContentScheme.Instance => InstanceAttachmentKey,
+        _ => throw new ArgumentOutOfRangeException(nameof(scheme), scheme, "The server holds no key for this scheme."),
+    };
 
     /// <summary>Returns the user's unwrapped server-held data key. Do not dispose it; the scope owns it.</summary>
     /// <param name="userId">The account.</param>
@@ -56,5 +83,7 @@ public sealed class UserContentKeys(MapleDbContext db, DataKeyService dataKeys) 
         }
 
         _keys.Clear();
+        _instanceKey?.Dispose();
+        _instanceKey = null;
     }
 }
