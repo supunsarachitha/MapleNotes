@@ -14,6 +14,7 @@ namespace MapleNotes.Server.Infrastructure.Crypto;
 ///                          ├── prelogin key        pseudo-salts for unknown usernames at prelogin (see AccountService)
 ///                          ├── two-factor key      seals authenticator secrets and keys recovery-code hashes (see TwoFactorService)
 ///                          ├── audit key           keys the HMAC hash chain of the audit log (see AuditChain)
+///                          ├── attachment key      encrypts attachment files of accounts with encryption off
 ///                          └── fingerprint         8 hex characters, safe to log, identifies which key is loaded
 /// </code>
 /// Every derived key uses its own HKDF "info" label, so learning one derived key reveals nothing about the others
@@ -29,6 +30,7 @@ public sealed class KeyMaterial : IDisposable
     private readonly byte[] _preloginKey;
     private readonly byte[] _twoFactorKey;
     private readonly byte[] _auditKey;
+    private readonly byte[] _attachmentKey;
 
     /// <summary>
     /// Derives all keys from <paramref name="masterKey"/>.
@@ -48,6 +50,7 @@ public sealed class KeyMaterial : IDisposable
         _preloginKey = Derive(masterKey, "maple-notes/v1/prelogin", 32);
         _twoFactorKey = Derive(masterKey, "maple-notes/v1/two-factor", 32);
         _auditKey = Derive(masterKey, "maple-notes/v1/audit", 32);
+        _attachmentKey = Derive(masterKey, "maple-notes/v1/instance-attachment", 32);
 
         var fingerprint = Derive(masterKey, "maple-notes/v1/fingerprint", 4);
         Fingerprint = Convert.ToHexStringLower(fingerprint);
@@ -81,6 +84,13 @@ public sealed class KeyMaterial : IDisposable
     public ReadOnlySpan<byte> AuditKey => _auditKey;
 
     /// <summary>
+    /// 256-bit key that encrypts the attachment files of accounts with encryption off
+    /// (<see cref="Domain.ContentScheme.Instance"/>). Their notes are protected by the database encryption, but files
+    /// live outside the database, so without this key a copy of the disk would reveal them.
+    /// </summary>
+    public ReadOnlySpan<byte> AttachmentKey => _attachmentKey;
+
+    /// <summary>
     /// A short, non-secret identifier of the loaded master key (8 hex characters). Logged at startup so operators
     /// can tell which key an instance runs with without exposing the key.
     /// </summary>
@@ -95,6 +105,7 @@ public sealed class KeyMaterial : IDisposable
         CryptographicOperations.ZeroMemory(_preloginKey);
         CryptographicOperations.ZeroMemory(_twoFactorKey);
         CryptographicOperations.ZeroMemory(_auditKey);
+        CryptographicOperations.ZeroMemory(_attachmentKey);
     }
 
     private static byte[] Derive(ReadOnlySpan<byte> masterKey, string purpose, int length)

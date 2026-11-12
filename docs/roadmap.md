@@ -62,4 +62,3 @@ Features most note apps have.
 From the [October 2026 security audit](security-audit-2026-10.md), where each has a recommended fix.
 
 26. End-to-end tag names and file details do not count toward the storage limit.
-27. In "Off" mode, attachments are stored as plaintext on disk (the architecture and threat-model documents now say so).

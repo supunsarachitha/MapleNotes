@@ -281,7 +281,7 @@ security](/settings/security) you choose how much more protection your own notes
   server holds. This protects against stolen disks and leaked backups.
 - **End-to-end**: your browser encrypts notes, tags, label names, file names and files with a key only you hold.
   Nobody else can read them, not even whoever runs the server.
-- **Off**: only the database encryption.
+- **Off**: only the database encryption. Your files are still encrypted on disk, with a key of the server's.
 
 When you turn on end-to-end encryption you get a **recovery key**. Save it somewhere safe, such as a password
 manager or on paper. It is the only way back in if you forget your password; without the password or the recovery

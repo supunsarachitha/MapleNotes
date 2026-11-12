@@ -12,7 +12,7 @@ namespace MapleNotes.Server.Features.Attachments;
 
 /// <summary>
 /// Stores, reads and deletes attachments, encrypting them with the owner's data key when the owner uses encryption at
-/// rest.
+/// rest, and with the instance attachment key when encryption is off (end-to-end files arrive encrypted).
 /// </summary>
 /// <param name="db">Database context.</param>
 /// <param name="store">File store.</param>
@@ -50,18 +50,17 @@ public sealed class AttachmentService(
             return await UploadEncryptedAsync(userId, mode, content, encrypted, cancellationToken);
         }
 
-        var scheme = ContentSchemes.ForPlainText(mode);
+        var scheme = ContentSchemes.ForAttachment(mode);
         var id = Guid.CreateVersion7();
         var storageKey = AttachmentStore.CreateStorageKey(id);
         var room = await quota.GetRoomAsync(userId, cancellationToken);
         var limited = new LengthLimitedStream(content, Math.Min(options.MaxUploadBytes, room ?? long.MaxValue));
-        var key = scheme == ContentScheme.Server ? await keys.GetKeyAsync(userId, cancellationToken) : null;
+        var key = await keys.GetAttachmentKeyAsync(userId, scheme, cancellationToken);
 
         try
         {
-            await store.WriteAsync(storageKey, (file, ct) => key is null
-                ? limited.CopyToAsync(file, ct)
-                : AttachmentCipher.EncryptAsync(limited, file, key, userId, id, ct), cancellationToken: cancellationToken);
+            await store.WriteAsync(storageKey, (file, ct) =>
+                AttachmentCipher.EncryptAsync(limited, file, key, userId, id, ct), cancellationToken: cancellationToken);
         }
         catch (UploadTooLargeException) when (room < options.MaxUploadBytes)
         {
@@ -216,12 +215,11 @@ public sealed class AttachmentService(
         }
         else
         {
-            var scheme = ContentSchemes.ForPlainText(mode);
+            var scheme = ContentSchemes.ForAttachment(mode);
             var limited = new LengthLimitedStream(content, attachment.SizeBytes);
-            var key = scheme == ContentScheme.Server ? await keys.GetKeyAsync(attachment.UserId, cancellationToken) : null;
-            await store.WriteAsync(newStorageKey, (file, ct) => key is null
-                ? limited.CopyToAsync(file, ct)
-                : AttachmentCipher.EncryptAsync(limited, file, key, attachment.UserId, attachment.Id, ct), cancellationToken: cancellationToken);
+            var key = await keys.GetAttachmentKeyAsync(attachment.UserId, scheme, cancellationToken);
+            await store.WriteAsync(newStorageKey, (file, ct) =>
+                AttachmentCipher.EncryptAsync(limited, file, key, attachment.UserId, attachment.Id, ct), cancellationToken: cancellationToken);
             var safeName = UploadPolicy.SanitizeFileName(fileName);
             attachment.SizeBytes = limited.BytesRead;
             attachment.Scheme = scheme;
@@ -300,19 +298,20 @@ public sealed class AttachmentService(
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>
     /// A seekable stream of the content, decrypted when the server encrypted it; an end-to-end encrypted file is
-    /// returned as stored, for the browser to decrypt. The caller disposes it.
+    /// returned as stored, for the browser to decrypt, and so is a plaintext file from before 1.22 that the background
+    /// migration has not encrypted yet. The caller disposes it.
     /// </returns>
     public async Task<Stream> OpenContentAsync(Attachment attachment, CancellationToken cancellationToken)
     {
         var file = store.OpenRead(attachment.StorageKey);
-        if (attachment.Scheme != ContentScheme.Server)
+        if (attachment.Scheme is not (ContentScheme.Server or ContentScheme.Instance))
         {
             return file;
         }
 
         try
         {
-            var key = await keys.GetKeyAsync(attachment.UserId, cancellationToken);
+            var key = await keys.GetAttachmentKeyAsync(attachment.UserId, attachment.Scheme, cancellationToken);
             return DecryptingAttachmentStream.Open(file, key, attachment.UserId, attachment.Id);
         }
         catch

@@ -33,8 +33,10 @@ Stolen disks, a leaked backup, a cloud snapshot, a decommissioned drive.
 - **Encrypted at rest and end-to-end:** protected. The database is encrypted with a key derived from the master key,
   and so are the attachment files (per account) and the Data Protection key ring that signs sessions. The master key is
   never stored in the data volume.
-- **Off:** the database and key ring are encrypted, but attachment files are plaintext on disk (roadmap item 27). Use
-  an encrypted mode if files must be protected from a disk copy.
+- **Off:** protected too. Notes are covered by the database encryption, and attachment files, which live outside the
+  database, are encrypted with an instance attachment key derived from the master key. Files stored as plaintext by
+  versions before 1.22 are encrypted by a background migration after the upgrade; until it finishes, a disk copy
+  could still reveal them.
 - **What leaks:** the number and approximate sizes of files in `attachments/`, and file times.
 
 ### The master key together with the data
