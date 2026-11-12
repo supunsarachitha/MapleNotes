@@ -29,6 +29,17 @@ export interface User {
 /** The problem `code` of the 403 a session gets while it must set up a second factor first. */
 export const SECOND_FACTOR_ENROLMENT_REQUIRED = "second_factor_enrolment_required";
 
+/**
+ * The problem `code` of the 403 an export, an administrator's change or a second-factor change gets when this session
+ * has not signed in or confirmed it is its owner in the last ten minutes (POST /api/v1/auth/confirm).
+ */
+export const CONFIRMATION_REQUIRED = "confirmation_required";
+
+/** Until when this session counts as recently confirmed; null when it does not. */
+export interface ConfirmationStatus {
+  confirmedUntilUtc: string | null;
+}
+
 /** Who must sign in with two-factor sign-in or a passkey (an instance setting). */
 export const SECOND_FACTOR_RULES = ["Off", "Administrators", "Everyone"] as const;
 export type SecondFactorRule = (typeof SECOND_FACTOR_RULES)[number];

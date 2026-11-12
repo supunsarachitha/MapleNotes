@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Without one these requests answer 403 with `code: "confirmation_required"`; a new `ConfirmedAtUtc` column in the
   `Sessions` table records it. Sessions signed in before the upgrade confirm once before such an action
   ([#132](https://github.com/supunsarachitha/MapleNotes/issues/132)).
+- The web app asks **Confirm it is you** when the server wants that confirmation: the password, an authenticator code
+  (with two-factor sign-in on) or a passkey, after which the refused action goes ahead on its own. The dialogs that
+  already ask for the password (adding or removing a passkey, turning off two-factor sign-in, new recovery codes)
+  confirm with the same password, so it is asked once. Exports check first, including the export end-to-end accounts
+  build in the browser ([#132](https://github.com/supunsarachitha/MapleNotes/issues/132)).
 
 ### Added
 

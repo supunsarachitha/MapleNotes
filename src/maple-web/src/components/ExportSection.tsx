@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
 import { useId, useState } from "react";
+import { ensureConfirmed } from "../lib/api";
 import { currentTimeZone } from "../lib/dates";
 import type { User } from "../lib/types";
 import { RestorePanel } from "./RestorePanel";
@@ -87,6 +88,15 @@ export function ExportSection({
   async function download() {
     if (options.from && options.to && options.from > options.to) {
       setError("The start date must not be after the end date.");
+      return;
+    }
+    // The server refuses its export without a recent confirmation, but a download link cannot show a prompt, so ask
+    // first. An export built in this browser reads notes the session can read anyway; it asks the same, so a session
+    // left open on a shared computer cannot take everything away in one go.
+    try {
+      if (!(await ensureConfirmed())) return;
+    } catch (caught) {
+      setError(`The export failed: ${caught instanceof Error ? caught.message : String(caught)}`);
       return;
     }
     if (inBrowser && user) {
