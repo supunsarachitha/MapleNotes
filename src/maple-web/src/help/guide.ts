@@ -306,8 +306,13 @@ devices.
   marking the one you are using, and when each signed in and was last used. **Sign out** next to one ends that session
   only: a copy of its cookie stops working too. Every session ends 90 days after its sign-in, however often it is used.
 - **Lost a device?** Sign it out from the list, or use **Sign out everywhere** to end every session at once.
+- **Confirm it is you.** Exporting your notes, an administrator's changes, adding or removing a passkey, turning off
+  two-factor sign-in and new recovery codes ask you to confirm it is you, unless you signed in or confirmed in the last
+  10 minutes on this device: enter your password, a code from your authenticator app, or use a passkey, and the change
+  goes ahead. Dialogs that already ask for your password use it for this too. A session left open on another
+  computer is then not enough to take your notes or weaken your account.
 - **Locked out for a while?** Five wrong passwords in a row lock the account for 15 minutes. This counts wrong
-  passwords typed to confirm a change in Settings too, not only at sign-in.`,
+  passwords and codes typed to confirm a change in Settings too, not only at sign-in.`,
   },
   {
     id: "two-factor",

@@ -128,9 +128,9 @@ A lost or stolen phone or laptop, or a shared computer.
   removing a passkey, turning off two-factor sign-in and replacing recovery codes need a confirmation from the last ten
   minutes of the same session: the sign-in itself, or the password, a passkey (with user verification) or an
   authenticator code given again. Wrong passwords and codes count toward the sign-in lockout. What it does not cover:
-  reading and editing notes, which the session is for, and the export of end-to-end accounts, which the browser builds
-  from the notes the session can already read; someone holding an unlocked end-to-end session can read the notes
-  anyway.
+  reading and editing notes, which the session is for. The export of end-to-end accounts, which the browser builds
+  from the notes the session can already read, asks for the same confirmation first, but only the app enforces that:
+  someone holding an unlocked end-to-end session can read the notes anyway.
 - **Without a live session,** the browser holds nothing useful, unless the session was started with "keep me signed
   in" and ended without this browser noticing (see offline reading below). The key saved in IndexedDB is sealed with a
   secret that exists only in the session, and API responses are sent with `Cache-Control: no-store`.

@@ -1,4 +1,4 @@
-import { SECOND_FACTOR_ENROLMENT_REQUIRED, type ProblemDetails } from "./types";
+import { CONFIRMATION_REQUIRED, SECOND_FACTOR_ENROLMENT_REQUIRED, type ProblemDetails } from "./types";
 
 /** HTTP 507: the change does not fit in the account's storage limit. */
 export const STORAGE_FULL = 507;
@@ -43,4 +43,9 @@ export function isTwoFactorRequired(error: unknown): error is ApiError {
 /** Whether a request was refused because the account must set up two-factor sign-in or a passkey first. */
 export function isEnrolmentRequired(error: unknown): error is ApiError {
   return error instanceof ApiError && error.status === 403 && error.problem.code === SECOND_FACTOR_ENROLMENT_REQUIRED;
+}
+
+/** Whether a request was refused because this session must confirm it is its owner first (lib/confirmation.ts). */
+export function isConfirmationRequired(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 403 && error.problem.code === CONFIRMATION_REQUIRED;
 }

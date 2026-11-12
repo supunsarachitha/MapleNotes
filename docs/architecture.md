@@ -339,7 +339,11 @@ note transaction, and a concurrent edit.
   exactly one of a password proof, an authenticator or recovery code (only with two-factor sign-in on), or a passkey's
   answer to a challenge from `POST /api/v1/auth/confirm/passkey-options`, issued to this account for confirming and
   checked with user verification. Wrong passwords and codes count toward the sign-in lockout. `GET /api/v1/auth/confirm`
-  says until when the session counts as confirmed. The confirmation belongs to one session, and rows made for cookies
+  says until when the session counts as confirmed. In the web app, `lib/api.ts` turns that 403 into the **Confirm it is
+  you** prompt (`lib/confirmation.ts`, `components/ConfirmIdentityDialog.tsx`; requests refused together share one
+  prompt) and repeats the request once after it; dialogs that already hold a password proof send it to
+  `POST /api/v1/auth/confirm` first, and exports check `GET /api/v1/auth/confirm` before they start, since a download
+  link cannot show a prompt. The confirmation belongs to one session, and rows made for cookies
   from before 1.22 start without one. The filter is the attribute itself, so it runs after the controller's role check:
   a member calling an administrator endpoint is refused as before, not asked to confirm. Requests that already carry a
   password proof (passkeys, two-factor changes) still need it as well.

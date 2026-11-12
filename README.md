@@ -98,8 +98,9 @@
 - **Accounts.** Multiple users with secure authentication, each with a display name of their choice, and optional
   two-factor sign-in with an authenticator app and single-use recovery codes. Passkeys sign in with a fingerprint,
   face or device PIN instead of the password, and on most current devices also unlock end-to-end notes. Settings
-  lists every signed-in browser and device, each of which can be signed out on its own. The first
-  account becomes the
+  lists every signed-in browser and device, each of which can be signed out on its own. Exporting everything, administrator changes
+  and changes to the second sign-in step ask the person to confirm it is them (password, code or passkey) unless they
+  did in the last ten minutes, so a session left open is not enough on its own. The first account becomes the
   administrator, who can give the app its own name and icon, open registration, limit each account's storage, choose
   how long devices stay signed in (30 to 400 days), require two-factor sign-in or a passkey for administrators or for
   everyone, disable or remove accounts, turn off two-factor sign-in for someone who lost their phone, and appoint other

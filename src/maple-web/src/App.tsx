@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { BrandMark } from "./components/BrandMark";
+import { ConfirmationPrompt } from "./components/ConfirmIdentityDialog";
 import { Button, Spinner } from "./components/ui";
 import { api, ENROLMENT_REQUIRED_EVENT } from "./lib/api";
 import { useAppearance } from "./lib/appearance";
@@ -222,7 +223,12 @@ export function App() {
 
   // Before the unlock screen: the end-to-end key cannot be fetched from a restricted session anyway.
   if (enrolling) {
-    return <EnrolmentPage user={user} />;
+    return (
+      <>
+        <EnrolmentPage user={user} />
+        <ConfirmationPrompt user={user} />
+      </>
+    );
   }
 
   if (keys.status === "checking") {
@@ -277,6 +283,7 @@ export function App() {
           <HomePage />
         )}
       </AppShell>
+      <ConfirmationPrompt user={user} />
     </TrustedModeContext.Provider>
   );
 }

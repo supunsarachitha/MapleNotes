@@ -11,6 +11,7 @@ import type {
   AttachmentWire,
   AuthStatus,
   CompactResult,
+  ConfirmationStatus,
   ConversionBatch,
   CredentialProof,
   DeletedContent,
@@ -48,7 +49,8 @@ import type {
   UserRole,
 } from "./types";
 import { moodAllowed } from "./types";
-import { ApiError, isEnrolmentRequired } from "./apiError";
+import { ApiError, isConfirmationRequired, isEnrolmentRequired } from "./apiError";
+import { askToConfirm } from "./confirmation";
 import type { NewPasskeyWire, PasskeyAssertionWire } from "./passkeys";
 import { noteApiResponse } from "./offline";
 import {
@@ -112,7 +114,12 @@ async function readProblem(response: Response): Promise<ProblemDetails> {
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-export async function request<T>(method: Method, path: string, body?: unknown, retry = true): Promise<T> {
+/**
+ * Sends a JSON request. A request refused because the session must confirm it is its owner (403
+ * `confirmation_required`) asks the person once (lib/confirmation.ts) and is repeated after they confirm; pass
+ * `askConfirmation = false` where the caller handles that itself.
+ */
+export async function request<T>(method: Method, path: string, body?: unknown, retry = true, askConfirmation = true): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const raw = body instanceof Blob; // sent as it is, with its own type (an image, for example)
   if (body !== undefined) headers["Content-Type"] = raw ? body.type : "application/json";
@@ -144,9 +151,12 @@ export async function request<T>(method: Method, path: string, body?: unknown, r
     // A stale token (for example after the session changed in another tab): refresh once and retry.
     if (response.status === 400 && method !== "GET" && retry && problem.title?.toLowerCase().includes("antiforgery")) {
       await refreshAntiforgeryToken();
-      return request<T>(method, path, body, false);
+      return request<T>(method, path, body, false, askConfirmation);
     }
     const error = new ApiError(response.status, problem);
+    if (askConfirmation && isConfirmationRequired(error) && (await askToConfirm())) {
+      return request<T>(method, path, body, retry, false);
+    }
     // The server started requiring a second factor while the app was open: let the app fetch the account again and
     // show the set-up screen (App.tsx) instead of failing request by request.
     if (isEnrolmentRequired(error)) window.dispatchEvent(new Event(ENROLMENT_REQUIRED_EVENT));
@@ -154,6 +164,25 @@ export async function request<T>(method: Method, path: string, body?: unknown, r
   }
 
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
+}
+
+/**
+ * Confirms the session with a password proof the caller already has, before a request that carries the same proof:
+ * the server wants both (a recent confirmation and the password for this change), and the person should not be asked
+ * for the password twice. A wrong password fails here, with the same field error the change itself would give.
+ */
+async function confirmWith(proof: CredentialProof): Promise<void> {
+  await request<ConfirmationStatus>("POST", "/api/v1/auth/confirm", { proof }, true, false);
+}
+
+/**
+ * Before something the browser starts without an API request of its own (a download link, an export built in this
+ * browser): asks the person to confirm unless this session already counts as confirmed. Resolves false when they
+ * cancel.
+ */
+export async function ensureConfirmed(): Promise<boolean> {
+  const { confirmedUntilUtc } = await api.confirmation.status();
+  return confirmedUntilUtc !== null || (await askToConfirm());
 }
 
 /** Sends multipart/form-data (file conversions), with the antiforgery token. */
@@ -511,10 +540,15 @@ export const api = {
   passkeys: {
     list: () => request<Passkey[]>("GET", "/api/v1/account/passkeys"),
     creationOptions: () => request<PasskeyCreationOptions>("POST", "/api/v1/account/passkeys/options"),
-    add: (body: { proof: CredentialProof; challengeId: string; name?: string; credential: NewPasskeyWire }) =>
-      request<Passkey>("POST", "/api/v1/account/passkeys", body),
+    async add(body: { proof: CredentialProof; challengeId: string; name?: string; credential: NewPasskeyWire }): Promise<Passkey> {
+      await confirmWith(body.proof);
+      return request<Passkey>("POST", "/api/v1/account/passkeys", body);
+    },
     rename: (id: string, name: string) => request<Passkey>("PATCH", `/api/v1/account/passkeys/${id}`, { name }),
-    remove: (id: string, proof: CredentialProof) => request<void>("DELETE", `/api/v1/account/passkeys/${id}`, { proof }),
+    async remove(id: string, proof: CredentialProof): Promise<void> {
+      await confirmWith(proof);
+      await request<void>("DELETE", `/api/v1/account/passkeys/${id}`, { proof });
+    },
     signInOptions: () => request<PasskeyRequestOptions>("POST", "/api/v1/auth/passkey/options"),
     async signIn(body: { challengeId: string; credential: PasskeyAssertionWire; rememberMe: boolean }) {
       const answer = await request<{ user: User; passkeyId: string; wrappedKey: string | null }>("POST", "/api/v1/auth/passkey/login", body);
@@ -536,9 +570,22 @@ export const api = {
       await refreshAntiforgeryToken();
       return codes;
     },
-    disable: (body: { proof: CredentialProof; code: string }) => request<void>("DELETE", "/api/v1/account/two-factor", body),
-    replaceRecoveryCodes: async (body: { proof: CredentialProof; code: string }) =>
-      (await request<{ codes: string[] }>("POST", "/api/v1/account/two-factor/recovery-codes", body)).codes,
+    async disable(body: { proof: CredentialProof; code: string }): Promise<void> {
+      await confirmWith(body.proof);
+      await request<void>("DELETE", "/api/v1/account/two-factor", body);
+    },
+    async replaceRecoveryCodes(body: { proof: CredentialProof; code: string }): Promise<string[]> {
+      await confirmWith(body.proof);
+      return (await request<{ codes: string[] }>("POST", "/api/v1/account/two-factor/recovery-codes", body)).codes;
+    },
+  },
+
+  /** Step-up confirmation: proving inside this session that its owner is present (lib/confirmation.ts). */
+  confirmation: {
+    status: () => request<ConfirmationStatus>("GET", "/api/v1/auth/confirm"),
+    confirm: (body: { proof: CredentialProof } | { code: string } | { challengeId: string; passkey: PasskeyAssertionWire }) =>
+      request<ConfirmationStatus>("POST", "/api/v1/auth/confirm", body, true, false),
+    passkeyOptions: () => request<PasskeyRequestOptions>("POST", "/api/v1/auth/confirm/passkey-options"),
   },
 
   /** Changes the name the app shows for this account; an empty name goes back to the username. */
