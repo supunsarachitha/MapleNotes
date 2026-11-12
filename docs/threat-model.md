@@ -161,7 +161,8 @@ no such account exists) and why it was refused.
 Entries are hash-chained: each stores an HMAC-SHA256, under a key derived from the master key, of the previous entry's
 hash and its own fields. Someone who can write to the database but holds neither the master key nor the audit key
 derived from it (with the database key alone, or through a bug that lets them change rows) cannot edit or delete an
-entry without the chain check (`GET /api/v1/admin/audit/verify`) naming the first entry whose link fails. Pruning
+entry without the chain check (`GET /api/v1/admin/audit/verify`, the **Check the log** button above the audit log in
+Settings → Administration) naming the first entry whose link fails. Pruning
 after 180 days moves an anchor, itself sealed with an HMAC, to the last deleted entry, so the chain still verifies and
 the anchor cannot be moved to hide a deletion. What the chain cannot show: entries removed from the newest end, a whole
 log rewritten by someone who also holds the master key (the operator, or an attacker running code in the server), and

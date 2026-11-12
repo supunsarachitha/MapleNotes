@@ -427,7 +427,10 @@ people made to their own sign-in: a new password, two-factor sign-in turned on o
 added or removed, a new recovery key, a different encryption mode, and signing out everywhere. Each entry has its time
 and the address it came from; choose **Failed sign-ins** to spot someone guessing passwords, or **Security changes**
 for people's own changes. Entries are kept for 180 days. Each entry is sealed together with the one before it, so an
-entry changed or deleted directly in the database can be found; whoever runs the server can also have every entry
-copied to the server's output as it happens.`,
+entry changed or deleted directly in the database can be found: **Check the log**, above the list, goes through every
+entry and says either that the log is intact or which entry was the first to be changed (or follows one that was
+deleted). Entries written before version 1.22 were not sealed and are counted separately. If the check finds a
+problem, keep a copy of the data folder before anything else changes. Whoever runs the server can also have every
+entry copied to the server's output as it happens.`,
   },
 ];

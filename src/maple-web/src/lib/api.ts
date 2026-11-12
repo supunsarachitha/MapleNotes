@@ -6,6 +6,7 @@ import type {
   Reminder,
   ReminderRepeat,
   AuditPage,
+  AuditVerification,
   Attachment,
   AttachmentWire,
   AuthStatus,
@@ -577,6 +578,8 @@ export const api = {
     users: () => request<AdminUser[]>("GET", "/api/v1/admin/users"),
     audit: (filter: AuditFilter, before?: number | null) =>
       request<AuditPage>("GET", `/api/v1/admin/audit?filter=${filter}&limit=50${before ? `&before=${before}` : ""}`),
+    /** Checks the audit log's hash chain and names the first entry that was changed or follows a deleted one. */
+    verifyAudit: () => request<AuditVerification>("GET", "/api/v1/admin/audit/verify"),
     updateUser: (id: string, changes: { isDisabled?: boolean; role?: UserRole; turnOffTwoFactor?: boolean }) =>
       request<void>("PATCH", `/api/v1/admin/users/${id}`, changes),
     deleteUser: (id: string) => request<void>("DELETE", `/api/v1/admin/users/${id}`),
