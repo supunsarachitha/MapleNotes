@@ -25,6 +25,7 @@ public sealed class ExportController(NoteExporter exporter) : ControllerBase
     /// <response code="400">An option is invalid (for example an unknown time zone).</response>
     /// <response code="409">The account has end-to-end encrypted content, which only the web app can export.</response>
     [HttpGet]
+    [RequiresRecentConfirmation]
     [Produces("application/zip")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]

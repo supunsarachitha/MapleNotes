@@ -331,6 +331,18 @@ note transaction, and a concurrent edit.
   unsent changes and saved key are forgotten too. The
   last-use time is written at most every five minutes. Rows that have ended are deleted at the account's next sign-in
   or device list. A cookie from before 1.22 gets a row on its first request, so the upgrade signs nobody out.
+- Step-up confirmation (`RecentConfirmation`, `ConfirmationService`): actions that take all the notes away or weaken
+  the account or the server are marked `[RequiresRecentConfirmation]` (the server export, the administrator's instance
+  settings and user changes and deletion, adding or removing a passkey, turning off two-factor sign-in and replacing the
+  recovery codes). They answer 403 with the problem `code` `confirmation_required` unless the session's
+  `ConfirmedAtUtc` is less than ten minutes old. A sign-in sets it; later, `POST /api/v1/auth/confirm` sets it with
+  exactly one of a password proof, an authenticator or recovery code (only with two-factor sign-in on), or a passkey's
+  answer to a challenge from `POST /api/v1/auth/confirm/passkey-options`, issued to this account for confirming and
+  checked with user verification. Wrong passwords and codes count toward the sign-in lockout. `GET /api/v1/auth/confirm`
+  says until when the session counts as confirmed. The confirmation belongs to one session, and rows made for cookies
+  from before 1.22 start without one. The filter is the attribute itself, so it runs after the controller's role check:
+  a member calling an administrator endpoint is refused as before, not asked to confirm. Requests that already carry a
+  password proof (passkeys, two-factor changes) still need it as well.
 - CSRF: `SameSite=Strict`, plus an antiforgery token in the `X-XSRF-TOKEN` header on every state-changing
   request. The export download is a GET that changes nothing, and a cross-site request never carries the
   SameSite=Strict cookie.

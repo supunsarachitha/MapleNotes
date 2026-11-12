@@ -57,6 +57,7 @@ public sealed class PasskeysController(PasskeyService passkeys, InstanceSettings
     /// <response code="201">Added.</response>
     /// <response code="400">The password is wrong, the challenge expired, or the passkey is not valid.</response>
     [HttpPost]
+    [RequiresRecentConfirmation]
     [AllowDuringEnrolment]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType<PasskeyResponse>(StatusCodes.Status201Created)]
@@ -122,6 +123,7 @@ public sealed class PasskeysController(PasskeyService passkeys, InstanceSettings
     /// <response code="400">The password is wrong.</response>
     /// <response code="404">The account has no such passkey.</response>
     [HttpDelete("{id:guid}")]
+    [RequiresRecentConfirmation]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]

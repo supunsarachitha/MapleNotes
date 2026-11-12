@@ -94,7 +94,7 @@ public static class UserPrincipal
             // here), so upgrading signs nobody out and the browser shows up in the device list.
             // The cookie is issued again at once rather than through sliding renewal, which skips tickets without
             // issue and expiry times; otherwise each request would start yet another session.
-            var session = await sessions.StartAsync(context.HttpContext, user, context.HttpContext.RequestAborted);
+            var session = await sessions.StartAsync(context.HttpContext, user, context.HttpContext.RequestAborted, confirmed: false);
             var migrated = Create(user, session.Id, principal.GetSessionKey());
             await context.HttpContext.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
