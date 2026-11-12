@@ -429,6 +429,20 @@ export interface AuditPage {
   nextCursor: number | null;
 }
 
+/** The result of checking the audit log's hash chain (administrators only). */
+export interface AuditVerification {
+  /** Whether every covered entry is unchanged and none is missing in between. */
+  intact: boolean;
+  checkedEntries: number;
+  /** Entries written before the chain started (before version 1.22), which it cannot vouch for. */
+  uncoveredEntries: number;
+  /** The first entry that was changed, or that follows a deleted one. */
+  firstBrokenId: number | null;
+  problem: string | null;
+  startedAtUtc: string | null;
+  prunedThroughId: number;
+}
+
 export interface AdminUser {
   id: string;
   username: string;

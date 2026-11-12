@@ -67,6 +67,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a deleted one. A migration adds the `Hash` column and an `AuditChainAnchor` table; entries from before the upgrade
   are counted as not covered and age out after 180 days. `MAPLE_AUDIT_STDOUT=true` also writes each entry to standard
   output as a JSON line, for syslog or a SIEM ([#129](https://github.com/supunsarachitha/MapleNotes/issues/129)).
+- **Check the log** above the audit log (Settings → Administration) runs that check and says either that the log is
+  intact, with how many entries were checked and how many predate the chain, or which entry was the first to be changed
+  or follows a deleted one ([#129](https://github.com/supunsarachitha/MapleNotes/issues/129)).
 
 ## [1.21.1] - 2026-11-07
 

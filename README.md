@@ -104,8 +104,8 @@
   administrators. An audit log shows sign-ins (made and refused, by password
   or passkey), changes people make to their own password, two-factor sign-in, passkeys, recovery key and encryption,
   and what administrators changed, for 180 days. Its entries are hash-chained under a key derived from the master key,
-  so an edit or deletion made directly in the database shows up, and they can also be written to standard output for
-  a log collector. Administrators never see anyone's notes.
+  so an edit or deletion made directly in the database shows up when an administrator presses **Check the log**, and
+  they can also be written to standard output for a log collector. Administrators never see anyone's notes.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
   in its own window, with the app's name and icon (or the ones an administrator chose).
