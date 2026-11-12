@@ -26,6 +26,9 @@ public sealed class PasskeyChallenges(TimeProvider time)
 
         /// <summary>Signing in.</summary>
         SignIn,
+
+        /// <summary>Confirming it is still the account's owner inside a session (step-up confirmation).</summary>
+        Confirm,
     }
 
     /// <summary>Issues a challenge.</summary>

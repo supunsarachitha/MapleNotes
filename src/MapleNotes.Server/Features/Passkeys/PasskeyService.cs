@@ -275,6 +275,64 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
         return (AccountResult.Success(user), passkey);
     }
 
+    /// <summary>Issues options for the signed-in account to confirm it is present with one of its passkeys.</summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="rpId">The RP ID.</param>
+    /// <param name="origin">The expected origin.</param>
+    /// <returns>The options.</returns>
+    public PasskeyRequestOptions ConfirmOptions(Guid userId, string rpId, string origin)
+    {
+        var (id, ceremony) = challenges.Issue(PasskeyChallenges.Purpose.Confirm, userId, rpId, origin);
+        return new PasskeyRequestOptions(id, ceremony.Challenge, rpId, TimeoutMs);
+    }
+
+    /// <summary>
+    /// Checks a passkey's answer to a confirmation challenge: the challenge must have been issued to this account for
+    /// confirming, and the passkey must be one of the account's, used with user verification.
+    /// </summary>
+    /// <param name="userId">The signed-in account.</param>
+    /// <param name="challengeId">The challenge handle.</param>
+    /// <param name="assertion">The answer.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>True when it confirms.</returns>
+    public async Task<bool> ConfirmAsync(Guid userId, string? challengeId, PasskeyAssertion assertion, CancellationToken cancellationToken)
+    {
+        var ceremony = challenges.Take(challengeId, PasskeyChallenges.Purpose.Confirm, userId);
+        if (ceremony is null || assertion.Id is not { Length: > 0 and <= Passkey.MaxCredentialIdBytes })
+        {
+            return false;
+        }
+
+        var passkey = await db.Passkeys.SingleOrDefaultAsync(p => p.CredentialId == assertion.Id && p.UserId == userId, cancellationToken);
+        if (passkey is null)
+        {
+            return false;
+        }
+
+        WebAuthn.AuthenticatorData data;
+        try
+        {
+            data = WebAuthn.VerifyAssertion(
+                ceremony, assertion.ClientDataJson ?? [], assertion.AuthenticatorData ?? [], assertion.Signature ?? [],
+                passkey.PublicKey, passkey.Algorithm);
+        }
+        catch (WebAuthnException)
+        {
+            return false;
+        }
+
+        if (!WebAuthn.CounterAdvanced(passkey.SignCount, data.SignCount))
+        {
+            return false;
+        }
+
+        passkey.SignCount = data.SignCount;
+        passkey.BackedUp = data.BackedUp;
+        passkey.LastUsedAtUtc = time.GetUtcNow().UtcDateTime;
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     /// <summary>The WebAuthn user handle of an account: its ID as 16 bytes, which says nothing about the person.</summary>
     /// <param name="userId">The account.</param>
     /// <returns>The handle.</returns>

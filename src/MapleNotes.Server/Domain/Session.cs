@@ -39,6 +39,13 @@ public sealed class Session
     /// <summary>A short description of the browser, such as "Firefox on Windows".</summary>
     public required string Device { get; set; }
 
+    /// <summary>
+    /// When the person last proved they are present in this session (the sign-in, or a password, passkey or
+    /// authenticator code given later), or null when they never did, as for sessions from before version 1.22.
+    /// Exports, administration and second-factor changes need one from the last few minutes.
+    /// </summary>
+    public DateTime? ConfirmedAtUtc { get; set; }
+
     /// <summary>The client's address last seen (after trusted proxies), or null when unknown.</summary>
     public string? IpAddress { get; set; }
 }

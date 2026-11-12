@@ -27,8 +27,12 @@ public sealed class SessionService(MapleDbContext db, InstanceSettingsService se
     /// <param name="http">The sign-in request (for the device description and address).</param>
     /// <param name="user">The account.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <param name="confirmed">
+    /// Whether the person just proved they are present (a sign-in). False for a session made for a cookie from before
+    /// version 1.22, which proves nothing about who holds it now.
+    /// </param>
     /// <returns>The new session.</returns>
-    public async Task<Session> StartAsync(HttpContext http, User user, CancellationToken cancellationToken)
+    public async Task<Session> StartAsync(HttpContext http, User user, CancellationToken cancellationToken, bool confirmed = true)
     {
         await PruneAsync(user, cancellationToken);
         var now = time.GetUtcNow().UtcDateTime;
@@ -38,6 +42,7 @@ public sealed class SessionService(MapleDbContext db, InstanceSettingsService se
             CreatedAtUtc = now,
             LastSeenAtUtc = now,
             ExpiresAtUtc = now.AddDays(options.SessionMaxDays),
+            ConfirmedAtUtc = confirmed ? now : null,
             SecurityStamp = user.SecurityStamp,
             Device = DeviceDescription.FromUserAgent(http.Request.Headers.UserAgent.ToString()),
             IpAddress = Truncate(http.Connection.RemoteIpAddress?.ToString(), Session.MaxIpAddressLength),
@@ -93,6 +98,34 @@ public sealed class SessionService(MapleDbContext db, InstanceSettingsService se
         }
 
         return true;
+    }
+
+    /// <summary>Records that the person just confirmed they are present in this session (step-up confirmation).</summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="sessionId">The session.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>Until when the confirmation counts, or null when the session no longer exists.</returns>
+    public async Task<DateTime?> ConfirmAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken)
+    {
+        var now = time.GetUtcNow().UtcDateTime;
+        var updated = await db.Sessions.Where(s => s.Id == sessionId && s.UserId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.ConfirmedAtUtc, now), cancellationToken);
+        return updated == 1 ? now + RecentConfirmation.Window : null;
+    }
+
+    /// <summary>Returns until when the session's last confirmation counts, or null when it has none that still does.</summary>
+    /// <param name="userId">The account.</param>
+    /// <param name="sessionId">The session.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The end of the confirmation window, or null.</returns>
+    public async Task<DateTime?> ConfirmedUntilAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken)
+    {
+        var confirmedAt = await db.Sessions.AsNoTracking()
+            .Where(s => s.Id == sessionId && s.UserId == userId)
+            .Select(s => s.ConfirmedAtUtc)
+            .SingleOrDefaultAsync(cancellationToken);
+        var until = confirmedAt + RecentConfirmation.Window;
+        return until > time.GetUtcNow().UtcDateTime ? until : null;
     }
 
     /// <summary>Lists the account's live sessions, newest use first, after clearing the ones that have ended.</summary>

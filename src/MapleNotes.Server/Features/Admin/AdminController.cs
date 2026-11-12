@@ -46,6 +46,7 @@ public sealed class AdminController(
     /// <response code="409">The second-factor rule would cover the administrator saving it, who has no second factor
     /// yet.</response>
     [HttpPut("settings")]
+    [RequiresRecentConfirmation]
     [ProducesResponseType<InstanceSettingsResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
@@ -143,6 +144,7 @@ public sealed class AdminController(
     /// <response code="409">Administrators cannot disable or demote themselves, nor turn off two-factor sign-in for an
     /// account the second-factor rule covers that has no passkey.</response>
     [HttpPatch("users/{id:guid}")]
+    [RequiresRecentConfirmation]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
@@ -166,6 +168,7 @@ public sealed class AdminController(
     /// <response code="404">No such account.</response>
     /// <response code="409">Administrators delete their own account from their settings.</response>
     [HttpDelete("users/{id:guid}")]
+    [RequiresRecentConfirmation]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]

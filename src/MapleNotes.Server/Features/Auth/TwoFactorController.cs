@@ -70,6 +70,7 @@ public sealed class TwoFactorController(TwoFactorService twoFactor, AuditLog aud
     /// <response code="204">Two-factor sign-in is off.</response>
     /// <response code="400">The password or code is wrong, or it is already off.</response>
     [HttpDelete]
+    [RequiresRecentConfirmation]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -87,6 +88,7 @@ public sealed class TwoFactorController(TwoFactorService twoFactor, AuditLog aud
     /// <response code="200">The new codes.</response>
     /// <response code="400">The password or code is wrong, or two-factor sign-in is off.</response>
     [HttpPost("recovery-codes")]
+    [RequiresRecentConfirmation]
     [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [ProducesResponseType<RecoveryCodesResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]

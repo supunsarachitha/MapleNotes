@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the master key, so a copy of the disk or a backup without the master key reveals no file in any mode. Files stored
   as plaintext by earlier versions are encrypted by the background migration after the upgrade; it resumes where it
   stopped if the server restarts. Downloads and range requests work as before [#130](https://github.com/supunsarachitha/MapleNotes/issues/130).
+- Exporting notes on the server, administrator actions (instance settings, role changes, disabling or deleting
+  accounts, turning off another account's two-factor sign-in), adding or removing a passkey, turning off two-factor
+  sign-in and replacing recovery codes now need a confirmation from the last ten minutes of the same session: the
+  sign-in, or the password, a passkey or an authenticator code given again through the new `POST /api/v1/auth/confirm`.
+  Without one these requests answer 403 with `code: "confirmation_required"`; a new `ConfirmedAtUtc` column in the
+  `Sessions` table records it. Sessions signed in before the upgrade confirm once before such an action
+  ([#132](https://github.com/supunsarachitha/MapleNotes/issues/132)).
 
 ### Added
 
