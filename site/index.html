@@ -219,7 +219,8 @@
         <p class="section-lead">
           You need Docker and a <a href="#master-key">master key</a>. Ready-made images for amd64 and arm64 are
           published at <code>ghcr.io/supunsarachitha/maplenotes</code>, signed by the project's CI and shipped with
-          an SBOM.
+          an SBOM. Each release also publishes a signed list of the web app's file hashes, and a script checks that an
+          instance serves exactly those files.
         </p>
         <div class="install">
           <article class="card">

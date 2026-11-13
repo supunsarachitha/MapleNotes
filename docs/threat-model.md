@@ -77,8 +77,17 @@ password or the unlocked key elsewhere.
   captures the password at the next sign-in or unlock, or the unlocked key of an open session.
 - **What end-to-end encryption still gives:** content that was stored before the takeover, of users who do not sign
   in or unlock while it lasts, stays unreadable. So do accounts whose owners notice and stop using the instance.
-- This is the main limit of end-to-end encryption in any web app. Maple Notes does not publish build hashes or offer
-  a way to verify the code a browser receives. Guard the server itself (see [Recommendations](#recommendations)).
+- **Checking for it:** each release publishes `build-manifest.json`, the SHA-256 hash of every web app file, taken
+  from the published image and signed by CI with cosign (keyless; the certificate names the workflow and tag).
+  `scripts/verify-instance.py` fetches every listed file from an instance and compares it with the signed manifest.
+  It runs outside the browser, so the server cannot influence the result, but it only shows what the instance served
+  to that client at that moment: a server can serve the genuine files to the check and modified ones to a chosen user.
+  The in-app **Verify this app** (Settings → About) compares the loaded files with the instance's own manifest. It
+  catches changes made on the way (a proxy, an extension, a half-finished upgrade) but not a server that changes the
+  app on purpose, which can change this page too; the page says so.
+- This is the main limit of end-to-end encryption in any web app: there is no check on every page load. A browser
+  extension that checks automatically is not available. Guard the server itself (see
+  [Recommendations](#recommendations)).
 
 A malicious server can also withhold, delete or roll back data without breaking the encryption. Each note, tag name,
 label name, file and wrapped key is authenticated and bound to its account and ID, so the server cannot swap one item

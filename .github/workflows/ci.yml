@@ -42,6 +42,21 @@ jobs:
           npm test
           npm run build
 
+      # The build manifest (dist/build-manifest.json) lists a SHA-256 hash per web app file, so that anyone can check
+      # an instance against a release. That only works if a commit always builds to the same files: build again and
+      # compare.
+      - name: Web app — reproducible build
+        working-directory: src/maple-web
+        run: |
+          cp dist/build-manifest.json "$RUNNER_TEMP/first-build.json"
+          npm run build
+          diff "$RUNNER_TEMP/first-build.json" dist/build-manifest.json
+
+      - name: Instance check script
+        env:
+          MAPLE_DIST: src/maple-web/dist
+        run: python3 -m unittest discover -s scripts -p "test_*.py"
+
       - name: Dependency licenses
         run: python3 scripts/check-licenses.py
 
@@ -110,3 +125,57 @@ jobs:
         env:
           IMAGE: ghcr.io/${{ github.repository_owner }}/maplenotes@${{ needs.container.outputs.digest }}
         run: cosign sign --yes "$IMAGE"
+
+  web-manifest:
+    name: Attach the signed web app manifest to the release
+    runs-on: ubuntu-24.04
+    needs: [container, sign]
+    # Release tags only. The manifest is taken from the published image itself, so it describes exactly the files every
+    # instance of this release serves. It is signed the same way as the image (keyless, logged in Sigstore's
+    # transparency log) and attached to the GitHub release with its signature bundle; scripts/verify-instance.py and
+    # Settings → About compare an instance against it.
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write # create the release and upload its files
+      packages: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # The web app is built once for every platform (the Dockerfile's web stage runs on the build platform), so the
+      # amd64 image holds the same files as the arm64 one.
+      - name: Copy the web app out of the image
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/maplenotes@${{ needs.container.outputs.digest }}
+        run: |
+          docker pull --platform linux/amd64 "$IMAGE"
+          container=$(docker create --platform linux/amd64 "$IMAGE")
+          docker cp "$container:/app/wwwroot" "$RUNNER_TEMP/wwwroot"
+          docker rm "$container"
+      # Hash the files again rather than trusting the copy inside the image, and stop if they disagree.
+      - name: Check the manifest against the files
+        run: |
+          mkdir -p "$RUNNER_TEMP/release"
+          cp "$RUNNER_TEMP/wwwroot/build-manifest.json" "$RUNNER_TEMP/release/build-manifest.json"
+          node src/maple-web/scripts/build-manifest.mjs "$RUNNER_TEMP/wwwroot"
+          diff "$RUNNER_TEMP/release/build-manifest.json" "$RUNNER_TEMP/wwwroot/build-manifest.json"
+          grep -q "\"version\": \"${GITHUB_REF_NAME#v}\"" "$RUNNER_TEMP/release/build-manifest.json"
+      - name: Sign
+        working-directory: ${{ runner.temp }}/release
+        run: cosign sign-blob --yes --bundle build-manifest.json.sigstore.json build-manifest.json
+      - name: Attach to the release
+        working-directory: ${{ runner.temp }}/release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" \
+              --notes "See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/CHANGELOG.md). The web app's signed build manifest is attached; see \"Checking the web app\" in the README."
+          fi
+          gh release upload "$TAG" build-manifest.json build-manifest.json.sigstore.json --repo "$GITHUB_REPOSITORY" --clobber

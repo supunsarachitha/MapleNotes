@@ -109,6 +109,8 @@
   and what administrators changed, for 180 days. Its entries are hash-chained under a key derived from the master key,
   so an edit or deletion made directly in the database shows up when an administrator presses **Check the log**, and
   they can also be written to standard output for a log collector. Administrators never see anyone's notes.
+- **Checkable releases.** Each release publishes a signed list of the web app's file hashes, and a script checks
+  that an instance serves exactly those files; Settings → About runs a quick version of the check in the browser.
 - **Mobile first.** Responsive design, keyboard shortcuts, and accessible menus and dialogs.
 - **Install it as an app.** Add Maple Notes to your phone's home screen, or install it on your computer, and it opens
   in its own window, with the app's name and icon (or the ones an administrator chose).
@@ -318,6 +320,32 @@ docker buildx imagetools inspect ghcr.io/supunsarachitha/maplenotes:latest --for
 
 The base images in the `Dockerfile` are pinned by digest, so a release always builds from the same upstream images
 until a commit here changes them.
+
+### Checking the web app
+
+With end-to-end encryption your notes are safe from the server, but the browser still loads the app's code from it.
+To check that an instance delivers the genuine app, each release on GitHub carries `build-manifest.json`, the SHA-256
+hash of every file of the web app, taken from the published image and signed by CI. Every instance serves its own copy
+at `/build-manifest.json`. Download the release's manifest and its bundle, check the signature, then compare the
+instance's files with it:
+
+```sh
+cosign verify-blob build-manifest.json --bundle build-manifest.json.sigstore.json \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/supunsarachitha/MapleNotes/\.github/workflows/ci\.yml@refs/tags/v[0-9.]+$'
+python3 scripts/verify-instance.py https://notes.example.com --manifest build-manifest.json
+```
+
+The script (standard Python 3, no packages) fetches every listed file from the instance, compares the hashes, and
+exits with 0 when all match and 1 when any file differs, is missing or is listed by the instance but not the release.
+Without `--manifest` it downloads the manifest of the version the instance names from GitHub, without checking the
+signature. The build is reproducible: CI builds the web app twice and fails if the hashes differ.
+
+Settings → About also has **Verify this app**, which compares the files the browser loaded with the instance's manifest
+and shows the manifest's SHA-256, to compare with the digest GitHub shows for the release's `build-manifest.json`. It
+catches files changed on the way, for example by a proxy or an extension, but a server that was taken over can fake
+it, since it also delivers that page. Run the script for the real test, from a computer you trust, after an upgrade or
+whenever something looks wrong.
 
 ### Portainer
 
@@ -696,6 +724,7 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
 | New-device sign-ins | A sign-in from a browser and network the account has not used in 90 days sends a push notification (no note content) to the account's devices that have notifications on, shows a banner in the app on its other devices until dismissed, and is marked **New device** in the device list. |
 | Web | Strict Content-Security-Policy, antiforgery tokens, API responses never cached by the browser, and uploaded files never run as web content. |
 | Images | Base images pinned by digest. Published images are signed by CI (cosign, keyless) and carry an SBOM and build provenance; see [Checking an image](#checking-an-image). |
+| Web app | Each release publishes a signed list of the web app's file hashes; `scripts/verify-instance.py` checks an instance against it from outside the browser. See [Checking the web app](#checking-the-web-app). |
 
 **What this protects:**
 - Anyone who gets a copy of your disk, volume or backups without the master key sees only ciphertext.
@@ -710,7 +739,9 @@ With `docker compose`, put these in `.env`; `docker-compose.yml` passes the comm
   or knows the master key, can read the data.
 - End-to-end encryption still trusts the server to deliver honest code to your browser. Someone who takes over the
   server could serve a modified web app that captures your password the next time you sign in. It protects the data
-  the server stores, not a session with a server that is already compromised.
+  the server stores, not a session with a server that is already compromised. Checking the instance against the
+  release's signed file list ([Checking the web app](#checking-the-web-app)) shows whether it serves the genuine app
+  at the time of the check, not on every visit.
 - If you lose both your password and your recovery key, end-to-end encrypted notes cannot be recovered by anyone.
 
 Details: [docs/threat-model.md](docs/threat-model.md), [docs/architecture.md](docs/architecture.md#cryptography) and

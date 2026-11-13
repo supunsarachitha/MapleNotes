@@ -46,6 +46,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Every build of the web app writes `build-manifest.json`, the SHA-256 hash of each of its files, and every instance
+  serves it at `/build-manifest.json`. Release builds attach it to the GitHub release, taken from the published image
+  and signed by CI with cosign (keyless, like the image), together with its signature bundle. The new
+  `scripts/verify-instance.py` downloads every listed file from an instance and compares it with the release's
+  manifest, outside the browser, so it can tell whether an instance serves the genuine app. Settings → About shows the
+  version and has **Verify this app**, which compares the files the browser loaded with the manifest; it says plainly
+  that a server that was taken over could fake that check too. CI now builds the web app twice and fails if the
+  hashes differ [#131](https://github.com/supunsarachitha/MapleNotes/issues/131).
 - Sessions are now kept on the server (a new `Sessions` table). "Sign out" ends the session there too, so a copy of
   the cookie stops working, and the key saved for the session can no longer be opened. Every session ends 90 days
   after its sign-in, however often it is used (`MAPLE_SESSION_MAX_DAYS`); the session length administrators choose

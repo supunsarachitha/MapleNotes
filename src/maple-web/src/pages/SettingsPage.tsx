@@ -14,9 +14,11 @@ import {
   Tag,
   FileStack,
   Trash2,
+  Info,
   type LucideIcon,
 } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
+import { AboutSection } from "../components/AboutSection";
 import { AuditLogSection } from "../components/AuditLogSection";
 import { BrandMark } from "../components/BrandMark";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -1046,6 +1048,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "data", title: "Backup & data", summary: "Export, restore, the trash and starting over.", icon: DatabaseBackup },
   { id: "security", title: "Privacy & security", summary: "Your password, two-factor sign-in, encryption, recovery key and sessions.", icon: ShieldCheck },
   { id: "admin", title: "Administration", summary: "Accounts, sign-ups, storage, this server's name and the audit log.", icon: Server, adminOnly: true },
+  { id: "about", title: "About", summary: "Which version this is, and checking that your browser got the genuine app.", icon: Info },
 ];
 
 function SectionContent({ id, user }: { id: string; user: User }) {
@@ -1087,6 +1090,8 @@ function SectionContent({ id, user }: { id: string; user: User }) {
           <SessionsSection />
         </>
       );
+    case "about":
+      return <AboutSection />;
     case "admin":
       return (
         <>
