@@ -306,6 +306,11 @@ devices.
   marking the one you are using, and when each signed in and was last used. **Sign out** next to one ends that session
   only: a copy of its cookie stops working too. Every session ends 90 days after its sign-in, however often it is used.
 - **Lost a device?** Sign it out from the list, or use **Sign out everywhere** to end every session at once.
+- **New sign-ins.** When your account signs in from a browser or network it has not used in the last 90 days, your
+  other devices show a banner: "New sign-in on <device>, <time>. Not you? Sign out everywhere." Devices with
+  notifications on also get a notification (it never contains your notes). Choose **It was me** to dismiss it on every
+  device, or **Sign out everywhere** if it was not you, then sign in again and change your password. The list above
+  marks such a session **New device**. The very first sign-in of an account raises no notice.
 - **Confirm it is you.** Exporting your notes, an administrator's changes, adding or removing a passkey, turning off
   two-factor sign-in and new recovery codes ask you to confirm it is you, unless you signed in or confirmed in the last
   10 minutes on this device: enter your password, a code from your authenticator app, or use a passkey, and the change

@@ -15,7 +15,9 @@ namespace MapleNotes.Server.Features.Auth;
 /// <param name="settings">Instance settings (the idle session length).</param>
 /// <param name="options">Server options (the absolute session lifetime).</param>
 /// <param name="time">Clock.</param>
-public sealed class SessionService(MapleDbContext db, InstanceSettingsService settings, MapleOptions options, TimeProvider time)
+/// <param name="devices">Remembers the devices signed in from, for new-device notices.</param>
+public sealed class SessionService(
+    MapleDbContext db, InstanceSettingsService settings, MapleOptions options, TimeProvider time, SignInDevices devices)
 {
     /// <summary>
     /// How stale the "last seen" time may get before a request writes it again: one write per few minutes instead of
@@ -31,7 +33,7 @@ public sealed class SessionService(MapleDbContext db, InstanceSettingsService se
     /// Whether the person just proved they are present (a sign-in). False for a session made for a cookie from before
     /// version 1.22, which proves nothing about who holds it now.
     /// </param>
-    /// <returns>The new session.</returns>
+    /// <returns>The new session (marked when it is from a new device).</returns>
     public async Task<Session> StartAsync(HttpContext http, User user, CancellationToken cancellationToken, bool confirmed = true)
     {
         await PruneAsync(user, cancellationToken);
@@ -47,8 +49,10 @@ public sealed class SessionService(MapleDbContext db, InstanceSettingsService se
             Device = DeviceDescription.FromUserAgent(http.Request.Headers.UserAgent.ToString()),
             IpAddress = Truncate(http.Connection.RemoteIpAddress?.ToString(), Session.MaxIpAddressLength),
         };
+        await devices.RecordAsync(user, session, http.Connection.RemoteIpAddress, confirmed, cancellationToken);
         db.Sessions.Add(session);
         await db.SaveChangesAsync(cancellationToken);
+        await devices.NotifyAsync(session, cancellationToken);
         return session;
     }
 

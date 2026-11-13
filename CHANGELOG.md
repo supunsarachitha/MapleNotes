@@ -56,6 +56,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings → Privacy & security lists the browsers and devices signed in to the account, with this one marked, when
   each signed in and was last used, and a **Sign out** button on each, so a lost device can be signed out on its own
   without ending every session ([#124](https://github.com/supunsarachitha/MapleNotes/issues/124)).
+- A sign-in from a browser and network (an IPv4 /24 or IPv6 /48) the account has not signed in from in the last 90
+  days is pointed out: a push notification without note content goes to the account's devices with notifications on,
+  the app shows "New sign-in on <device>, <time>. Not you? Sign out everywhere." on its other devices until someone
+  chooses **It was me** or signs out everywhere, and the device list marks the session **New device**. The first
+  sign-in of an account, and sessions from before the upgrade, raise no notice. A new `KnownDevices` table keeps the
+  device description and network for 90 days; `GET /api/v1/auth/sign-in-notices` and
+  `POST /api/v1/auth/sign-in-notices/{id}/dismiss` serve the banner, and sessions gain `newDevice`
+  ([#133](https://github.com/supunsarachitha/MapleNotes/issues/133)).
 - Administrators can require two-factor sign-in or a passkey for administrators or for everyone (a new
   `requireSecondFactor` instance setting: `Off`, `Administrators` or `Everyone`; `Off` by default, so upgrading locks
   nobody out). An account the rule covers that has neither can still sign in, but can only set one up or sign out

@@ -46,6 +46,9 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
     /// <summary>Signed-in browsers and devices.</summary>
     public DbSet<Session> Sessions => Set<Session>();
 
+    /// <summary>Browsers and networks each account signed in from recently (new-device sign-in notices).</summary>
+    public DbSet<KnownDevice> KnownDevices => Set<KnownDevice>();
+
     /// <summary>Reminders on notes.</summary>
     public DbSet<NoteReminder> NoteReminders => Set<NoteReminder>();
 
@@ -201,6 +204,15 @@ public sealed class MapleDbContext(DbContextOptions<MapleDbContext> options) : D
             session.Property(s => s.SecurityStamp).HasMaxLength(64);
             session.Property(s => s.Device).HasMaxLength(Session.MaxDeviceLength);
             session.Property(s => s.IpAddress).HasMaxLength(Session.MaxIpAddressLength);
+        });
+
+        modelBuilder.Entity<KnownDevice>(device =>
+        {
+            device.ToTable("KnownDevices");
+            device.HasOne<User>().WithMany().HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+            device.HasIndex(d => new { d.UserId, d.Device, d.Network });
+            device.Property(d => d.Device).HasMaxLength(Session.MaxDeviceLength);
+            device.Property(d => d.Network).HasMaxLength(KnownDevice.MaxNetworkLength);
         });
 
         modelBuilder.Entity<NoteReminder>(reminder =>

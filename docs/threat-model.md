@@ -224,6 +224,12 @@ every entry to standard output as it happens, so a log collector holds a copy th
   sign-in for a covered account that has no passkey, and cannot switch the rule on without a second factor of their
   own. An administrator can still change the rule or the account's role first; both are in the audit log. The rule
   is enforced by the server, so a compromised server can ignore it; it protects sign-in, not end-to-end content.
+- **New-device notices:** a sign-in from a browser and network the account has not used in 90 days is pointed out on
+  the owner's other devices (a push notification and a banner, with "Sign out everywhere" one tap away), so a stolen
+  password that is used is likely to be noticed. It detects, it does not prevent: the session works until someone
+  signs it out, an attacker who copies the device description and signs in from the owner's network is not flagged,
+  and an owner with no other device and notifications off sees it only in the device list. The notice is decided by
+  the server, so a compromised server can suppress it.
 - Two-factor sign-in protects sign-in, not content: end-to-end encryption still rests on the password alone, and a
   compromised server gains nothing from the code. The same holds for a passkey that only signs in.
 - Unknown usernames receive the same answer as real ones (default parameters and a stable pseudo-salt), so they
@@ -264,6 +270,7 @@ accepts only this server's messages for its subscriptions.
 | Visible to the server | Hidden from it |
 |---|---|
 | Usernames, sign-in times, IP addresses | Note text |
+| A short description of each signed-in browser ("Firefox on Windows") and, for new-device notices, the networks (IPv4 /24, IPv6 /48) each account signed in from in the last 90 days | |
 | Number of notes and files, and when each was created and updated (also encoded in their IDs) | Tag names and label names |
 | Approximate length of each note and exact size of each file (ciphertext is not padded) | File names, types and contents |
 | Which notes are pinned, archived or in the trash (and when they were deleted), and which files belong to which note | Search queries |

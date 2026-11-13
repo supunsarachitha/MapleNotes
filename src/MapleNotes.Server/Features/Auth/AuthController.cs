@@ -36,12 +36,13 @@ namespace MapleNotes.Server.Features.Auth;
 /// <param name="audit">The audit log (sign-ins and administrators' actions).</param>
 /// <param name="sessions">The server-side sessions (signed-in devices).</param>
 /// <param name="secondFactor">The second-factor rule.</param>
+/// <param name="devices">Sign-ins from new devices.</param>
 [ApiController]
 [Route("api/v1/auth")]
 [Produces("application/json")]
 public sealed class AuthController(
     AccountService accounts, InstanceSettingsService instanceSettings, IAntiforgery antiforgery, TimeProvider time, MapleOptions options,
-    AuditLog audit, SessionService sessions, SecondFactorPolicy secondFactor)
+    AuditLog audit, SessionService sessions, SecondFactorPolicy secondFactor, SignInDevices devices)
     : ControllerBase
 {
     /// <summary>Returns the visitor's sign-in state and what the instance allows.</summary>
@@ -288,6 +289,7 @@ public sealed class AuthController(
     {
         await accounts.RevokeSessionsAsync(User.GetUserId(), cancellationToken);
         await sessions.EndAllAsync(User.GetUserId(), cancellationToken);
+        await devices.DismissAllAsync(User.GetUserId(), cancellationToken);
         await audit.RecordAsync(AuditEvent.SignedOutEverywhere, User.Identity?.Name, "Signed out of every browser and device.", cancellationToken);
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return NoContent();
@@ -336,6 +338,33 @@ public sealed class AuthController(
 
         return NoContent();
     }
+
+    /// <summary>
+    /// Lists sign-ins from new devices the owner has not dismissed yet, for the banner shown when the app opens. The
+    /// session asking is left out, so a new device is not warned about itself.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The notices, newest first.</returns>
+    /// <response code="200">The notices (never cached).</response>
+    [HttpGet("sign-in-notices")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<IReadOnlyList<SignInNoticeResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<SignInNoticeResponse>>> SignInNotices(CancellationToken cancellationToken) =>
+        Ok(await devices.PendingAsync(User.GetUserId(), User.GetSessionId(), cancellationToken));
+
+    /// <summary>Dismisses a new-device notice ("It was me"); it then shows on none of the account's devices.</summary>
+    /// <param name="id">The notice.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>No content.</returns>
+    /// <response code="204">The notice was dismissed.</response>
+    /// <response code="404">The account has no such pending notice.</response>
+    [HttpPost("sign-in-notices/{id:guid}/dismiss")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DismissSignInNotice(Guid id, CancellationToken cancellationToken) =>
+        await devices.DismissAsync(User.GetUserId(), id, cancellationToken)
+            ? NoContent()
+            : Problem(statusCode: StatusCodes.Status404NotFound, title: "That notice has already been dismissed.");
 
     /// <summary>The answer to a sign-in refused because of repeated failures, with a Retry-After header.</summary>
     /// <param name="controller">The controller answering.</param>

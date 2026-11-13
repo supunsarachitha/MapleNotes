@@ -8,6 +8,9 @@ export interface PushPayload {
   tag?: string | null;
 }
 
+/** The tag of the message about a sign-in from a new device (Features/Auth/SignInDevices.cs); it opens the device list. */
+export const NEW_SIGN_IN_TAG = "new-sign-in";
+
 /** Reads a push message; anything unreadable still shows, so the browser never counts a silent push. */
 export function readPayload(text: string | null | undefined): PushPayload {
   try {
@@ -28,7 +31,7 @@ export function notificationFor(payload: PushPayload): { title: string; options:
       tag: payload.tag ?? undefined,
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
-      data: { url: openUrl(payload.noteId) },
+      data: { url: payload.tag === NEW_SIGN_IN_TAG ? "/settings/security" : openUrl(payload.noteId) },
     },
   };
 }
