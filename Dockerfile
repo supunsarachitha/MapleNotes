@@ -44,7 +44,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra@sha256:a9298ccc39
 
 LABEL org.opencontainers.image.title="Maple Notes" \
       org.opencontainers.image.description="Self-hosted micro-note taking, encrypted at rest or end to end" \
-      org.opencontainers.image.version="1.21.1" \
+      org.opencontainers.image.version="1.22.0" \
       org.opencontainers.image.source="https://github.com/supunsarachitha/MapleNotes" \
       org.opencontainers.image.licenses="PolyForm-Noncommercial-1.0.0"
 

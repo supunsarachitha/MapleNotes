@@ -799,6 +799,28 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.21 to 1.22
+
+Nothing to do for most installations: everyone stays signed in, and the new rules are off until an administrator turns
+them on. The migrations add a `Sessions` table, a `KnownDevices` table, an `AuditChainAnchor` table and a `Hash` column
+on the audit log. Each session from before the upgrade keeps working and gets a server record on its first request; its
+90 days (`MAPLE_SESSION_MAX_DAYS`) count from then, and it is asked to confirm once (password, code or passkey) before
+an export, an administrator action or a second-factor change. Such sessions raise no new-device notice. Attachment
+files of accounts with encryption off are encrypted by a background migration after the start; it resumes after a
+restart. Audit entries from before the upgrade are not covered by the new hash chain and age out after 180 days.
+
+New settings: **Require two-factor sign-in or a passkey for** in Settings → Administration (Nobody by default), and
+the optional `MAPLE_SESSION_MAX_DAYS` (default 90) and `MAPLE_AUDIT_STDOUT` environment variables. If you deploy with
+`deploy/portainer-stack-npm.yml`, set the new stack variables `NPM_NETWORK` and `MAPLE_TRUSTED_PROXIES` and point the
+Proxy Host at `maple-notes`, port 8080; with `deploy/portainer-stack-https.yml`, set `MAPLE_HOSTNAME` to the address
+Caddy should serve.
+
+For API clients: protected actions answer 403 with `code: "confirmation_required"` until `POST /api/v1/auth/confirm`
+succeeds, and accounts the second-factor rule covers get 403 `second_factor_enrolment_required` until they set one up.
+New endpoints: `GET /api/v1/auth/sessions`, `DELETE /api/v1/auth/sessions/{id}`, `GET /api/v1/auth/confirm`,
+`POST /api/v1/auth/confirm/passkey-options`, `GET /api/v1/auth/sign-in-notices`,
+`POST /api/v1/auth/sign-in-notices/{id}/dismiss` and `GET /api/v1/admin/audit/verify`. Nothing was removed.
+
 ### From 1.20 to 1.21
 
 Nothing to do: no migration and no new settings. Ticking a todo item now moves it to the bottom of its list (and saves
