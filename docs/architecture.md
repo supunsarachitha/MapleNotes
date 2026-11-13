@@ -644,6 +644,26 @@ then truncates the write-ahead log, so the space goes back to the volume. One co
 - `X-Forwarded-*` headers are honoured only from `MAPLE_TRUSTED_PROXIES`.
 - `/healthz` verifies that the database can actually be decrypted, not just opened.
 
+## Build manifest
+
+`npm run build` ends with `scripts/build-manifest.mjs`, which writes `dist/build-manifest.json`: the version and the
+SHA-256 hash of every file the build wrote (including `index.html` and `sw.js`, not the manifest itself), sorted and
+without dates, so a commit always yields the same manifest. The server serves it like any other file of the app,
+revalidated on every request. The service worker builds its list of files before the manifest exists, so it never
+caches it.
+
+CI builds the web app twice and fails if the manifests differ. On release tags, the `web-manifest` job copies
+`/app/wwwroot` out of the published image, hashes the files again and checks them against the copy inside, signs the
+manifest with `cosign sign-blob` (keyless, the same identity as the image) and attaches it and its bundle to the
+GitHub release, creating the release when it does not exist.
+
+`scripts/verify-instance.py` (standard library only, tested in CI by `scripts/test_verify_instance.py` against the real
+build) fetches every file in a release manifest from an instance and compares the hashes, and reports files the
+instance's own manifest lists that the release does not. In the app, `lib/verifyApp.ts` (Settings → About) does the
+same against the instance's manifest, fetching the files as the page did, so the long-cached assets come from the
+browser's cache or the service worker, and adds the same-origin scripts and styles the page loaded that the manifest
+does not list.
+
 ## Testing
 
 - **Server:** over 340 xUnit test methods.

@@ -285,7 +285,13 @@ security](/settings/security) you choose how much more protection your own notes
 
 When you turn on end-to-end encryption you get a **recovery key**. Save it somewhere safe, such as a password
 manager or on paper. It is the only way back in if you forget your password; without the password or the recovery
-key, nobody can recover your notes. On a new device, you unlock your notes by entering your password.`,
+key, nobody can recover your notes. On a new device, you unlock your notes by entering your password.
+
+End-to-end encryption keeps your notes safe from the server, but your browser still loads the app from it. **Verify
+this app** in [Settings → About](/settings/about) compares the files your browser loaded with the list published for
+this version. It finds files changed on the way, but a server that was taken over could fake it too. Whoever runs the
+server, or anyone you trust, can run the stronger check from the README, "Checking the web app", which compares the
+server's files with the signed list of the release on GitHub.`,
   },
   {
     id: "account",

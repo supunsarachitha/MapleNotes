@@ -69,7 +69,7 @@ describe("Settings", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeInTheDocument();
     expect(sections.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
       "/settings/account", "/settings/appearance", "/settings/menu", "/settings/writing", "/settings/notes", "/settings/notifications", "/settings/labels",
-      "/settings/data", "/settings/security",
+      "/settings/data", "/settings/security", "/settings/about",
     ]); // no Administration for members
     expect(screen.getByRole("heading", { name: "Profile" })).toBeInTheDocument();
 
