@@ -3,6 +3,7 @@ import type {
   AuditFilter,
   PushDevice,
   SignedInSession,
+  SignInNotice,
   Reminder,
   ReminderRepeat,
   AuditPage,
@@ -321,6 +322,10 @@ export const api = {
 
   /** Signs another browser or device out (this one signs out with logout). */
   endSession: (id: string) => request<void>("DELETE", `/api/v1/auth/sessions/${id}`),
+  /** Sign-ins from new devices not dismissed yet; this browser's own is left out. */
+  signInNotices: () => request<SignInNotice[]>("GET", "/api/v1/auth/sign-in-notices"),
+  /** Dismisses a new-device notice on every device ("It was me"). */
+  dismissSignInNotice: (id: string) => request<void>("POST", `/api/v1/auth/sign-in-notices/${id}/dismiss`),
 
   async signOutEverywhere(): Promise<void> {
     await request<void>("POST", "/api/v1/auth/sign-out-everywhere");

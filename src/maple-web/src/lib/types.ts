@@ -393,6 +393,8 @@ export interface SignedInSession {
   expiresAtUtc: string;
   /** Whether this is the browser making the request. */
   current: boolean;
+  /** Whether it signed in from a browser and network the account had not used in the last 90 days. */
+  newDevice: boolean;
 }
 
 export interface PushDevice {
@@ -568,4 +570,12 @@ export interface ProblemDetails {
   twoFactorRequired?: boolean;
   /** A machine-readable reason, such as {@link SECOND_FACTOR_ENROLMENT_REQUIRED}. */
   code?: string;
+}
+
+/** A sign-in from a new device that the owner has not dismissed yet (shown as a banner). */
+export interface SignInNotice {
+  id: string;
+  /** A short description such as "Safari on iOS". */
+  device: string;
+  atUtc: string;
 }

@@ -18,6 +18,7 @@ import { Calendar } from "./Calendar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { BrandMark } from "./BrandMark";
 import { LabelDot } from "./Labels";
+import { SignInNotices } from "./SignInNotices";
 import { useToast } from "./Toaster";
 import { IconButton, cn } from "./ui";
 
@@ -325,6 +326,7 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
           </div>
           <div className={cn("mx-auto", wide ? "max-w-4xl" : "max-w-2xl")}>
             <OfflineNotice />
+            <SignInNotices />
             {children}
           </div>
         </main>

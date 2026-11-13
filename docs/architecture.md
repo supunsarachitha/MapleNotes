@@ -331,6 +331,13 @@ note transaction, and a concurrent edit.
   unsent changes and saved key are forgotten too. The
   last-use time is written at most every five minutes. Rows that have ended are deleted at the account's next sign-in
   or device list. A cookie from before 1.22 gets a row on its first request, so the upgrade signs nobody out.
+- New-device notices (`KnownDevices` table, `SignInDevices`): each sign-in records its device description and network
+  (the client address cut to an IPv4 /24 or IPv6 /48, so an address that changes inside one home or mobile network
+  is not new). A pair not seen on the account in the last 90 days, on an account that already had a device, marks the
+  session `newDevice`, sends a push message without note content to the account's subscriptions (a failing push
+  service never fails the sign-in), and leaves a pending notice that `GET /api/v1/auth/sign-in-notices` returns to
+  every other session until `POST .../{id}/dismiss` or "sign out everywhere". Sessions made for pre-1.22 cookies and
+  the account's first sign-in are recorded without a notice. Rows not used for 90 days are deleted at the next sign-in.
 - Step-up confirmation (`RecentConfirmation`, `ConfirmationService`): actions that take all the notes away or weaken
   the account or the server are marked `[RequiresRecentConfirmation]` (the server export, the administrator's instance
   settings and user changes and deletion, adding or removing a passkey, turning off two-factor sign-in and replacing the

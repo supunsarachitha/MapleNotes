@@ -604,11 +604,11 @@ describe("signed-in devices", () => {
   const sessions: SignedInSession[] = [
     {
       id: "s-here", device: "Firefox on Linux", ipAddress: "203.0.113.5", createdAtUtc: "2026-11-01T08:00:00Z",
-      lastSeenAtUtc: "2026-11-10T08:00:00Z", expiresAtUtc: "2027-01-30T08:00:00Z", current: true,
+      lastSeenAtUtc: "2026-11-10T08:00:00Z", expiresAtUtc: "2027-01-30T08:00:00Z", current: true, newDevice: false,
     },
     {
       id: "s-phone", device: "Safari on iOS", ipAddress: null, createdAtUtc: "2026-10-20T08:00:00Z",
-      lastSeenAtUtc: "2026-11-09T08:00:00Z", expiresAtUtc: "2027-01-18T08:00:00Z", current: false,
+      lastSeenAtUtc: "2026-11-09T08:00:00Z", expiresAtUtc: "2027-01-18T08:00:00Z", current: false, newDevice: true,
     },
   ];
 
@@ -622,6 +622,8 @@ describe("signed-in devices", () => {
     expect(rows[0]!).toHaveTextContent("Firefox on LinuxThis device");
     expect(rows[0]!).toHaveTextContent("203.0.113.5");
     expect(within(rows[1]!).queryByText("This device")).not.toBeInTheDocument();
+    expect(within(rows[1]!).getByText("New device")).toBeInTheDocument();
+    expect(within(rows[0]!).queryByText("New device")).not.toBeInTheDocument();
     expect(within(rows[1]!).getByRole("button", { name: "Sign out Safari on iOS" })).toBeInTheDocument();
   });
 

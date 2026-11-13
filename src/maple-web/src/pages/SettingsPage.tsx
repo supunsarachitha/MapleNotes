@@ -344,6 +344,11 @@ function SessionsSection() {
                       This device
                     </span>
                   )}
+                  {session.newDevice && (
+                    <span className="ml-2 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                      New device
+                    </span>
+                  )}
                 </p>
                 {/* One fact per line: joined with dots they wrap mid-list on phones and start lines with a dot. */}
                 <p className="text-xs text-stone-500 dark:text-stone-400">
