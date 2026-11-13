@@ -42,7 +42,8 @@ export function SignInNotices() {
               <span className="whitespace-nowrap">{formatAbsolute(notice.atUtc)}</span>. Not you? Sign out everywhere.
             </span>
           </p>
-          <div className="ml-auto flex shrink-0 gap-2">
+          {/* Wraps under the text, and the two buttons onto their own lines on the narrowest phones. */}
+          <div className="ml-auto flex max-w-full flex-wrap justify-end gap-2">
             <Button
               variant="ghost"
               busy={dismiss.isPending && dismiss.variables === notice.id}
