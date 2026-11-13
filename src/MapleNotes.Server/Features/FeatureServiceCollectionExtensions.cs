@@ -27,6 +27,7 @@ internal static class FeatureServiceCollectionExtensions
     {
         services.AddScoped<AccountService>();
         services.AddScoped<SessionService>();
+        services.AddScoped<SignInDevices>();
         services.AddScoped<ConfirmationService>();
         services.AddSingleton<UnknownUsernameLockout>();
         services.AddScoped<TwoFactorService>();

@@ -48,4 +48,10 @@ public sealed class Session
 
     /// <summary>The client's address last seen (after trusted proxies), or null when unknown.</summary>
     public string? IpAddress { get; set; }
+
+    /// <summary>
+    /// Whether the session started from a browser and network the account had not signed in from in the last
+    /// <see cref="KnownDevice.RememberDays"/> days (shown as "New device" in the list).
+    /// </summary>
+    public bool NewDevice { get; set; }
 }

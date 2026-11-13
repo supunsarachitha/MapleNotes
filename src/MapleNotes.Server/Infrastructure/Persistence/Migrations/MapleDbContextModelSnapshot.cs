@@ -168,6 +168,44 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.ToTable("InstanceSettings", (string)null);
                 });
 
+            modelBuilder.Entity("MapleNotes.Server.Domain.KnownDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Device")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FirstSeenAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastSeenAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Network")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("NoticePending")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("NoticeSessionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Device", "Network");
+
+                    b.ToTable("KnownDevices", (string)null);
+                });
+
             modelBuilder.Entity("MapleNotes.Server.Domain.Label", b =>
                 {
                     b.Property<Guid>("Id")
@@ -431,6 +469,9 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("LastSeenAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("NewDevice")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("SecurityStamp")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -624,6 +665,15 @@ namespace MapleNotes.Server.Infrastructure.Persistence.Migrations
                         .HasForeignKey("NoteId")
                         .OnDelete(DeleteBehavior.Cascade);
 
+                    b.HasOne("MapleNotes.Server.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MapleNotes.Server.Domain.KnownDevice", b =>
+                {
                     b.HasOne("MapleNotes.Server.Domain.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
