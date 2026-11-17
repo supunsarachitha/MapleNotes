@@ -805,6 +805,13 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.23 to 1.24
+
+Nothing to do: there are no server changes, migrations or new settings. Budget projects can now hold category shares
+and payments linked to an expected cost (indented `id:` and `towards:` lines in the project's note). Projects made with
+1.23 open unchanged. A project that uses these links, opened in 1.23, keeps the lines as details text and counts the
+whole estimate of each expected cost again.
+
 ### From 1.22 to 1.23
 
 Nothing to do: there are no migrations and no new tables. The new Budgets tab is off until each user turns it on with
