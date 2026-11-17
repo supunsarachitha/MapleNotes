@@ -1,4 +1,4 @@
-import { CalendarClock, Check, Divide, Paperclip, Plus, TrendingUp, X } from "lucide-react";
+import { CalendarClock, Check, Paperclip, Plus, TrendingUp, X } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 import {
   applyShares,
@@ -614,7 +614,7 @@ export function SharesSheet({
             {rows.map((row, i) => {
               const label = row.name.trim() || row.from || `category ${i + 1}`;
               return (
-                <li key={row.key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,8rem)_auto] items-center gap-2">
+                <li key={row.key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,6.5rem)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,8rem)_auto]">
                   <input
                     ref={(element) => {
                       names.current[i] = element;
@@ -670,7 +670,7 @@ export function SharesSheet({
               setRows((current) => current.map((row, i) => ({ ...row, amount: amountText(split[i] ?? 0) })));
             }}
           >
-            <Divide className="size-4" aria-hidden="true" /> Split evenly
+            Split evenly
           </Button>
         </div>
         <ShareTotal budget={budget.budget} amounts={values.map((v) => v ?? 0)} money={money} />

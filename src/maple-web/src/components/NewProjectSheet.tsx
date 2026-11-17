@@ -228,15 +228,16 @@ export function NewProjectSheet({ open, onOpenChange, onCreated }: { open: boole
           <Button variant="secondary" className="h-11 self-start" onClick={() => setCosts([...costs, { name: "", amount: "" }])}>
             <Plus className="size-4" aria-hidden="true" /> Add a cost
           </Button>
-          <div className="flex items-start gap-3 rounded-xl border border-stone-200 px-3 py-3 dark:border-stone-800">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">Use these as categories</p>
-              <p id={ids.categories} className="mt-0.5 text-[13px] text-stone-500 dark:text-stone-400">
+          {/* The whole row is the switch's label, so it is easy to tap. */}
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 px-3 py-3 dark:border-stone-800">
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">Use these as categories</span>
+              <span id={ids.categories} className="mt-0.5 block text-[13px] text-stone-500 dark:text-stone-400">
                 Each cost becomes a category with its amount as its share of the budget. You can change the shares later.
-              </p>
-            </div>
+              </span>
+            </span>
             <Switch label="Use these as categories" describedBy={ids.categories} checked={asCategories} onCheckedChange={setAsCategories} />
-          </div>
+          </label>
           <div className="mt-2">
             <p className="mb-2 text-sm font-medium">Allowance for surprises</p>
             <SurpriseChoice value={percent} onChange={setPercent} />
