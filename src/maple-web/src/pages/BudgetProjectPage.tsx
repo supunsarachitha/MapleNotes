@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   CircleAlert,
   CircleCheck,
+  HandCoins,
   Info,
   MoreHorizontal,
   Paperclip,
@@ -19,7 +20,18 @@ import {
 } from "lucide-react";
 import { useCallback, useState, type ReactNode } from "react";
 import { AllowanceSheet, ForecastBar, StatusChip, percentLabel, useBudgetCurrency, useMoney } from "../components/BudgetParts";
-import { CostSheet, ForecastEffect, MethodSheet, ProjectSheet, SharesSheet, ViewCostSheet, dayText, weekdayText, type CostMode } from "../components/BudgetSheets";
+import {
+  CostSheet,
+  ForecastEffect,
+  MethodSheet,
+  PaidProgress,
+  ProjectSheet,
+  SharesSheet,
+  ViewCostSheet,
+  dayText,
+  weekdayText,
+  type CostMode,
+} from "../components/BudgetSheets";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ImageViewer } from "../components/ImageViewer";
 import { MenuItem } from "../components/NoteCard";
@@ -27,7 +39,22 @@ import { useRemoveNote } from "../components/NoteRemoval";
 import { useToast } from "../components/Toaster";
 import { Button, EmptyState, IconButton, cn } from "../components/ui";
 import { api, uploadAttachment, ApiError } from "../lib/api";
-import { currencySymbol, forecast, isFinished, parseBudget, serializeBudget, type Budget, type BudgetLine, type Forecast } from "../lib/budgets";
+import {
+  currencySymbol,
+  finishExpected,
+  forecast,
+  isFinished,
+  parseBudget,
+  progressOf,
+  removeCost,
+  serializeBudget,
+  stillExpected,
+  towardsOf,
+  type Budget,
+  type BudgetLine,
+  type Forecast,
+  type Progress,
+} from "../lib/budgets";
 import { useToday } from "../lib/daily";
 import { localDateKey } from "../lib/dates";
 import { dayNumber } from "../lib/habits";
@@ -84,7 +111,8 @@ function BudgetChart({ budget, forecast: f, today, money }: { budget: Budget; fo
   const ahead: Array<[number, number]> = [[now, running]];
   if (f.method === "plan") {
     let v = running;
-    for (const line of [...budget.expected].sort((a, b) => a.date.localeCompare(b.date))) {
+    // Only what's left of each expected cost is still to come.
+    for (const line of stillExpected(budget).sort((a, b) => a.date.localeCompare(b.date))) {
       const d = Math.min(Math.max(dayNumber(line.date)!, now), e);
       ahead.push([d, v]);
       v += line.amount;
@@ -232,6 +260,8 @@ function CostRow({
   money,
   onOpen,
   onPay,
+  onPayPart,
+  progress,
   meta,
 }: {
   line: BudgetLine;
@@ -239,38 +269,62 @@ function CostRow({
   money: (n: number) => string;
   onOpen: () => void;
   onPay?: () => void;
+  onPayPart?: () => void;
+  /** Shown once something has been paid towards the cost. */
+  progress?: Progress;
   meta: ReactNode;
 }) {
   const name = line.title || line.category;
+  const side =
+    "flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-maple-500";
   return (
     <li className="flex items-stretch">
-      <button type="button" onClick={onOpen} className="flex min-h-14 min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left hover:bg-stone-50 dark:hover:bg-stone-800/60">
-        <span className="min-w-0 flex-1">
-          <span className="block break-words text-[15px] font-medium">{name}</span>
-          <span className={cn("block text-sm", late ? "text-amber-800 dark:text-amber-300" : "text-stone-500 dark:text-stone-400")}>
-            {meta}
-            {line.receipt && (
-              <>
-                {" · "}
-                <Paperclip className="inline size-3.5 align-[-2px]" aria-hidden="true" />
-                <span className="sr-only">has a photo</span>
-              </>
-            )}
+      <button type="button" onClick={onOpen} className="flex min-h-14 min-w-0 flex-1 flex-col px-4 py-3 text-left hover:bg-stone-50 dark:hover:bg-stone-800/60">
+        <span className="flex w-full items-start gap-3">
+          <span className="min-w-0 flex-1">
+            <span className="block break-words text-[15px] font-medium">{name}</span>
+            <span className={cn("block text-sm", late ? "text-amber-800 dark:text-amber-300" : "text-stone-500 dark:text-stone-400")}>
+              {meta}
+              {line.receipt && (
+                <>
+                  {" · "}
+                  <Paperclip className="inline size-3.5 align-[-2px]" aria-hidden="true" />
+                  <span className="sr-only">has a photo</span>
+                </>
+              )}
+            </span>
+            {line.details && <span className="mt-0.5 line-clamp-2 block whitespace-pre-line break-words text-sm text-stone-600 dark:text-stone-300">{line.details}</span>}
           </span>
-          {line.details && <span className="mt-0.5 line-clamp-2 block whitespace-pre-line break-words text-sm text-stone-600 dark:text-stone-300">{line.details}</span>}
+          <span className="shrink-0 pt-0.5 text-[15px] font-semibold tabular-nums">{money(line.amount)}</span>
         </span>
-        <span className="shrink-0 pt-0.5 text-[15px] font-semibold tabular-nums">{money(line.amount)}</span>
+        {progress && <PaidProgress progress={progress} money={money} className="mt-2 w-full" />}
       </button>
-      {onPay && (
-        <button
-          type="button"
-          onClick={onPay}
-          aria-label={`Mark ${name} as paid`}
-          className="flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 border-l border-stone-100 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-stone-800 dark:text-emerald-400 dark:hover:bg-emerald-500/10"
-        >
-          <Check className="size-5" aria-hidden="true" />
-          Paid
-        </button>
+      {(onPay || onPayPart) && (
+        // Pay part above Paid, so both stay in reach without squeezing the cost's name on a narrow phone.
+        <span className="flex w-16 shrink-0 flex-col divide-y divide-stone-100 border-l border-stone-100 dark:divide-stone-800 dark:border-stone-800">
+          {onPayPart && (
+            <button
+              type="button"
+              onClick={onPayPart}
+              aria-label={`Pay part of ${name}`}
+              className={cn(side, "text-maple-700 hover:bg-maple-50 dark:text-maple-400 dark:hover:bg-maple-600/15")}
+            >
+              <HandCoins className="size-5" aria-hidden="true" />
+              <span className="whitespace-nowrap">Pay part</span>
+            </button>
+          )}
+          {onPay && (
+            <button
+              type="button"
+              onClick={onPay}
+              aria-label={`Mark ${name} as paid`}
+              className={cn(side, "text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10")}
+            >
+              <Check className="size-5" aria-hidden="true" />
+              Paid
+            </button>
+          )}
+        </span>
       )}
     </li>
   );
@@ -524,25 +578,32 @@ function ProjectView({ note }: { note: Note }) {
                 <span className="tabular-nums">{money(f.expected)}</span>
               </div>
               <ul aria-label="Expected costs" className={cn(card, "divide-y divide-stone-100 dark:divide-stone-800")}>
-                {expected.map(({ line, index }) => (
-                  <CostRow
-                    key={index}
-                    line={line}
-                    late={line.date < today}
-                    money={money}
-                    meta={
-                      <>
-                        {line.category} · <span className="whitespace-nowrap">{`${line.date < today ? "was due " : ""}${dayText(line.date)}`}</span>
-                      </>
-                    }
-                    onOpen={() => setSheet({ type: "view", kind: "expected", index })}
-                    onPay={readOnly ? undefined : () => setSheet({ type: "cost", mode: { kind: "expected", pay: index } })}
-                  />
-                ))}
+                {expected.map(({ line, index }) => {
+                  const progress = progressOf(budget, line);
+                  const late = line.date < today && progress.left > 0;
+                  return (
+                    <CostRow
+                      key={index}
+                      line={line}
+                      late={late}
+                      money={money}
+                      progress={progress.paid > 0 ? progress : undefined}
+                      meta={
+                        <>
+                          {line.category} · <span className="whitespace-nowrap">{`${late ? "was due " : ""}${dayText(line.date)}`}</span>
+                        </>
+                      }
+                      onOpen={() => setSheet({ type: "view", kind: "expected", index })}
+                      onPayPart={readOnly ? undefined : () => setSheet({ type: "cost", mode: { kind: "spent", part: index } })}
+                      onPay={readOnly ? undefined : () => setSheet({ type: "cost", mode: { kind: "expected", pay: index } })}
+                    />
+                  );
+                })}
               </ul>
               {!readOnly && (
                 <p className="mx-1 mt-2 text-[13px] text-stone-500 dark:text-stone-400">
-                  Tap a cost to see its details. Tap Paid when you pay one. You can change the amount if the real price was different, and the forecast updates.
+                  Tap a cost to see its details. Tap Paid when you pay one, or Pay part when you pay some of it. You can change the amount if the real price was
+                  different, and the forecast updates.
                 </p>
               )}
             </>
@@ -565,9 +626,26 @@ function ProjectView({ note }: { note: Note }) {
                   <span className="tabular-nums">{money(items.reduce((sum, item) => sum + item.line.amount, 0))}</span>
                 </div>
                 <ul className={cn(card, "divide-y divide-stone-100 dark:divide-stone-800")}>
-                  {items.map(({ line, index }) => (
-                    <CostRow key={index} line={line} money={money} meta={line.category} onOpen={() => setSheet({ type: "view", kind: "spent", index })} />
-                  ))}
+                  {items.map(({ line, index }) => {
+                    const towards = towardsOf(budget, line);
+                    return (
+                      <CostRow
+                        key={index}
+                        line={line}
+                        money={money}
+                        meta={
+                          towards ? (
+                            <>
+                              {line.category} · towards {towards.title || towards.category}
+                            </>
+                          ) : (
+                            line.category
+                          )
+                        }
+                        onOpen={() => setSheet({ type: "view", kind: "spent", index })}
+                      />
+                    );
+                  })}
                 </ul>
               </section>
             ))
@@ -660,7 +738,16 @@ function ProjectView({ note }: { note: Note }) {
             save(next, dropped);
             const { mode } = sheet;
             const line = mode.pay !== undefined ? budget.expected[mode.pay] : undefined;
-            toast.info(line ? `${line.title || line.category} marked paid` : mode.edit !== undefined ? "Saved changes" : "Saved");
+            const part = mode.part !== undefined ? budget.expected[mode.part] : undefined;
+            toast.info(
+              part
+                ? `Paid ${money(next.spent.at(-1)?.amount ?? 0)} towards ${part.title || part.category}`
+                : line
+                  ? `${line.title || line.category} marked paid`
+                  : mode.edit !== undefined
+                    ? "Saved changes"
+                    : "Saved",
+            );
           }}
           onUpload={upload}
           onDiscard={discard}
@@ -681,6 +768,23 @@ function ProjectView({ note }: { note: Note }) {
           }}
           onEdit={() => setSheet({ type: "cost", mode: { kind: sheet.kind, edit: sheet.index } })}
           onPay={() => setSheet({ type: "cost", mode: { kind: "expected", pay: sheet.index } })}
+          progress={sheet.kind === "expected" ? progressOf(budget, viewed) : undefined}
+          towards={(() => {
+            const cost = sheet.kind === "spent" ? towardsOf(budget, viewed) : undefined;
+            return cost ? cost.title || cost.category : undefined;
+          })()}
+          onPayPart={sheet.kind === "expected" ? () => setSheet({ type: "cost", mode: { kind: "spent", part: sheet.index } }) : undefined}
+          onDone={
+            sheet.kind === "expected"
+              ? () => {
+                  const { left } = progressOf(budget, viewed);
+                  save(finishExpected(budget, sheet.index));
+                  setSheet(null);
+                  toast.info(left > 0 ? `${viewed.title || viewed.category} is done. The ${money(left)} left is out of the forecast.` : `${viewed.title || viewed.category} is done`);
+                }
+              : undefined
+          }
+          onOpenPayment={(index) => setSheet({ type: "view", kind: "spent", index })}
           onOpenReceipt={() => {
             const found = viewed.receipt ? attachment(viewed.receipt) : undefined;
             if (found) setViewing(found);
@@ -724,16 +828,24 @@ function ProjectView({ note }: { note: Note }) {
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}
         title="Delete this cost?"
-        description={
-          deleting && budget[deleting.kind][deleting.index]
-            ? `"${budget[deleting.kind][deleting.index]!.title}" (${money(budget[deleting.kind][deleting.index]!.amount)})${budget[deleting.kind][deleting.index]!.receipt ? " and its photo" : ""} will be deleted.`
-            : ""
-        }
+        description={(() => {
+          const line = deleting ? budget[deleting.kind][deleting.index] : undefined;
+          if (!deleting || !line) return "";
+          const payments = deleting.kind === "expected" ? progressOf(budget, line).payments.length : 0;
+          const towards = deleting.kind === "spent" ? towardsOf(budget, line) : undefined;
+          return [
+            `"${line.title}" (${money(line.amount)})${line.receipt ? " and its photo" : ""} will be deleted.`,
+            payments === 1 ? "The payment made towards it stays as spent." : payments > 1 ? `The ${payments} payments made towards it stay as spent.` : "",
+            towards ? `Its amount goes back into what's left of ${towards.title || towards.category}.` : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+        })()}
         confirmLabel="Delete"
         onConfirm={() => {
           if (!deleting) return;
           const line = budget[deleting.kind][deleting.index];
-          save({ ...budget, [deleting.kind]: budget[deleting.kind].filter((_, i) => i !== deleting.index) }, line?.receipt ? [line.receipt] : []);
+          save(removeCost(budget, deleting.kind, deleting.index), line?.receipt ? [line.receipt] : []);
           setDeleting(null);
           toast.info("Deleted");
         }}

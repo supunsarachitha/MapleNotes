@@ -52,7 +52,8 @@
   groceries. Add what you expect to pay and what you have paid (with a receipt photo if you like), and Maple Notes
   forecasts the final cost: from your plan when costs are expected, with an allowance for surprises you choose per
   project, or from your spending pace otherwise. It says early when a project is heading over, when the money runs
-  out and what to trim. One currency for the whole account; nothing is converted.
+  out and what to trim. An expected cost can be paid in parts, and only what's left of it is forecast. One currency
+  for the whole account; nothing is converted.
 - **Link previews.** Optionally, the title and description of links in your notes. Off by default: the server fetches
   the pages, so it sees the links.
 - **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.

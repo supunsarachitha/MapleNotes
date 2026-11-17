@@ -17,6 +17,10 @@ import { joinTitle, splitTitle } from "./titles";
 //
 //   ## Expected
 //   - 2026-12-02 · Materials · 38000 · Countertop
+//     id: k3x9q2
+//
+// An expected cost that is paid in parts gets an indented `id:` (made when first needed), and each payment towards it
+// an indented `towards:` with that id. Only those exact lines count; anything else indented stays part of the details.
 //
 // Amounts are written in the account's currency with up to two decimals and held here as whole hundredths, so sums
 // never pick up rounding errors. Dates are calendar days (`yyyy-MM-dd`), counted with day numbers like habits, so no
@@ -35,6 +39,10 @@ export interface BudgetLine {
   details: string;
   /** The attachment holding its receipt or quote photo, if any. */
   receipt?: string;
+  /** Expected costs only: a short id (6 lowercase base36 characters) that payments made towards it point at. */
+  id?: string;
+  /** Spent costs only: the id of the expected cost this payment was made towards. */
+  towards?: string;
 }
 
 export interface BudgetCategory {
@@ -103,6 +111,8 @@ const HEADER = /^budget:\s*(.+)$/i;
 const SECTION = /^##\s+(categories|spent|expected)\s*$/i;
 const ITEM = /^\s*[-*+]\s+(.*)$/;
 const RECEIPT = /^receipt:\s*([0-9a-f-]{36})\s*$/i;
+const LINE_ID = /^id: ([0-9a-z]{6})$/;
+const TOWARDS = /^towards: ([0-9a-z]{6})$/;
 const AMOUNT = /^-?\d+(?:\.\d{1,2})?$/;
 
 /** An amount typed or written as text ("86,400", "12.5") in hundredths, or null if it is not one. */
@@ -184,7 +194,11 @@ export function parseBudget(content: string, defaults: BudgetDefaults): Budget {
     // Indented lines under a cost are its details (and its receipt).
     if (last && /^\s{2,}\S/.test(line)) {
       const receipt = RECEIPT.exec(line.trim());
+      const id = section === "expected" ? LINE_ID.exec(line.trim()) : null;
+      const towards = section === "spent" ? TOWARDS.exec(line.trim()) : null;
       if (receipt && !last.receipt) last.receipt = receipt[1]!.toLowerCase();
+      else if (id && !last.id) last.id = id[1];
+      else if (towards && !last.towards) last.towards = towards[1];
       else last.details = last.details ? `${last.details}\n${line.replace(/^\s{2}/, "")}` : line.replace(/^\s{2}/, "");
       return;
     }
@@ -231,6 +245,8 @@ function lineText(cost: BudgetLine): string {
   const extra = [
     ...(details ? details.split(/\r?\n/).map((l) => (l.trim() ? `  ${l.replace(/\s+$/, "")}` : "")) : []),
     ...(cost.receipt ? [`  receipt: ${cost.receipt}`] : []),
+    ...(cost.id ? [`  id: ${cost.id}`] : []),
+    ...(cost.towards ? [`  towards: ${cost.towards}`] : []),
   ];
   return [head, ...extra].join("\n");
 }
@@ -252,6 +268,94 @@ export function serializeBudget(budget: Budget): string {
 const total = (costs: BudgetLine[]) => costs.reduce((sum, c) => sum + c.amount, 0);
 const percentOf = (amount: number, percent: number) => Math.round((amount * percent) / 100);
 
+/** How far an expected cost has been paid: the estimate, what's been paid towards it, what's left and how much over. */
+export interface Progress {
+  estimate: number;
+  paid: number;
+  /** The estimate minus what's been paid, never below 0. This is what the forecast still counts. */
+  left: number;
+  /** What's been paid beyond the estimate, 0 when it has not been. */
+  over: number;
+  /** The payments made towards it, oldest first, with their places in `budget.spent`. */
+  payments: Array<{ line: BudgetLine; index: number }>;
+}
+
+/** The payments towards an expected cost and what is left of it. Costs without an id have no payments. */
+export function progressOf(budget: Budget, line: BudgetLine): Progress {
+  const payments = line.id
+    ? budget.spent.map((payment, index) => ({ line: payment, index })).filter((p) => p.line.towards === line.id).sort((a, b) => a.line.date.localeCompare(b.line.date))
+    : [];
+  const paid = payments.reduce((sum, p) => sum + p.line.amount, 0);
+  return { estimate: line.amount, paid, left: Math.max(0, line.amount - paid), over: Math.max(0, paid - line.amount), payments };
+}
+
+/** The expected costs with each amount cut to what's left of it: what the forecast still counts. */
+export function stillExpected(budget: Budget): BudgetLine[] {
+  return budget.expected.map((line) => ({ ...line, amount: progressOf(budget, line).left }));
+}
+
+/** The expected cost a payment was made towards, if it is still listed. */
+export function towardsOf(budget: Budget, payment: BudgetLine): BudgetLine | undefined {
+  return payment.towards ? budget.expected.find((line) => line.id === payment.towards) : undefined;
+}
+
+/** A new short id (6 lowercase base36 characters) that no cost in the project uses yet. */
+export function newCostId(budget: Budget, random: () => number = Math.random): string {
+  const taken = new Set([...budget.expected.map((c) => c.id), ...budget.spent.map((c) => c.towards)]);
+  for (;;) {
+    const id = Array.from({ length: 6 }, () => "0123456789abcdefghijklmnopqrstuvwxyz"[Math.floor(random() * 36)]).join("");
+    if (!taken.has(id)) return id;
+  }
+}
+
+/** The payments towards an id no longer point at it (its expected cost is gone). */
+const unlink = (spent: BudgetLine[], id: string | undefined) =>
+  id ? spent.map((line) => (line.towards === id ? (({ towards: _, ...rest }) => rest)(line) : line)) : spent;
+
+/**
+ * A payment of part of an expected cost: a spent line in its category, with its title, linked to it by `towards`. The
+ * expected cost stays (with an id, made now if it had none), and only what's left of it counts in the forecast.
+ */
+export function payPart(
+  budget: Budget,
+  index: number,
+  payment: Pick<BudgetLine, "amount" | "date"> & Partial<Pick<BudgetLine, "details" | "receipt">>,
+  random: () => number = Math.random,
+): Budget {
+  const cost = budget.expected[index];
+  if (!cost) return budget;
+  const id = cost.id ?? newCostId(budget, random);
+  const line: BudgetLine = {
+    date: payment.date,
+    category: cost.category,
+    amount: payment.amount,
+    title: cost.title,
+    details: payment.details ?? "",
+    ...(payment.receipt ? { receipt: payment.receipt } : {}),
+    towards: id,
+  };
+  return { ...budget, expected: budget.expected.map((c, i) => (i === index ? { ...c, id } : c)), spent: [...budget.spent, line] };
+}
+
+/**
+ * Done: an expected cost closed without paying the rest. Its line is removed, so what was left drops out of the
+ * forecast; the payments towards it stay as spent and lose their `towards`.
+ */
+export function finishExpected(budget: Budget, index: number): Budget {
+  const cost = budget.expected[index];
+  if (!cost) return budget;
+  return { ...budget, expected: budget.expected.filter((_, i) => i !== index), spent: unlink(budget.spent, cost.id) };
+}
+
+/**
+ * Deleting a cost. A deleted payment's amount goes back into what's left of the cost it was towards; a deleted expected
+ * cost leaves its payments as ordinary spent lines.
+ */
+export function removeCost(budget: Budget, kind: "spent" | "expected", index: number): Budget {
+  if (kind === "expected") return finishExpected(budget, index);
+  return { ...budget, spent: budget.spent.filter((_, i) => i !== index) };
+}
+
 /** The forecast of a project's final cost, as of `today`. */
 export function forecast(budget: Budget, today: string): Forecast {
   const start = dayNumber(budget.start)!;
@@ -261,7 +365,9 @@ export function forecast(budget: Budget, today: string): Forecast {
   const daysGone = Math.max(0, Math.min(days, now - start + 1));
   const ended = now > end;
   const spent = total(budget.spent);
-  const expected = total(budget.expected);
+  // Each expected cost counts only what's left of it once the payments towards it are taken off.
+  const left = stillExpected(budget);
+  const expected = total(left);
 
   // A plan when costs are listed (or the project is over); otherwise the pace so far, carried on to the end date.
   const method: ForecastMethod = budget.expected.length > 0 || ended || daysGone === 0 ? "plan" : "pace";
@@ -278,7 +384,7 @@ export function forecast(budget: Budget, today: string): Forecast {
     if (spent > budget.budget) runsOut = "already";
     else if (method === "plan") {
       let running = spent;
-      for (const cost of [...budget.expected].sort(byDate)) {
+      for (const cost of [...left].sort(byDate)) {
         running += cost.amount;
         if (running > budget.budget) {
           runsOut = cost.date;
@@ -299,14 +405,15 @@ export function forecast(budget: Budget, today: string): Forecast {
   const categories = names.map((name): CategoryForecast => {
     const share = budget.categories.find((c) => c.name === name)?.amount ?? 0;
     const s = total(budget.spent.filter((c) => c.category === name));
-    const x = total(budget.expected.filter((c) => c.category === name));
+    const x = total(left.filter((c) => c.category === name));
     const f = method === "plan" ? s + x + (allowance ? percentOf(x, budget.surprisePercent) : 0) : paced(s);
     return { name, budget: share, spent: s, expected: x, forecast: f };
   });
   const worstCategory =
     // Only categories with a share of the budget can overrun it; the others are just a way of grouping costs.
     categories.filter((c) => c.budget > 0 && c.forecast > c.budget).sort((a, b) => b.forecast - b.budget - (a.forecast - a.budget))[0] ?? null;
-  const pastDue = budget.expected.filter((c) => dayNumber(c.date)! < now).sort(byDate);
+  // A cost is past due only while something is left to pay on it.
+  const pastDue = budget.expected.filter((c, i) => dayNumber(c.date)! < now && left[i]!.amount > 0).sort(byDate);
 
   return {
     method, spent, expected, allowance, total: final, difference, status, runsOut, days, daysGone, dailyLimit,
@@ -373,16 +480,27 @@ export function shareTotals(budget: number, amounts: number[]): { assigned: numb
   return { assigned, left, state: left > 0 ? "left" : left < 0 ? "over" : "done" };
 }
 
-/** Turns an expected cost into a payment of the real amount on a day; its details and category carry over. */
+/**
+ * Turns an expected cost into a payment of the real amount on a day; its details and category carry over. On a partly
+ * paid cost this pays the rest and closes it: the earlier payments stay as spent and lose their `towards`.
+ */
 export function markPaid(budget: Budget, index: number, paid: Partial<BudgetLine> & { amount: number; date: string }): Budget {
   const cost = budget.expected[index];
   if (!cost) return budget;
+  // The payment is not towards anything: the cost it paid off is gone.
+  const { id: _id, towards: _towards, ...rest } = { ...cost, ...paid };
   return {
     ...budget,
     expected: budget.expected.filter((_, i) => i !== index),
-    spent: [...budget.spent, { ...cost, ...paid }],
+    spent: [...unlink(budget.spent, cost.id), rest],
   };
 }
+
+/** What the Paid sheet starts with: the estimate, or what's left once part of it has been paid. */
+export const amountToPay = (budget: Budget, line: BudgetLine) => {
+  const progress = progressOf(budget, line);
+  return progress.paid > 0 ? progress.left : line.amount;
+};
 
 /** A currency for a browser region when the account has none yet, e.g. "en-LK" gives LKR; USD otherwise. */
 export function suggestCurrency(languages: readonly string[]): string {

@@ -109,7 +109,7 @@ describe("A budget project", () => {
     const sheet = within(await screen.findByRole("dialog", { name: "Add what you spent" }));
     await userEvent.type(sheet.getByRole("textbox", { name: "How much?" }), "1,000");
     expect(sheet.getByText(/^Forecast goes up/)).toHaveTextContent("Forecast goes up $1,000 to $456,100, $6,100 over budget.");
-    expect(sheet.getByText(/^Forecast goes up/)).toHaveTextContent("If this was one of your expected costs, use Paid on it instead, so it isn't counted twice.");
+    expect(sheet.getByText(/^Forecast goes up/)).toHaveTextContent("If this was for one of your expected costs, use Paid or Pay part on it instead, so it isn't counted twice.");
     await userEvent.type(sheet.getByRole("textbox", { name: "What for?" }), "Paint");
     expect(sheet.getByRole("button", { name: "Materials" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(sheet.getByRole("button", { name: "Save" }));
@@ -240,6 +240,127 @@ describe("A budget project", () => {
     expect(await screen.findByText("This project is archived. Restore it from the ⋯ menu to change it.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Spent" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mark Countertop as paid" })).not.toBeInTheDocument();
+  });
+
+  describe("paying an expected cost in parts", () => {
+    // Travel is expected to cost $1,000 and $300 of it is paid: $700 is left. Spent 370,700 + still expected 77,700 + 10%.
+    const trip: Note = {
+      ...kitchen,
+      content: `# Kitchen\n\nbudget: 450000 · 2026-10-01 → 2026-12-20 · surprises: 10%\n\n## Spent\n- 2026-11-14 · Materials · 370400 · Tiles\n  receipt: ${RECEIPT}\n- 2026-11-15 · Travel · 300 · Travel\n  Bus to Kandy\n  towards: tr4v31\n\n## Expected\n- 2026-12-01 · Travel · 1000 · Travel\n  id: tr4v31\n- 2026-12-02 · Materials · 77000 · Countertop`,
+    };
+
+    it("shows what's paid and left on the cost, links the payment to it, and lists it in the cost's sheet", async () => {
+      renderProject(trip);
+
+      expect(await screen.findByText("$456,170")).toBeInTheDocument(); // 370,700 + 77,700 + 7,770
+      const expected = within(screen.getByRole("list", { name: "Expected costs" }));
+      expect(expected.getByRole("button", { name: /^Travel/ })).toHaveTextContent("TravelTravel · Dec 1$1,000$300 of $1,000 paid · $700 left");
+      expect(expected.getByRole("button", { name: "Pay part of Travel" })).toBeInTheDocument();
+      expect(expected.getByRole("button", { name: "Pay part of Countertop" })).toBeInTheDocument();
+
+      await userEvent.click(expected.getByRole("button", { name: /^Travel/ }));
+      const view = within(await screen.findByRole("dialog", { name: "Travel" }));
+      const payments = within(view.getByRole("list", { name: "Payments towards it" }));
+      expect(payments.getAllByRole("button").map((b) => b.textContent)).toEqual(["Sun, Nov 15Bus to Kandy$300"]);
+      await userEvent.click(payments.getByRole("button"));
+      const payment = within(await screen.findByRole("dialog", { name: "Travel" }));
+      expect(payment.getByText("Towards Travel")).toBeInTheDocument();
+      await userEvent.click(payment.getByRole("button", { name: "Close" }));
+
+      await userEvent.click(screen.getByRole("tab", { name: "Spent" }));
+      expect(screen.getByRole("region", { name: "Sun, Nov 15" })).toHaveTextContent("TravelTravel · towards TravelBus to Kandy$300");
+    });
+
+    it("pays part of a cost with an empty amount, shows the effect live and links the payment by a new id", async () => {
+      const update = saves();
+      renderProject(trip);
+
+      await userEvent.click(await screen.findByRole("button", { name: "Pay part of Countertop" }));
+      const sheet = within(await screen.findByRole("dialog", { name: "Pay part" }));
+      expect(sheet.getByText(/^Paying part of/)).toHaveTextContent("Paying part of Countertop. The rest stays expected.");
+      const amount = sheet.getByRole("textbox", { name: "How much?" });
+      expect(amount).toHaveValue("");
+      expect(sheet.getByRole("textbox", { name: "Details (optional)" })).toHaveValue("");
+      expect(sheet.queryByRole("textbox", { name: "What for?" })).not.toBeInTheDocument();
+      expect(sheet.getByLabelText("Date")).toHaveValue("2026-11-16");
+      await userEvent.type(amount, "20,000");
+      // 20,000 comes off what's left, so only its 2,000 allowance leaves the forecast
+      expect(sheet.getByText(/^Forecast goes down/)).toHaveTextContent("Forecast goes down $2,000 to $454,170, $4,170 over budget.$57,000 of $77,000 left after this.");
+      await userEvent.click(sheet.getByRole("button", { name: "Save payment" }));
+
+      await waitFor(() => expect(update).toHaveBeenCalled());
+      const content = update.mock.calls[0]![1];
+      const id = /- 2026-12-02 · Materials · 77000 · Countertop\n {2}id: ([0-9a-z]{6})$/.exec(content)?.[1];
+      expect(id).toMatch(/^[0-9a-z]{6}$/);
+      expect(content).toContain(`- 2026-11-16 · Materials · 20000 · Countertop\n  towards: ${id}`);
+      expect(await screen.findByText("Paid $20,000 towards Countertop")).toBeInTheDocument();
+    });
+
+    it("shows payments past the estimate as over, in the cost's row", async () => {
+      renderProject({ ...trip, content: trip.content.replace("Travel · 300 · Travel", "Travel · 1100 · Travel") });
+
+      const expected = within(await screen.findByRole("list", { name: "Expected costs" }));
+      expect(expected.getByRole("button", { name: /^Travel/ })).toHaveTextContent("$1,100 of $1,000 paid · $100 over");
+      expect(expected.getByText("$100 over")).toHaveClass("text-red-700");
+    });
+
+    it("Paid on a partly paid cost starts from what's left and closes it", async () => {
+      const update = saves();
+      renderProject(trip);
+
+      await userEvent.click(await screen.findByRole("button", { name: "Mark Travel as paid" }));
+      const sheet = within(await screen.findByRole("dialog", { name: "Mark as paid" }));
+      expect(sheet.getByRole("textbox", { name: "How much?" })).toHaveValue("700");
+      expect(sheet.getByText(/was expected to cost/)).toHaveTextContent("Travel was expected to cost $1,000, and $300 of it is paid. Enter what you paid for the rest; this closes it.");
+      await userEvent.click(sheet.getByRole("button", { name: "Mark paid" }));
+
+      await waitFor(() => expect(update).toHaveBeenCalled());
+      const content = update.mock.calls[0]![1];
+      expect(content).toContain("- 2026-11-15 · Travel · 300 · Travel\n  Bus to Kandy\n- 2026-11-16 · Travel · 700 · Travel\n\n## Expected\n- 2026-12-02");
+      expect(content).not.toMatch(/towards:|id:/);
+    });
+
+    it("Done closes the cost: what was left drops out and the payment stays as spent", async () => {
+      const update = saves();
+      renderProject(trip);
+
+      await userEvent.click(await screen.findByRole("button", { name: /^Travel/ }));
+      await userEvent.click(within(await screen.findByRole("dialog", { name: "Travel" })).getByRole("button", { name: "Done" }));
+
+      await waitFor(() => expect(update).toHaveBeenCalled());
+      const content = update.mock.calls[0]![1];
+      expect(content).toContain("- 2026-11-15 · Travel · 300 · Travel\n  Bus to Kandy\n\n## Expected\n- 2026-12-02 · Materials · 77000 · Countertop");
+      expect(content).not.toMatch(/towards:|id:/);
+      expect(await screen.findByText("Travel is done. The $700 left is out of the forecast.")).toBeInTheDocument();
+    });
+
+    it("deleting a cost keeps its payments, and deleting a payment puts it back into what's left", async () => {
+      const update = saves();
+      renderProject(trip);
+
+      await userEvent.click(await screen.findByRole("button", { name: /^Travel/ }));
+      await userEvent.click(within(await screen.findByRole("dialog", { name: "Travel" })).getByRole("button", { name: "Delete" }));
+      const confirm = within(await screen.findByRole("dialog", { name: "Delete this cost?" }));
+      expect(confirm.getByText(/will be deleted/)).toHaveTextContent('"Travel" ($1,000) will be deleted. The payment made towards it stays as spent.');
+      await userEvent.click(confirm.getByRole("button", { name: "Delete" }));
+      await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+      expect(update.mock.calls[0]![1]).toContain("- 2026-11-15 · Travel · 300 · Travel\n  Bus to Kandy\n\n## Expected");
+      expect(update.mock.calls[0]![1]).not.toMatch(/towards:|id:/);
+    });
+
+    it("says a deleted payment goes back into what's left", async () => {
+      const update = saves();
+      renderProject(trip);
+
+      await userEvent.click(await screen.findByRole("tab", { name: "Spent" }));
+      await userEvent.click(screen.getByRole("button", { name: /^Travel/ }));
+      await userEvent.click(within(await screen.findByRole("dialog", { name: "Travel" })).getByRole("button", { name: "Delete" }));
+      const confirm = within(await screen.findByRole("dialog", { name: "Delete this cost?" }));
+      expect(confirm.getByText(/will be deleted/)).toHaveTextContent('"Travel" ($300) will be deleted. Its amount goes back into what\'s left of Travel.');
+      await userEvent.click(confirm.getByRole("button", { name: "Delete" }));
+      await waitFor(() => expect(update).toHaveBeenCalled());
+      expect(update.mock.calls[0]![1]).toContain("## Expected\n- 2026-12-01 · Travel · 1000 · Travel\n  id: tr4v31\n");
+    });
   });
 
   it("says so when the project is not there", async () => {

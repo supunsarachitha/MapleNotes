@@ -10,7 +10,15 @@ import {
   isFinished,
   searchCurrencies,
   forecast,
+  amountToPay,
+  finishExpected,
   markPaid,
+  newCostId,
+  payPart,
+  progressOf,
+  removeCost,
+  stillExpected,
+  towardsOf,
   mergeCategories,
   parseAmount,
   parseBudget,
@@ -335,5 +343,147 @@ describe("category shares", () => {
       { name: "Tiles", amount: 150 },
       { name: "Paint", amount: 0 },
     ]);
+  });
+});
+
+describe("paying an expected cost in parts", () => {
+  // Travel is expected to cost 1,000 and 300 of it has been paid in two parts: 700 is left.
+  const TRIP = `# Trip
+
+budget: 5000 · 2026-11-01 → 2026-11-30 · surprises: 10%
+
+## Spent
+- 2026-11-02 · Food · 500 · Lunch
+- 2026-11-10 · Travel · 100 · Travel
+  Bus to Kandy
+  towards: tr4v31
+- 2026-11-11 · Travel · 200 · Travel
+  towards: tr4v31
+
+## Expected
+- 2026-11-20 · Travel · 1000 · Travel
+  Buses and trains.
+  id: tr4v31
+- 2026-11-25 · Stay · 2000 · Hotel`;
+  const trip = parseBudget(TRIP, defaults);
+  const travel = () => trip.expected[0]!;
+
+  it("reads the id of an expected cost and the payments towards it, and writes the same text back", () => {
+    expect(travel()).toEqual({ date: "2026-11-20", category: "Travel", amount: 100000, title: "Travel", details: "Buses and trains.", id: "tr4v31" });
+    expect(trip.spent[1]).toEqual({ date: "2026-11-10", category: "Travel", amount: 10000, title: "Travel", details: "Bus to Kandy", towards: "tr4v31" });
+    expect(trip.expected[1]!.id).toBeUndefined();
+    expect(serializeBudget(trip)).toBe(TRIP);
+  });
+
+  it("counts only exact id and towards lines; anything else stays in the details", () => {
+    const text = `# T
+
+budget: 100 · 2026-11-01 → 2026-11-30 · surprises: 0%
+
+## Spent
+- 2026-11-02 · Food · 5 · Lunch
+  id: abc123
+  towards: ABC123
+  towards: abc12
+
+## Expected
+- 2026-11-20 · Food · 10 · Dinner
+  towards: abc123
+  id:  abc123
+  id: abc1234`;
+    const budget = parseBudget(text, defaults);
+    expect(budget.spent[0]).toMatchObject({ details: "id: abc123\ntowards: ABC123\ntowards: abc12" });
+    expect(budget.spent[0]!.towards).toBeUndefined();
+    expect(budget.expected[0]).toMatchObject({ details: "towards: abc123\nid:  abc123\nid: abc1234" });
+    expect(budget.expected[0]!.id).toBeUndefined();
+    expect(serializeBudget(budget)).toBe(text);
+  });
+
+  it("works out what's paid and what's left, and how much over once the payments pass the estimate", () => {
+    expect(progressOf(trip, travel())).toMatchObject({ estimate: 100000, paid: 30000, left: 70000, over: 0 });
+    expect(progressOf(trip, travel()).payments.map((p) => p.index)).toEqual([1, 2]);
+    expect(progressOf(trip, trip.expected[1]!)).toMatchObject({ paid: 0, left: 200000, over: 0, payments: [] });
+    const more = payPart(trip, 0, { amount: 80000, date: "2026-11-16" });
+    expect(progressOf(more, more.expected[0]!)).toMatchObject({ paid: 110000, left: 0, over: 10000 });
+    expect(towardsOf(trip, trip.spent[1]!)?.title).toBe("Travel");
+    expect(towardsOf(trip, trip.spent[0]!)).toBeUndefined();
+  });
+
+  it("forecasts each expected cost by what's left of it, with the allowance on that only", () => {
+    const f = forecast(trip, "2026-11-16");
+    // spent 800; still expected 700 + 2,000; 10% of 2,700 for surprises
+    expect([f.spent, f.expected, f.allowance, f.total]).toEqual([80000, 270000, 27000, 377000]);
+    expect(f.categories.find((c) => c.name === "Travel")).toMatchObject({ spent: 30000, expected: 70000, forecast: 107000 });
+    expect(stillExpected(trip).map((c) => c.amount)).toEqual([70000, 200000]);
+    // 800 + 700 still fits 1,600, so it is the hotel that crosses it (counting the full 1,000 would have said Nov 20)
+    expect(forecast({ ...trip, budget: 160000 }, "2026-11-16").runsOut).toBe("2026-11-25");
+  });
+
+  it("goes up by the extra when the payments pass the estimate, and counts nothing left", () => {
+    const over = payPart(trip, 0, { amount: 80000, date: "2026-11-16" });
+    const f = forecast(over, "2026-11-16");
+    expect([f.spent, f.expected, f.total]).toEqual([160000, 200000, 380000]);
+    expect(f.total - forecast(trip, "2026-11-16").total).toBe(3000); // 100 over, and the 70 allowance on the 700 is gone
+  });
+
+  it("is past due only while something is left to pay", () => {
+    expect(forecast(trip, "2026-11-21").pastDue.map((c) => c.title)).toEqual(["Travel"]);
+    const paidUp = payPart(trip, 0, { amount: 70000, date: "2026-11-21" });
+    expect(forecast(paidUp, "2026-11-21").pastDue).toEqual([]);
+  });
+
+  it("saves a part payment in the cost's category and title, linked to it, and gives a cost its id when first needed", () => {
+    const hotel = payPart(trip, 1, { amount: 50000, date: "2026-11-16", details: "Deposit", receipt: "0193a8f2-0000-7000-8000-000000000002" }, () => 0.5);
+    expect(hotel.expected[1]!.id).toBe("iiiiii");
+    expect(hotel.spent.at(-1)).toEqual({
+      date: "2026-11-16", category: "Stay", amount: 50000, title: "Hotel", details: "Deposit", receipt: "0193a8f2-0000-7000-8000-000000000002", towards: "iiiiii",
+    });
+    expect(serializeBudget(hotel)).toContain("- 2026-11-16 · Stay · 500 · Hotel\n  Deposit\n  receipt: 0193a8f2-0000-7000-8000-000000000002\n  towards: iiiiii");
+    expect(serializeBudget(hotel)).toContain("- 2026-11-25 · Stay · 2000 · Hotel\n  id: iiiiii");
+    // The forecast does not change: the deposit comes off what's left
+    expect(forecast(hotel, "2026-11-16").total - forecast(trip, "2026-11-16").total).toBe(-5000); // only its allowance goes
+    // Paying part of Travel again keeps its id
+    expect(payPart(trip, 0, { amount: 100, date: "2026-11-16" }).expected[0]!.id).toBe("tr4v31");
+  });
+
+  it("makes ids no other cost uses", () => {
+    const rolls = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0];
+    const taken = { ...trip, expected: [{ ...travel(), id: "iiiiii" }] };
+    expect(newCostId(taken, () => rolls.shift()!)).toBe("000000");
+    expect(newCostId(trip)).toMatch(/^[0-9a-z]{6}$/);
+  });
+
+  it("Paid on a partly paid cost starts from what's left and closes it", () => {
+    expect([amountToPay(trip, travel()), amountToPay(trip, trip.expected[1]!)]).toEqual([70000, 200000]);
+    const paid = markPaid(trip, 0, { amount: 70000, date: "2026-11-16" });
+    expect(paid.expected.map((c) => c.title)).toEqual(["Hotel"]);
+    expect(paid.spent.at(-1)).toEqual({ date: "2026-11-16", category: "Travel", amount: 70000, title: "Travel", details: "Buses and trains." });
+    expect(paid.spent.some((c) => c.towards)).toBe(false);
+    expect(serializeBudget(paid)).not.toMatch(/towards:|id:/);
+    // Paying exactly what's left: the 700 is now spent instead of expected, and its 70 allowance goes
+    expect(forecast(paid, "2026-11-16").total).toBe(forecast(trip, "2026-11-16").total - 7000);
+  });
+
+  it("Done removes the cost, so what was left drops out; its payments stay as spent", () => {
+    const done = finishExpected(trip, 0);
+    expect(done.expected.map((c) => c.title)).toEqual(["Hotel"]);
+    expect(done.spent.map((c) => c.amount)).toEqual([50000, 10000, 20000]);
+    expect(done.spent.some((c) => c.towards)).toBe(false);
+    expect(forecast(done, "2026-11-16").total).toBe(forecast(trip, "2026-11-16").total - 77000); // 700 left + its 70
+    expect(serializeBudget(done)).toContain("- 2026-11-10 · Travel · 100 · Travel\n  Bus to Kandy\n- 2026-11-11");
+  });
+
+  it("deleting a payment puts it back into what's left; deleting the cost keeps its payments", () => {
+    const fewer = removeCost(trip, "spent", 2);
+    expect(progressOf(fewer, fewer.expected[0]!)).toMatchObject({ paid: 10000, left: 90000 });
+    const gone = removeCost(trip, "expected", 0);
+    expect(gone.spent.map((c) => [c.amount, c.towards])).toEqual([[50000, undefined], [10000, undefined], [20000, undefined]]);
+    expect(serializeBudget(gone)).not.toContain("towards:");
+  });
+
+  it("leaves old projects without ids as they were", () => {
+    const kitchen = parseBudget(KITCHEN, defaults);
+    expect(kitchen.expected.every((c) => c.id === undefined && progressOf(kitchen, c).left === c.amount)).toBe(true);
+    expect(serializeBudget(finishExpected(kitchen, 0))).not.toMatch(/towards:|id:/);
   });
 });

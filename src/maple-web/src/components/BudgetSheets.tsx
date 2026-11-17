@@ -1,16 +1,20 @@
-import { CalendarClock, Check, Paperclip, Plus, TrendingUp, X } from "lucide-react";
+import { CalendarClock, Check, CircleCheckBig, HandCoins, Paperclip, Plus, TrendingUp, X } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 import {
   applyShares,
+  amountToPay,
   forecast,
   markPaid,
   parseAmount,
+  payPart,
+  progressOf,
   amountText,
   shareTotals,
   splitEvenly,
   type Budget,
   type BudgetLine,
   type Forecast,
+  type Progress,
 } from "../lib/budgets";
 import { addDays, dateOf, dayNumber } from "../lib/habits";
 import { useAttachmentSrc } from "../lib/mediaWorker";
@@ -93,8 +97,35 @@ export function ForecastEffect({ before, after, money, children }: { before: For
   );
 }
 
-/** Which form the cost sheet shows: a new cost, a change to one, or paying an expected one. */
-export type CostMode = { kind: "spent" | "expected"; edit?: number; pay?: number };
+/**
+ * How far an expected cost has been paid, in words and a small bar: "Rs 300 of Rs 1,000 paid · Rs 700 left", or
+ * "Rs 100 over" in red once the payments pass the estimate.
+ */
+export function PaidProgress({ progress, money, className }: { progress: Progress; money: (n: number) => string; className?: string }) {
+  const { estimate, paid, left, over } = progress;
+  const width = `${Math.min(100, estimate > 0 ? (paid / estimate) * 100 : 100)}%`;
+  return (
+    <span className={cn("block", className)}>
+      <span className="block text-sm tabular-nums text-stone-600 dark:text-stone-300">
+        <span className="whitespace-nowrap">
+          {money(paid)} of {money(estimate)} paid
+        </span>
+        {" · "}
+        {over > 0 ? (
+          <span className="whitespace-nowrap font-semibold text-red-700 dark:text-red-400">{money(over)} over</span>
+        ) : (
+          <span className="whitespace-nowrap">{money(left)} left</span>
+        )}
+      </span>
+      <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800" aria-hidden="true">
+        <span className={cn("block h-full rounded-full", over > 0 ? "bg-red-600 dark:bg-red-500" : "bg-emerald-600 dark:bg-emerald-500")} style={{ width }} />
+      </span>
+    </span>
+  );
+}
+
+/** Which form the cost sheet shows: a new cost, a change to one, paying an expected one, or paying part of one. */
+export type CostMode = { kind: "spent" | "expected"; edit?: number; pay?: number; part?: number };
 
 /** The names of a project's categories: its shares first, then any other used by a cost. */
 export function categoryNames(budget: Budget): string[] {
@@ -106,9 +137,13 @@ export function categoryNames(budget: Budget): string[] {
 /** The project after the sheet's change, with `amount` in hundredths. */
 function applyCost(budget: Budget, mode: CostMode, line: BudgetLine): Budget {
   if (mode.pay !== undefined) return markPaid(budget, mode.pay, line);
+  if (mode.part !== undefined) return payPart(budget, mode.part, line);
   const list = [...budget[mode.kind]];
-  if (mode.edit !== undefined) list[mode.edit] = line;
-  else list.push(line);
+  if (mode.edit !== undefined) {
+    // An edit keeps the cost's links: an expected cost's id, or the cost a payment was made towards.
+    const { id, towards }: Partial<BudgetLine> = list[mode.edit] ?? {};
+    list[mode.edit] = { ...line, ...(id ? { id } : {}), ...(towards ? { towards } : {}) };
+  } else list.push(line);
   return { ...budget, [mode.kind]: list };
 }
 
@@ -138,13 +173,17 @@ export function CostSheet({
   onUpload: (file: File) => Promise<Attachment>;
   onDiscard: (ids: string[]) => void;
 }) {
+  // Paying part of an expected cost starts a fresh payment: no amount, details or photo, today's date.
+  const part = mode.part !== undefined ? budget.expected[mode.part] : undefined;
   const original = mode.pay !== undefined ? budget.expected[mode.pay] : mode.edit !== undefined ? budget[mode.kind][mode.edit] : undefined;
-  const spent = mode.kind === "spent" || mode.pay !== undefined;
+  const progress = part ? progressOf(budget, part) : original && mode.pay !== undefined ? progressOf(budget, original) : undefined;
+  const spent = mode.kind === "spent" || mode.pay !== undefined || part !== undefined;
   const names = categoryNames(budget);
-  const [amount, setAmount] = useState(original ? amountText(original.amount) : "");
+  const startAmount = original ? (mode.pay !== undefined ? amountToPay(budget, original) : original.amount) : 0;
+  const [amount, setAmount] = useState(startAmount > 0 ? amountText(startAmount) : "");
   const [title, setTitle] = useState(original?.title ?? "");
   const [details, setDetails] = useState(original?.details ?? "");
-  const [category, setCategory] = useState(original?.category ?? names[0] ?? "");
+  const [category, setCategory] = useState(original?.category ?? part?.category ?? names[0] ?? "");
   const [newCategory, setNewCategory] = useState(names.length === 0);
   const [date, setDate] = useState(original && mode.pay === undefined ? original.date : spent ? today : addDays(today, 14));
   const [receipt, setReceipt] = useState(original?.receipt);
@@ -166,9 +205,21 @@ export function CostSheet({
     ...(receipt ? { receipt } : {}),
   };
   const before = forecast(budget, today);
-  const after = forecast(applyCost(budget, mode, line), today);
-  const heading =
-    mode.pay !== undefined ? "Mark as paid" : mode.edit !== undefined ? (spent ? "Edit payment" : "Edit expected cost") : spent ? "Add what you spent" : "Add an expected cost";
+  const next = applyCost(budget, mode, line);
+  const after = forecast(next, today);
+  const heading = part
+    ? "Pay part"
+    : mode.pay !== undefined
+      ? "Mark as paid"
+      : mode.edit !== undefined
+        ? spent
+          ? "Edit payment"
+          : "Edit expected cost"
+        : spent
+          ? "Add what you spent"
+          : "Add an expected cost";
+  // After this payment, how much of the cost is still left (or how far over its estimate it goes).
+  const partAfter = part && valid ? progressOf(next, next.expected[mode.part!]!) : undefined;
 
   function close(saved: boolean) {
     const keep = saved ? receipt : original?.receipt;
@@ -180,7 +231,7 @@ export function CostSheet({
     setTried(true);
     if (!valid || uploading) return;
     const dropped = original?.receipt && original.receipt !== receipt ? [original.receipt] : [];
-    onSave(applyCost(budget, mode, line), dropped);
+    onSave(next, dropped);
     close(true);
   }
 
@@ -210,7 +261,7 @@ export function CostSheet({
             Cancel
           </Button>
           <Button className="h-11 flex-1" onClick={save} disabled={uploading}>
-            {mode.pay !== undefined ? "Mark paid" : "Save"}
+            {mode.pay !== undefined ? "Mark paid" : part ? "Save payment" : "Save"}
           </Button>
         </>
       }
@@ -225,8 +276,19 @@ export function CostSheet({
       >
         {mode.pay !== undefined && original && (
           <p className="text-sm text-stone-600 dark:text-stone-300">
-            {original.title} was expected to cost {money(original.amount)}. Enter what you actually paid.
+            {progress && progress.paid > 0
+              ? `${original.title} was expected to cost ${money(original.amount)}, and ${money(progress.paid)} of it is paid. Enter what you paid for the rest; this closes it.`
+              : `${original.title} was expected to cost ${money(original.amount)}. Enter what you actually paid.`}
           </p>
+        )}
+        {part && progress && (
+          <div className="rounded-xl border border-stone-200 px-3 py-2.5 dark:border-stone-700">
+            <p className="text-sm">
+              Paying part of <span className="font-semibold">{part.title || part.category}</span>. The rest stays expected.
+            </p>
+            {progress.paid > 0 && <PaidProgress progress={progress} money={money} className="mt-1.5" />}
+            {progress.paid === 0 && <p className="text-sm tabular-nums text-stone-600 dark:text-stone-300">Expected to cost {money(progress.estimate)}.</p>}
+          </div>
         )}
         <div>
           <label htmlFor={ids.amount} className="text-sm font-medium">
@@ -241,9 +303,23 @@ export function CostSheet({
           <div className="mt-2">
             {valid ? (
               <ForecastEffect before={before} after={after} money={money}>
-                {spent && mode.pay === undefined && mode.edit === undefined && before.method === "plan" && budget.expected.length > 0 && (
+                {partAfter && (
+                  <span className="mt-1 block text-[13px] tabular-nums opacity-90">
+                    {partAfter.over > 0 ? (
+                      <>
+                        That's <span className="font-semibold">{money(partAfter.over)} over</span> its estimate of {money(partAfter.estimate)}.
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold">{money(partAfter.left)}</span> of {money(partAfter.estimate)} left after this.
+                      </>
+                    )}
+                  </span>
+                )}
+                {spent && !part && mode.pay === undefined && mode.edit === undefined && before.method === "plan" && budget.expected.length > 0 && (
                   <span className="mt-1 block text-[13px] opacity-90">
-                    If this was one of your expected costs, use <span className="font-semibold">Paid</span> on it instead, so it isn't counted twice.
+                    If this was for one of your expected costs, use <span className="font-semibold">Paid</span> or <span className="font-semibold">Pay part</span> on
+                    it instead, so it isn't counted twice.
                   </span>
                 )}
               </ForecastEffect>
@@ -254,7 +330,7 @@ export function CostSheet({
             )}
           </div>
         </div>
-        {mode.pay === undefined && (
+        {mode.pay === undefined && !part && (
           <div>
             <label htmlFor={ids.title} className="text-sm font-medium">
               What for?
@@ -284,7 +360,8 @@ export function CostSheet({
             className="mt-1 block min-h-24 w-full resize-y rounded-xl border border-stone-300 bg-white px-3 py-2 text-base outline-none [field-sizing:content] focus:border-maple-500 dark:border-stone-700 dark:bg-stone-900"
           />
         </div>
-        <fieldset>
+        {/* A part payment is always in its cost's category. */}
+        <fieldset hidden={part !== undefined}>
           <legend className="text-sm font-medium">Category</legend>
           {names.length > 0 && (
             <div className="-mx-4 mt-1 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
@@ -399,6 +476,11 @@ export function ViewCostSheet({
   onPay,
   onOpenReceipt,
   readOnly,
+  progress,
+  towards,
+  onPayPart,
+  onDone,
+  onOpenPayment,
 }: {
   line: BudgetLine;
   kind: "spent" | "expected";
@@ -411,8 +493,17 @@ export function ViewCostSheet({
   onPay: () => void;
   onOpenReceipt: () => void;
   readOnly?: boolean;
+  /** Expected costs: what's been paid towards it so far. */
+  progress?: Progress;
+  /** Payments: the title of the expected cost it was made towards. */
+  towards?: string;
+  onPayPart?: () => void;
+  onDone?: () => void;
+  /** Opens one of the payments towards this cost, by its place in `budget.spent`. */
+  onOpenPayment?: (index: number) => void;
 }) {
-  const late = kind === "expected" && line.date < today;
+  const late = kind === "expected" && line.date < today && (!progress || progress.left > 0);
+  const paidSome = kind === "expected" && progress && progress.paid > 0 ? progress : undefined;
   const tag = "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium";
   return (
     <BottomSheet
@@ -451,7 +542,50 @@ export function ViewCostSheet({
         </span>
         <span className={cn(tag, "bg-stone-100 dark:bg-stone-800")}>{line.category}</span>
         <span className={cn(tag, "bg-stone-100 dark:bg-stone-800")}>{weekdayText(line.date)}</span>
+        {towards && <span className={cn(tag, "bg-maple-50 text-maple-700 dark:bg-maple-600/15 dark:text-maple-400")}>Towards {towards}</span>}
       </div>
+      {paidSome && <PaidProgress progress={paidSome} money={money} className="mb-4" />}
+      {kind === "expected" && !readOnly && (onPayPart || (paidSome && onDone)) && (
+        <div className="mb-4 flex gap-2">
+          {onPayPart && (
+            <Button variant="secondary" className="h-11 flex-1" onClick={onPayPart}>
+              <HandCoins className="size-4" aria-hidden="true" /> Pay part
+            </Button>
+          )}
+          {paidSome && onDone && (
+            <Button variant="secondary" className="h-11 flex-1" onClick={onDone}>
+              <CircleCheckBig className="size-4" aria-hidden="true" /> Done
+            </Button>
+          )}
+        </div>
+      )}
+      {paidSome && (
+        <>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Payments towards it</h3>
+          <ul aria-label="Payments towards it" className="mb-4 divide-y divide-stone-100 rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-700">
+            {paidSome.payments.map(({ line: payment, index }) => (
+              <li key={index}>
+                <button
+                  type="button"
+                  onClick={() => onOpenPayment?.(index)}
+                  className="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-stone-50 dark:hover:bg-stone-800/60"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block whitespace-nowrap">{weekdayText(payment.date)}</span>
+                    {payment.details && <span className="block truncate text-stone-500 dark:text-stone-400">{payment.details.split("\n")[0]}</span>}
+                  </span>
+                  <span className="shrink-0 font-semibold tabular-nums">{money(payment.amount)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {!readOnly && onDone && (
+            <p className="-mt-2 mb-4 text-[13px] text-stone-500 dark:text-stone-400">
+              Tap <span className="font-semibold">Done</span> if nothing more will be paid: what's left drops out of the forecast, and the payments stay.
+            </p>
+          )}
+        </>
+      )}
       {line.details ? (
         <>
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Details</h3>
