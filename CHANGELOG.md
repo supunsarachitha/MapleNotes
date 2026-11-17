@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default), which turns the listed costs into categories with their amounts as shares, merging costs with the same
   name. Projects without shares work as before
   ([#153](https://github.com/supunsarachitha/MapleNotes/issues/153)).
+- Budgets: an expected cost can be paid in parts. **Pay part** (next to **Paid**, and in the cost's sheet) opens the
+  payment sheet with an empty amount and saves a spent line linked to the cost. The cost shows "Rs 300 of Rs 1,000
+  paid · Rs 700 left" with a small bar (or how much over it went, in red), and its sheet lists the payments. The
+  forecast, the runs-out date, category forecasts, past-due costs, the chart and the allowance for surprises count only
+  what is left of each cost. **Paid** on a partly paid cost fills in what is left and closes it; **Done** closes it
+  without paying the rest. Payments show "towards" their cost under Spent; deleting one puts it back into what is
+  left, and deleting the cost keeps its payments as ordinary spent lines. The link is stored as indented `id:` and
+  `towards:` lines in the project's note, so older projects work as before
+  ([#155](https://github.com/supunsarachitha/MapleNotes/issues/155)).
 
 ## [1.23.0] - 2026-11-17
 

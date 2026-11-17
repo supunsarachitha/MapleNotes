@@ -156,6 +156,12 @@ out and what to trim to finish on budget.
 
 Use **Spent** at the bottom when you pay for something, and **Expect** for a cost still to come. When an expected cost
 is paid, tap **Paid** on it and enter what it really cost, so it is not counted twice; its details and photo carry over.
+When you pay it bit by bit, tap **Pay part** on it instead (also in its sheet) and enter what you paid this time. The
+cost then shows how much is paid and how much is left, the forecast counts only what is left, and the payment shows
+under Spent as "towards" that cost. Paying more than expected is fine: the cost shows how much over it went. **Paid** on
+a partly paid cost fills in what is left and closes it; **Done** in its sheet closes it without paying the rest, so
+what was left drops out of the forecast. Deleting a payment puts it back into what is left, and deleting the expected
+cost keeps its payments as spent.
 Every cost can keep details and a receipt or quote photo; tap it to see them, edit it or delete it. A project's **⋯**
 menu renames it, changes its budget and dates, archives it or moves it to the trash.
 
