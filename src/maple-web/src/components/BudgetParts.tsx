@@ -49,14 +49,20 @@ export function StatusChip({ status, className }: { status: ForecastStatus; clas
  * The forecast as one bar: solid for what is spent, hatched up to the forecast final cost, with a tick at the budget.
  * The bar's scale leaves a little room past the larger of the forecast and the budget, so the tick never sits on the edge.
  */
-export function ForecastBar({ forecast, budget, money, thin = false }: { forecast: Forecast; budget: number; money: (n: number) => string; thin?: boolean }) {
+export function ForecastBar({
+  forecast,
+  budget,
+  money,
+  thin = false,
+}: {
+  forecast: Pick<Forecast, "spent" | "total" | "difference">; budget: number; money: (n: number) => string; thin?: boolean }) {
   const max = Math.max(forecast.total, budget, 1) * 1.04;
   const width = (value: number) => `${Math.min(100, (Math.max(0, value) / max) * 100)}%`;
   const over = forecast.difference > 0;
   return (
     <div
       role="img"
-      aria-label={`Spent ${money(forecast.spent)}, forecast ${money(forecast.total)}, budget ${money(budget)}`}
+      aria-label={`Spent ${money(forecast.spent)}, forecast ${money(forecast.total)}${budget > 0 ? `, budget ${money(budget)}` : ""}`}
       className={cn("relative w-full overflow-visible rounded-full bg-stone-200 dark:bg-stone-800", thin ? "h-2" : "h-3")}
     >
       <span
@@ -69,7 +75,7 @@ export function ForecastBar({ forecast, budget, money, thin = false }: { forecas
         style={{ width: width(forecast.total) }}
       />
       <span className={cn("absolute inset-y-0 left-0 rounded-full", over ? "bg-red-700 dark:bg-red-500" : "bg-maple-600 dark:bg-maple-500")} style={{ width: width(forecast.spent) }} />
-      <span className="absolute -inset-y-1 w-0.5 -translate-x-1/2 rounded bg-stone-900 dark:bg-stone-100" style={{ left: width(budget) }} />
+      {budget > 0 && <span className="absolute -inset-y-1 w-0.5 -translate-x-1/2 rounded bg-stone-900 dark:bg-stone-100" style={{ left: width(budget) }} />}
     </div>
   );
 }

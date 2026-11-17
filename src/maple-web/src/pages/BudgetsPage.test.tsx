@@ -101,24 +101,38 @@ describe("Budgets", () => {
     expect(finished.getByRole("link")).toHaveTextContent("Kandy trip");
   });
 
-  it("creates a project from the sheet with the default allowance, and keeps the guessed currency", async () => {
+  it("creates a project in two steps, with its first forecast, and opens it", async () => {
     serve([]);
     const create = vi.spyOn(api, "createNote").mockImplementation(async (content) => project("b-new", content));
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
     vi.spyOn(navigator, "languages", "get").mockReturnValue(["en-LK"]);
+    window.history.replaceState(null, "", "/budgets");
     renderWith(<BudgetsPage />, { budgets: true, budgetSurprisePercent: 15 });
 
     await userEvent.click(await screen.findByRole("button", { name: "New project" }));
-    const sheet = within(await screen.findByRole("dialog", { name: "New project" }));
-    await userEvent.click(sheet.getByRole("button", { name: "Create project" }));
-    expect(sheet.getByRole("alert")).toHaveTextContent("Give the project a name.");
-    await userEvent.type(sheet.getByRole("textbox", { name: "Name" }), "Kitchen renovation");
-    await userEvent.type(sheet.getByRole("textbox", { name: "Budget" }), "450,000");
-    await userEvent.click(sheet.getByRole("button", { name: "Create project" }));
+    const first = within(await screen.findByRole("dialog", { name: "New project" }));
+    await userEvent.click(first.getByRole("button", { name: "Next" }));
+    expect(first.getByRole("alert")).toHaveTextContent("Give the project a name.");
+    await userEvent.click(first.getByRole("button", { name: "Renovation" }));
+    await userEvent.type(first.getByRole("textbox", { name: "Budget" }), "450,000");
+    await userEvent.click(first.getByRole("button", { name: "Next" }));
+
+    const second = within(await screen.findByRole("dialog", { name: "What do you expect to pay for?" }));
+    expect(second.getByRole("radio", { name: "15%" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.type(second.getByRole("textbox", { name: "Amount 1" }), "400000");
+    expect(second.getByText(/^Forecast/)).toHaveTextContent("Forecast Rs 460,000 (with Rs 60,000, 15%, for surprises) of Rs 450,000: Rs 10,000 over before you start.");
+    await userEvent.click(second.getByRole("radio", { name: "10%" }));
+    await userEvent.click(second.getByRole("button", { name: "Create project" }));
 
     await waitFor(() =>
-      expect(create).toHaveBeenCalledWith("# Kitchen renovation\n\nbudget: 450000 · 2026-11-16 → 2026-12-16 · surprises: 15%", [], { kind: "Budget" }),
+      expect(create).toHaveBeenCalledWith(
+        "# Renovation\n\nbudget: 450000 · 2026-11-16 → 2026-12-16 · surprises: 10%\n\n## Expected\n- 2026-12-16 · Materials · 400000 · Materials",
+        [],
+        { kind: "Budget" },
+      ),
     );
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ budgetCurrency: "LKR" })));
+    expect(window.location.pathname).toBe("/budgets/b-new");
+    window.history.replaceState(null, "", "/");
   });
 });

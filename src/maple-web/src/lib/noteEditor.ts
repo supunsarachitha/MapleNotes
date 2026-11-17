@@ -8,14 +8,16 @@ import type { Note } from "./types";
  * each change is saved in the background as the note's text, one save after another; `onError` runs when a save
  * fails. The server's version replaces the value when it changes (another device, or a failed save), unless one of our
  * own saves is still on its way or the version is older than our last save. `parse` and `serialize` must not change
- * between renders (module-level functions).
+ * between renders (module-level functions). `attachmentsOf`, when given, says which attachments the value keeps (a budget
+ * keeps its receipts); otherwise the note keeps the ones it has. The returned promise settles when the save is done.
  */
 export function useNoteEditor<T>(
   note: Note,
   parse: (content: string) => T,
   serialize: (value: T) => string,
   onError: (error: unknown) => void,
-): [T, (next: T) => void] {
+  attachmentsOf?: (value: T) => string[],
+): [T, (next: T) => Promise<void>] {
   const [value, setValue] = useState<T>(() => parse(note.content));
   const saving = useRef<Promise<void>>(Promise.resolve());
   const pending = useRef(0);
@@ -31,11 +33,11 @@ export function useNoteEditor<T>(
     setValue(parse(note.content));
   }, [note.content, note.updatedAtUtc]);
 
-  function commit(next: T) {
+  function commit(next: T): Promise<void> {
     setValue(next);
     pending.current++;
     const content = serialize(next);
-    const attachmentIds = note.attachments.map((attachment) => attachment.id);
+    const attachmentIds = attachmentsOf ? attachmentsOf(next) : note.attachments.map((attachment) => attachment.id);
     saving.current = saving.current
       .then(() => api.updateNote(note.id, content, attachmentIds, note))
       .then(
@@ -48,6 +50,7 @@ export function useNoteEditor<T>(
         pending.current--;
         if (pending.current === 0) void invalidate();
       });
+    return saving.current;
   }
 
   return [value, commit];

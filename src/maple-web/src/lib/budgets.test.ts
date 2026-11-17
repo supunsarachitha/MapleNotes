@@ -231,3 +231,13 @@ describe("money and currencies", () => {
     expect(isFinished(budget, "2026-11-01")).toBe(true);
   });
 });
+
+describe("categories without a share", () => {
+  it("never count as the category that overruns the budget", () => {
+    const budget = parseBudget("# Trip\n\nbudget: 1000 · 2026-11-01 → 2026-11-30 · surprises: 0%\n\n## Expected\n- 2026-11-20 · Hotel · 1500 · Hotel", defaults);
+    const f = forecast(budget, "2026-11-16");
+    expect(f.difference).toBe(50000);
+    expect(f.categories).toEqual([{ name: "Hotel", budget: 0, spent: 0, expected: 150000, forecast: 150000 }]);
+    expect(f.worstCategory).toBeNull();
+  });
+});

@@ -91,7 +91,7 @@ export interface Forecast {
   /** For pace forecasts that are over: what can still be spent each remaining day to finish on budget. */
   dailyLimit: number | null;
   categories: CategoryForecast[];
-  /** The category forecast to overrun its share the most, if any does. */
+  /** The category forecast to overrun its share the most, if any does (categories without a share never do). */
   worstCategory: CategoryForecast | null;
   /** Expected costs whose date has passed. */
   pastDue: BudgetLine[];
@@ -302,7 +302,8 @@ export function forecast(budget: Budget, today: string): Forecast {
     return { name, budget: share, spent: s, expected: x, forecast: f };
   });
   const worstCategory =
-    categories.filter((c) => c.forecast > c.budget).sort((a, b) => b.forecast - b.budget - (a.forecast - a.budget))[0] ?? null;
+    // Only categories with a share of the budget can overrun it; the others are just a way of grouping costs.
+    categories.filter((c) => c.budget > 0 && c.forecast > c.budget).sort((a, b) => b.forecast - b.budget - (a.forecast - a.budget))[0] ?? null;
   const pastDue = budget.expected.filter((c) => dayNumber(c.date)! < now).sort(byDate);
 
   return {
