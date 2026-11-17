@@ -21,6 +21,7 @@ export const queryKeys = {
   encryption: ["account", "encryption"] as const,
   storage: ["notes", "storage"] as const, // under "notes", so it refreshes when notes change
   habits: (state: "active" | "archived") => ["notes", "habits", state] as const,
+  budgets: (state: "active" | "archived") => ["notes", "budgets", state] as const,
   instanceStorage: ["admin", "storage"] as const,
   reminders: ["notes", "reminders"] as const, // under "notes": archiving or deleting a note hides its reminder
   pushDevices: ["account", "push"] as const,
@@ -96,6 +97,23 @@ export function useHabits(state: "active" | "archived") {
         cursor = page.nextCursor ?? undefined;
       } while (cursor);
       return habits.sort((a, b) => Date.parse(a.createdAtUtc) - Date.parse(b.createdAtUtc) || (a.id < b.id ? -1 : 1));
+    },
+  });
+}
+
+/** Every budget project, active or archived, newest first. */
+export function useBudgets(state: "active" | "archived") {
+  return useQuery({
+    queryKey: queryKeys.budgets(state),
+    queryFn: async () => {
+      const budgets: Note[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await api.listNotes({ state, kinds: ["Budget"], cursor, limit: 100 });
+        budgets.push(...page.items);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return budgets.sort((a, b) => Date.parse(b.createdAtUtc) - Date.parse(a.createdAtUtc) || (a.id < b.id ? 1 : -1));
     },
   });
 }

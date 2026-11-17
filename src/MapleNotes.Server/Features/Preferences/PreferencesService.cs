@@ -66,6 +66,17 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
             throw new ApiValidationException("weekStart", $"Choose one of: {string.Join(", ", UserPreferences.WeekStarts)}.");
         }
 
+        var currency = (preferences.BudgetCurrency ?? "").Trim().ToUpperInvariant();
+        if (currency.Length > 0 && (currency.Length != 3 || !currency.All(char.IsAsciiLetterUpper)))
+        {
+            throw new ApiValidationException("budgetCurrency", "Give a three-letter currency code such as LKR or USD, or leave it empty.");
+        }
+
+        if (preferences.BudgetSurprisePercent is < 0 or > 100)
+        {
+            throw new ApiValidationException("budgetSurprisePercent", "Give a whole number from 0 to 100.");
+        }
+
         var menuOrder = preferences.MenuOrder ?? "";
         var items = menuOrder.Length == 0 ? [] : menuOrder.Split(',');
         if (!items.All(item => UserPreferences.MenuItems.Contains(item, StringComparer.Ordinal))
@@ -87,7 +98,10 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
             throw new ApiValidationException("timeZone", "Give an IANA time zone such as Europe/Paris, or leave it empty for each device's own.");
         }
 
-        preferences = preferences with { MenuOrder = menuOrder, DailyNoteTemplate = template.ToLowerInvariant(), TimeZone = timeZone };
+        preferences = preferences with
+        {
+            MenuOrder = menuOrder, DailyNoteTemplate = template.ToLowerInvariant(), TimeZone = timeZone, BudgetCurrency = currency,
+        };
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
         user.Preferences = preferences;
         user.UpdatedAtUtc = time.GetUtcNow().UtcDateTime;

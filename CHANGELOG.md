@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Budgets: an optional Budgets tab (turned on with its eye in Settings → Side menu) for projects with a budget. Each
+  project lists what was spent and what is still expected, with details and a receipt or quote photo per cost, and
+  leads with the forecast final cost: from the plan (with a per-project allowance for surprises) while costs are
+  expected, or from the spending pace otherwise. It shows a chart, says when the money runs out and what to trim, and
+  every form is a bottom sheet that shows its effect on the forecast before saving. Settings → Budgets holds the
+  account's one currency and the allowance new projects start with. Projects are notes of the new kind `Budget`, so
+  they are encrypted, exported (under `budgets/`), restored and trashed like other notes; three new preferences
+  (`budgets`, `budgetCurrency`, `budgetSurprisePercent`) need no migration
+  ([#150](https://github.com/supunsarachitha/MapleNotes/issues/150)).
+
 ## [1.22.0] - 2026-11-13
 
 ### Security

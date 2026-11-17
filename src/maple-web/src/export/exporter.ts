@@ -52,8 +52,8 @@ function alreadyCompressed(contentType: string): boolean {
   );
 }
 
-/** Todo lists, quick notes and habits get their own top-level folders; timeline notes stay at the top. */
-const KIND_FOLDERS: Record<Note["kind"], string> = { Note: "", Todo: "todo", Quick: "quick-notes", Habit: "habits" };
+/** Todo lists, quick notes, habits and budgets get their own top-level folders; timeline notes stay at the top. */
+const KIND_FOLDERS: Record<Note["kind"], string> = { Note: "", Todo: "todo", Quick: "quick-notes", Habit: "habits", Budget: "budgets" };
 
 function compareNotes(a: Note, b: Note): number {
   const byTime = utcSortKey(a.createdAtUtc).localeCompare(utcSortKey(b.createdAtUtc));

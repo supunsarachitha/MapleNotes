@@ -55,6 +55,8 @@ function isActive(item: MenuItemId, { path, params }: Location): boolean {
       return path === "/" && !filtered;
     case "tags":
       return path === "/tags" || (path === "/" && params.has("tag"));
+    case "budgets":
+      return path === "/budgets" || path.startsWith("/budgets/");
     default:
       return path === MENU_INFO[item].href;
   }

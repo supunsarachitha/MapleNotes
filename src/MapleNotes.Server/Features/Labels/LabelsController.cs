@@ -12,7 +12,7 @@ namespace MapleNotes.Server.Features.Labels;
 public sealed class LabelsController(LabelService labels) : ControllerBase
 {
     /// <summary>Lists the labels, oldest first, with how many active notes carry each.</summary>
-    /// <param name="kinds">Count only notes of these kinds (repeat the parameter); default: every kind except habits.</param>
+    /// <param name="kinds">Count only notes of these kinds (repeat the parameter); default: every kind except habits and budgets.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The labels.</returns>
     /// <response code="200">The labels.</response>

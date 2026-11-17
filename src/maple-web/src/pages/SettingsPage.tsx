@@ -6,15 +6,16 @@ import {
   ChevronRight,
   CircleUserRound,
   DatabaseBackup,
+  FileStack,
+  Info,
   Palette,
   PanelLeft,
   PenLine,
   Server,
   ShieldCheck,
   Tag,
-  FileStack,
   Trash2,
-  Info,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
@@ -25,6 +26,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EncryptionSection } from "../components/EncryptionSection";
 import { ExportSection } from "../components/ExportSection";
 import { LabelSettings } from "../components/LabelSettings";
+import { BudgetsSection } from "../components/BudgetParts";
 import { AppearanceSection, EditingSection, MenuSection, NotesFilesSection, WritingExtrasSection, WritingSection } from "../components/PreferenceSections";
 import { PasswordDialog } from "../components/PasswordDialog";
 import { RecoveryKitDialog } from "../components/RecoveryKitDialog";
@@ -1034,6 +1036,8 @@ interface SettingsSection {
   summary: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  /** Shown only while this feature is turned on. */
+  feature?: "budgets";
 }
 
 /** The sections of Settings, in the order of the list; each has its own address, /settings/{id}. */
@@ -1044,6 +1048,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "writing", title: "Writing", summary: "Titles, dates, editing, daily notes, moods and stickers.", icon: PenLine },
   { id: "notes", title: "Notes & files", summary: "The trash, photo uploads and link previews.", icon: FileStack },
   { id: "notifications", title: "Notifications", summary: "Reminders as notifications on this device and your others.", icon: Bell },
+  { id: "budgets", title: "Budgets", summary: "Your currency and how forecasts are worked out.", icon: Wallet, feature: "budgets" },
   { id: "labels", title: "Labels", summary: "Coloured labels for your notes.", icon: Tag },
   { id: "data", title: "Backup & data", summary: "Export, restore, the trash and starting over.", icon: DatabaseBackup },
   { id: "security", title: "Privacy & security", summary: "Your password, two-factor sign-in, encryption, recovery key and sessions.", icon: ShieldCheck },
@@ -1069,6 +1074,8 @@ function SectionContent({ id, user }: { id: string; user: User }) {
       return <NotesFilesSection />;
     case "labels":
       return <LabelSettings />;
+    case "budgets":
+      return <BudgetsSection />;
     case "data":
       return (
         <>
@@ -1117,7 +1124,10 @@ function SectionContent({ id, user }: { id: string; user: User }) {
  */
 export function SettingsPage({ user }: { user: User }) {
   const { path } = useLocation();
-  const sections = SETTINGS_SECTIONS.filter((section) => !section.adminOnly || user.role === "Admin");
+  const preferences = usePreferences();
+  const sections = SETTINGS_SECTIONS.filter(
+    (section) => (!section.adminOnly || user.role === "Admin") && (!section.feature || preferences[section.feature]),
+  );
   const asked = path.startsWith("/settings/") ? path.slice("/settings/".length) : null;
   // Features was split up; its old address opens the section that kept most of it.
   const requested = asked === "features" ? "notes" : asked;

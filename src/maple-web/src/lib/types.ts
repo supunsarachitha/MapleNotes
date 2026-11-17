@@ -88,6 +88,12 @@ export interface Preferences {
   calendar: boolean;
   /** Show the Habits tab. */
   habitTracker: boolean;
+  /** Show the Budgets page. */
+  budgets: boolean;
+  /** The ISO 4217 code of every budget's currency, e.g. "LKR"; "" until one is chosen (see `suggestCurrency`). */
+  budgetCurrency: string;
+  /** The allowance for surprises new budget projects start with, as a percentage (0 to 100) of what is still expected. */
+  budgetSurprisePercent: number;
   /** Show the Archive page and the Archive action. */
   archive: boolean;
   /** Show the Tags page. */
@@ -208,7 +214,7 @@ export interface AttachmentWire extends Omit<Attachment, "fileName" | "contentTy
 }
 
 /** Where a note belongs: the Home timeline, the Todo tab, the Quick notes tab or the Habits page. */
-export type NoteKind = "Note" | "Todo" | "Quick" | "Habit";
+export type NoteKind = "Note" | "Todo" | "Quick" | "Habit" | "Budget";
 
 /** How the writer felt, from awful to great; only timeline notes and quick notes have one. */
 export const NOTE_MOODS = ["Awful", "Bad", "Okay", "Good", "Great"] as const;

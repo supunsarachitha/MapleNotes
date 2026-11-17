@@ -7,6 +7,8 @@ import { useToast } from "../components/Toaster";
 import { Button, EmptyState } from "../components/ui";
 import { api } from "../lib/api";
 import { formatAbsolute, formatRelative } from "../lib/format";
+import { parseBudget } from "../lib/budgets";
+import { dateKeyOf } from "../lib/dates";
 import { parseHabit } from "../lib/habits";
 import { ALL_KINDS } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
@@ -15,7 +17,7 @@ import { Link } from "../lib/router";
 import type { Note, NoteKind } from "../lib/types";
 
 
-const KIND_NAMES: Record<NoteKind, string> = { Note: "Note", Todo: "Todo list", Quick: "Quick note", Habit: "Habit" };
+const KIND_NAMES: Record<NoteKind, string> = { Note: "Note", Todo: "Todo list", Quick: "Quick note", Habit: "Habit", Budget: "Budget" };
 
 const count = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
@@ -43,6 +45,8 @@ function TrashCard({ note }: { note: Note }) {
   const { trashDays } = usePreferences();
   const left = daysLeft(deletedAt, trashDays);
   const habit = note.kind === "Habit" ? parseHabit(note.content) : null;
+  const project =
+    note.kind === "Budget" ? parseBudget(note.content, { today: dateKeyOf(new Date()), surprisePercent: 0 }) : null;
 
   return (
     <article className="note-card rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900">
@@ -59,6 +63,13 @@ function TrashCard({ note }: { note: Note }) {
       {habit ? (
         <p className="font-medium">
           {habit.name || "Untitled habit"} <span className="font-normal text-stone-500 dark:text-stone-400">· {count(habit.days.length, "day")} done</span>
+        </p>
+      ) : project ? (
+        <p className="font-medium">
+          {project.name || "Untitled project"}{" "}
+          <span className="font-normal text-stone-500 dark:text-stone-400">
+            · {count(project.spent.length + project.expected.length, "cost")}
+          </span>
         </p>
       ) : note.content.trim() ? (
         <div className="relative max-h-48 overflow-hidden">

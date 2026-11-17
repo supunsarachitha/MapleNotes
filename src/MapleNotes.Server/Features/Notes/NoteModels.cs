@@ -82,7 +82,7 @@ public sealed record CalendarQuery
     /// <summary>IANA time zone whose calendar days are counted, e.g. <c>Europe/Paris</c>. Default: UTC.</summary>
     public string? TimeZone { get; init; }
 
-    /// <summary>Count only notes of these kinds (repeat the parameter); default: every kind except habits.</summary>
+    /// <summary>Count only notes of these kinds (repeat the parameter); default: every kind except habits and budgets.</summary>
     [FromQuery(Name = "kind")]
     public NoteKind[]? Kinds { get; init; }
 }
@@ -104,7 +104,7 @@ public sealed record CalendarDayResponse(DateOnly Date, int Count);
 /// <param name="Tags">Tags found in the text; empty for an end-to-end encrypted note (the browser reads them from the text).</param>
 /// <param name="Attachments">Attached files, oldest first.</param>
 /// <param name="EncryptedContent">The envelope of an end-to-end encrypted note (base64), for the browser to decrypt.</param>
-/// <param name="Kind">Where the note belongs: the timeline, the Todo tab, the Quick notes tab or the Habits page.</param>
+/// <param name="Kind">Where the note belongs: the timeline, the Todo tab, the Quick notes tab, the Habits page or the Budgets page.</param>
 /// <param name="DailyDate">For a daily note, the day it belongs to.</param>
 /// <param name="LabelIds">The IDs of the labels on the note.</param>
 /// <param name="TrashedAtUtc">When the note was moved to the trash; null when it is not in the trash.</param>
@@ -237,7 +237,7 @@ public sealed record UpdateNoteRequest(
 /// <param name="IsPinned">Pin or unpin.</param>
 /// <param name="IsArchived">Archive (soft-delete) or restore.</param>
 /// <param name="Kind">Move the note, for example a quick note to the timeline. A daily note moved out of the timeline
-/// stops being the day's daily note. Habits cannot move to another kind, and other notes cannot become habits.</param>
+/// stops being the day's daily note. Habits and budgets cannot move to another kind, and other notes cannot become habits or budgets.</param>
 /// <param name="IsTrashed">Move the note to the trash, or restore it from there to where it was. A daily note moved to
 /// the trash stops being the day's daily note.</param>
 /// <param name="LabelIds">The complete set of labels the note should have (at most 20 of the account's own).</param>

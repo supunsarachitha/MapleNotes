@@ -141,6 +141,28 @@ server cannot read your notes, and the notification only says to open Maple Note
 in the trash are not sent.`,
   },
   {
+    id: "budgets",
+    title: "Budgets",
+    body: `Turn on **Budgets** with its eye in [Settings → Side menu](/settings/menu) to get it in the menu. A project is anything
+with a budget: a renovation, a trip, a wedding, or a month of groceries. Tap **New project**, give it a name, a budget
+and dates, then list the big costs you already know about.
+
+A project leads with its **forecast final cost**. While costs are listed as expected, the forecast is your plan: what
+you have spent plus what is still expected, plus an **allowance for surprises**, a percentage of what is still expected
+(tap **Change** to pick another, or turn it off). With nothing expected, the forecast carries your spending pace on to
+the end date. **Based on your plan** explains which one is used. Under the chart, the project says when the money runs
+out and what to trim to finish on budget.
+
+Use **Spent** at the bottom when you pay for something, and **Expect** for a cost still to come. When an expected cost
+is paid, tap **Paid** on it and enter what it really cost, so it is not counted twice; its details and photo carry over.
+Every cost can keep details and a receipt or quote photo; tap it to see them, edit it or delete it. A project's **⋯**
+menu renames it, changes its budget and dates, archives it or moves it to the trash.
+
+All your budgets use one currency, chosen in [Settings → Budgets](/settings/budgets), which also sets the allowance new
+projects start with. Changing the currency changes the symbol only: nothing is converted. Budgets stay out of your
+timeline, searches and tags, but your exports and backups include them.`,
+  },
+  {
     id: "habits",
     title: "Habits",
     body: `Turn on **Habits** with its eye in [Settings → Side menu](/settings/menu) to get it in the menu. Add a habit, such as "Read 20

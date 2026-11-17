@@ -20,4 +20,10 @@ public enum NoteKind
     /// never becomes another kind of note, nor another note a habit.
     /// </summary>
     Habit = 3,
+
+    /// <summary>
+    /// A budget project: a title, a budget line, then categories, spent and expected costs as Markdown lines, shown only
+    /// on the Budgets page. Like a habit, a budget never becomes another kind of note, nor another note a budget.
+    /// </summary>
+    Budget = 4,
 }

@@ -21,6 +21,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { EnrolmentPage } from "./pages/EnrolmentPage";
 import { ArchivePage, HomePage } from "./pages/HomePage";
 import { RecoverPage } from "./pages/RecoverPage";
+import { BudgetsPage } from "./pages/BudgetsPage";
 import { HabitsPage } from "./pages/HabitsPage";
 import { RemindersPage } from "./pages/RemindersPage";
 import { HelpPage } from "./pages/HelpPage";
@@ -273,6 +274,8 @@ export function App() {
           <QuickNotesPage />
         ) : path === "/habits" ? (
           <HabitsPage />
+        ) : path === "/budgets" || path.startsWith("/budgets/") ? (
+          <BudgetsPage />
         ) : path === "/reminders" ? (
           <RemindersPage />
         ) : path === "/tags" ? (

@@ -44,11 +44,11 @@ flowchart LR
 | `src/MapleNotes.Server/Infrastructure/` | Cross-cutting code: `Configuration`, `Crypto`, `Persistence` (EF Core, migrations, backups), `Storage` (attachment files), `Hosting`, `Web` (auth, antiforgery, security headers, rate limits). |
 | `src/maple-web/` | React + TypeScript + Vite + Tailwind CSS single-page app. |
 | `src/maple-web/src/crypto/` | Browser cryptography: Argon2id in a Web Worker, HKDF, envelopes, the attachment format, recovery keys, key storage, and the shared test vectors. |
-| `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`), habits (`habits.ts`: a habit's text, streaks and chart periods), the save queue that todo lists, habits and checkboxes ticked in notes share (`noteEditor.ts`), the side menu's items and order (`menu.ts`), label colours (`labels.ts`), tag suggestions (`tagSuggest.ts`, `caret.ts`), and loading only what is near the screen (`viewport.ts`). |
+| `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`), habits (`habits.ts`: a habit's text, streaks and chart periods), budgets (`budgets.ts`: a project's text, the forecast and money formatting), the save queue that todo lists, habits and checkboxes ticked in notes share (`noteEditor.ts`), the side menu's items and order (`menu.ts`), label colours (`labels.ts`), tag suggestions (`tagSuggest.ts`, `caret.ts`), and loading only what is near the screen (`viewport.ts`). |
 | `src/maple-web/src/sw/` | The service worker (`/sw.js`, built separately by `vite.sw.config.ts`): keeps the app and recently read notes for offline reading, decrypts end-to-end media and streams browser exports. |
 | `src/maple-web/src/export/` | The browser export, a port of the server's, with the shared export vectors. |
 | `src/maple-web/src/import/` | Restoring: a ZIP reader, the parser for every export format and for single files, and the runner that restores notes through the API. |
-| `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Habits (with the progress chart and a month calendar), Archive, Tags, Trash, Settings, Help, and the sign-in, unlock and recovery screens. |
+| `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Habits (with the progress chart and a month calendar), Budgets (the list and a project's page, with its forms as bottom sheets), Archive, Tags, Trash, Settings, Help, and the sign-in, unlock and recovery screens. |
 | `tests/MapleNotes.Server.Tests/` | Unit and integration tests (xUnit v3, `WebApplicationFactory`). |
 | `scripts/` | License check and third-party notice generator. |
 | `site/` | The project website, published to GitHub Pages by `.github/workflows/pages.yml` with the app's icon and the README screenshots. |
@@ -70,7 +70,7 @@ session that must still set up a second factor (see below), so a new endpoint is
 | Entity | Notes |
 |---|---|
 | `User` | Username (unique, case-insensitive), PBKDF2 hash of the key derived from the password with its Argon2id salt and parameters, role, encryption mode (`Off`, `AtRest`, `EndToEnd`), server-held wrapped data key (absent once an end-to-end account needs none), end-to-end key material (the browser's data key wrapped by the password and by the recovery key, and a hash of the recovery authentication key), security stamp, lockout state, and `Preferences` (titles, date format, which features are on, theme, accent colour and the side menu's order; one JSON column, plain in every mode). |
-| `Note` | Owner, content bytes, `Scheme` (`None`, `Server`, `EndToEnd`), `Kind` (`Note` for the timeline, `Todo`, `Quick`, `Habit`), `DailyDate` (a daily note's day; unique per owner, given up when the note goes to the trash), pinned, `ArchivedAtUtc` (archive = soft delete), `TrashedAtUtc` (in the trash; deleted for good 30 days later by the trash cleanup worker), timestamps, `Revision` (concurrency token), `Mood` (0 for none, 1 to 5 for Awful to Great; notes and quick notes only) or, for end-to-end notes, `EncryptedMood`. A title is not a column: it is the text's first line written as a `# heading`, a todo list is a Markdown task list, and a habit is a `# name` followed by one `- yyyy-MM-dd` line per day done, so all of them are encrypted and exported like any text. A habit never changes kind. |
+| `Note` | Owner, content bytes, `Scheme` (`None`, `Server`, `EndToEnd`), `Kind` (`Note` for the timeline, `Todo`, `Quick`, `Habit`, `Budget`), `DailyDate` (a daily note's day; unique per owner, given up when the note goes to the trash), pinned, `ArchivedAtUtc` (archive = soft delete), `TrashedAtUtc` (in the trash; deleted for good 30 days later by the trash cleanup worker), timestamps, `Revision` (concurrency token), `Mood` (0 for none, 1 to 5 for Awful to Great; notes and quick notes only) or, for end-to-end notes, `EncryptedMood`. A title is not a column: it is the text's first line written as a `# heading`, a todo list is a Markdown task list, and a habit is a `# name` followed by one `- yyyy-MM-dd` line per day done, and a budget project is a `# name`, a `budget: amount · start → end · surprises: N%` line and `## Spent` / `## Expected` lists of `- date · category · amount · what for` lines (details and a `receipt: <attachment id>` indented under a line), so all of them are encrypted and exported like any text. Habits and budget projects never change kind. A budget note's attachments are exactly the receipts its lines name. |
 | `Attachment` | Owner, optional note, sanitized file name, content type, size, storage key, `Scheme`, `Revision`, `IsSticker` (a picture from a sticker pack). End-to-end files store a placeholder name and type, and their real ones (and the sticker flag) encrypted in `EncryptedMetadata`. |
 | `Tag` / `NoteTags` | Per-user tags parsed from `#tags` in note text. Tags of end-to-end notes have no name: a blind token (HMAC) and the name encrypted by the browser. |
 | `Label` / `NoteLabels` | Per-user coloured labels put on notes by hand: a name (or, for end-to-end accounts, the name encrypted by the browser for the label's ID) and one of ten colours. At most 100 per account and 20 per note. |
@@ -102,9 +102,10 @@ In the browser, the lists load 20 notes at a time as the end of the list comes w
 only when near the screen (`content-visibility: auto`). Pictures load lazily, and players, end-to-end decryption in
 the page and link previews start only when their note is within 800 px (`useNearViewport`).
 
-Searches, tag views, tag counts and the archive cover every kind the user has turned on, except habits: only the
-Habits page lists them, loading them all, oldest first, and it draws the progress chart in the browser from their
-text. The side-menu calendar counts active notes per day with `GET /api/v1/notes/calendar`, which converts creation
+Searches, tag views, tag counts and the archive cover every kind the user has turned on, except habits and budget
+projects: only the Habits page lists habits, loading them all, oldest first, and it draws the progress chart in the
+browser from their text. The Budgets page likewise loads every project and works out each forecast in the browser,
+so the server never needs to read the amounts (which end-to-end accounts encrypt like any other text). The side-menu calendar counts active notes per day with `GET /api/v1/notes/calendar`, which converts creation
 times to the given time zone on the server (a month at a time, at most 62 days); a day's notes are the feed
 filtered by `createdFrom`/`createdBefore`, the instants that day starts and ends.
 
@@ -448,8 +449,8 @@ Nothing is sent to the server.
 `GET /api/v1/export` streams a ZIP archive. Notes are read in batches of 200 in chronological order and decrypted in
 memory, and attachments are decrypted chunk by chunk. File names derive from the note's local creation time and first
 line (`2026-09-28_1430_buy-maple-syrup.md`). They are safe on Windows, macOS and Linux, and made unique
-case-insensitively. Folders follow the chosen layout; todo lists, quick notes and habits go under `todo/`,
-`quick-notes/` and `habits/`. Attachments go to `attachments/` and are linked from notes by relative path. Every
+case-insensitively. Folders follow the chosen layout; todo lists, quick notes, habits and budget projects go under `todo/`,
+`quick-notes/`, `habits/` and `budgets/`. Attachments go to `attachments/` and are linked from notes by relative path. Every
 format records each note's ID (the manifest does for plain text), kind, daily date, labels, mood and stickers, the last
 two in the lines Falcon Notes writes, so backups move between the two apps. Labels are written by
 name, in ordinal order, since label IDs belong to one account: as a JSON array in Markdown front matter (`labels:`),

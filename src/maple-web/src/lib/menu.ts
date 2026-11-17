@@ -1,11 +1,11 @@
-import { Archive, Bell, CalendarCheck, CircleHelp, Hash, Home, ListTodo, Zap, type LucideIcon } from "lucide-react";
+import { Archive, Bell, CalendarCheck, CircleHelp, Hash, Home, ListTodo, Wallet, Zap, type LucideIcon } from "lucide-react";
 import type { Preferences } from "./types";
 
 /**
  * The side menu's items in their default order (the server knows the same names). Settings is not one: it is the gear
  * in the top bar, and saved orders that still list it simply skip it.
  */
-export const MENU_ITEMS = ["home", "todo", "quick", "habits", "reminders", "tags", "archive", "help"] as const;
+export const MENU_ITEMS = ["home", "todo", "quick", "habits", "budgets", "reminders", "tags", "archive", "help"] as const;
 export type MenuItemId = (typeof MENU_ITEMS)[number];
 
 export interface MenuItemInfo {
@@ -17,7 +17,7 @@ export interface MenuItemInfo {
   /** The feature switch that hides it, if any. */
   feature?: string;
   /** The preference the item's eye in Settings → Side menu turns on and off; items without one always show. */
-  toggle?: "todoLists" | "quickNotes" | "habitTracker" | "tags" | "archive" | "helpMenu";
+  toggle?: "todoLists" | "quickNotes" | "habitTracker" | "budgets" | "tags" | "archive" | "helpMenu";
 }
 
 export const MENU_INFO: Record<MenuItemId, MenuItemInfo> = {
@@ -25,6 +25,7 @@ export const MENU_INFO: Record<MenuItemId, MenuItemInfo> = {
   todo: { label: "Todo", href: "/todo", icon: ListTodo, shown: (p) => p.todoLists, feature: "Todo lists", toggle: "todoLists" },
   quick: { label: "Quick notes", href: "/quick", icon: Zap, shown: (p) => p.quickNotes, feature: "Quick notes", toggle: "quickNotes" },
   habits: { label: "Habits", href: "/habits", icon: CalendarCheck, shown: (p) => p.habitTracker, feature: "Habit tracker", toggle: "habitTracker" },
+  budgets: { label: "Budgets", href: "/budgets", icon: Wallet, shown: (p) => p.budgets, feature: "Budgets", toggle: "budgets" },
   reminders: { label: "Reminders", href: "/reminders", icon: Bell, shown: () => true },
   tags: { label: "Tags", href: "/tags", icon: Hash, shown: (p) => p.tags, feature: "Tags page", toggle: "tags" },
   archive: { label: "Archive", href: "/archive", icon: Archive, shown: (p) => p.archive, feature: "Archive", toggle: "archive" },

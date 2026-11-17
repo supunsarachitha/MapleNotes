@@ -470,10 +470,12 @@ public sealed class NoteService(
             return null;
         }
 
-        // A habit's text has a fixed shape (its days, one per line), so it never moves to or from the other kinds.
-        if (request.Kind is { } moveTo && moveTo != note.Kind && (moveTo == NoteKind.Habit || note.Kind == NoteKind.Habit))
+        // Habits and budgets have a fixed shape (a habit's days, a budget's cost lines), so they never move to or from
+        // another kind.
+        if (request.Kind is { } moveTo && moveTo != note.Kind && (IsFixedKind(moveTo) || IsFixedKind(note.Kind)))
         {
-            throw new ApiValidationException("kind", "Habits cannot become other kinds of notes, and notes cannot become habits.");
+            throw new ApiValidationException(
+                "kind", "Habits and budgets cannot become other kinds of notes, and notes cannot become habits or budgets.");
         }
 
         if (request.IsPinned is { } pinned)
@@ -645,7 +647,7 @@ public sealed class NoteService(
 
     /// <summary>Lists the user's tags with the number of active notes using each.</summary>
     /// <param name="userId">The owner.</param>
-    /// <param name="kinds">Count only notes of these kinds; null or empty for every kind except habits.</param>
+    /// <param name="kinds">Count only notes of these kinds; null or empty for every kind except habits and budgets.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>Named tags in alphabetical order, then end-to-end tags (tokens and encrypted names).</returns>
     /// <exception cref="ApiValidationException">A kind is not valid.</exception>
@@ -654,7 +656,7 @@ public sealed class NoteService(
         var counted = db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null);
         counted = ValidateKinds(kinds) is { } wanted
             ? counted.Where(n => wanted.Contains(n.Kind))
-            : counted.Where(n => n.Kind != NoteKind.Habit);
+            : counted.Where(n => n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget);
 
         var tags = await db.Tags.AsNoTracking()
             .Where(t => t.UserId == userId)
@@ -885,7 +887,7 @@ public sealed class NoteService(
             n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null && n.CreatedAtUtc >= start && n.CreatedAtUtc < end);
         notes = ValidateKinds(query.Kinds) is { } kinds
             ? notes.Where(n => kinds.Contains(n.Kind))
-            : notes.Where(n => n.Kind != NoteKind.Habit);
+            : notes.Where(n => n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget);
 
         var times = await notes.Select(n => n.CreatedAtUtc).ToListAsync(cancellationToken);
         return times
@@ -911,11 +913,14 @@ public sealed class NoteService(
 
         if (!kinds.All(Enum.IsDefined))
         {
-            throw new ApiValidationException("kind", "The kind must be Note, Todo, Quick or Habit.");
+            throw new ApiValidationException("kind", "The kind must be Note, Todo, Quick, Habit or Budget.");
         }
 
         return kinds.Distinct().ToArray();
     }
+
+    /// <summary>Kinds whose text has a fixed shape, which never change kind.</summary>
+    private static bool IsFixedKind(NoteKind kind) => kind is NoteKind.Habit or NoteKind.Budget;
 
     private static bool Matches(NoteResponse note, string search) =>
         note.Content?.Contains(search, StringComparison.OrdinalIgnoreCase) == true

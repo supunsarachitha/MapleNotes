@@ -222,6 +222,40 @@ describe("Settings", () => {
     expect(screen.getByRole("button", { name: "Hide Habits from the menu" })).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("offers Budgets in the side menu, off by default, and its own section only once it is on", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderSettings(idle, user, null, "/settings/menu");
+
+    expect(screen.queryByRole("link", { name: /^Budgets/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show Budgets in the menu" }));
+
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, budgets: true }));
+    expect(await screen.findByRole("link", { name: /^Budgets/ })).toHaveAttribute("href", "/settings/budgets");
+  });
+
+  it("picks the budget currency from a searchable list and sets the allowance new projects start with", async () => {
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    const on = { ...user, preferences: { ...DEFAULT_PREFERENCES, budgets: true, budgetCurrency: "USD" } };
+    renderSettings(idle, on, null, "/settings/budgets");
+
+    expect(screen.getByRole("heading", { level: 1, name: "Budgets" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /^Currency\s*US Dollar · USD/ }));
+    const sheet = within(await screen.findByRole("dialog", { name: "Currency" }));
+    expect(sheet.getByRole("button", { name: /US Dollar/ })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.type(sheet.getByRole("searchbox", { name: "Search currencies" }), "rupee");
+    expect(sheet.queryByRole("button", { name: /US Dollar/ })).not.toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: /Sri Lankan Rupee/ }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...on.preferences, budgetCurrency: "LKR" }));
+
+    await userEvent.click(screen.getByRole("button", { name: /^Allowance for surprises\s*New projects add 10%/ }));
+    const allowance = within(await screen.findByRole("dialog", { name: "Allowance for surprises" }));
+    expect(allowance.getByRole("radio", { name: "10%" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(allowance.getByRole("radio", { name: "Other" }));
+    await userEvent.type(allowance.getByRole("textbox", { name: "Your own percentage" }), "12");
+    await userEvent.click(allowance.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...on.preferences, budgetCurrency: "LKR", budgetSurprisePercent: 12 }));
+  });
+
   it("offers double-tap to edit, off by default", async () => {
     const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
     renderSettings(idle, user, null, "/settings/writing");
@@ -419,9 +453,9 @@ describe("Settings", () => {
     expect(items()[3]).toContain("Hidden"); // keeps its place for when it is turned on
     await userEvent.click(screen.getByRole("button", { name: "Move Todo up" }));
 
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuOrder: "todo,home,quick,habits,reminders,tags,archive,help" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, menuOrder: "todo,home,quick,habits,budgets,reminders,tags,archive,help" }));
     expect(items()[0]).toContain("Todo");
-    expect(screen.getByText("Todo moved to position 1 of 8.")).toBeInTheDocument();
+    expect(screen.getByText("Todo moved to position 1 of 9.")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Back to the usual order" }));
     await waitFor(() => expect(save).toHaveBeenLastCalledWith(DEFAULT_PREFERENCES));

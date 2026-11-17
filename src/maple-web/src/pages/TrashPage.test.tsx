@@ -25,6 +25,10 @@ const report: Note = {
   trashedAtUtc: deleted(2),
 };
 const stretch: Note = { ...report, id: "n-stretch", kind: "Habit", content: "# Stretch\n\n- 2026-09-01\n- 2026-09-02", attachments: [], trashedAtUtc: deleted(29.5) };
+const trip: Note = {
+  ...report, id: "n-trip", kind: "Budget", attachments: [], trashedAtUtc: deleted(3),
+  content: "# Trip to Ella\n\nbudget: 80000 · 2026-11-01 → 2026-11-10\n\n## Spent\n- 2026-11-07 · Travel · 6400 · Train\n\n## Expected\n- 2026-11-09 · Food · 9000",
+};
 
 function renderTrash(notes: Note[], preferences: Partial<Preferences> = {}) {
   const list = vi.spyOn(api, "listNotes").mockResolvedValue({ items: notes, nextCursor: null });
@@ -51,10 +55,10 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("Trash", () => {
   it("lists every kind of deleted note with when it goes for good, without loading their files", async () => {
-    const list = renderTrash([report, stretch]);
+    const list = renderTrash([report, stretch, trip]);
 
     const cards = await screen.findAllByRole("article");
-    expect(cards).toHaveLength(2);
+    expect(cards).toHaveLength(3);
     expect(within(cards[0]!).getByText("Note")).toBeInTheDocument();
     expect(within(cards[0]!).getByText(/Deleted 2 days ago/)).toBeInTheDocument();
     expect(within(cards[0]!).getByText("· deleted for good in 28 days")).toBeInTheDocument();
@@ -63,7 +67,9 @@ describe("Trash", () => {
     expect(within(cards[1]!).getByText("Habit")).toBeInTheDocument();
     expect(within(cards[1]!).getByText(/Stretch/)).toHaveTextContent("Stretch · 2 days done");
     expect(within(cards[1]!).getByText("· deleted for good in 1 day")).toBeInTheDocument();
-    expect(list).toHaveBeenCalledWith(expect.objectContaining({ state: "trash", kinds: ["Note", "Todo", "Quick", "Habit"] }));
+    expect(within(cards[2]!).getByText("Budget")).toBeInTheDocument();
+    expect(within(cards[2]!).getByText(/Trip to Ella/)).toHaveTextContent("Trip to Ella · 2 costs");
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ state: "trash", kinds: ["Note", "Todo", "Quick", "Habit", "Budget"] }));
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings/data");
   });
 
