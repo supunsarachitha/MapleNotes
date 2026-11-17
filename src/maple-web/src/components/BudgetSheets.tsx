@@ -118,7 +118,7 @@ export function PaidProgress({ progress, money, className }: { progress: Progres
         )}
       </span>
       <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800" aria-hidden="true">
-        <span className={cn("block h-full rounded-full", over > 0 ? "bg-red-600 dark:bg-red-500" : "bg-maple-600 dark:bg-maple-500")} style={{ width }} />
+        <span className={cn("block h-full rounded-full", over > 0 ? "bg-red-600 dark:bg-red-500" : "bg-emerald-600 dark:bg-emerald-500")} style={{ width }} />
       </span>
     </span>
   );
