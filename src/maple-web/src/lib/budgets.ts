@@ -342,3 +342,85 @@ export function suggestCurrency(languages: readonly string[]): string {
   }
   return "USD";
 }
+
+/** The currencies offered first in the currency picker. */
+export const SUGGESTED_CURRENCIES = ["LKR", "USD", "EUR", "GBP", "INR", "AUD"] as const;
+
+/** The account's currency: the one chosen in Settings, or a guess from the browser's languages until one is. */
+export function accountCurrency(chosen: string, languages: readonly string[]): string {
+  return chosen || suggestCurrency(languages);
+}
+
+const moneyFormats = new Map<string, Intl.NumberFormat>();
+
+function moneyFormat(currency: string, decimals: boolean, locale?: string): Intl.NumberFormat {
+  const key = `${locale ?? ""} ${currency} ${decimals}`;
+  let format = moneyFormats.get(key);
+  if (!format) {
+    const digits = decimals ? 2 : 0;
+    const options: Intl.NumberFormatOptions = {
+      style: "currency",
+      currencyDisplay: "narrowSymbol",
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    };
+    try {
+      format = new Intl.NumberFormat(locale, { ...options, currency });
+    } catch {
+      // A code this browser does not know: show it as the code itself rather than fail.
+      format = new Intl.NumberFormat(locale, { ...options, currency: "XXX", currencyDisplay: "code" });
+    }
+    moneyFormats.set(key, format);
+  }
+  return format;
+}
+
+/**
+ * An amount in hundredths as money, e.g. "Rs 86,400" or "$12.50". Whole amounts show no decimals, which keeps the
+ * forecast numbers short on a phone; amounts with cents show both decimals.
+ */
+export function formatMoney(hundredths: number, currency: string, locale?: string): string {
+  const rounded = Math.round(hundredths);
+  return moneyFormat(currency, rounded % 100 !== 0, locale).format(rounded / 100);
+}
+
+/** A currency's name in the user's language, e.g. "Sri Lankan Rupee"; the code if the browser has no name for it. */
+export function currencyName(code: string, locale?: string): string {
+  try {
+    return new Intl.DisplayNames(locale ? [locale] : undefined, { type: "currency" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/** A currency's short symbol, e.g. "Rs", "$", "€"; the code when it has none. */
+export function currencySymbol(code: string, locale?: string): string {
+  return moneyFormat(code, false, locale).formatToParts(0).find((part) => part.type === "currency")?.value ?? code;
+}
+
+/** Every currency code this browser knows, for the picker. */
+export function allCurrencies(): string[] {
+  try {
+    return Intl.supportedValuesOf("currency");
+  } catch {
+    return [...SUGGESTED_CURRENCIES];
+  }
+}
+
+/**
+ * The picker's rows for a search: the suggested currencies that match, then the others sorted by name. A query matches
+ * a code, a name or exactly a symbol, so "rupee", "lkr" and "rs" all find the Sri Lankan rupee.
+ */
+export function searchCurrencies(query: string, codes: readonly string[], locale?: string): { suggested: string[]; others: string[] } {
+  const q = query.trim().toLowerCase();
+  const hit = (code: string) =>
+    !q || code.toLowerCase().includes(q) || currencyName(code, locale).toLowerCase().includes(q) || currencySymbol(code, locale).toLowerCase() === q;
+  const suggested = SUGGESTED_CURRENCIES.filter((code) => codes.includes(code) && hit(code));
+  const others = codes
+    .filter((code) => !(SUGGESTED_CURRENCIES as readonly string[]).includes(code) && hit(code))
+    .sort((a, b) => currencyName(a, locale).localeCompare(currencyName(b, locale)));
+  return { suggested, others };
+}
+
+/** Whether a project is finished: its end date has passed. */
+export const isFinished = (budget: Budget, today: string) => dayNumber(budget.end)! < dayNumber(today)!;

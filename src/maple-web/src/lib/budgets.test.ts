@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  accountCurrency,
+  allCurrencies,
   amountText,
+  currencyName,
+  currencySymbol,
+  formatMoney,
+  isFinished,
+  searchCurrencies,
   forecast,
   markPaid,
   parseAmount,
@@ -190,5 +197,37 @@ describe("currency suggestion", () => {
     expect(suggestCurrency(["si", "en-GB"])).toBe("LKR"); // Sinhala's likely region is Sri Lanka
     expect(suggestCurrency(["de-DE"])).toBe("EUR");
     expect(suggestCurrency(["xx-invalid-!!"])).toBe("USD");
+  });
+});
+
+describe("money and currencies", () => {
+  it("formats whole amounts without decimals and others with two", () => {
+    expect(formatMoney(125000000, "USD", "en-US")).toBe("$1,250,000");
+    expect(formatMoney(1250, "USD", "en-US")).toBe("$12.50");
+    expect(formatMoney(-40000, "EUR", "en-US")).toBe("-€400");
+    expect(formatMoney(8640000, "LKR", "en-US")).toContain("86,400");
+  });
+
+  it("names currencies and finds them by code, name or symbol", () => {
+    expect(currencyName("LKR", "en")).toBe("Sri Lankan Rupee");
+    expect(currencySymbol("EUR", "en-US")).toBe("€");
+    const codes = ["USD", "LKR", "EUR", "JPY", "INR", "PKR"];
+    expect(searchCurrencies("", codes, "en").suggested).toEqual(["LKR", "USD", "EUR", "INR"]);
+    expect(searchCurrencies("", codes, "en").others).toEqual(["JPY", "PKR"]);
+    expect(searchCurrencies("rupee", codes, "en")).toEqual({ suggested: ["LKR", "INR"], others: ["PKR"] });
+    expect(searchCurrencies("jpy", codes, "en")).toEqual({ suggested: [], others: ["JPY"] });
+    expect(searchCurrencies("€", codes, "en").suggested).toEqual(["EUR"]);
+  });
+
+  it("uses the chosen currency, or a guess from the browser until one is chosen", () => {
+    expect(accountCurrency("EUR", ["en-LK"])).toBe("EUR");
+    expect(accountCurrency("", ["en-LK"])).toBe("LKR");
+    expect(allCurrencies()).toContain("LKR");
+  });
+
+  it("calls a project finished once its end date has passed", () => {
+    const budget = parseBudget("# Trip\n\nbudget: 100 · 2026-10-01 → 2026-10-31 · surprises: 10%", { today: "2026-10-05", surprisePercent: 10 });
+    expect(isFinished(budget, "2026-10-31")).toBe(false);
+    expect(isFinished(budget, "2026-11-01")).toBe(true);
   });
 });
