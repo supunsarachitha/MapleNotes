@@ -115,6 +115,46 @@ public sealed class NoteKindsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Budgets_are_listed_only_when_asked_for_and_stay_out_of_counts_and_the_calendar()
+    {
+        var note = await CreateAsync(new CreateNoteRequest("Paid the mason #kitchen"));
+        var budget = await CreateAsync(new CreateNoteRequest(
+            "# Kitchen #kitchen\n\nbudget: 450000 · 2026-10-01 → 2026-12-20 · surprises: 10%\n\n## Spent\n- 2026-11-14 · Labour · 35000 · Mason",
+            Kind: NoteKind.Budget));
+
+        Assert.Equal(NoteKind.Budget, budget.Kind);
+        Assert.Equal([note.Id], await IdsAsync("/api/v1/notes"));
+        Assert.Equal([note.Id], await IdsAsync("/api/v1/notes?state=active&q=mason&kind=note&kind=todo&kind=quick"));
+        Assert.Equal([budget.Id], await IdsAsync("/api/v1/notes?state=active&kind=budget"));
+        Assert.Equal([("kitchen", 1)], await TagCountsAsync("/api/v1/tags")); // budgets count only when asked for
+        Assert.Equal([("kitchen", 2)], await TagCountsAsync("/api/v1/tags?kind=note&kind=budget"));
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var days = await _client.GetJsonAsync<List<CalendarDayResponse>>(
+            $"/api/v1/notes/calendar?from={today.AddDays(-1):yyyy-MM-dd}&to={today.AddDays(1):yyyy-MM-dd}&timeZone=UTC");
+        Assert.Equal(1, days!.Sum(d => d.Count)); // the budget is not a written note
+    }
+
+    [Fact]
+    public async Task Budgets_never_change_kind_and_notes_never_become_budgets()
+    {
+        var note = await CreateAsync(new CreateNoteRequest("A timeline note"));
+        var budget = await CreateAsync(new CreateNoteRequest("# Trip\n\nbudget: 80000", Kind: NoteKind.Budget));
+        var habit = await CreateAsync(new CreateNoteRequest("# Walk\n\n- 2026-09-29", Kind: NoteKind.Habit));
+
+        var toBudget = await _client.PatchJsonAsync($"/api/v1/notes/{note.Id}", new PatchNoteRequest(Kind: NoteKind.Budget));
+        var fromBudget = await _client.PatchJsonAsync($"/api/v1/notes/{budget.Id}", new PatchNoteRequest(Kind: NoteKind.Todo));
+        var habitToBudget = await _client.PatchJsonAsync($"/api/v1/notes/{habit.Id}", new PatchNoteRequest(Kind: NoteKind.Budget));
+        var archived = await PatchAsync(budget.Id, new PatchNoteRequest(IsArchived: true, Kind: NoteKind.Budget));
+
+        Assert.Equal((HttpStatusCode.BadRequest, HttpStatusCode.BadRequest, HttpStatusCode.BadRequest),
+            (toBudget.StatusCode, fromBudget.StatusCode, habitToBudget.StatusCode));
+        Assert.Contains("kind", (await fromBudget.Content.ReadFromJsonAsync<ValidationProblemDetails>(Ct))!.Errors.Keys);
+        Assert.Equal((NoteKind.Budget, true), (archived.Kind, archived.IsArchived)); // archiving still works
+        var daily = await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("# Trip", Kind: NoteKind.Budget, DailyDate: new DateOnly(2026, 9, 29)));
+        Assert.Equal(HttpStatusCode.BadRequest, daily.StatusCode);
+    }
+
+    [Fact]
     public async Task Unknown_kinds_are_rejected()
     {
         var note = await CreateAsync(new CreateNoteRequest("x"));

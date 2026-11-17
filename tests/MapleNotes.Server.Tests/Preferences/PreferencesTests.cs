@@ -39,6 +39,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.Equal((false, false, "yyyy-MM-dd", true, true, false),
             (preferences!.NoteTitles, preferences.DateInTitles, preferences.DateFormat, preferences.TodoLists, preferences.QuickNotes, preferences.DailyNotes));
         Assert.False(preferences.HabitTracker); // habits are opt-in
+        Assert.Equal((false, "", 10), (preferences.Budgets, preferences.BudgetCurrency, preferences.BudgetSurprisePercent)); // budgets too
         Assert.False(preferences.ShrinkPhotos); // so is shrinking photos, which replaces the original
         Assert.Equal((true, true, "Medium", "Auto"), (preferences.Archive, preferences.Tags, preferences.MenuTextSize, preferences.WeekStart));
         Assert.Equal("Medium", preferences.NoteTextSize);
@@ -112,6 +113,32 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.Contains("noteTextSize", (await noteSize.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
         Assert.Contains("weekStart", (await week.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
         Assert.Contains("photoSize", (await photo.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task Budget_currency_and_surprise_percentage_are_saved_and_checked()
+    {
+        var saved = await _alice.PutJsonAsync("/api/v1/account/preferences",
+            new UserPreferences { Budgets = true, BudgetCurrency = " lkr ", BudgetSurprisePercent = 15 });
+        var back = await _alice.GetJsonAsync<UserPreferences>("/api/v1/account/preferences");
+        var none = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { BudgetSurprisePercent = 0 });
+
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Equal((true, "LKR", 15), (back!.Budgets, back.BudgetCurrency, back.BudgetSurprisePercent)); // code is tidied up
+        Assert.Equal(HttpStatusCode.OK, none.StatusCode); // 0 turns the allowance off
+
+        foreach (var (wrong, field) in new (UserPreferences, string)[]
+        {
+            (new UserPreferences { BudgetCurrency = "RUPEE" }, "budgetCurrency"),
+            (new UserPreferences { BudgetCurrency = "L1R" }, "budgetCurrency"),
+            (new UserPreferences { BudgetSurprisePercent = -1 }, "budgetSurprisePercent"),
+            (new UserPreferences { BudgetSurprisePercent = 101 }, "budgetSurprisePercent"),
+        })
+        {
+            var response = await _alice.PutJsonAsync("/api/v1/account/preferences", wrong);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Contains(field, (await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+        }
     }
 
     [Theory]

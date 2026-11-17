@@ -341,12 +341,13 @@ public sealed class NoteExporter(
         await stream.WriteAsync(Encoding.UTF8.GetBytes(text), cancellationToken);
     }
 
-    /// <summary>Todo lists, quick notes and habits get their own top-level folders; timeline notes stay at the top.</summary>
+    /// <summary>Todo lists, quick notes, habits and budgets get their own top-level folders; timeline notes stay at the top.</summary>
     private static string KindFolder(NoteKind kind) => kind switch
     {
         NoteKind.Todo => "todo",
         NoteKind.Quick => "quick-notes",
         NoteKind.Habit => "habits",
+        NoteKind.Budget => "budgets",
         _ => string.Empty,
     };
 

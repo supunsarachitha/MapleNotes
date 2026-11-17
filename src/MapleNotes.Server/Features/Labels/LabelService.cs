@@ -21,7 +21,7 @@ public sealed class LabelService(MapleDbContext db, UserContentKeys keys, Encryp
 {
     /// <summary>Lists the account's labels, oldest first, with how many active notes carry each.</summary>
     /// <param name="userId">The owner.</param>
-    /// <param name="kinds">Count only notes of these kinds; null or empty for every kind except habits.</param>
+    /// <param name="kinds">Count only notes of these kinds; null or empty for every kind except habits and budgets.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The labels.</returns>
     /// <exception cref="ApiValidationException">A kind is not valid.</exception>
@@ -30,7 +30,7 @@ public sealed class LabelService(MapleDbContext db, UserContentKeys keys, Encryp
         var counted = db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null);
         counted = NoteService.ValidateKinds(kinds) is { } wanted
             ? counted.Where(n => wanted.Contains(n.Kind))
-            : counted.Where(n => n.Kind != NoteKind.Habit);
+            : counted.Where(n => n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget);
 
         var labels = await db.Labels.AsNoTracking()
             .Where(l => l.UserId == userId)
@@ -141,7 +141,7 @@ public sealed class LabelService(MapleDbContext db, UserContentKeys keys, Encryp
 
         // From the label's links (indexed by label), not by reading every note.
         var count = await db.Notes
-            .Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null && n.Kind != NoteKind.Habit)
+            .Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null && n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget)
             .SelectMany(n => n.Labels.Where(l => l.Id == labelId))
             .CountAsync(cancellationToken);
         return new LabelResponse(label.Id, label.Name, label.EncryptedName, label.Color, count, label.HideNotes);

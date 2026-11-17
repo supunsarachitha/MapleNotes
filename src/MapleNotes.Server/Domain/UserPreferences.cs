@@ -41,7 +41,7 @@ public sealed record UserPreferences
     public static IReadOnlyList<string> WeekStarts { get; } = ["Auto", "Sunday", "Monday", "Saturday"];
 
     /// <summary>The items of the side menu, in their default order; <see cref="MenuOrder"/> rearranges them.</summary>
-    public static IReadOnlyList<string> MenuItems { get; } = ["home", "todo", "quick", "habits", "reminders", "tags", "archive", "settings", "help"];
+    public static IReadOnlyList<string> MenuItems { get; } = ["home", "todo", "quick", "habits", "budgets", "reminders", "tags", "archive", "settings", "help"];
 
     /// <summary>
     /// Show a title field when writing notes. A title is stored as the note's first line, written as a Markdown
@@ -82,6 +82,24 @@ public sealed record UserPreferences
     /// but keeps the habits; off by default.
     /// </summary>
     public bool HabitTracker { get; init; }
+
+    /// <summary>
+    /// Show the Budgets page, for projects with a budget and a spending forecast. Turning it off hides the page but keeps
+    /// the projects; off by default.
+    /// </summary>
+    public bool Budgets { get; init; }
+
+    /// <summary>
+    /// The currency of every budget: an ISO 4217 code such as <c>LKR</c>, or empty until the user chooses one (the app
+    /// then suggests one from the browser's region). Amounts are never converted when it changes.
+    /// </summary>
+    public string BudgetCurrency { get; init; } = "";
+
+    /// <summary>
+    /// The allowance for surprises that new budget projects start with: a percentage (0 to 100) of the costs still
+    /// expected, added to their forecast. Each project keeps its own percentage, so changing this leaves them alone.
+    /// </summary>
+    public int BudgetSurprisePercent { get; init; } = 10;
 
     /// <summary>
     /// Show the Archive page, and the Archive action on notes and todo lists. Turning it off hides them but keeps the
