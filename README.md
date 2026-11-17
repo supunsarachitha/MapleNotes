@@ -804,6 +804,15 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.22 to 1.23
+
+Nothing to do: there are no migrations and no new tables. The new Budgets tab is off until each user turns it on with
+its eye in Settings → Side menu. Budget projects are notes of the new kind `Budget`, so they are encrypted, exported
+(under `budgets/`), restored and trashed like other notes. Like habits, they are left out of the timeline, the tag and
+label counts and the calendar unless a request asks for `kind=budget`. Three new preferences (`budgets`,
+`budgetCurrency`, `budgetSurprisePercent`) take their defaults on accounts that have never saved them. An export that
+contains budget projects needs 1.23 or later to restore them as budgets.
+
 ### From 1.21 to 1.22
 
 Nothing to do for most installations: everyone stays signed in, and the new rules are off until an administrator turns

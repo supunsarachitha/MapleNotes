@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-11-17
+
 ### Added
 
 - Budgets: an optional Budgets tab (turned on with its eye in Settings → Side menu) for projects with a budget. Each
@@ -866,7 +868,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.22.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.23.0...HEAD
+[1.23.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.21.1...v1.22.0
 [1.21.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.21.0...v1.21.1
 [1.21.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.20.0...v1.21.0
