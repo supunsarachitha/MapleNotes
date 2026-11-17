@@ -145,7 +145,8 @@ in the trash are not sent.`,
     title: "Budgets",
     body: `Turn on **Budgets** with its eye in [Settings → Side menu](/settings/menu) to get it in the menu. A project is anything
 with a budget: a renovation, a trip, a wedding, or a month of groceries. Tap **New project**, give it a name, a budget
-and dates, then list the big costs you already know about.
+and dates, then list the big costs you already know about. With **Use these as categories** on (it is by default),
+each cost you list also becomes a category with its amount as its share of the budget.
 
 A project leads with its **forecast final cost**. While costs are listed as expected, the forecast is your plan: what
 you have spent plus what is still expected, plus an **allowance for surprises**, a percentage of what is still expected
@@ -157,6 +158,12 @@ Use **Spent** at the bottom when you pay for something, and **Expect** for a cos
 is paid, tap **Paid** on it and enter what it really cost, so it is not counted twice; its details and photo carry over.
 Every cost can keep details and a receipt or quote photo; tap it to see them, edit it or delete it. A project's **⋯**
 menu renames it, changes its budget and dates, archives it or moves it to the trash.
+
+The **Categories** tab shows the forecast for each category. Shares are optional: tap **Edit shares** to give each
+category its part of the budget, add categories, rename them or remove them. A new name is used on that category's
+costs too; removing a category only drops its share, and its costs keep it. **Split evenly** shares the budget out for
+you, and the sheet tells you what is not assigned yet or how much too much you have assigned. With shares set, each
+category shows how much it is over or has to spare, and the advice names the category that runs over its share most.
 
 All your budgets use one currency, chosen in [Settings → Budgets](/settings/budgets), which also sets the allowance new
 projects start with. Changing the currency changes the symbol only: nothing is converted. Budgets stay out of your

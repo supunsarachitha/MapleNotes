@@ -126,13 +126,55 @@ describe("Budgets", () => {
 
     await waitFor(() =>
       expect(create).toHaveBeenCalledWith(
-        "# Renovation\n\nbudget: 450000 · 2026-11-16 → 2026-12-16 · surprises: 10%\n\n## Expected\n- 2026-12-16 · Materials · 400000 · Materials",
+        "# Renovation\n\nbudget: 450000 · 2026-11-16 → 2026-12-16 · surprises: 10%\n\n## Categories\n- Materials: 400000\n\n## Expected\n- 2026-12-16 · Materials · 400000 · Materials",
         [],
         { kind: "Budget" },
       ),
     );
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ budgetCurrency: "LKR" })));
     expect(window.location.pathname).toBe("/budgets/b-new");
+    window.history.replaceState(null, "", "/");
+  });
+
+  async function newTripWithCosts() {
+    serve([]);
+    const create = vi.spyOn(api, "createNote").mockImplementation(async (content) => project("b-new", content));
+    vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    window.history.replaceState(null, "", "/budgets");
+    renderWith(<BudgetsPage />, { budgets: true, budgetCurrency: "USD", budgetSurprisePercent: 0 });
+    await userEvent.click(await screen.findByRole("button", { name: "New project" }));
+    const first = within(await screen.findByRole("dialog", { name: "New project" }));
+    await userEvent.type(first.getByRole("textbox", { name: "Name" }), "Trip");
+    await userEvent.type(first.getByRole("textbox", { name: "Budget" }), "1000");
+    await userEvent.click(first.getByRole("button", { name: "Next" }));
+    const second = within(await screen.findByRole("dialog", { name: "What do you expect to pay for?" }));
+    for (const [i, name, amount] of [[1, "Hotel", "400"], [2, "hotel", "100"], [3, "Food", "250"]] as const) {
+      await userEvent.type(second.getByRole("textbox", { name: `Cost ${i}` }), name);
+      await userEvent.type(second.getByRole("textbox", { name: `Amount ${i}` }), amount);
+    }
+    return { create, second };
+  }
+
+  it("makes the listed costs the categories, with their amounts as shares and the same names merged", async () => {
+    const { create, second } = await newTripWithCosts();
+    expect(second.getByRole("switch", { name: "Use these as categories" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(second.getByRole("button", { name: "Create project" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(create.mock.calls[0]![0]).toBe(
+      "# Trip\n\nbudget: 1000 · 2026-11-16 → 2026-12-16 · surprises: 0%\n\n## Categories\n- Hotel: 500\n- Food: 250\n\n## Expected\n- 2026-12-16 · Hotel · 400 · Hotel\n- 2026-12-16 · Hotel · 100 · hotel\n- 2026-12-16 · Food · 250 · Food",
+    );
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("leaves the shares out when Use these as categories is turned off", async () => {
+    const { create, second } = await newTripWithCosts();
+    await userEvent.click(second.getByRole("switch", { name: "Use these as categories" }));
+    await userEvent.click(second.getByRole("button", { name: "Create project" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(create.mock.calls[0]![0]).not.toContain("## Categories");
+    expect(create.mock.calls[0]![0]).toContain("- 2026-12-16 · hotel · 100 · hotel");
     window.history.replaceState(null, "", "/");
   });
 });

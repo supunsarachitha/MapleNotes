@@ -174,6 +174,66 @@ describe("A budget project", () => {
     expect(attachmentIds).toEqual([]);
   });
 
+  it("sets each category's share, checking the total live, and renames the category on its costs", async () => {
+    const update = saves();
+    renderProject();
+
+    await userEvent.click(await screen.findByRole("tab", { name: "Categories" }));
+    expect(screen.getByText(/Give each category a share of the budget/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Edit shares" }));
+    const sheet = within(await screen.findByRole("dialog", { name: "Category shares" }));
+    expect(sheet.getByRole("textbox", { name: "Category 1" })).toHaveValue("Materials");
+    expect(sheet.getByText(/^Not assigned yet/)).toHaveTextContent("Not assigned yet: $450,000");
+
+    await userEvent.type(sheet.getByRole("textbox", { name: "Share of Materials" }), "470,000");
+    expect(sheet.getByText(/too much/)).toHaveTextContent("$20,000 too much");
+
+    await userEvent.click(sheet.getByRole("button", { name: "Add category" }));
+    await userEvent.type(sheet.getByRole("textbox", { name: "Category 2" }), "Labour");
+    await userEvent.click(sheet.getByRole("button", { name: "Split evenly" }));
+    expect(sheet.getByRole("textbox", { name: "Share of Labour" })).toHaveValue("225000");
+    expect(sheet.getByText("All assigned")).toBeInTheDocument();
+
+    const name = sheet.getByRole("textbox", { name: "Category 1" });
+    await userEvent.clear(name);
+    await userEvent.type(name, "Supplies");
+    await userEvent.click(sheet.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(update).toHaveBeenCalled());
+    const content = update.mock.calls[0]![1];
+    expect(content).toContain("## Categories\n- Supplies: 225000\n- Labour: 225000");
+    expect(content).toContain("- 2026-11-14 · Supplies · 370400 · Tiles");
+    expect(content).toContain("- 2026-12-02 · Supplies · 77000 · Countertop");
+    expect(content).not.toContain("Materials");
+    const list = within(screen.getByRole("list", { name: "Categories" }));
+    expect(list.getAllByRole("listitem").map((item) => item.firstChild!.textContent)).toEqual(["Supplies$230,100 over", "Labour$225,000 spare"]);
+  });
+
+  it("saves shares that do not add up, and removing a category keeps its costs", async () => {
+    const update = saves();
+    renderProject({ ...kitchen, content: kitchen.content.replace("surprises: 10%", "surprises: 10%\n\n## Categories\n- Materials: 400000\n- Permits: 10000") });
+
+    await userEvent.click(await screen.findByRole("tab", { name: "Categories" }));
+    expect(screen.getByText("Shares").nextSibling).toHaveTextContent("$410,000 of $450,000");
+    await userEvent.click(screen.getByRole("button", { name: "Edit shares" }));
+    const sheet = within(await screen.findByRole("dialog", { name: "Category shares" }));
+    expect(sheet.getByText(/^Not assigned yet/)).toHaveTextContent("Not assigned yet: $40,000");
+    await userEvent.click(sheet.getByRole("button", { name: "Remove Materials" }));
+    await userEvent.click(sheet.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(update).toHaveBeenCalled());
+    const content = update.mock.calls[0]![1];
+    expect(content).toContain("## Categories\n- Permits: 10000\n\n## Spent\n- 2026-11-14 · Materials · 370400 · Tiles");
+  });
+
+  it("names the category that overruns its share in the advice, and none without shares", async () => {
+    renderProject({ ...kitchen, content: kitchen.content.replace("surprises: 10%", "surprises: 10%\n\n## Categories\n- Materials: 400000\n- Fees: 0") });
+
+    const advice = within(await screen.findByRole("list", { name: "Advice" }));
+    expect(advice.getAllByRole("listitem").at(-1)).toHaveTextContent("Most of it comes from Materials: forecast $455,100 against $400,000.");
+    expect(screen.queryByText(/against \$0/)).not.toBeInTheDocument();
+  });
+
   it("shows an archived project without ways to change it", async () => {
     renderProject({ ...kitchen, isArchived: true });
 

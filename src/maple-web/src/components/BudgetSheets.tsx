@@ -1,10 +1,13 @@
 import { CalendarClock, Check, Paperclip, Plus, TrendingUp, X } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 import {
+  applyShares,
   forecast,
   markPaid,
   parseAmount,
   amountText,
+  shareTotals,
+  splitEvenly,
   type Budget,
   type BudgetLine,
   type Forecast,
@@ -13,7 +16,7 @@ import { addDays, dateOf, dayNumber } from "../lib/habits";
 import { useAttachmentSrc } from "../lib/mediaWorker";
 import type { Attachment } from "../lib/types";
 import { BottomSheet } from "./BottomSheet";
-import { Button, Spinner, cn } from "./ui";
+import { Button, IconButton, Spinner, cn } from "./ui";
 
 const shortDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" });
 const longDay = new Intl.DateTimeFormat("en", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
@@ -496,6 +499,182 @@ export function MethodSheet({ onClose }: { onClose: () => void }) {
           date. Best for monthly budgets like groceries.
         </p>
       </div>
+    </BottomSheet>
+  );
+}
+
+/**
+ * The live check of shares against the budget: "Not assigned yet: Rs 20,000" (neutral), "Rs 5,000 too much" (red) or
+ * "All assigned" (green). It only informs: saving is never blocked by it.
+ */
+export function ShareTotal({ budget, amounts, money }: { budget: number; amounts: number[]; money: (n: number) => string }) {
+  const { left, state } = shareTotals(budget, amounts);
+  return (
+    <p
+      aria-live="polite"
+      className={cn(
+        "flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm",
+        state === "over"
+          ? "bg-red-50 text-red-900 dark:bg-red-500/10 dark:text-red-200"
+          : state === "done"
+            ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200"
+            : "bg-stone-100 dark:bg-stone-800",
+      )}
+    >
+      {state === "done" && <Check className="size-4 shrink-0" aria-hidden="true" />}
+      <span className="min-w-0">
+        {state === "left" ? (
+          <>
+            Not assigned yet: <span className="whitespace-nowrap font-semibold tabular-nums">{money(left)}</span>
+          </>
+        ) : state === "over" ? (
+          <>
+            <span className="whitespace-nowrap font-semibold tabular-nums">{money(-left)}</span> too much
+          </>
+        ) : (
+          <span className="font-semibold">All assigned</span>
+        )}
+      </span>
+    </p>
+  );
+}
+
+/**
+ * Each category's share of the budget: one row per category (name, then amount), which can be added, renamed and
+ * removed. A rename also renames the category on its costs; removing one only drops its share. Split evenly fills the
+ * amounts in, and the total is checked against the budget as you type.
+ */
+export function SharesSheet({
+  budget,
+  money,
+  symbol,
+  onClose,
+  onSave,
+}: {
+  budget: Budget;
+  money: (n: number) => string;
+  symbol: string;
+  onClose: () => void;
+  onSave: (next: Budget) => void;
+}) {
+  const shareOf = (name: string) => budget.categories.find((c) => c.name === name)?.amount ?? 0;
+  const [rows, setRows] = useState<Array<{ key: number; from?: string; name: string; amount: string }>>(() =>
+    categoryNames(budget).map((name, key) => ({ key, from: name, name, amount: shareOf(name) ? amountText(shareOf(name)) : "" })),
+  );
+  const nextKey = useRef(rows.length);
+  const names = useRef<Array<HTMLInputElement | null>>([]);
+  const [tried, setTried] = useState(false);
+  const errorId = useId();
+  const values = rows.map((row) => (row.amount.trim() ? parseAmount(row.amount) : 0));
+  const bad = rows.findIndex((_, i) => values[i] === null || values[i]! < 0);
+  const set = (key: number, change: Partial<{ name: string; amount: string }>) => setRows((current) => current.map((row) => (row.key === key ? { ...row, ...change } : row)));
+
+  function add() {
+    setRows((current) => [...current, { key: nextKey.current++, name: "", amount: "" }]);
+    requestAnimationFrame(() => names.current.filter(Boolean).at(-1)?.focus());
+  }
+
+  function save() {
+    setTried(true);
+    if (bad >= 0) return;
+    onSave(applyShares(budget, rows.map((row, i) => ({ from: row.from, name: row.name, amount: values[i] ?? 0 }))));
+    onClose();
+  }
+
+  return (
+    <BottomSheet
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title="Category shares"
+      footer={
+        <>
+          <Button variant="ghost" className="h-11 flex-1" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button className="h-11 flex-1" onClick={save}>
+            Save
+          </Button>
+        </>
+      }
+    >
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          save();
+        }}
+        className="flex flex-col gap-3 pt-1"
+      >
+        <p className="text-sm text-stone-600 dark:text-stone-300">
+          Give each category its share of the budget of <span className="whitespace-nowrap font-semibold tabular-nums">{money(budget.budget)}</span>. A new name
+          is used on that category's costs too; removing a category keeps its costs.
+        </p>
+        {rows.length > 0 ? (
+          <ul className="flex flex-col gap-2" aria-label="Categories and their shares">
+            {rows.map((row, i) => {
+              const label = row.name.trim() || row.from || `category ${i + 1}`;
+              return (
+                <li key={row.key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,6.5rem)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,8rem)_auto]">
+                  <input
+                    ref={(element) => {
+                      names.current[i] = element;
+                    }}
+                    aria-label={`Category ${i + 1}`}
+                    value={row.name}
+                    placeholder={row.from ?? "e.g. Materials"}
+                    maxLength={60}
+                    autoComplete="off"
+                    enterKeyHint="next"
+                    onChange={(event) => set(row.key, { name: event.target.value })}
+                    className={fieldClass}
+                  />
+                  <input
+                    aria-label={`Share of ${label}`}
+                    value={row.amount}
+                    inputMode="decimal"
+                    enterKeyHint="done"
+                    placeholder={`${symbol} 0`}
+                    autoComplete="off"
+                    aria-invalid={tried && (values[i] === null || values[i]! < 0) ? true : undefined}
+                    aria-describedby={tried && bad === i ? errorId : undefined}
+                    onChange={(event) => set(row.key, { amount: event.target.value })}
+                    className={cn(fieldClass, "tabular-nums", tried && (values[i] === null || values[i]! < 0) && "border-red-600 dark:border-red-500")}
+                  />
+                  <IconButton label={`Remove ${label}`} className="size-11" onClick={() => setRows((current) => current.filter((r) => r.key !== row.key))}>
+                    <X className="size-4" />
+                  </IconButton>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="rounded-xl border border-dashed border-stone-300 px-3 py-4 text-center text-sm text-stone-600 dark:border-stone-700 dark:text-stone-300">
+            No categories yet. Add one, such as Materials or Labour.
+          </p>
+        )}
+        {tried && bad >= 0 && (
+          <p id={errorId} role="alert" className="text-sm text-red-700 dark:text-red-400">
+            Check the share of {rows[bad]!.name.trim() || rows[bad]!.from || `category ${bad + 1}`}, e.g. 12,500.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" className="h-11" onClick={add}>
+            <Plus className="size-4" aria-hidden="true" /> Add category
+          </Button>
+          <Button
+            variant="secondary"
+            className="h-11"
+            disabled={rows.length === 0}
+            onClick={() => {
+              const split = splitEvenly(budget.budget, rows.length);
+              setRows((current) => current.map((row, i) => ({ ...row, amount: amountText(split[i] ?? 0) })));
+            }}
+          >
+            Split evenly
+          </Button>
+        </div>
+        <ShareTotal budget={budget.budget} amounts={values.map((v) => v ?? 0)} money={money} />
+      </form>
     </BottomSheet>
   );
 }

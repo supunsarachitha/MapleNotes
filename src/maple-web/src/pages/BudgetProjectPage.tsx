@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useCallback, useState, type ReactNode } from "react";
 import { AllowanceSheet, ForecastBar, StatusChip, percentLabel, useBudgetCurrency, useMoney } from "../components/BudgetParts";
-import { CostSheet, ForecastEffect, MethodSheet, ProjectSheet, ViewCostSheet, dayText, weekdayText, type CostMode } from "../components/BudgetSheets";
+import { CostSheet, ForecastEffect, MethodSheet, ProjectSheet, SharesSheet, ViewCostSheet, dayText, weekdayText, type CostMode } from "../components/BudgetSheets";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ImageViewer } from "../components/ImageViewer";
 import { MenuItem } from "../components/NoteCard";
@@ -300,7 +300,7 @@ function ProjectView({ note }: { note: Note }) {
   const [sheet, setSheet] = useState<
     | { type: "cost"; mode: CostMode }
     | { type: "view"; kind: "spent" | "expected"; index: number }
-    | { type: "allowance" | "method" }
+    | { type: "allowance" | "method" | "shares" }
     | { type: "project"; focus: "name" | "budget" }
     | null
   >(null);
@@ -576,9 +576,17 @@ function ProjectView({ note }: { note: Note }) {
               Nothing spent yet. Tap Spent below when you pay for something.
             </p>
           ))}
+        {tab === "categories" && budget.categories.length > 0 && (
+          <div className={groupHead}>
+            <span className={groupLabel}>Shares</span>
+            <span className="tabular-nums">
+              {money(budget.categories.reduce((sum, c) => sum + c.amount, 0))} of {money(budget.budget)}
+            </span>
+          </div>
+        )}
         {tab === "categories" &&
           (f.categories.length ? (
-            <ul aria-label="Categories" className={cn(card, "mt-2 divide-y divide-stone-100 dark:divide-stone-800")}>
+            <ul aria-label="Categories" className={cn(card, budget.categories.length ? "" : "mt-2", "divide-y divide-stone-100 dark:divide-stone-800")}>
               {f.categories.map((c) => {
                 const difference = c.forecast - c.budget;
                 return (
@@ -615,6 +623,18 @@ function ProjectView({ note }: { note: Note }) {
               Costs are grouped by the category you give them.
             </p>
           ))}
+        {tab === "categories" && !readOnly && (
+          <>
+            <Button variant="secondary" className="mt-3 h-11 w-full text-base" onClick={() => setSheet({ type: "shares" })}>
+              <Pencil className="size-4" aria-hidden="true" /> Edit shares
+            </Button>
+            {budget.categories.every((c) => c.amount === 0) && (
+              <p className="mx-1 mt-2 text-[13px] text-stone-500 dark:text-stone-400">
+                Give each category a share of the budget to see which one is heading over. Shares are optional.
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       {!readOnly && (
@@ -668,6 +688,18 @@ function ProjectView({ note }: { note: Note }) {
         />
       )}
       {sheet?.type === "method" && <MethodSheet onClose={() => setSheet(null)} />}
+      {sheet?.type === "shares" && (
+        <SharesSheet
+          budget={budget}
+          money={money}
+          symbol={currencySymbol(currency)}
+          onClose={() => setSheet(null)}
+          onSave={(next) => {
+            save(next);
+            toast.info("Saved the shares");
+          }}
+        />
+      )}
       {sheet?.type === "project" && (
         <ProjectSheet budget={budget} symbol={currencySymbol(currency)} focus={sheet.focus} onClose={() => setSheet(null)} onSave={(next) => save(next)} />
       )}

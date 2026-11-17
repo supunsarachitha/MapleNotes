@@ -3,6 +3,7 @@ import {
   accountCurrency,
   allCurrencies,
   amountText,
+  applyShares,
   currencyName,
   currencySymbol,
   formatMoney,
@@ -10,9 +11,12 @@ import {
   searchCurrencies,
   forecast,
   markPaid,
+  mergeCategories,
   parseAmount,
   parseBudget,
   serializeBudget,
+  shareTotals,
+  splitEvenly,
   suggestCurrency,
   type Budget,
   type BudgetLine,
@@ -239,5 +243,97 @@ describe("categories without a share", () => {
     expect(f.difference).toBe(50000);
     expect(f.categories).toEqual([{ name: "Hotel", budget: 0, spent: 0, expected: 150000, forecast: 150000 }]);
     expect(f.worstCategory).toBeNull();
+  });
+
+  it("are passed over for one with a share, even when they are further over", () => {
+    const budget = parseBudget(
+      "# Trip\n\nbudget: 1000 · 2026-11-01 → 2026-11-30 · surprises: 0%\n\n## Categories\n- Food: 200\n- Fuel: 0\n\n## Expected\n- 2026-11-20 · Hotel · 900\n- 2026-11-20 · Fuel · 500\n- 2026-11-21 · Food · 250",
+      defaults,
+    );
+    const f = forecast(budget, "2026-11-16");
+    expect(f.worstCategory).toMatchObject({ name: "Food", budget: 20000, forecast: 25000 });
+  });
+});
+
+describe("category shares", () => {
+  const kitchen = parseBudget(KITCHEN, defaults);
+
+  it("renames a category on every spent and expected cost that uses it", () => {
+    const next = applyShares(kitchen, [
+      { from: "Materials", name: "Supplies", amount: 23000000 },
+      { from: "Labour", name: "Labour", amount: 16000000 },
+      { from: "Appliances", name: "Appliances", amount: 6000000 },
+    ]);
+    expect(next.categories.map((c) => c.name)).toEqual(["Supplies", "Labour", "Appliances"]);
+    expect(next.spent.filter((c) => c.category === "Supplies").map((c) => c.title)).toEqual(["Cabinet wood", "Sink and tap set", "Paint and primer", "Floor tiles, 24 boxes"]);
+    expect(next.expected.filter((c) => c.category === "Supplies")).toHaveLength(3);
+    expect([...next.spent, ...next.expected].some((c) => c.category === "Materials")).toBe(false);
+    expect(serializeBudget(next)).toContain("- 2026-11-14 · Supplies · 86400 · Floor tiles, 24 boxes\n  Lanka Tiles, Nugegoda.");
+  });
+
+  it("swaps two names in one save", () => {
+    const next = applyShares(kitchen, [
+      { from: "Materials", name: "Labour", amount: 100 },
+      { from: "Labour", name: "Materials", amount: 200 },
+    ]);
+    expect(next.spent[0]).toMatchObject({ title: "Cabinet wood", category: "Labour" });
+    expect(next.spent[1]).toMatchObject({ title: "Mason, week 1", category: "Materials" });
+  });
+
+  it("removing a category only drops its share; its costs keep it", () => {
+    const next = applyShares(kitchen, [
+      { from: "Materials", name: "Materials", amount: 23000000 },
+      { from: "Labour", name: "Labour", amount: 16000000 },
+    ]);
+    expect(next.categories).toEqual([
+      { name: "Materials", amount: 23000000 },
+      { name: "Labour", amount: 16000000 },
+    ]);
+    expect(next.spent[2]).toMatchObject({ title: "Gas hob", category: "Appliances" });
+    expect(forecast(next, "2026-11-16").categories.find((c) => c.name === "Appliances")).toMatchObject({ budget: 0, spent: 4850000 });
+  });
+
+  it("adds new rows, merges rows with the same name and skips empty new rows", () => {
+    const next = applyShares(kitchen, [
+      { from: "Materials", name: "Materials", amount: 20000000 },
+      { name: " materials ", amount: 3000000 },
+      { name: "Permits", amount: 500000 },
+      { name: "", amount: 0 },
+      { name: "Nothing yet", amount: 0 },
+      { from: "Labour", name: "", amount: 16000000 }, // a cleared name keeps the old one
+    ]);
+    expect(next.categories).toEqual([
+      { name: "Materials", amount: 23000000 },
+      { name: "Permits", amount: 500000 },
+      { name: "Labour", amount: 16000000 },
+    ]);
+  });
+
+  it("renames a category that only costs use, without giving it a share", () => {
+    const trip = parseBudget("# Trip\n\nbudget: 1000\n\n## Spent\n- 2026-11-02 · Hotel · 100 · Night 1", defaults);
+    const next = applyShares(trip, [{ from: "Hotel", name: "Rooms", amount: 0 }]);
+    expect(next.categories).toEqual([]);
+    expect(next.spent[0]!.category).toBe("Rooms");
+  });
+
+  it("splits a budget evenly with the remainder on the last row", () => {
+    expect(splitEvenly(45000000, 3)).toEqual([15000000, 15000000, 15000000]);
+    expect(splitEvenly(10000000, 3)).toEqual([3333300, 3333300, 3333400]);
+    expect(splitEvenly(1050, 2)).toEqual([500, 550]);
+    expect(splitEvenly(100, 0)).toEqual([]);
+    expect(splitEvenly(10000000, 3).reduce((a, b) => a + b, 0)).toBe(10000000);
+  });
+
+  it("checks the shares against the budget", () => {
+    expect(shareTotals(45000000, [23000000, 16000000])).toEqual({ assigned: 39000000, left: 6000000, state: "left" });
+    expect(shareTotals(45000000, [23000000, 16000000, 6500000])).toEqual({ assigned: 45500000, left: -500000, state: "over" });
+    expect(shareTotals(45000000, [23000000, 16000000, 6000000])).toEqual({ assigned: 45000000, left: 0, state: "done" });
+  });
+
+  it("merges categories by name, ignoring case", () => {
+    expect(mergeCategories([{ name: "Tiles", amount: 100 }, { name: "tiles", amount: 50 }, { name: " ", amount: 5 }, { name: "Paint", amount: 0 }])).toEqual([
+      { name: "Tiles", amount: 150 },
+      { name: "Paint", amount: 0 },
+    ]);
   });
 });
