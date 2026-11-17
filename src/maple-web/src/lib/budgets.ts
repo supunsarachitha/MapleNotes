@@ -314,6 +314,65 @@ export function forecast(budget: Budget, today: string): Forecast {
   };
 }
 
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/**
+ * Categories with one row per name: names that differ only in case or spaces become one, with their amounts added up,
+ * under the first spelling. Rows without a name are dropped.
+ */
+export function mergeCategories(items: BudgetCategory[]): BudgetCategory[] {
+  const merged: BudgetCategory[] = [];
+  for (const item of items) {
+    const name = clean(item.name);
+    if (!name) continue;
+    const found = merged.find((c) => sameName(c.name, name));
+    if (found) found.amount += item.amount;
+    else merged.push({ name, amount: item.amount });
+  }
+  return merged;
+}
+
+/** A row of the shares form: the category it was (none for a new row), its name now, and its share in hundredths. */
+export interface ShareRow {
+  from?: string;
+  name: string;
+  amount: number;
+}
+
+/**
+ * The project with the shares form saved. A renamed row renames its category on every spent and expected cost too; a
+ * category left out only loses its share (its costs keep it). A row with no share is kept only when it already was a
+ * category with a share, and rows with the same name become one. A row whose name was cleared keeps its old name.
+ */
+export function applyShares(budget: Budget, rows: ShareRow[]): Budget {
+  const wasShare = (name: string | undefined) => name !== undefined && budget.categories.some((c) => c.name === name);
+  const named = rows.map((row) => ({ ...row, name: clean(row.name) || row.from || "" }));
+  const categories = mergeCategories(named.filter((row) => row.name && (row.amount > 0 || wasShare(row.from))));
+  const spelling = (name: string) => categories.find((c) => sameName(c.name, name))?.name ?? name;
+  // All renames are made in one pass, so swapping two names works.
+  const renames = new Map<string, string>();
+  for (const row of named) if (row.from !== undefined && row.name && spelling(row.name) !== row.from) renames.set(row.from, spelling(row.name));
+  const move = (line: BudgetLine) => (renames.has(line.category) ? { ...line, category: renames.get(line.category)! } : line);
+  return { ...budget, categories, spent: budget.spent.map(move), expected: budget.expected.map(move) };
+}
+
+/**
+ * A budget split evenly over `count` rows, in hundredths: whole units of the currency each, with what is left over
+ * (the remainder and any cents) on the last row, so the rows always add up to the budget.
+ */
+export function splitEvenly(total: number, count: number): number[] {
+  if (count <= 0) return [];
+  const each = Math.floor(total / count / 100) * 100;
+  return Array.from({ length: count }, (_, i) => (i === count - 1 ? total - each * (count - 1) : each));
+}
+
+/** How shares add up against the budget: some still to assign (`left` above 0), too much (below 0), or all of it. */
+export function shareTotals(budget: number, amounts: number[]): { assigned: number; left: number; state: "left" | "over" | "done" } {
+  const assigned = amounts.reduce((sum, amount) => sum + amount, 0);
+  const left = budget - assigned;
+  return { assigned, left, state: left > 0 ? "left" : left < 0 ? "over" : "done" };
+}
+
 /** Turns an expected cost into a payment of the real amount on a day; its details and category carry over. */
 export function markPaid(budget: Budget, index: number, paid: Partial<BudgetLine> & { amount: number; date: string }): Budget {
   const cost = budget.expected[index];

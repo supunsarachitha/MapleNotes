@@ -1,7 +1,7 @@
 import { Plus, X } from "lucide-react";
 import { useId, useState } from "react";
 import { api, ApiError } from "../lib/api";
-import { currencyName, currencySymbol, parseAmount, serializeBudget, type BudgetLine } from "../lib/budgets";
+import { currencyName, currencySymbol, mergeCategories, parseAmount, serializeBudget, type BudgetLine } from "../lib/budgets";
 import { useToday } from "../lib/daily";
 import { localDateKey } from "../lib/dates";
 import { addDays, dayNumber } from "../lib/habits";
@@ -13,7 +13,7 @@ import { useBudgetCurrency, useMoney, SurpriseChoice } from "./BudgetParts";
 import { AmountField, chipClass, fieldClass } from "./BudgetSheets";
 import { useSavePreferences } from "./PreferenceSections";
 import { useToast } from "./Toaster";
-import { Button, IconButton, cn } from "./ui";
+import { Button, IconButton, Switch, cn } from "./ui";
 
 const NAME_IDEAS = ["Renovation", "Trip", "Wedding", "Monthly groceries"];
 const COST_IDEAS = ["Materials", "Labour", "Other"];
@@ -38,9 +38,10 @@ export function NewProjectSheet({ open, onOpenChange, onCreated }: { open: boole
   const [end, setEnd] = useState(addDays(today, 30));
   const [costs, setCosts] = useState<Array<{ name: string; amount: string }>>(COST_IDEAS.map(() => ({ name: "", amount: "" })));
   const [percent, setPercent] = useState(preferences.budgetSurprisePercent);
+  const [asCategories, setAsCategories] = useState(true);
   const [saving, setSaving] = useState(false);
   const [tried, setTried] = useState(false);
-  const ids = { name: useId(), amount: useId(), start: useId(), end: useId() };
+  const ids = { name: useId(), amount: useId(), start: useId(), end: useId(), categories: useId() };
   const symbol = currencySymbol(currency);
 
   const budget = parseAmount(amount);
@@ -67,6 +68,7 @@ export function NewProjectSheet({ open, onOpenChange, onCreated }: { open: boole
     setEnd(addDays(today, 30));
     setCosts(COST_IDEAS.map(() => ({ name: "", amount: "" })));
     setPercent(preferences.budgetSurprisePercent);
+    setAsCategories(true);
     setTried(false);
   }
 
@@ -74,10 +76,13 @@ export function NewProjectSheet({ open, onOpenChange, onCreated }: { open: boole
     if (error || budget === null || saving) return;
     setSaving(true);
     try {
+      // Listed costs can become the categories, their amounts the shares; costs with the same name make one category.
+      const categories = asCategories ? mergeCategories(listed) : [];
+      const spelling = (cost: string) => categories.find((c) => c.name.toLowerCase() === cost.trim().toLowerCase())?.name ?? cost;
       // Known costs are expected by the end date until the owner gives them their own dates.
-      const expected: BudgetLine[] = listed.map((cost) => ({ date: end, category: cost.name, amount: cost.amount, title: cost.name, details: "" }));
+      const expected: BudgetLine[] = listed.map((cost) => ({ date: end, category: spelling(cost.name), amount: cost.amount, title: cost.name, details: "" }));
       const note = await api.createNote(
-        serializeBudget({ name: name.trim(), budget, start, end, surprisePercent: percent, categories: [], spent: [], expected, notes: "" }),
+        serializeBudget({ name: name.trim(), budget, start, end, surprisePercent: percent, categories, spent: [], expected, notes: "" }),
         [],
         { kind: "Budget" },
       );
@@ -223,6 +228,15 @@ export function NewProjectSheet({ open, onOpenChange, onCreated }: { open: boole
           <Button variant="secondary" className="h-11 self-start" onClick={() => setCosts([...costs, { name: "", amount: "" }])}>
             <Plus className="size-4" aria-hidden="true" /> Add a cost
           </Button>
+          <div className="flex items-start gap-3 rounded-xl border border-stone-200 px-3 py-3 dark:border-stone-800">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Use these as categories</p>
+              <p id={ids.categories} className="mt-0.5 text-[13px] text-stone-500 dark:text-stone-400">
+                Each cost becomes a category with its amount as its share of the budget. You can change the shares later.
+              </p>
+            </div>
+            <Switch label="Use these as categories" describedBy={ids.categories} checked={asCategories} onCheckedChange={setAsCategories} />
+          </div>
           <div className="mt-2">
             <p className="mb-2 text-sm font-medium">Allowance for surprises</p>
             <SurpriseChoice value={percent} onChange={setPercent} />

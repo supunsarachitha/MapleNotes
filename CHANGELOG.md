@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Budgets: each category can have its share of the budget. The Categories tab has an **Edit shares** sheet with one row
+  per category (add, rename, remove), **Split evenly**, and a live check of the total against the budget ("Not
+  assigned yet", "too much", "All assigned"); saving is never blocked. Renaming a category renames it on every spent
+  and expected cost; removing one only drops its share. Step 2 of a new project has **Use these as categories** (on by
+  default), which turns the listed costs into categories with their amounts as shares, merging costs with the same
+  name. Projects without shares work as before
+  ([#153](https://github.com/supunsarachitha/MapleNotes/issues/153)).
+
 ## [1.23.0] - 2026-11-17
 
 ### Added
