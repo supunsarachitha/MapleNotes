@@ -155,7 +155,7 @@ export function NewProjectSheet({ open, onOpenChange, onCreated }: { open: boole
               autoComplete="off"
               className={cn(fieldClass, "mt-1")}
             />
-            <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Name ideas">
+            <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Name ideas">
               {NAME_IDEAS.map((idea) => (
                 <button key={idea} type="button" onClick={() => setName(idea)} className={chipClass(false)}>
                   {idea}

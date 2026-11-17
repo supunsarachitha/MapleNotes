@@ -284,7 +284,7 @@ export function CostSheet({
         <fieldset>
           <legend className="text-sm font-medium">Category</legend>
           {names.length > 0 && (
-            <div className="-mx-4 mt-1 flex gap-2 overflow-x-auto px-4 pb-1">
+            <div className="-mx-4 mt-1 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
               {names.map((name) => (
                 <button
                   key={name}

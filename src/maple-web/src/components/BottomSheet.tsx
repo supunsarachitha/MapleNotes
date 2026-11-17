@@ -45,7 +45,7 @@ export function BottomSheet({
               </IconButton>
             </Dialog.Close>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-4">{children}</div>
           {footer && (
             <div className="flex shrink-0 gap-2 border-t border-stone-200 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 dark:border-stone-800">
               {footer}

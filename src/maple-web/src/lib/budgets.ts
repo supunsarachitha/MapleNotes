@@ -266,7 +266,9 @@ export function forecast(budget: Budget, today: string): Forecast {
   // A plan when costs are listed (or the project is over); otherwise the pace so far, carried on to the end date.
   const method: ForecastMethod = budget.expected.length > 0 || ended || daysGone === 0 ? "plan" : "pace";
   const allowance = method === "plan" && !ended ? percentOf(expected, budget.surprisePercent) : 0;
-  const final = method === "plan" ? spent + expected + allowance : Math.round((spent / daysGone) * days);
+  // A pace is an estimate, so it is rounded to whole units of the currency rather than showing made-up cents.
+  const paced = (amount: number) => Math.round((amount / daysGone) * days / 100) * 100;
+  const final = method === "plan" ? spent + expected + allowance : paced(spent);
   const difference = final - budget.budget;
   const status: ForecastStatus =
     difference > 0 ? "over" : difference > -Math.round(budget.budget * 0.05) ? "tight" : "ok";
@@ -290,7 +292,7 @@ export function forecast(budget: Budget, today: string): Forecast {
     }
   }
   const dailyLimit =
-    method === "pace" && difference > 0 ? Math.max(0, Math.floor((budget.budget - spent) / Math.max(1, days - daysGone))) : null;
+    method === "pace" && difference > 0 ? Math.max(0, Math.floor((budget.budget - spent) / Math.max(1, days - daysGone) / 100) * 100) : null;
 
   const names = [...budget.categories.map((c) => c.name)];
   for (const cost of [...budget.spent, ...budget.expected]) if (!names.includes(cost.category)) names.push(cost.category);
@@ -298,7 +300,7 @@ export function forecast(budget: Budget, today: string): Forecast {
     const share = budget.categories.find((c) => c.name === name)?.amount ?? 0;
     const s = total(budget.spent.filter((c) => c.category === name));
     const x = total(budget.expected.filter((c) => c.category === name));
-    const f = method === "plan" ? s + x + (allowance ? percentOf(x, budget.surprisePercent) : 0) : Math.round((s / daysGone) * days);
+    const f = method === "plan" ? s + x + (allowance ? percentOf(x, budget.surprisePercent) : 0) : paced(s);
     return { name, budget: share, spent: s, expected: x, forecast: f };
   });
   const worstCategory =

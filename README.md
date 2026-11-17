@@ -6,7 +6,7 @@
 
 <p align="center">
   A self-hosted place for quick notes, encrypted at rest or end to end.<br>
-  Timeline feed · todo lists · daily notes · habit tracker · moods and stickers · Markdown and #tags · attachments · export and restore · one Docker container.
+  Timeline feed · todo lists · daily notes · habit tracker · budgets · moods and stickers · Markdown and #tags · attachments · export and restore · one Docker container.
 </p>
 
 <p align="center">
@@ -48,14 +48,19 @@
   Optionally, a note of yours serves as the template each new day's note starts with.
 - **Habit tracker.** Optionally, a Habits tab: tick off the days you keep each habit, and follow your progress in a
   chart of weeks or months, with streaks, and in a month calendar.
+- **Budgets.** Optionally, a Budgets tab for projects with a budget, such as a renovation, a trip or a month of
+  groceries. Add what you expect to pay and what you have paid (with a receipt photo if you like), and Maple Notes
+  forecasts the final cost: from your plan when costs are expected, with an allowance for surprises you choose per
+  project, or from your spending pace otherwise. It says early when a project is heading over, when the money runs
+  out and what to trim. One currency for the whole account; nothing is converted.
 - **Link previews.** Optionally, the title and description of links in your notes. Off by default: the server fetches
   the pages, so it sees the links.
 - **Calendar.** A month calendar in the side menu marks the days you wrote on; choose a day to see its notes.
 - **Your choice of features.** Each account turns titles, todo lists, quick notes, daily notes, the calendar, the
-  habit tracker, the archive, the Tags page, labels, the trash and Help in the side menu on or off in Settings, on
+  habit tracker, budgets, the archive, the Tags page, labels, the trash and Help in the side menu on or off in Settings, on
   every device at once.
   Turning a feature off hides it and deletes nothing. Settings is organised in sections (Account, Appearance, Side
-  menu, Writing, Notes & files, Labels, Backup & data, Privacy & security, and Administration for administrators), each
+  menu, Writing, Notes & files, Budgets (while Budgets is on), Labels, Backup & data, Privacy & security, and Administration for administrators), each
   with its own address.
 - **Markdown and tags.** GitHub-flavoured Markdown (task lists you tick in place, tables, code), with a formatting toolbar and shortcuts
   in the editor, and clickable `#tags`, including

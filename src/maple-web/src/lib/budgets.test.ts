@@ -175,10 +175,10 @@ describe("forecast from the pace", () => {
   it("carries the daily average on to the end date, with no allowance", () => {
     const f = forecast(groceries, "2026-11-16");
     expect([f.method, f.daysGone, f.days, f.spent, f.allowance]).toEqual(["pace", 16, 30, 3850000, 0]);
-    expect(f.total).toBe(7218750); // 38,500 / 16 days × 30 days
+    expect(f.total).toBe(7218800); // 38,500 / 16 days × 30 days = 72,187.50, rounded to whole rupees
     expect(f.status).toBe("over");
     expect(f.runsOut).toBe("2026-11-25"); // 21,500 left at 2,406.25 a day: 9 more days
-    expect(f.dailyLimit).toBe(153571); // 21,500 over the 14 days left
+    expect(f.dailyLimit).toBe(153500); // 21,500 over the 14 days left = 1,535.71, rounded down to whole rupees
   });
 
   it("switches to the plan as soon as a cost is expected", () => {

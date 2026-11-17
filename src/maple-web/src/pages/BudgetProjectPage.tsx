@@ -94,7 +94,8 @@ function BudgetChart({ budget, forecast: f, today, money }: { budget: Budget; fo
     if (f.allowance) ahead.push([e, v + f.allowance]);
   } else ahead.push([e, f.total]);
   const runsOut = f.runsOut && f.runsOut !== "already" && f.runsOut !== "allowance" ? dayNumber(f.runsOut) : f.runsOut === "allowance" ? e : null;
-  const totalY = Math.abs(y(f.total) - y(budget.budget)) < 14 ? Math.max(y(f.total), y(budget.budget)) + 15 : y(f.total) - 6;
+  // Above the end of the forecast line, and above the budget line too when the two are close.
+  const totalY = Math.abs(y(f.total) - y(budget.budget)) < 14 ? Math.min(y(f.total), y(budget.budget)) - 6 : y(f.total) - 6;
 
   return (
     <figure className="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm dark:border-stone-800 dark:bg-stone-900">
@@ -238,7 +239,7 @@ function CostRow({
   money: (n: number) => string;
   onOpen: () => void;
   onPay?: () => void;
-  meta: string;
+  meta: ReactNode;
 }) {
   const name = line.title || line.category;
   return (
@@ -276,7 +277,9 @@ function CostRow({
 }
 
 const card = "overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900";
-const groupHead = "mb-1.5 mt-4 flex justify-between px-1 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400";
+const groupHead = "mb-1.5 mt-4 flex justify-between gap-3 px-1 text-xs font-semibold text-stone-500 dark:text-stone-400";
+/** Group labels are capitals; their amounts are not, so currency symbols such as "Rs" keep their case. */
+const groupLabel = "uppercase tracking-wide";
 
 function ProjectView({ note }: { note: Note }) {
   const today = localDateKey(useToday());
@@ -423,14 +426,14 @@ function ProjectView({ note }: { note: Note }) {
         <div className="mt-4">
           <ForecastBar forecast={f} budget={budget.budget} money={money} />
         </div>
-        <dl className="mt-4 grid grid-cols-3 gap-2 text-sm">
+        <dl className="mt-4 grid grid-cols-2 gap-x-2 gap-y-3 text-sm min-[360px]:grid-cols-3">
           <div className="min-w-0">
             <dt className="text-stone-500 dark:text-stone-400">Spent</dt>
-            <dd className="break-words font-semibold tabular-nums">{money(f.spent)}</dd>
+            <dd className="whitespace-nowrap font-semibold tabular-nums">{money(f.spent)}</dd>
           </div>
           <div className="min-w-0">
             <dt className="text-stone-500 dark:text-stone-400">{f.method === "plan" ? "Still expected" : "Still to come"}</dt>
-            <dd className="break-words font-semibold tabular-nums">{money(f.method === "plan" ? f.expected : f.total - f.spent)}</dd>
+            <dd className="whitespace-nowrap font-semibold tabular-nums">{money(f.method === "plan" ? f.expected : f.total - f.spent)}</dd>
           </div>
           <div className="min-w-0">
             <dt className="text-stone-500 dark:text-stone-400">{ended ? "Ended" : "Ends"}</dt>
@@ -517,7 +520,7 @@ function ProjectView({ note }: { note: Note }) {
           (expected.length ? (
             <>
               <div className={groupHead}>
-                <span>Still expected</span>
+                <span className={groupLabel}>Still expected</span>
                 <span className="tabular-nums">{money(f.expected)}</span>
               </div>
               <ul aria-label="Expected costs" className={cn(card, "divide-y divide-stone-100 dark:divide-stone-800")}>
@@ -527,7 +530,11 @@ function ProjectView({ note }: { note: Note }) {
                     line={line}
                     late={line.date < today}
                     money={money}
-                    meta={`${line.category} · ${line.date < today ? "was due " : ""}${dayText(line.date)}`}
+                    meta={
+                      <>
+                        {line.category} · <span className="whitespace-nowrap">{`${line.date < today ? "was due " : ""}${dayText(line.date)}`}</span>
+                      </>
+                    }
                     onOpen={() => setSheet({ type: "view", kind: "expected", index })}
                     onPay={readOnly ? undefined : () => setSheet({ type: "cost", mode: { kind: "expected", pay: index } })}
                   />
@@ -554,7 +561,7 @@ function ProjectView({ note }: { note: Note }) {
             [...spentGroups].map(([day, items]) => (
               <section key={day} aria-label={weekdayText(day)}>
                 <div className={groupHead}>
-                  <span>{weekdayText(day)}</span>
+                  <span className={groupLabel}>{weekdayText(day)}</span>
                   <span className="tabular-nums">{money(items.reduce((sum, item) => sum + item.line.amount, 0))}</span>
                 </div>
                 <ul className={cn(card, "divide-y divide-stone-100 dark:divide-stone-800")}>
