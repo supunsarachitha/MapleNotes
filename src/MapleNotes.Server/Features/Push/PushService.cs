@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text.Json;
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Admin;
@@ -76,13 +77,15 @@ public sealed class PushService(
 
     /// <summary>
     /// Adds a device, or updates it when its endpoint is already known (a browser renewing its keys). An endpoint
-    /// another account registered moves to this one: the browser is now signed in here.
+    /// another account registered moves to this one only when it comes with the same keys (the same browser, now
+    /// signed in here); otherwise the other account keeps it and the request is refused.
     /// </summary>
     /// <param name="userId">The account.</param>
     /// <param name="request">The subscription.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The device.</returns>
     /// <exception cref="ApiValidationException">A field is missing or invalid, or the account has too many devices.</exception>
+    /// <exception cref="ApiProblemException">The endpoint belongs to another account and came with other keys (409).</exception>
     public async Task<PushSubscriptionResponse> SubscribeAsync(Guid userId, PushSubscriptionRequest request, CancellationToken cancellationToken)
     {
         var endpoint = request.Endpoint?.Trim() ?? "";
@@ -109,6 +112,19 @@ public sealed class PushService(
         var existing = await db.PushSubscriptions.SingleOrDefaultAsync(s => s.Endpoint == endpoint, cancellationToken);
         if (existing is not null && existing.UserId != userId)
         {
+            // One browser used by two accounts in turn keeps its subscription, so it arrives with the same keys: the
+            // device moves to the account now signed in there. Anyone else who learned the endpoint address cannot
+            // prove they hold that browser, so the other account's device is left alone and the request is refused
+            // with 409 (the web app shows the title). Answering 200 without storing would leave the app showing
+            // notifications as on for a device that never gets them.
+            if (!CryptographicOperations.FixedTimeEquals(existing.P256dh, p256dh) ||
+                !CryptographicOperations.FixedTimeEquals(existing.Auth, auth))
+            {
+                throw new ApiProblemException(StatusCodes.Status409Conflict,
+                    "This browser's notifications belong to another account.",
+                    "Turn notifications off in that account first, or sign in to it on this device.");
+            }
+
             db.PushSubscriptions.Remove(existing);
             existing = null;
         }
