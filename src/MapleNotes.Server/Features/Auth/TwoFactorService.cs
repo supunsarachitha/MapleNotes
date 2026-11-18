@@ -138,42 +138,79 @@ public sealed class TwoFactorService(
     }
 
     /// <summary>
-    /// Checks a second-factor code: an authenticator code for a step after the last one used, or an unused recovery code,
-    /// which is then used up. The caller saves the account.
+    /// Checks a second-factor code and uses it up: an authenticator code for a step after the last one used, or an
+    /// unused recovery code.
     /// </summary>
+    /// <remarks>
+    /// The code is spent in the database straight away, by one conditional update (the stored step is still older, or
+    /// the stored list still holds the code), so requests sending the same code at the same moment cannot all pass: the
+    /// ones that lose the race get false, exactly as for a wrong code. The tracked <paramref name="user"/> is brought up
+    /// to date and its spent fields marked unchanged, so a later save of the account does not write them again.
+    /// </remarks>
     /// <param name="user">An account with two-factor sign-in on, tracked by the context.</param>
     /// <param name="code">The code typed.</param>
-    /// <returns>Whether the code is right.</returns>
-    public bool CheckCode(User user, string? code)
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>Whether the code is right and was not used before.</returns>
+    public async Task<bool> SpendCodeAsync(User user, string? code, CancellationToken cancellationToken)
     {
         if (user.TwoFactorSecret is null || string.IsNullOrWhiteSpace(code) || code.Length > 64)
         {
             return false;
         }
 
+        long? step;
         var secret = AeadEnvelope.Open(keys.TwoFactorKey, user.TwoFactorSecret, SecretContext(user.Id));
         try
         {
-            if (Totp.Match(secret, code.Trim(), time.GetUtcNow(), user.TwoFactorLastStep) is { } step)
-            {
-                user.TwoFactorLastStep = step;
-                return true;
-            }
+            step = Totp.Match(secret, code.Trim(), time.GetUtcNow(), user.TwoFactorLastStep);
         }
         finally
         {
             CryptographicOperations.ZeroMemory(secret);
         }
 
-        var hashes = RecoveryHashes(user);
-        var hash = RecoveryHash(code);
-        if (!hashes.Remove(hash))
+        if (step is { } matched)
         {
-            return false;
+            var spent = await db.Users
+                .Where(u => u.Id == user.Id && u.TwoFactorSecret != null && u.TwoFactorLastStep < matched)
+                .ExecuteUpdateAsync(set => set.SetProperty(u => u.TwoFactorLastStep, matched), cancellationToken);
+            if (spent != 1)
+            {
+                return false; // another request used this step (or a later one) first
+            }
+
+            MarkSaved(user, nameof(User.TwoFactorLastStep), matched);
+            return true;
         }
 
-        user.TwoFactorRecoveryCodes = string.Join(' ', hashes);
-        return true;
+        // Another request may use a different recovery code at the same moment and change the list under us: read it
+        // again and retry a few times, so a right code is not refused for that. Losing to the same code ends the loop,
+        // because the reread list no longer holds it.
+        var hash = RecoveryHash(code);
+        var stored = user.TwoFactorRecoveryCodes;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var hashes = RecoveryHashes(stored);
+            if (!hashes.Remove(hash))
+            {
+                return false;
+            }
+
+            var remaining = string.Join(' ', hashes);
+            var spent = await db.Users
+                .Where(u => u.Id == user.Id && u.TwoFactorSecret != null && u.TwoFactorRecoveryCodes == stored)
+                .ExecuteUpdateAsync(set => set.SetProperty(u => u.TwoFactorRecoveryCodes, remaining), cancellationToken);
+            if (spent == 1)
+            {
+                MarkSaved(user, nameof(User.TwoFactorRecoveryCodes), remaining);
+                return true;
+            }
+
+            stored = await db.Users.AsNoTracking().Where(u => u.Id == user.Id && u.TwoFactorSecret != null)
+                .Select(u => u.TwoFactorRecoveryCodes).SingleOrDefaultAsync(cancellationToken);
+        }
+
+        return false;
     }
 
     /// <summary>Turns two-factor sign-in off without a code: an administrator's help for an owner who lost both factors.</summary>
@@ -194,7 +231,7 @@ public sealed class TwoFactorService(
             throw new ApiValidationException("code", "Two-factor sign-in is off.");
         }
 
-        if (!CheckCode(user, request.Code))
+        if (!await SpendCodeAsync(user, request.Code, cancellationToken))
         {
             throw new ApiValidationException("code", "That code is not correct.");
         }
@@ -237,8 +274,20 @@ public sealed class TwoFactorService(
         return Convert.ToHexStringLower(HMACSHA256.HashData(keys.TwoFactorKey, Encoding.UTF8.GetBytes(normalized)));
     }
 
-    private static List<string> RecoveryHashes(User user) =>
-        user.TwoFactorRecoveryCodes?.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList() ?? [];
+    private static List<string> RecoveryHashes(User user) => RecoveryHashes(user.TwoFactorRecoveryCodes);
+
+    private static List<string> RecoveryHashes(string? stored) =>
+        stored?.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList() ?? [];
+
+    // Records on the tracked account a value already written by ExecuteUpdate, as saved, so the next SaveChanges
+    // neither writes it again nor overwrites it with the value read before.
+    private void MarkSaved<T>(User user, string property, T value)
+    {
+        var entry = db.Entry(user).Property(property);
+        entry.CurrentValue = value;
+        entry.OriginalValue = value;
+        entry.IsModified = false;
+    }
 
     private static byte[] SecretContext(Guid userId) => Encoding.UTF8.GetBytes($"maple-notes/v1/totp/{userId:N}");
 }

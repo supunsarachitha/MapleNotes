@@ -126,6 +126,43 @@ public sealed class RemindersTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task An_endpoint_sent_with_other_keys_does_not_take_another_accounts_device()
+    {
+        using var phone = new FakeDevice();
+        using var stranger = new FakeDevice();
+        using var birch = new ApiClient(_app);
+        await birch.SignUpAsync("birch");
+        var mine = (await (await _client.PostJsonAsync("/api/v1/account/push-subscriptions", phone.Subscription())).Content
+            .ReadFromJsonAsync<PushSubscriptionResponse>(ApiClient.Json, Ct))!;
+
+        var taken = await birch.PostJsonAsync("/api/v1/account/push-subscriptions", stranger.Subscription());
+
+        Assert.Equal(HttpStatusCode.Conflict, taken.StatusCode);
+        Assert.Equal(mine.Id, Assert.Single((await _client.GetJsonAsync<List<PushSubscriptionResponse>>("/api/v1/account/push-subscriptions"))!).Id);
+        Assert.Empty((await birch.GetJsonAsync<List<PushSubscriptionResponse>>("/api/v1/account/push-subscriptions"))!);
+
+        // Messages still go to the owner's device with the owner's keys.
+        Assert.Equal(HttpStatusCode.NoContent, (await _client.PostAsync($"/api/v1/account/push-subscriptions/{mine.Id}/test")).StatusCode);
+        Assert.Equal("Notifications are on", phone.Decrypt(_pushService.Received[^1].Body).GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public async Task An_endpoint_sent_with_the_same_keys_moves_to_the_account_now_signed_in_on_that_browser()
+    {
+        using var phone = new FakeDevice();
+        using var birch = new ApiClient(_app);
+        await birch.SignUpAsync("birch");
+        (await _client.PostJsonAsync("/api/v1/account/push-subscriptions", phone.Subscription())).EnsureSuccessStatusCode();
+
+        var moved = await birch.PostJsonAsync("/api/v1/account/push-subscriptions", phone.Subscription(name: "Shared laptop"));
+
+        Assert.Equal(HttpStatusCode.OK, moved.StatusCode);
+        Assert.Empty((await _client.GetJsonAsync<List<PushSubscriptionResponse>>("/api/v1/account/push-subscriptions"))!);
+        var device = Assert.Single((await birch.GetJsonAsync<List<PushSubscriptionResponse>>("/api/v1/account/push-subscriptions"))!);
+        Assert.Equal("Shared laptop", device.Name);
+    }
+
+    [Fact]
     public async Task A_reminder_reaches_every_device_encrypted_for_it_with_vapid_and_a_one_off_one_then_goes()
     {
         using var phone = new FakeDevice();

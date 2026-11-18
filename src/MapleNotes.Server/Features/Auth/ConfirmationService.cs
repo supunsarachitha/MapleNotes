@@ -70,7 +70,7 @@ public sealed class ConfirmationService(
                     throw new ApiValidationException("code", "Two-factor sign-in is off.");
                 }
 
-                if (!twoFactor.CheckCode(user, request.Code))
+                if (!await twoFactor.SpendCodeAsync(user, request.Code, cancellationToken))
                 {
                     if (await AccountService.RecordFailedAttemptAsync(db, user.Id, now, cancellationToken))
                     {
@@ -81,7 +81,7 @@ public sealed class ConfirmationService(
                 }
             }
 
-            // Keeps a legacy credential upgrade, the code's step (so it cannot be used again) or a spent recovery code.
+            // Keeps a legacy credential upgrade. A code was already used up in the database when it was checked.
             await db.SaveChangesAsync(cancellationToken);
         }
 

@@ -77,9 +77,11 @@ public sealed class RemindersController(ReminderService reminders, PushService p
     /// <returns>The device.</returns>
     /// <response code="200">Saved.</response>
     /// <response code="400">A field is invalid, or the account already has 20 devices.</response>
+    /// <response code="409">Another account has this browser's endpoint and the keys sent are not its keys.</response>
     [HttpPost("api/v1/account/push-subscriptions")]
     [ProducesResponseType<PushSubscriptionResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public Task<PushSubscriptionResponse> Subscribe(PushSubscriptionRequest request, CancellationToken cancellationToken) =>
         push.SubscribeAsync(User.GetUserId(), request, cancellationToken);
 

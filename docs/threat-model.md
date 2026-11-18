@@ -205,9 +205,11 @@ every entry to standard output as it happens, so a log collector holds a copy th
 - **Two-factor sign-in** is optional unless administrators require a second factor (below). With it on, the right password alone gets only the request for a code: a code
   from an authenticator app (TOTP, 30-second steps, one step of tolerance either side) or one of ten single-use
   recovery codes. A wrong code counts toward the same lockout as a wrong password, and only a complete sign-in resets
-  the count, so knowing the password gives five guesses at a code per 15 minutes. Each authenticator code is accepted
-  once. A reset with the end-to-end recovery key signs in, so it needs the code too. Turning two-factor sign-in on
-  ends the account's other sessions.
+  the count, so knowing the password gives five guesses at a code per 15 minutes. Each authenticator code and each
+  recovery code is accepted once, even by requests sent at the same moment: the code is used up by one conditional
+  write in the database, and the requests that lose the race are refused like a wrong code. A reset with the
+  end-to-end recovery key signs in, so it needs the code too. Turning two-factor sign-in on ends the account's other
+  sessions.
 - The server must hold the authenticator secret to check codes. It keeps it encrypted with a key derived from the
   master key and bound to the account, and keeps recovery codes only as HMACs under that key, so a copy of the
   database without the master key gives neither. Someone with the master key and the database can make codes, as
@@ -273,6 +275,10 @@ The browser gives the server the endpoint to send to. To keep that from being us
 endpoints must be `https` on a named public host, and the push client connects only to public addresses (the same guard
 as link previews). Messages carry a VAPID signature (RFC 8292) made with a key kept in the database, so a push service
 accepts only this server's messages for its subscriptions.
+
+An endpoint already registered by another account moves to the caller only when it comes with the same browser keys
+(one browser used by two accounts in turn). Someone who learned the endpoint address alone gets 409, and the other
+account keeps its device.
 
 ## What the server sees in end-to-end mode
 

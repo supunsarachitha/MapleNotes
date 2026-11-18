@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- An authenticator code or a recovery code could sign in (or confirm a step-up) several times when the same code was
+  sent by parallel requests at the same moment. The code is now used up by one conditional write in the database, and
+  the requests that lose the race are refused like a wrong code, so each code works once
+  ([#158](https://github.com/supunsarachitha/MapleNotes/issues/158)).
+- Registering a push endpoint that another account already used moved that account's device to the caller. It now
+  moves only when the request has the same browser keys (one browser used by two accounts in turn); otherwise the other
+  account keeps its device and the request gets 409
+  ([#158](https://github.com/supunsarachitha/MapleNotes/issues/158)).
+
 ## [1.24.0] - 2026-11-17
 
 ### Added

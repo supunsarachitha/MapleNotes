@@ -344,7 +344,10 @@ public sealed class AccountService(
     /// <param name="code">The code sent, if any.</param>
     /// <param name="now">The current time.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
-    /// <returns>Null when the code is right (the caller saves the account), otherwise why sign-in was refused.</returns>
+    /// <returns>
+    /// Null when the code is right (it is already used up in the database; the caller saves the rest of the account),
+    /// otherwise why sign-in was refused.
+    /// </returns>
     internal static async Task<AccountResult?> CheckSecondFactorAsync(
         MapleDbContext db, TwoFactorService twoFactor, User user, string? code, DateTime now, CancellationToken cancellationToken)
     {
@@ -353,7 +356,8 @@ public sealed class AccountService(
             return AccountResult.Fail(AccountError.TwoFactorRequired);
         }
 
-        if (twoFactor.CheckCode(user, code))
+        // A code another request used at the same moment is refused here like a wrong one (see SpendCodeAsync).
+        if (await twoFactor.SpendCodeAsync(user, code, cancellationToken))
         {
             return null;
         }
