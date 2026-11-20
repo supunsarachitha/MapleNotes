@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { api } from "../lib/api";
-import { formatAbsolute } from "../lib/format";
+import { countText, formatAbsolute } from "../lib/format";
 import { queryKeys } from "../lib/queries";
 import type { AuditEntry, AuditFilter, AuditVerification } from "../lib/types";
 import { Button, cn, ErrorMessage, Section, Spinner } from "./ui";
@@ -37,13 +37,12 @@ function who(entry: AuditEntry): string {
   return entry.targetUsername ? `${actor} → ${entry.targetUsername}` : actor;
 }
 
-const count = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 /** What the chain check found, in sentences. */
 function VerificationResult({ result }: { result: AuditVerification }) {
   const legacy =
     result.uncoveredEntries > 0
-      ? ` ${count(result.uncoveredEntries, "older entry was", "older entries were")} written before the log was sealed and cannot be checked.`
+      ? ` ${countText(result.uncoveredEntries, "older entry was", "older entries were")} written before the log was sealed and cannot be checked.`
       : "";
   const pruned = result.prunedThroughId > 0 ? " Entries older than 180 days were removed as planned, which the check allows for." : "";
   if (result.intact) {
@@ -56,7 +55,7 @@ function VerificationResult({ result }: { result: AuditVerification }) {
         <p className="mt-0.5">
           {result.checkedEntries === 0
             ? "There are no sealed entries yet."
-            : `${count(result.checkedEntries, "entry was", "entries were")} checked: none was changed and none is missing.`}
+            : `${countText(result.checkedEntries, "entry was", "entries were")} checked: none was changed and none is missing.`}
           {legacy}
           {pruned}
         </p>
@@ -73,7 +72,7 @@ function VerificationResult({ result }: { result: AuditVerification }) {
         {result.problem}
         {result.firstBrokenId !== null && <> The first entry affected is number {result.firstBrokenId}.</>}
         {result.checkedEntries > 0 && (
-          <> {count(result.checkedEntries, "entry before it checks", "entries before it check")} out.</>
+          <> {countText(result.checkedEntries, "entry before it checks", "entries before it check")} out.</>
         )}{" "}
         Someone with access to the database may have changed it: keep a copy of the data folder before anything else
         changes.

@@ -41,7 +41,7 @@ import { auth, MIN_PASSWORD_LENGTH, validateNewPassword } from "../lib/auth";
 import { DEFAULT_APP_NAME, useBranding } from "../lib/branding";
 import { e2ee } from "../lib/e2ee";
 import { focusAtEndRef } from "../lib/focus";
-import { formatAbsolute, formatBytes } from "../lib/format";
+import { countText, formatAbsolute, formatBytes } from "../lib/format";
 import { squareIcon } from "../lib/icon";
 import { usePreferences } from "../lib/preferences";
 import { queryKeys, useAuthStatus, useSignedOut } from "../lib/queries";
@@ -390,7 +390,6 @@ function SessionsSection() {
   );
 }
 
-const count = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 /** Starting again: every note and file goes, the account, its password, keys and settings stay. */
 function DeleteContentSection({ username }: { username: string }) {
@@ -425,7 +424,7 @@ function DeleteContentSection({ username }: { username: string }) {
           const deleted = await api.deleteAllContent(await auth.proveIdentity(username, password));
           setOpen(false);
           await queryClient.invalidateQueries();
-          toast.info(`Deleted ${count(deleted.notes, "note")} and ${count(deleted.files, "file")}.`);
+          toast.info(`Deleted ${countText(deleted.notes, "note")} and ${countText(deleted.files, "file")}.`);
         }}
       />
     </Section>

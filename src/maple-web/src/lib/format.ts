@@ -37,6 +37,11 @@ export function formatAbsolute(iso: string): string {
   return absolute().format(new Date(iso));
 }
 
+/** A count with its noun: "1 note", "2,400 notes"; `many` defaults to `one` plus "s". */
+export function countText(n: number, one: string, many = `${one}s`): string {
+  return `${n.toLocaleString()} ${n === 1 ? one : many}`;
+}
+
 /** Human-readable byte size: "512 B", "1.4 MB". */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

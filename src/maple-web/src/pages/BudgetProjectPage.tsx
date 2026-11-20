@@ -19,6 +19,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useCallback, useState, type ReactNode } from "react";
+import { BottomBar } from "../components/BottomBar";
 import { AllowanceSheet, ForecastBar, StatusChip, percentLabel, useBudgetCurrency, useMoney } from "../components/BudgetParts";
 import {
   CostSheet,
@@ -48,6 +49,7 @@ import {
   progressOf,
   removeCost,
   serializeBudget,
+  shortMoney,
   stillExpected,
   towardsOf,
   type Budget,
@@ -57,7 +59,7 @@ import {
 } from "../lib/budgets";
 import { useToday } from "../lib/daily";
 import { localDateKey } from "../lib/dates";
-import { dayNumber } from "../lib/habits";
+import { dayNumber } from "../lib/dayKeys";
 import { useNoteEditor } from "../lib/noteEditor";
 import { usePreferences } from "../lib/preferences";
 import { useBudgets, usePatchNote } from "../lib/queries";
@@ -65,7 +67,6 @@ import { Link } from "../lib/router";
 import { shrinkPhoto } from "../lib/shrinkPhoto";
 import type { Attachment, Note } from "../lib/types";
 import { saveErrorMessage } from "../lib/apiError";
-import { BottomBar } from "./BudgetsPage";
 
 const receiptsOf = (budget: Budget) => [...budget.spent, ...budget.expected].flatMap((line) => (line.receipt ? [line.receipt] : []));
 const byDate = (a: { line: BudgetLine }, b: { line: BudgetLine }) => a.line.date.localeCompare(b.line.date);
@@ -73,15 +74,7 @@ const byDate = (a: { line: BudgetLine }, b: { line: BudgetLine }) => a.line.date
 /** Amounts in the chart's labels: short, e.g. "Rs 450K". */
 function useShortMoney(): (hundredths: number) => string {
   const currency = useBudgetCurrency();
-  return (hundredths) => {
-    try {
-      return new Intl.NumberFormat(undefined, { style: "currency", currency, currencyDisplay: "narrowSymbol", notation: "compact", maximumFractionDigits: 1 }).format(
-        hundredths / 100,
-      );
-    } catch {
-      return String(Math.round(hundredths / 100));
-    }
-  };
+  return (hundredths) => shortMoney(hundredths, currency);
 }
 
 /**

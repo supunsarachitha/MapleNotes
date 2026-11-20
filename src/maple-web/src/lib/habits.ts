@@ -1,11 +1,13 @@
 import { dateKeyOf } from "./dates";
+import { MS_PER_DAY, dayKey, dayNumber } from "./dayKeys";
 import { joinTitle, splitTitle } from "./titles";
+
+export { addDays, dateOf, dayKey, dayNumber } from "./dayKeys";
 
 // A habit is a note of kind "Habit". Its text is Markdown: the habit's name as a `# title`, then one `- yyyy-MM-dd`
 // line for each day it was done, so habits are encrypted, exported and restored like every other note.
 //
-// Days are calendar dates on the user's device, like daily notes. Arithmetic on them uses day numbers (days since
-// 1970-01-01 in UTC), which no time zone or daylight-saving change can shift.
+// Days are calendar dates on the user's device, like daily notes, kept as `yyyy-MM-dd` keys (see dayKeys.ts).
 
 /** A habit as the Habits page edits it. */
 export interface Habit {
@@ -39,36 +41,8 @@ export interface TrackedHabit {
   days: string[];
 }
 
-const MS_PER_DAY = 86_400_000;
 const DAY_LINE = /^\s*[-*+]\s+(\d{4}-\d{2}-\d{2})\s*$/;
-const pad = (value: number) => String(value).padStart(2, "0");
 const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
-
-/** The day number (days since 1970-01-01) of a valid `yyyy-MM-dd` date, or null. */
-export function dayNumber(key: string): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
-  if (!match) return null;
-  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
-  return date.getTime() / MS_PER_DAY;
-}
-
-/** The `yyyy-MM-dd` date of a day number. */
-export function dayKey(day: number): string {
-  const date = new Date(day * MS_PER_DAY);
-  return `${String(date.getUTCFullYear()).padStart(4, "0")}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
-}
-
-/** A date as midnight UTC: format it with `timeZone: "UTC"` to show its day. */
-export function dateOf(key: string): Date {
-  return new Date(dayNumber(key)! * MS_PER_DAY);
-}
-
-/** Moves a date by a number of days. */
-export function addDays(key: string, days: number): string {
-  return dayKey(dayNumber(key)! + days);
-}
 
 /** The day of the week of a date, 0 for Sunday. */
 export function weekday(key: string): number {

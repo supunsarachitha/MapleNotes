@@ -2,6 +2,7 @@ import { Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { runImport, type ImportProgress } from "../import/importer";
 import { IMPORT_ACCEPT, readImport, type ImportPlan } from "../import/parse";
+import { countText } from "../lib/format";
 import { useInvalidateNotes } from "../lib/queries";
 import { Button } from "./ui";
 
@@ -10,9 +11,6 @@ type Step =
   | { name: "reading" }
   | { name: "ready"; plan: ImportPlan; label: string }
   | { name: "running" | "done"; plan: ImportPlan; progress: ImportProgress };
-
-const plural = (count: number, one: string, many = `${one}s`) =>
-  `${count.toLocaleString()} ${count === 1 ? one : many}`;
 
 /**
  * Restores notes from Maple Notes exports (.zip, any format) or single .md, .txt and .json files. Notes keep their IDs,
@@ -32,7 +30,7 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
     setStep({
       name: "ready",
       plan,
-      label: list.length === 1 ? list[0]!.name : plural(list.length, "file"),
+      label: list.length === 1 ? list[0]!.name : countText(list.length, "file"),
     });
   }
 
@@ -102,8 +100,8 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
         <div className="mt-4 flex flex-col gap-3">
           <p className="text-sm">
             <strong>{step.label}</strong>:{" "}
-            {plural(step.plan.items.length, "note")}
-            {files > 0 && ` with ${plural(files, "attached file")}`}.
+            {countText(step.plan.items.length, "note")}
+            {files > 0 && ` with ${countText(files, "attached file")}`}.
           </p>
           {step.plan.problems.length > 0 && (
             <ProblemList
@@ -116,7 +114,7 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
               disabled={step.plan.items.length === 0}
               onClick={() => void restore(step.plan)}
             >
-              Restore {plural(step.plan.items.length, "note")}
+              Restore {countText(step.plan.items.length, "note")}
             </Button>
             <Button variant="ghost" onClick={() => setStep({ name: "idle" })}>
               Cancel
@@ -147,12 +145,12 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
           <p className="text-sm">
             {step.name === "running"
               ? `Restoring… ${step.progress.done.toLocaleString()} of ${step.progress.total.toLocaleString()}`
-              : `Restored ${plural(step.progress.imported, "note")} and ${plural(step.progress.files, "file")}.` +
+              : `Restored ${countText(step.progress.imported, "note")} and ${countText(step.progress.files, "file")}.` +
                 (step.progress.labels > 0
-                  ? ` Added ${plural(step.progress.labels, "label")}.`
+                  ? ` Added ${countText(step.progress.labels, "label")}.`
                   : "") +
                 (step.progress.skipped > 0
-                  ? ` ${plural(step.progress.skipped, "note was", "notes were")} already here.`
+                  ? ` ${countText(step.progress.skipped, "note was", "notes were")} already here.`
                   : "")}
           </p>
           {step.name === "done" && step.progress.stopped && (
@@ -160,7 +158,7 @@ export function RestorePanel({ endToEnd }: { endToEnd: boolean }) {
               role="alert"
               className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200"
             >
-              Stopped before the last {plural(step.progress.total - step.progress.done, "note")}. {step.progress.stopped}{" "}
+              Stopped before the last {countText(step.progress.total - step.progress.done, "note")}. {step.progress.stopped}{" "}
               Then restore the same file again: notes already restored are skipped.
             </p>
           )}

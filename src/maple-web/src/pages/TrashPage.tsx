@@ -6,7 +6,7 @@ import { NoteList } from "../components/NoteList";
 import { useToast } from "../components/Toaster";
 import { Button, EmptyState } from "../components/ui";
 import { api } from "../lib/api";
-import { formatAbsolute, formatRelative } from "../lib/format";
+import { countText, formatAbsolute, formatRelative } from "../lib/format";
 import { parseBudget } from "../lib/budgets";
 import { dateKeyOf } from "../lib/dates";
 import { parseHabit } from "../lib/habits";
@@ -19,7 +19,6 @@ import type { Note, NoteKind } from "../lib/types";
 
 const KIND_NAMES: Record<NoteKind, string> = { Note: "Note", Todo: "Todo list", Quick: "Quick note", Habit: "Habit", Budget: "Budget" };
 
-const count = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 /**
  * Days left before a note deleted at this time is deleted for good, when the trash keeps notes for `days`; null when
@@ -57,18 +56,18 @@ function TrashCard({ note }: { note: Note }) {
         <time dateTime={deletedAt} title={formatAbsolute(deletedAt)}>
           Deleted {formatRelative(deletedAt)}
         </time>
-        {left !== null && <span>· {left === 0 ? "deleted for good soon" : `deleted for good in ${count(left, "day")}`}</span>}
+        {left !== null && <span>· {left === 0 ? "deleted for good soon" : `deleted for good in ${countText(left, "day")}`}</span>}
       </header>
 
       {habit ? (
         <p className="font-medium">
-          {habit.name || "Untitled habit"} <span className="font-normal text-stone-500 dark:text-stone-400">· {count(habit.days.length, "day")} done</span>
+          {habit.name || "Untitled habit"} <span className="font-normal text-stone-500 dark:text-stone-400">· {countText(habit.days.length, "day")} done</span>
         </p>
       ) : project ? (
         <p className="font-medium">
           {project.name || "Untitled project"}{" "}
           <span className="font-normal text-stone-500 dark:text-stone-400">
-            · {count(project.spent.length + project.expected.length, "cost")}
+            · {countText(project.spent.length + project.expected.length, "cost")}
           </span>
         </p>
       ) : note.content.trim() ? (
@@ -78,7 +77,7 @@ function TrashCard({ note }: { note: Note }) {
         </div>
       ) : null}
       {note.attachments.length > 0 && (
-        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">With {count(note.attachments.length, "file")}</p>
+        <p className="mt-2 text-sm text-stone-500 dark:text-stone-400">With {countText(note.attachments.length, "file")}</p>
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -109,7 +108,7 @@ function TrashCard({ note }: { note: Note }) {
         title="Delete forever?"
         description={
           note.attachments.length > 0
-            ? `It and its ${count(note.attachments.length, "file")} will be deleted permanently. This cannot be undone.`
+            ? `It and its ${countText(note.attachments.length, "file")} will be deleted permanently. This cannot be undone.`
             : "It will be deleted permanently. This cannot be undone."
         }
         confirmLabel="Delete forever"
@@ -148,7 +147,7 @@ export function TrashPage() {
       const deleted = await api.emptyTrash();
       await invalidate();
       setConfirming(false);
-      toast.info(deleted.files > 0 ? `Deleted ${count(deleted.notes, "note")} and ${count(deleted.files, "file")} for good.` : `Deleted ${count(deleted.notes, "note")} for good.`);
+      toast.info(deleted.files > 0 ? `Deleted ${countText(deleted.notes, "note")} and ${countText(deleted.files, "file")} for good.` : `Deleted ${countText(deleted.notes, "note")} for good.`);
     } catch {
       toast.error("Could not empty the trash. Please try again.");
     } finally {

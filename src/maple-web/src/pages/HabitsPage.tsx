@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
+import { FeatureOff } from "../components/FeatureOff";
 import { HabitCalendar } from "../components/HabitCalendar";
 import { HabitChart } from "../components/HabitChart";
 import { HabitSummary, statsOf } from "../components/HabitSummary";
@@ -14,22 +15,17 @@ import { Button, EmptyState, IconButton, Spinner, cn } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { useToday } from "../lib/daily";
 import { calendarDay, localDateKey } from "../lib/dates";
+import { shortDayFormat } from "../lib/dayKeys";
 import { addDays, dateOf, daysEnding, serializeHabit } from "../lib/habits";
 import { usePreferences, useWeekStart } from "../lib/preferences";
 import { useHabits, useInvalidateNotes } from "../lib/queries";
 import type { Note } from "../lib/types";
-import { FeatureOff } from "./TodoPage";
 
 const weekdayName = new Intl.DateTimeFormat("en", {
   weekday: "short",
   timeZone: "UTC",
 });
 const dayOfMonth = new Intl.DateTimeFormat("en", {
-  day: "numeric",
-  timeZone: "UTC",
-});
-const shortRange = new Intl.DateTimeFormat("en", {
-  month: "short",
   day: "numeric",
   timeZone: "UTC",
 });
@@ -142,7 +138,7 @@ function WeekHeader({
 }) {
   const [first, last] = [days[0]!, days[days.length - 1]!];
   const range = (
-    first.slice(0, 4) === today.slice(0, 4) ? shortRange : longRange
+    first.slice(0, 4) === today.slice(0, 4) ? shortDayFormat : longRange
   ).formatRange(dateOf(first), dateOf(last));
 
   return (

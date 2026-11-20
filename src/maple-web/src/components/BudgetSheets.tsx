@@ -16,16 +16,15 @@ import {
   type Forecast,
   type Progress,
 } from "../lib/budgets";
-import { addDays, dateOf, dayNumber } from "../lib/habits";
+import { addDays, dateOf, dayNumber, shortDayFormat } from "../lib/dayKeys";
 import { useAttachmentSrc } from "../lib/mediaWorker";
 import type { Attachment } from "../lib/types";
 import { BottomSheet } from "./BottomSheet";
 import { Button, IconButton, Spinner, cn } from "./ui";
 
-const shortDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" });
 const longDay = new Intl.DateTimeFormat("en", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 /** A calendar day (yyyy-MM-dd) as "Dec 2". */
-export const dayText = (key: string) => shortDay.format(dateOf(key));
+export const dayText = (key: string) => shortDayFormat.format(dateOf(key));
 /** A calendar day as "Mon, Dec 2". */
 export const weekdayText = (key: string) => longDay.format(dateOf(key));
 

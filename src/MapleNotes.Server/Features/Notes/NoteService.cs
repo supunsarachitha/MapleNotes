@@ -654,9 +654,7 @@ public sealed class NoteService(
     public async Task<IReadOnlyList<TagResponse>> ListTagsAsync(Guid userId, NoteKind[]? kinds, CancellationToken cancellationToken)
     {
         var counted = db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null);
-        counted = ValidateKinds(kinds) is { } wanted
-            ? counted.Where(n => wanted.Contains(n.Kind))
-            : counted.Where(n => n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget);
+        counted = CountedKinds(counted, kinds);
 
         var tags = await db.Tags.AsNoTracking()
             .Where(t => t.UserId == userId)
@@ -875,23 +873,16 @@ public sealed class NoteService(
             throw new ApiValidationException("to", "Ask for at most 62 days, ending on or after the first.");
         }
 
-        var zone = TimeZoneInfo.Utc;
-        if (!string.IsNullOrWhiteSpace(query.TimeZone) && !TimeZoneInfo.TryFindSystemTimeZoneById(query.TimeZone.Trim(), out zone))
-        {
-            throw new ApiValidationException("timeZone", $"Unknown time zone '{query.TimeZone}'. Use an IANA name such as Europe/Paris.");
-        }
-
-        var start = Export.NoteExporter.StartOfDayUtc(query.From, zone!);
-        var end = Export.NoteExporter.StartOfDayUtc(query.To.AddDays(1), zone!);
+        var zone = Export.NoteExporter.ParseTimeZone(query.TimeZone);
+        var start = Export.NoteExporter.StartOfDayUtc(query.From, zone);
+        var end = Export.NoteExporter.StartOfDayUtc(query.To.AddDays(1), zone);
         var notes = db.Notes.AsNoTracking().Where(n =>
             n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null && n.CreatedAtUtc >= start && n.CreatedAtUtc < end);
-        notes = ValidateKinds(query.Kinds) is { } kinds
-            ? notes.Where(n => kinds.Contains(n.Kind))
-            : notes.Where(n => n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget);
+        notes = CountedKinds(notes, query.Kinds);
 
         var times = await notes.Select(n => n.CreatedAtUtc).ToListAsync(cancellationToken);
         return times
-            .GroupBy(t => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(t, zone!)))
+            .GroupBy(t => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(t, zone)))
             .OrderBy(g => g.Key)
             .Select(g => new CalendarDayResponse(g.Key, g.Count()))
             .ToList();
@@ -918,6 +909,19 @@ public sealed class NoteService(
 
         return kinds.Distinct().ToArray();
     }
+
+    /// <summary>
+    /// Narrows notes to the kinds a count asks for (tag, label and calendar counts): the given kinds, or every kind
+    /// except habits and budgets when none are given.
+    /// </summary>
+    /// <param name="notes">The notes to narrow.</param>
+    /// <param name="kinds">The requested kinds, possibly null or empty.</param>
+    /// <returns>The narrowed query.</returns>
+    /// <exception cref="ApiValidationException">A value is not a <see cref="NoteKind"/>.</exception>
+    internal static IQueryable<Note> CountedKinds(IQueryable<Note> notes, NoteKind[]? kinds) =>
+        ValidateKinds(kinds) is { } wanted
+            ? notes.Where(n => wanted.Contains(n.Kind))
+            : notes.Where(n => n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget);
 
     /// <summary>Kinds whose text has a fixed shape, which never change kind.</summary>
     private static bool IsFixedKind(NoteKind kind) => kind is NoteKind.Habit or NoteKind.Budget;

@@ -1,14 +1,13 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useId, useState } from "react";
 import { firstDayOfWeek } from "../lib/dates";
+import { longDayFormat, monthYearFormat } from "../lib/dayKeys";
 import { dateOf, daysOf, habitStart, monthOf, parseHabit, scorePeriod, weekday } from "../lib/habits";
 import type { Note } from "../lib/types";
 import { dayCount, habitName } from "./HabitRow";
 import { IconButton, cn } from "./ui";
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-const monthTitle = new Intl.DateTimeFormat("en", { month: "long", year: "numeric", timeZone: "UTC" });
-const dayTitle = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 
 /**
  * A month at a glance under the Habits list: for one habit, the days it was done; for all of them, the days all or some
@@ -64,7 +63,7 @@ export function HabitCalendar({ notes, today, weekStart = firstDayOfWeek() }: { 
             <ChevronLeft className="size-5" />
           </IconButton>
           <p className="flex-1 text-center text-sm font-medium" aria-live="polite">
-            {monthTitle.format(dateOf(month.start))}
+            {monthYearFormat.format(dateOf(month.start))}
           </p>
           <IconButton label="Next month" disabled={monthsBack === 0} onClick={() => setMonthsBack(monthsBack - 1)} className="-mr-2">
             <ChevronRight className="size-5" />
@@ -98,7 +97,7 @@ export function HabitCalendar({ notes, today, weekStart = firstDayOfWeek() }: { 
                 >
                   <span aria-hidden="true">{Number(day.slice(8))}</span>
                   <span className="sr-only">
-                    {dayTitle.format(dateOf(day))}
+                    {longDayFormat.format(dateOf(day))}
                     {day === today ? " (today)" : ""}: {describe(day, done, possible)}
                   </span>
                 </span>

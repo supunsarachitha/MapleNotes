@@ -4,7 +4,7 @@ import { api, ApiError } from "../lib/api";
 import { currencyName, currencySymbol, mergeCategories, parseAmount, serializeBudget, type BudgetLine } from "../lib/budgets";
 import { useToday } from "../lib/daily";
 import { localDateKey } from "../lib/dates";
-import { addDays, dayNumber } from "../lib/habits";
+import { addDays, dayNumber } from "../lib/dayKeys";
 import { usePreferences } from "../lib/preferences";
 import { useInvalidateNotes } from "../lib/queries";
 import type { Note } from "../lib/types";

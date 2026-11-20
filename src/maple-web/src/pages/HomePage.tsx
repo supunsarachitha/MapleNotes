@@ -1,6 +1,7 @@
 import { CalendarDays, Hash, Maximize2, Paperclip, Pin, Search, Tag, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Composer } from "../components/Composer";
+import { FeatureOff } from "../components/FeatureOff";
 import { HomeHeader } from "../components/HomeHeader";
 import { LabelDot } from "../components/Labels";
 import { NoteList } from "../components/NoteList";
@@ -12,7 +13,6 @@ import { useEnabledKinds } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
 import { useLabels } from "../lib/queries";
 import { Link, useLocation } from "../lib/router";
-import { FeatureOff } from "./TodoPage";
 
 function FilterHeader({ icon: Icon, marker, label }: { icon: typeof Hash; marker?: ReactNode; label: string }) {
   return (

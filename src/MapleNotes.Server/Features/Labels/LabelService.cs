@@ -28,9 +28,7 @@ public sealed class LabelService(MapleDbContext db, UserContentKeys keys, Encryp
     public async Task<IReadOnlyList<LabelResponse>> ListAsync(Guid userId, NoteKind[]? kinds, CancellationToken cancellationToken)
     {
         var counted = db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null);
-        counted = NoteService.ValidateKinds(kinds) is { } wanted
-            ? counted.Where(n => wanted.Contains(n.Kind))
-            : counted.Where(n => n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget);
+        counted = NoteService.CountedKinds(counted, kinds);
 
         var labels = await db.Labels.AsNoTracking()
             .Where(l => l.UserId == userId)
@@ -140,8 +138,7 @@ public sealed class LabelService(MapleDbContext db, UserContentKeys keys, Encryp
         }
 
         // From the label's links (indexed by label), not by reading every note.
-        var count = await db.Notes
-            .Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null && n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget)
+        var count = await NoteService.CountedKinds(db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null), null)
             .SelectMany(n => n.Labels.Where(l => l.Id == labelId))
             .CountAsync(cancellationToken);
         return new LabelResponse(label.Id, label.Name, label.EncryptedName, label.Color, count, label.HideNotes);

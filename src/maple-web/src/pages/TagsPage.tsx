@@ -1,12 +1,12 @@
 import { Hash, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { FeatureOff } from "../components/FeatureOff";
 import { EmptyState, cn } from "../components/ui";
 import { useEnabledKinds } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
 import { useTags } from "../lib/queries";
 import { Link } from "../lib/router";
 import type { Tag } from "../lib/types";
-import { FeatureOff } from "./TodoPage";
 
 export type TagOrder = "name" | "count";
 
