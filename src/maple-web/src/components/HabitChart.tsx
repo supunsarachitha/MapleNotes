@@ -372,35 +372,38 @@ export function HabitChart({
 
       <Bars key={`${range}-${selected}`} scores={scores} range={range} />
 
-      <table className="sr-only">
-        <caption>
-          Share of days done per {unit}, {single ? single.name : "all habits"}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">{range === "weeks" ? "Week" : "Month"}</th>
-            <th scope="col">Share</th>
-            <th scope="col">Days done</th>
-          </tr>
-        </thead>
-        <tbody>
-          {scores.map((score) => (
-            <tr key={score.start}>
-              <th scope="row">
-                {range === "weeks"
-                  ? `Week of ${shortDayFormat.format(dateOf(score.start))}`
-                  : monthYearFormat.format(dateOf(score.start))}
-              </th>
-              <td>{percent(rateOf(score))}</td>
-              <td>
-                {score.possible > 0
-                  ? `${score.done} of ${dayCount(score.possible)}`
-                  : "No habits yet"}
-              </td>
+      {/* In a clipped box: a table ignores the 1px width of sr-only and would widen the page on narrow phones. */}
+      <div className="sr-only">
+        <table>
+          <caption>
+            Share of days done per {unit}, {single ? single.name : "all habits"}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">{range === "weeks" ? "Week" : "Month"}</th>
+              <th scope="col">Share</th>
+              <th scope="col">Days done</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {scores.map((score) => (
+              <tr key={score.start}>
+                <th scope="row">
+                  {range === "weeks"
+                    ? `Week of ${shortDayFormat.format(dateOf(score.start))}`
+                    : monthYearFormat.format(dateOf(score.start))}
+                </th>
+                <td>{percent(rateOf(score))}</td>
+                <td>
+                  {score.possible > 0
+                    ? `${score.done} of ${dayCount(score.possible)}`
+                    : "No habits yet"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {habits.length > 1 && (
         <div className="mt-6">
