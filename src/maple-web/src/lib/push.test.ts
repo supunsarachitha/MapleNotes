@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { notificationFor, openUrl, readPayload } from "../sw/notify";
 import { deviceName } from "./push";

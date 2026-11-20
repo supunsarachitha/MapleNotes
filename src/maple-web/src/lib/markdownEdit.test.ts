@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { applyEdit, formatEdit, toggleTask, type Format } from "./markdownEdit";
 

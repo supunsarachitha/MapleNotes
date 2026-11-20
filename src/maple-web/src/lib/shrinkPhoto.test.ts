@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { canSaveWebp, canShrink, fitWithin, isAnimated, PHOTO_PRESETS, photoName, resetWebpCheck, shrinkPhoto } from "./shrinkPhoto";
 
