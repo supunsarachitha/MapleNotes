@@ -1106,9 +1106,16 @@ public sealed class NoteService(
     /// <param name="userId">The owner.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>A task that completes when they are deleted.</returns>
+    /// <remarks>
+    /// Looks for links in the <c>NoteTags</c> join table by tag (an index seek on <c>IX_NoteTags_TagId</c>) instead of
+    /// scanning the user's notes once per tag. Same result: a user's tags are only ever linked to that user's notes
+    /// (<see cref="SetTagsAsync"/> and <see cref="SetEncryptedTagsAsync"/> look tags up by the note's owner), and
+    /// archived or trashed notes keep their links, so their tags stay.
+    /// </remarks>
     internal Task RemoveUnusedTagsAsync(Guid userId, CancellationToken cancellationToken) =>
         db.Tags
-            .Where(t => t.UserId == userId && !db.Notes.Any(n => n.UserId == userId && n.Tags.Any(nt => nt.Id == t.Id)))
+            .Where(t => t.UserId == userId
+                && !db.Set<Dictionary<string, object>>("NoteTags").Any(nt => EF.Property<Guid>(nt, "TagId") == t.Id))
             .ExecuteDeleteAsync(cancellationToken);
 
     /// <summary>

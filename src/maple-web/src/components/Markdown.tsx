@@ -1,7 +1,7 @@
 import type { Element, ElementContent, Root as HastRoot } from "hast";
 import type { Link as MdastLink, Root } from "mdast";
 import { findAndReplace } from "mdast-util-find-and-replace";
-import { createContext, useContext, type ComponentProps } from "react";
+import { createContext, useContext, useMemo, type ComponentProps } from "react";
 import ReactMarkdown, { type Components, type ExtraProps } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link } from "../lib/router";
@@ -110,13 +110,19 @@ const components: Components = {
  * checkboxes can be ticked; it gets the offset in `content` where the item's list marker starts (see toggleTask).
  */
 export function Markdown({ content, onToggleTask }: { content: string; onToggleTask?: (offset: number) => void }) {
+  // Parsing is the expensive part, so it runs again only when the text changes: a list re-render (next page, refetch,
+  // a new onToggleTask function) reuses the element, and the toggle reaches the checkboxes through context.
+  const rendered = useMemo(
+    () => (
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkTags]} rehypePlugins={[rehypeTasks]} components={components}>
+        {content}
+      </ReactMarkdown>
+    ),
+    [content],
+  );
   return (
     <div className="markdown">
-      <TaskToggle.Provider value={onToggleTask ?? null}>
-        <ReactMarkdown remarkPlugins={[remarkGfm, remarkTags]} rehypePlugins={[rehypeTasks]} components={components}>
-          {content}
-        </ReactMarkdown>
-      </TaskToggle.Provider>
+      <TaskToggle.Provider value={onToggleTask ?? null}>{rendered}</TaskToggle.Provider>
     </div>
   );
 }
