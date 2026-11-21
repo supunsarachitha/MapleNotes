@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.0] - 2026-11-21
+
 ### Changed
 
 - The top bar shows today's date instead of the **Online**/**Offline** badge, which could say Online while the server
-  could not be reached. The date moved there from the top of Home and Habits. The note under the bar still says when you are
-  reading saved copies (#183).
+  could not be reached. The date moved there from the top of Home and Habits. The note under the bar still says when
+  you are reading saved copies (#183).
 
 ## [1.26.2] - 2026-11-21
 
@@ -983,7 +985,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.2...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.27.0...HEAD
+[1.27.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.2...v1.27.0
 [1.26.2]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.1...v1.26.2
 [1.26.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.0...v1.26.1
 [1.26.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.25.0...v1.26.0
