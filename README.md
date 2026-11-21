@@ -806,6 +806,11 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.26.1 to 1.26.2
+
+Nothing to do: there are no migrations, new settings or new endpoints, and nothing changed for API clients. Notes
+written offline in quick succession are always sent in the order they were written.
+
 ### From 1.26.0 to 1.26.1
 
 Nothing to do: there are no migrations, new settings or new endpoints, and nothing changed for API clients. On

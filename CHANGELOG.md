@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.2] - 2026-11-21
+
 ### Fixed
 
 - Notes written offline within the same millisecond are now always sent in the order they were written (#178).
@@ -975,7 +977,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.1...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.2...HEAD
+[1.26.2]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.1...v1.26.2
 [1.26.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.0...v1.26.1
 [1.26.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.3...v1.25.0
