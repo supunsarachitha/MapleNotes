@@ -218,6 +218,23 @@ public sealed class PasskeyTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_refused_passkey_sign_in_records_why_in_the_audit_log()
+    {
+        using var known = new FakeAuthenticator { Counter = 5 };
+        await AddAsync(known, "Laptop");
+        using var unknown = new FakeAuthenticator();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SignInAsync(new ApiClient(_app), unknown)).StatusCode);
+        known.Counter = 5; // did not go up
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SignInAsync(new ApiClient(_app), known)).StatusCode);
+
+        var failures = (await _client.GetJsonAsync<AuditPageResponse>("/api/v1/admin/audit?filter=SignIns"))!.Items
+            .Where(e => e.Event == AuditEvent.SignInFailed && e.Method == "Passkey").Select(e => e.Detail).ToList();
+        Assert.Contains(failures, d => d!.StartsWith("The passkey is not registered here.", StringComparison.Ordinal));
+        Assert.Contains(failures, d => d!.StartsWith("The passkey \"Laptop\" reported a use counter that did not go up", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Passkeys_skip_the_authenticator_app_code()
     {
         var setup = (await (await _client.PostAsync("/api/v1/account/two-factor/setup")).Content

@@ -185,7 +185,7 @@ public sealed class PasskeySignInController(PasskeyService passkeys, AuditLog au
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<PasskeySignInResponse>> Login(PasskeyLoginRequest request, CancellationToken cancellationToken)
     {
-        var (result, passkey) = await passkeys.SignInAsync(request, cancellationToken);
+        var (result, passkey, refusal) = await passkeys.SignInAsync(request, cancellationToken);
         var username = result.User?.Username;
         switch (result.Error)
         {
@@ -198,7 +198,7 @@ public sealed class PasskeySignInController(PasskeyService passkeys, AuditLog au
                 return Problem(statusCode: StatusCodes.Status403Forbidden, title: "This account has been disabled by an administrator.");
             default:
                 await audit.RecordAsync(
-                    AuditEvent.SignInFailed, username, "The passkey is unknown, or its signature or challenge was not valid.", cancellationToken, method: "Passkey");
+                    AuditEvent.SignInFailed, username, refusal ?? "The passkey was refused.", cancellationToken, method: "Passkey");
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "This passkey could not sign you in.");
         }
     }
