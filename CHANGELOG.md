@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.1] - 2026-11-21
+
 ### Fixed
 
 - On phones, the full-screen editor no longer hides its bottom row (word count, Cancel, **Post**/Save) behind the
@@ -969,7 +971,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.1...HEAD
+[1.26.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.0...v1.26.1
 [1.26.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.3...v1.25.0
 [1.24.3]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.2...v1.24.3

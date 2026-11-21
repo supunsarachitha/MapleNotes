@@ -806,6 +806,12 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.26.0 to 1.26.1
+
+Nothing to do: there are no migrations, new settings or new endpoints, and nothing changed for API clients. On
+phones, the full-screen editor now stays above the on-screen keyboard, so its Post/Save button is visible while
+typing.
+
 ### From 1.25 to 1.26
 
 Nothing to do: there are no migrations and no new tables. Settings → Labels can now choose labels that every note
