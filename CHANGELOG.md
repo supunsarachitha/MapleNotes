@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.28.0] - 2026-11-21
+
 ### Added
 
 - More tools in the editor's toolbar: strikethrough, numbered list, three heading sizes (in place of one Heading
@@ -990,7 +992,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.27.0...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.28.0...HEAD
+[1.28.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.27.0...v1.28.0
 [1.27.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.2...v1.27.0
 [1.26.2]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.1...v1.26.2
 [1.26.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.26.0...v1.26.1
