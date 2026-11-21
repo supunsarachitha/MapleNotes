@@ -199,16 +199,41 @@ export interface Shell {
 
 export const shellCache = (shell: Shell) => `${SHELL_CACHE_PREFIX}${shell.version}`;
 
-/** Saves the app's files. A file that cannot be fetched now is left out rather than failing the install. */
+/** Fetches one of the app's files to save it, trying once more when the request is dropped or refused. */
+async function fetchShellFile(path: string, deps: OfflineDeps): Promise<Response> {
+  let problem: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await deps.fetch(new Request(new URL(path, deps.origin), { cache: "reload", credentials: "same-origin" }));
+      // The page must be the app's own: not a proxy's sign-in or error page, nor wherever a redirect led.
+      const isPage = path !== "/" || (response.headers.get("Content-Type") ?? "").startsWith("text/html");
+      if (response.ok && isPage && !response.redirected) return response;
+      problem = new Error(`${path} answered ${response.status}${isPage ? "" : " without a page"}`);
+    } catch (error) {
+      problem = error;
+    }
+  }
+  throw problem;
+}
+
+/**
+ * Saves the app's files, all of them or none. A file that cannot be fetched (the connection dropped during the update,
+ * a proxy refused a request) fails the install and deletes what was saved: the browser then keeps the installed worker
+ * with its complete copy and tries again on a later visit. An install that left files out would delete that copy when
+ * it activates (`dropOldShells`), and the app would no longer open without a connection.
+ */
 export async function saveShell(shell: Shell, deps: OfflineDeps): Promise<void> {
   if (shell.files.length === 0) return; // development: Vite serves the files itself
-  const cache = await deps.caches.open(shellCache(shell));
-  await Promise.allSettled(
-    ["/", ...shell.files].map(async (path) => {
-      const response = await deps.fetch(new Request(new URL(path, deps.origin), { cache: "reload", credentials: "same-origin" }));
-      if (response.ok) await cache.put(path, response);
-    }),
+  const name = shellCache(shell);
+  const cache = await deps.caches.open(name);
+  const results = await Promise.allSettled(
+    ["/", ...shell.files].map(async (path) => cache.put(path, await fetchShellFile(path, deps))),
   );
+  const failed = results.find((result) => result.status === "rejected");
+  if (failed) {
+    await deps.caches.delete(name);
+    throw failed.reason;
+  }
 }
 
 /** Deletes the files of earlier versions. */
@@ -228,6 +253,16 @@ export function isShellRequest(request: Request, origin: string, shell: Shell): 
 }
 
 /**
+ * Whether a page is this version's: every file under /assets it names is one this worker saved. After an update the
+ * old worker still answers the first visit, and the new page names files only its successor saves; kept here, it
+ * would replace this version's page and, should the successor fail to install, open offline without its scripts.
+ */
+async function isOwnPage(page: Response, shell: Shell): Promise<boolean> {
+  const named = (await page.text()).match(/\/assets\/[^"'\s>)]+/g) ?? [];
+  return named.every((path) => shell.files.includes(path));
+}
+
+/**
  * The app's files: fingerprinted files under /assets never change, so the saved copy is used; the page and the other
  * files (whose names stay the same across versions) come from the server when it answers, and are saved again.
  */
@@ -243,7 +278,9 @@ export async function handleShell(request: Request, shell: Shell, deps: OfflineD
     const response = await deps.fetch(request);
     // Any route of the app gets the same page, so one copy serves them all; only a real page is kept.
     const isPage = request.mode !== "navigate" || (response.headers.get("Content-Type") ?? "").startsWith("text/html");
-    if (response.ok && isPage && !response.redirected) await cache.put(key, response.clone());
+    if (response.ok && isPage && !response.redirected && (request.mode !== "navigate" || (await isOwnPage(response.clone(), shell)))) {
+      await cache.put(key, response.clone());
+    }
     return response;
   } catch {
     return (await cache.match(key)) ?? Response.error();

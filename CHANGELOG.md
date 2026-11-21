@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The installed app could open to nothing but its splash screen without a connection after an update. When a request
+  failed while the new version was saving its offline copy (the connection dropped or was switched off during the
+  update, or a proxy refused one of the requests), the file was left out, and the incomplete copy still replaced the
+  complete one. Saving is now all or nothing, with each file tried twice: if anything is missing, the update waits for
+  a later visit and the app keeps opening offline from the version already saved
+  ([#163](https://github.com/supunsarachitha/MapleNotes/issues/163)).
+
 ## [1.24.1] - 2026-11-20
 
 ### Security

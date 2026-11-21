@@ -267,6 +267,73 @@ describe("the app's files in the service worker", () => {
     expect(isShellRequest(navigate("/"), ORIGIN, { version: "dev", files: [] })).toBe(false); // development
   });
 
+  it("keeps the installed version when a file of the new one cannot be fetched, so the app still opens offline", async () => {
+    const old: Shell = { version: "v1", files: ["/assets/index-old.js"] };
+    t.routes.set("GET /assets/index-old.js", () => new Response("console.log(0)"));
+    await saveShell(old, t.deps);
+    // The update downloads while the connection drops: the page never arrives.
+    t.routes.set("GET /", () => new Response(null, { status: 502 }));
+
+    await expect(saveShell(shell, t.deps)).rejects.toThrow();
+
+    // The install failed, so the browser keeps the old worker; its copy is whole and no partial copy is left behind.
+    expect(await t.caches.keys()).toEqual([shellCache(old)]);
+    t.state.online = false;
+    const response = await handleShell(navigate("/"), old, t.deps);
+    expect(await response.text()).toContain("<title>Maple Notes</title>");
+  });
+
+  it("does not keep a newer version's page, whose scripts it has not saved, in place of its own", async () => {
+    const old: Shell = { version: "v1", files: ["/assets/index-old.js"] };
+    const pageOf = (script: string) => () =>
+      new Response(`<!doctype html><title>Maple Notes</title><script type="module" src="${script}"></script>`, {
+        headers: { "Content-Type": "text/html" },
+      });
+    t.routes.set("GET /", pageOf("/assets/index-old.js"));
+    t.routes.set("GET /assets/index-old.js", () => new Response("console.log(0)"));
+    await saveShell(old, t.deps);
+    // The server was updated; the old worker still answers the first visit (its successor installs meanwhile).
+    t.routes.set("GET /", pageOf("/assets/index-new.js"));
+    expect(await (await handleShell(navigate("/"), old, t.deps)).text()).toContain("index-new.js");
+
+    t.state.online = false;
+    const offline = await (await handleShell(navigate("/"), old, t.deps)).text();
+
+    expect(offline).toContain("/assets/index-old.js");
+    expect(await (await handleShell(new Request(url("/assets/index-old.js")), old, t.deps)).text()).toBe("console.log(0)");
+  });
+
+  it("fails the install when the connection goes away while it downloads", async () => {
+    t.routes.set("GET /favicon.svg", () => {
+      t.state.online = false; // every later request fails
+      return new Response("<svg/>");
+    });
+
+    await expect(saveShell({ version: "v2", files: ["/favicon.svg", "/assets/index-abc.js"] }, t.deps)).rejects.toThrow();
+    expect(await t.caches.keys()).toEqual([]);
+  });
+
+  it("tries a dropped request once more before giving up", async () => {
+    let calls = 0;
+    t.routes.set("GET /assets/index-abc.js", () => {
+      calls += 1;
+      return calls === 1 ? new Response(null, { status: 503 }) : new Response("console.log(1)");
+    });
+
+    await saveShell(shell, t.deps);
+    t.state.online = false;
+
+    expect(calls).toBe(2);
+    expect(await (await handleShell(new Request(url("/assets/index-abc.js")), shell, t.deps)).text()).toBe("console.log(1)");
+  });
+
+  it("does not take a page that is not the app (a proxy's sign-in or error page) as the app's page", async () => {
+    t.routes.set("GET /", () => Response.json({ error: "Forbidden" }));
+
+    await expect(saveShell(shell, t.deps)).rejects.toThrow();
+    expect(await t.caches.keys()).toEqual([]);
+  });
+
   it("removes the files of earlier versions", async () => {
     await saveShell({ version: "v1", files: ["/favicon.svg"] }, t.deps);
     await saveShell(shell, t.deps);

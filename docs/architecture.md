@@ -540,8 +540,11 @@ things in the browser's Cache Storage for when the server cannot be reached:
 
 - **The app.** When a new worker installs it saves the page and every file of the build (scripts, styles, icons, the
   web app manifest). `vite.sw.config.ts` lists them into the worker at build time; their names carry content hashes,
-  so each release that changes them is a new worker, which saves the new files and deletes the old ones. Any page of
-  the app opens from the saved page when the server does not answer.
+  so each release that changes them is a new worker, which saves the new files and deletes the old ones. Saving is all
+  or nothing: if any file cannot be fetched (each is tried twice; the page must be HTML and not redirected), the
+  install fails and deletes its partial copy, so the browser keeps the installed worker and its complete copy and
+  tries the update again on a later visit. Any page of the app opens from the saved page when the server does not
+  answer.
 - **What the account last read.** Sign-in status, note lists (including daily notes, habits and the calendar), tags,
   labels and the encryption status, exactly as the server sent them, so end-to-end notes stay encrypted. At most 300
   reads are kept, the least recently read going first. Searches, files, the session's secret, link previews and
