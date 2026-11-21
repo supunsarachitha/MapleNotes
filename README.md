@@ -805,6 +805,13 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.24.2 to 1.24.3
+
+Nothing to do: there are no migrations, new settings or new endpoints, and nothing changed for API clients. Passkey
+errors now say what went wrong, and a passkey whose password manager cannot unlock end-to-end notes (Bitwarden's
+extension, for example) is reported as sign-in only. A refused passkey sign-in records its exact reason in the audit
+log.
+
 ### From 1.24.1 to 1.24.2
 
 Nothing to do on the server. On each device that should work offline, open the app once on a good connection and keep
