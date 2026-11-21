@@ -158,6 +158,8 @@ public sealed record EncryptedNote(byte[] Content, IReadOnlyList<EncryptedTag>? 
 /// <param name="DailyDate">Makes a timeline note the daily note of this day; each day has at most one.</param>
 /// <param name="Mood">How the writer felt (timeline notes and quick notes only); end-to-end notes send it encrypted in
 /// <paramref name="Encrypted"/> instead.</param>
+/// <param name="LabelIds">The account's labels to put on it (at most 20), such as the default labels of notes written
+/// from Home.</param>
 public sealed record CreateNoteRequest(
     string? Content = null,
     IReadOnlyList<Guid>? AttachmentIds = null,
@@ -166,7 +168,8 @@ public sealed record CreateNoteRequest(
     EncryptedNote? Encrypted = null,
     NoteKind Kind = NoteKind.Note,
     DateOnly? DailyDate = null,
-    NoteMood? Mood = null);
+    NoteMood? Mood = null,
+    IReadOnlyList<Guid>? LabelIds = null);
 
 /// <summary>A note restored from an export, with its original ID, dates, state, kind and daily date.</summary>
 /// <remarks>Like a new note, it is plain text for most accounts and encrypted by the browser for end-to-end ones.</remarks>

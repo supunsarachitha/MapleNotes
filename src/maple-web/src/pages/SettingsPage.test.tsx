@@ -498,6 +498,26 @@ describe("Settings", () => {
     await waitFor(() => expect(screen.queryByText("Notes hidden")).not.toBeInTheDocument());
   });
 
+  it("chooses the labels new notes from Home start with", async () => {
+    vi.spyOn(api.labels, "list").mockResolvedValue([
+      { id: "l-home", name: "Home", color: "Green", noteCount: 0 },
+      { id: "l-work", name: "Work", color: "Blue", noteCount: 3 },
+    ]);
+    const save = vi.spyOn(api, "setPreferences").mockImplementation(async (preferences) => preferences);
+    renderSettings(idle, { ...user, preferences: { ...DEFAULT_PREFERENCES, labels: true, defaultLabels: "deleted-label" } }, null, "/settings/labels");
+
+    const chips = within(await screen.findByRole("list", { name: "Labels for new notes" }));
+    expect(screen.getByText("None chosen: new notes start without labels.")).toBeInTheDocument();
+    await userEvent.click(chips.getByRole("button", { name: "Work" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, labels: true, defaultLabels: "l-work" }));
+    expect(chips.getByRole("button", { name: "Work" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(chips.getByRole("button", { name: "Home" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, labels: true, defaultLabels: "l-work,l-home" }));
+    expect(screen.getByText("2 labels on each new note.")).toBeInTheDocument();
+    await userEvent.click(chips.getByRole("button", { name: "Work" }));
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ ...DEFAULT_PREFERENCES, labels: true, defaultLabels: "l-home" }));
+  });
+
   it("creates, recolours, renames and deletes labels", async () => {
     let labels: Label[] = [{ id: "l-work", name: "Work", color: "Blue", noteCount: 3 }];
     vi.spyOn(api.labels, "list").mockImplementation(async () => labels);
@@ -524,7 +544,7 @@ describe("Settings", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "New label name" }), "Home");
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(create).toHaveBeenCalledWith("Home", expect.any(String)));
-    expect(await screen.findByText("Home")).toBeInTheDocument();
+    expect(await within(screen.getByRole("list", { name: "Your labels" })).findByText("Home")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Colour of Work: Blue" }));
     await userEvent.click(await screen.findByRole("menuitemradio", { name: "Green" }));

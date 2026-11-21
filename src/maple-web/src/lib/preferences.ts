@@ -41,6 +41,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   menuOrder: "",
   moodTracker: false,
   stickers: false,
+  defaultLabels: "",
 };
 
 /** The first day of the week in calendars and weekly charts (0 = Sunday), as the user chose it. */

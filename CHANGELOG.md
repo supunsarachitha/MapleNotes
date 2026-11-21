@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Default labels for new notes: in Settings → Labels, under **Add labels to new notes**, tap the labels that every note
+  written with Home's + button should start with. The editor shows them as chips under the text; tap one to take it
+  off that note before posting. The choice is saved with your account, so it applies on every device, and a note
+  written offline keeps its labels until it is sent.
+
 ## [1.25.0] - 2026-11-21
 
 ### Changed

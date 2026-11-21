@@ -9,7 +9,9 @@ import { focusAtEnd } from "../lib/focus";
 import { formatBytes } from "../lib/format";
 import { usePreferences } from "../lib/preferences";
 import { shrinkPhoto } from "../lib/shrinkPhoto";
-import { useInvalidateNotes } from "../lib/queries";
+import { useInvalidateNotes, useLabels } from "../lib/queries";
+import { useEnabledKinds } from "../lib/kinds";
+import { LABEL_STYLES, labelsOf, parseLabelIds } from "../lib/labels";
 import { saveDailyNote } from "../lib/daily";
 import { joinTitle, splitTitle } from "../lib/titles";
 import { StickerPackError, stickerFile, stickersAllowed, stickerFileName, type Sticker } from "../lib/stickers";
@@ -82,6 +84,7 @@ export function Composer({
   initialText = "",
   collapsible = false,
   launched,
+  defaultLabels = false,
 }: {
   /** The note to edit; omit to write a new note. */
   note?: Note;
@@ -101,6 +104,8 @@ export function Composer({
   collapsible?: boolean;
   /** Opened by a button elsewhere: full screen while `open`, hidden otherwise; leaving full screen calls `onClose`. */
   launched?: { open: boolean; onClose: () => void; onDraftChange?: (hasDraft: boolean) => void };
+  /** A new note starts with the labels chosen in Settings → Labels, shown as chips the writer can take off. */
+  defaultLabels?: boolean;
 }) {
   const preferences = usePreferences();
   const withTitle = allowTitle && preferences.noteTitles && !daily;
@@ -133,6 +138,14 @@ export function Composer({
   const editing = note !== undefined;
   const noteKind = note?.kind ?? kind;
   const offersMood = preferences.moodTracker && moodAllowed(noteKind);
+  // Default labels: those of the preference minus the ones taken off this draft, so a changed setting shows at once.
+  const defaultIds = !editing && !daily && defaultLabels && preferences.labels ? parseLabelIds(preferences.defaultLabels) : [];
+  const [removedLabels, setRemovedLabels] = useState<string[]>([]);
+  const labelList = useLabels(useEnabledKinds(), defaultIds.length > 0);
+  const keptIds = defaultIds.filter((id) => !removedLabels.includes(id));
+  const draftLabels = labelsOf(labelList.data, keptIds);
+  // Without the label list (offline, never loaded) the IDs go as they are; one deleted meanwhile is dropped when sent.
+  const labelIds = labelList.data ? draftLabels.map((label) => label.id) : keptIds;
   const offersStickers = preferences.stickers && stickersAllowed(noteKind);
   const pickerId = editing ? `edit-${note.id}` : "composer";
   // A collapsible box stays one line until it gets focus or holds anything: text, a typed title, files or a mood.
@@ -273,7 +286,11 @@ export function Composer({
         else await api.updateNote(note.id, content, attachmentIds, note, chosen);
       } else if (daily) await saveDailyNote(daily.date, daily.title, text, attachmentIds, chosen ?? undefined);
       else {
-        const options = { ...(kind === "Note" ? {} : { kind }), ...(chosen ? { mood: chosen } : {}) };
+        const options = {
+          ...(kind === "Note" ? {} : { kind }),
+          ...(chosen ? { mood: chosen } : {}),
+          ...(labelIds.length > 0 ? { labelIds } : {}),
+        };
         if (Object.keys(options).length > 0) await api.createNote(content, attachmentIds, options);
         else await api.createNote(content, attachmentIds);
       }
@@ -286,6 +303,7 @@ export function Composer({
         setFiles([]);
         setMood(null);
         setPicker(null);
+        setRemovedLabels([]);
       }
       setFullscreen(false);
       onDone?.();
@@ -579,6 +597,32 @@ export function Composer({
                 className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
               >
                 <X className="size-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {draftLabels.length > 0 && (
+        <ul aria-label="Labels for this note" className={cn("mt-1 flex flex-wrap gap-x-1.5", collapsed && "hidden")}>
+          {draftLabels.map((label) => (
+            <li key={label.id}>
+              <button
+                type="button"
+                onClick={() => setRemovedLabels((current) => [...current, label.id])}
+                aria-label={`Take the label ${label.name} off this note`}
+                title={`Take ${label.name} off this note`}
+                className="group flex h-11 max-w-full items-center focus-visible:outline-none"
+              >
+                <span
+                  className={cn(
+                    "inline-flex h-7 max-w-full items-center gap-1 rounded-full pl-2.5 pr-1.5 text-xs font-medium group-hover:opacity-80 group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-maple-500",
+                    LABEL_STYLES[label.color].chip,
+                  )}
+                >
+                  <span className="truncate">{label.name}</span>
+                  <X className="size-3.5 shrink-0" aria-hidden="true" />
+                </span>
               </button>
             </li>
           ))}

@@ -71,6 +71,7 @@
   Editing).
 - **Labels.** Optionally, coloured labels you put on notes and todo lists by hand, in ten colours, listed in the side
   menu with their notes. A label can keep its notes out of Home and Quick notes, so they show only on the label's page.
+  Default labels can be put on every new note written with Home's + button (and taken off one before posting).
   With end-to-end encryption their names are encrypted too.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
   upload progress. Images keep their shape on any screen and open in a full-screen viewer; audio and video play

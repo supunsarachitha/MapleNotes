@@ -151,6 +151,26 @@ describe("writing offline", () => {
     expect(await pendingChanges()).toEqual([]);
   });
 
+  it("keeps the labels of a note written offline and sends them, or the note alone once a label is gone", async () => {
+    fetchMock.mockImplementationOnce(offline);
+    const created = await api.createNote("Standup", [], { labelIds: ["l-work"] });
+    expect(created).toMatchObject({ labelIds: ["l-work"], pending: true });
+    fetchMock.mockImplementationOnce(offline);
+    const other = await api.createNote("Retro", [], { labelIds: ["l-gone"] });
+
+    fetchMock.mockImplementationOnce(async () => json({ imported: true, note: { ...wire(created.id, "Standup"), labelIds: ["l-work"] } }, 201));
+    fetchMock.mockImplementationOnce(async () =>
+      json({ title: "One or more validation errors occurred.", errors: { labelIds: ["One or more labels do not exist."] } }, 400),
+    );
+    fetchMock.mockImplementationOnce(async () => json({ imported: true, note: wire(other.id, "Retro") }, 201));
+    expect(await sendPendingChanges(outboxSender)).toMatchObject({ sent: 2, failed: [] });
+
+    expect(body(fetchMock.mock.calls[2]!)).toMatchObject({ id: created.id, labelIds: ["l-work"] });
+    expect(body(fetchMock.mock.calls[3]!)).toMatchObject({ id: other.id, labelIds: ["l-gone"] });
+    expect(body(fetchMock.mock.calls[4]!)).toMatchObject({ id: other.id, labelIds: [] });
+    expect(await pendingChanges()).toEqual([]);
+  });
+
   it("keeps a mood with a note written or edited offline, and sends it", async () => {
     fetchMock.mockImplementationOnce(offline);
     const created = await api.createNote("Feeling fine", [], { kind: "Quick", mood: "Good" });

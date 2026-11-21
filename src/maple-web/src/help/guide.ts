@@ -67,6 +67,11 @@ Then choose **Labels…** in a note's **⋯** menu to tick the ones it should ha
 by typing its name. A note shows its labels at the bottom, and choosing one, or a label in the side menu, lists its
 notes.
 
+To label new notes for you, tap labels under **Add labels to new notes** in [Settings → Labels](/settings/labels).
+Every note you write with the **+** button on Home then starts with them, shown as chips under the text; tap a chip to
+take that label off the note before you post it. The choice is saved with your account, so it works on all your
+devices. Quick notes, todo lists and today's note do not get them.
+
 To keep some notes out of the way, choose the eye next to a label in [Settings → Labels](/settings/labels): notes and
 quick notes with that label no longer show on Home or in Quick notes, only on the label's page and in searches. Todo
 lists stay in their tab. Take the label off a note, or turn the eye off, and the note is back where it was. While

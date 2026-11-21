@@ -285,6 +285,23 @@ public sealed class LabelsTests : IAsyncLifetime
     private async Task LabelsOnAsync(bool on) =>
         (await _client.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { Labels = on })).EnsureSuccessStatusCode();
 
+    [Fact]
+    public async Task A_new_note_can_start_with_labels()
+    {
+        var work = await CreateAsync("Work", "Blue");
+        var urgent = await CreateAsync("Urgent", "Red");
+
+        var response = await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("From Home", LabelIds: [work.Id, urgent.Id, work.Id]));
+        var unknown = await _client.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("Gone", LabelIds: [Guid.CreateVersion7()]));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var note = (await response.Content.ReadFromJsonAsync<NoteResponse>(ApiClient.Json, Ct))!;
+        Assert.Equal(new[] { work.Id, urgent.Id }.Order(), note.LabelIds!);
+        Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
+        Assert.Contains("labelIds", (await unknown.Content.ReadFromJsonAsync<ValidationProblemDetails>(Ct))!.Errors.Keys);
+        Assert.Equal(1, (await ListAsync()).Single(l => l.Id == work.Id).NoteCount);
+    }
+
     private async Task<LabelResponse> CreateAsync(string name, string? color = null)
     {
         var response = await _client.PostJsonAsync("/api/v1/labels", new CreateLabelRequest(name, color));

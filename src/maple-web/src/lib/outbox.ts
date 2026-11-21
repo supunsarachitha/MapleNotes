@@ -38,6 +38,8 @@ export interface OutboxEntry {
    */
   mood?: NoteMood | null;
   encryptedMood?: string;
+  /** For a new note: the labels it was written with (such as Home's default labels); absent in older entries. */
+  labelIds?: string[];
   /** Grows with every change, so a send that raced with a new edit does not drop that edit. */
   revision: number;
   /** The order changes were made in, which is the order they are sent in. */
@@ -158,6 +160,7 @@ function asNote(entry: OutboxEntry, content: string, base?: Note, mood?: NoteMoo
   return {
     ...(base ?? { labelIds: [], isArchived: false, trashedAtUtc: null }),
     id: entry.noteId,
+    labelIds: base?.labelIds ?? entry.labelIds ?? [],
     kind: entry.kind,
     dailyDate: entry.dailyDate,
     isPinned: base?.isPinned ?? entry.isPinned,
@@ -176,7 +179,7 @@ function asNote(entry: OutboxEntry, content: string, base?: Note, mood?: NoteMoo
 export async function keepNewNote(
   content: string,
   attachmentIds: string[],
-  options: { isPinned?: boolean; kind?: NoteKind; dailyDate?: string; mood?: NoteMood | null },
+  options: { isPinned?: boolean; kind?: NoteKind; dailyDate?: string; mood?: NoteMood | null; labelIds?: string[] },
 ): Promise<Note> {
   if (!owner) throw new Error("Not signed in.");
   const noteId = uuidv7();
@@ -192,6 +195,7 @@ export async function keepNewNote(
     changedAtUtc: now,
     baseUpdatedAtUtc: null,
     attachmentIds,
+    ...(options.labelIds && options.labelIds.length > 0 ? { labelIds: options.labelIds } : {}),
     ...(await sealForDevice(noteId, content)),
     ...(await sealMoodForDevice(noteId, options.mood ?? undefined)),
     revision: 1,

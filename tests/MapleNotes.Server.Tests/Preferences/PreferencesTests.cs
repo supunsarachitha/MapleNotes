@@ -50,6 +50,7 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.False(preferences.OpenFullScreen); // opt-in
         Assert.True(preferences.HelpMenu);
         Assert.Equal("", preferences.DailyNoteTemplate); // no template until one is chosen
+        Assert.Equal("", preferences.DefaultLabels); // new notes start without labels
         Assert.Equal("Large", preferences.PhotoSize); // as photos were shrunk before sizes could be chosen
         Assert.Equal(preferences, (await _alice.GetJsonAsync<UserResponse>("/api/v1/auth/me"))!.Preferences);
     }
@@ -63,6 +64,7 @@ public sealed class PreferencesTests : IAsyncLifetime
             HabitTracker = true, ShrinkPhotos = true, Archive = false, Tags = false, MenuTextSize = "Large", NoteTextSize = "Small", TrashDays = 90, WeekStart = "Monday", TimeZone = "Asia/Colombo",
             QuickNoteTitles = true, DoubleTapToEdit = true, TagSuggestions = true, OpenFullScreen = true, Labels = true, Trash = false, MenuOrder = "help,home,todo",
             HelpMenu = false, PhotoSize = "Small", DailyNoteTemplate = Guid.CreateVersion7().ToString(),
+            DefaultLabels = $"{Guid.CreateVersion7()},{Guid.CreateVersion7()}",
         };
 
         var response = await _alice.PutJsonAsync("/api/v1/account/preferences", wanted);
@@ -168,6 +170,25 @@ public sealed class PreferencesTests : IAsyncLifetime
         Assert.Contains("dailyNoteTemplate", (await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
         Assert.Equal("0199a1b2-c3d4-e5f6-0718-293a4b5c6d7e", (await _alice.GetJsonAsync<UserPreferences>("/api/v1/account/preferences"))!.DailyNoteTemplate);
         Assert.Equal(HttpStatusCode.OK, upperCase.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("work")]
+    [InlineData("0199a1b2-c3d4-e5f6-0718-293a4b5c6d7e,0199A1B2-C3D4-E5F6-0718-293A4B5C6D7E")]
+    [InlineData("0199a1b2-c3d4-e5f6-0718-293a4b5c6d7e,")]
+    public async Task Default_labels_are_different_label_ids_or_nothing(string defaultLabels)
+    {
+        var response = await _alice.PutJsonAsync("/api/v1/account/preferences", new UserPreferences { DefaultLabels = defaultLabels });
+        var upperCase = await _alice.PutJsonAsync("/api/v1/account/preferences",
+            new UserPreferences { DefaultLabels = "0199A1B2-C3D4-E5F6-0718-293A4B5C6D7E" });
+        var tooMany = await _alice.PutJsonAsync("/api/v1/account/preferences",
+            new UserPreferences { DefaultLabels = string.Join(",", Enumerable.Range(0, Label.MaxPerNote + 1).Select(_ => Guid.CreateVersion7())) });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("defaultLabels", (await response.Content.ReadFromJsonAsync<ValidationProblemDetails>(TestContext.Current.CancellationToken))!.Errors.Keys);
+        Assert.Equal(HttpStatusCode.OK, upperCase.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, tooMany.StatusCode);
+        Assert.Equal("0199a1b2-c3d4-e5f6-0718-293a4b5c6d7e", (await _alice.GetJsonAsync<UserPreferences>("/api/v1/account/preferences"))!.DefaultLabels);
     }
 
     [Fact]

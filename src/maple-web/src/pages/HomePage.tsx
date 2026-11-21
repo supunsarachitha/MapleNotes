@@ -210,7 +210,7 @@ export function NewNoteButton() {
           <span className="absolute top-1 right-1 size-3 rounded-full border-2 border-maple-600 bg-white" aria-hidden="true" />
         )}
       </button>
-      <Composer launched={{ open, onClose: close, onDraftChange: setDraft }} />
+      <Composer launched={{ open, onClose: close, onDraftChange: setDraft }} defaultLabels />
     </>
   );
 }
