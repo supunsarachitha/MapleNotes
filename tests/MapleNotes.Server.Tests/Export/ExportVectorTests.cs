@@ -46,7 +46,9 @@ public sealed class ExportVectorTests
 
     private static async Task<JsonObject> ComputeAsync()
     {
-        await using var app = new MapleAppFactory();
+        // The dataset below writes plaintext files (ContentScheme.None) directly; a background encryption pass would
+        // convert them at a random moment and bump their revision (?v=), so keep the worker off.
+        await using var app = new MapleAppFactory { RunEncryptionWorker = false };
         using var client = new ApiClient(app);
         await client.SignUpAsync("maple");
         (await client.PutJsonAsync("/api/v1/account/encryption",
