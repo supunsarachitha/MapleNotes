@@ -40,6 +40,27 @@ export class PasskeyUnavailable extends Error {
   }
 }
 
+/** Why signing in with a passkey just now did not also unlock the end-to-end notes, for the unlock screen. */
+let unlockMiss: string | null = null;
+
+/** Notes why a passkey sign-in left the notes locked (null clears it). */
+export function setPasskeyUnlockMiss(reason: string | null): void {
+  unlockMiss = reason;
+}
+
+/** The reason noted by the last passkey sign-in, if any. Read it once, then clear it with `setPasskeyUnlockMiss(null)`. */
+export function passkeyUnlockMiss(): string | null {
+  return unlockMiss;
+}
+
+/** Shown when the passkey manager gave no PRF output (Bitwarden's extension, for example, does not support it). */
+export const NO_PRF_MESSAGE =
+  "The passkey signed you in, but your passkey manager did not give the secret that unlocks your notes. Some, such as Bitwarden, do not support it. Enter your password, or use a passkey saved by your browser or device.";
+
+/** Shown when the passkey was never set up to unlock the notes. */
+export const NOT_SET_UP_MESSAGE =
+  "The passkey signed you in, but it is not set up to unlock your notes. Enter your password. You can set it up in Settings → Security → Passkeys.";
+
 const buffer = (base64: string) => fromBase64(base64).buffer;
 
 /** Asks the passkey for its PRF output for the fixed salt (docs/e2ee-spec.md §6a); ignored where unsupported. */

@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { KeyRound } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AuthLayout, linkClass } from "../components/AuthLayout";
 import { Button, ErrorMessage, TextField } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { auth } from "../lib/auth";
 import { e2ee } from "../lib/e2ee";
-import { PasskeyCancelled, passkeysSupported, PasskeyUnavailable } from "../lib/passkeys";
+import { PasskeyCancelled, passkeysSupported, PasskeyUnavailable, passkeyUnlockMiss, setPasskeyUnlockMiss } from "../lib/passkeys";
 import { useSignedOut } from "../lib/queries";
 import type { User } from "../lib/types";
 
@@ -19,6 +19,10 @@ export function UnlockPage({ user }: { user: User }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  // Why the passkey just used to sign in did not unlock the notes, if it was one. Read during render (so React's
+  // double render in development sees it too) and cleared afterwards, so it shows once.
+  const [missed] = useState(passkeyUnlockMiss);
+  useEffect(() => setPasskeyUnlockMiss(null), []);
   // Passkeys that can unlock, fetched before the tap so the prompt opens straight from it.
   const unlockKeys = useQuery({
     queryKey: ["account", "passkeys", "unlock-keys"],
@@ -85,6 +89,11 @@ export function UnlockPage({ user }: { user: User }) {
       }
     >
       <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">
+        {missed && !error && (
+          <p role="status" className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            {missed}
+          </p>
+        )}
         {error && !passwordError && <ErrorMessage>{error.message}</ErrorMessage>}
         <input type="text" name="username" autoComplete="username" value={user.username} readOnly hidden />
         <TextField

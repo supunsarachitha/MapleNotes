@@ -31,6 +31,8 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
   const [options, setOptions] = useState<PasskeyCreationOptions | null>(null);
   // Added, but the device gives the PRF output only when the passkey is used: offer one more tap to unlock notes.
   const [needsTap, setNeedsTap] = useState<Passkey | null>(null);
+  // Added, but its device or password manager has no PRF support, so it can never unlock end-to-end notes.
+  const [signInOnly, setSignInOnly] = useState(false);
   // A new passkey can lift the server's second-factor requirement; the account is fetched again once the dialog closes,
   // not at once, which would swap the set-up screen for the app while the dialog still offers its last step.
   const added = useRef(false);
@@ -54,6 +56,7 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
       setError(null);
       setOptions(null);
       setNeedsTap(null);
+      setSignInOnly(false);
       if (added.current || user.secondFactorEnrolmentRequired) void queryClient.invalidateQueries({ queryKey: queryKeys.status });
       added.current = false;
     }
@@ -82,11 +85,15 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
     setBusy(true);
     setError(null);
     try {
-      const { passkey, canUnlockWithTap } = await auth.addPasskey(user, password, options, name.trim() || undefined);
+      const { passkey, canUnlockWithTap, signInOnly } = await auth.addPasskey(user, password, options, name.trim() || undefined);
       added.current = true;
       void queryClient.invalidateQueries({ queryKey: passkeysKey });
       if (canUnlockWithTap) {
         setNeedsTap(passkey);
+        return;
+      }
+      if (signInOnly) {
+        setSignInOnly(true);
         return;
       }
       toast.info(
@@ -101,6 +108,25 @@ function AddDialog({ user, open, onOpenChange }: { user: User; open: boolean; on
     } finally {
       setBusy(false);
     }
+  }
+
+  if (signInOnly) {
+    return (
+      <DialogShell open={open} onOpenChange={change} title="Passkey added for signing in only">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-stone-600 dark:text-stone-300">
+            The passkey signs you in, but it cannot unlock your end-to-end notes: your device or password manager does not
+            support PRF, the passkey feature that unlocking needs (Bitwarden, for example, does not). After signing in with
+            it you will still enter your password. To unlock with a passkey, add one saved by your browser or device.
+          </p>
+          <div className="flex justify-end">
+            <Dialog.Close asChild>
+              <Button>OK</Button>
+            </Dialog.Close>
+          </div>
+        </div>
+      </DialogShell>
+    );
   }
 
   if (needsTap) {
