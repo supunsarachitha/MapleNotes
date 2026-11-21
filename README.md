@@ -806,6 +806,13 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.25 to 1.26
+
+Nothing to do: there are no migrations and no new tables. Settings → Labels can now choose labels that every note
+written with Home's + button starts with; nothing changes until a user picks some. For API clients: `POST
+/api/v1/notes` accepts `labelIds` (the account's labels, at most 20), and preferences gained `defaultLabels` (label IDs
+separated by commas, empty by default), which accounts that have never saved it read as empty.
+
 ### From 1.24 to 1.25
 
 Nothing to do: there are no migrations, new settings or new endpoints, and nothing changed for API clients. Home's
