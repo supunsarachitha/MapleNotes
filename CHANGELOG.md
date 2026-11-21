@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- On phones, the full-screen editor no longer hides its bottom row (word count, Cancel, **Post**/Save) behind the
+  on-screen keyboard: the editor now shrinks to the part of the screen above the keyboard, and the text box gets
+  smaller to make room (#175).
+
 ## [1.26.0] - 2026-11-21
 
 ### Added

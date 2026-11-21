@@ -16,6 +16,7 @@ import { saveDailyNote } from "../lib/daily";
 import { joinTitle, splitTitle } from "../lib/titles";
 import { StickerPackError, stickerFile, stickersAllowed, stickerFileName, type Sticker } from "../lib/stickers";
 import { moodAllowed, type Attachment, type Note, type NoteKind, type NoteMood } from "../lib/types";
+import { useVisibleArea } from "../lib/viewport";
 import { MOOD_EMOJI, MoodPicker } from "./MoodPicker";
 import { StickerPicker } from "./StickerPicker";
 import { useTagSuggestions } from "./TagSuggestions";
@@ -121,6 +122,8 @@ export function Composer({
   const [picker, setPicker] = useState<"mood" | "stickers" | null>(null);
   const [ownFullscreen, setOwnFullscreen] = useState(() => note !== undefined && preferences.openFullScreen);
   const fullscreen = launched ? launched.open : ownFullscreen;
+  // On phones the keyboard can cover the bottom of a full-screen panel; keep the panel inside the visible part.
+  const visible = useVisibleArea(fullscreen);
   // A launched composer has no inline state: leaving full screen closes it.
   function setFullscreen(next: boolean | ((open: boolean) => boolean)) {
     const value = typeof next === "function" ? next(fullscreen) : next;
@@ -434,6 +437,7 @@ export function Composer({
       role={fullscreen ? "dialog" : undefined}
       aria-modal={fullscreen || undefined}
       aria-label={fullscreen ? (editing ? "Edit note, full screen" : "New note, full screen") : undefined}
+      style={visible ? { top: visible.top, bottom: "auto", height: visible.height } : undefined}
       className={cn(
         "transition-colors",
         launched && !launched.open && "hidden",
@@ -542,7 +546,7 @@ export function Composer({
           {...suggestions.inputProps}
           className={cn(
             "block w-full resize-none bg-transparent px-1 py-1 leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100",
-            fullscreen ? "min-h-[40vh] flex-1 py-4 font-serif text-lg sm:text-xl sm:leading-loose" : "text-(length:--note-input)",
+            fullscreen ? "min-h-24 flex-1 py-4 font-serif text-lg sm:text-xl sm:leading-loose" : "text-(length:--note-input)",
             collapsed && "min-w-0 flex-1 overflow-hidden",
           )}
         />
