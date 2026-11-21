@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- More tools in the editor's toolbar: strikethrough, numbered list, three heading sizes (in place of one Heading
+  button), a divider line, a starter table, and Undo/Redo buttons. On phones the toolbar wraps onto two lines (#186).
+
 ## [1.27.0] - 2026-11-21
 
 ### Changed

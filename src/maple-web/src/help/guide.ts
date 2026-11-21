@@ -15,9 +15,10 @@ export const GUIDE: GuideSection[] = [
 choose **Post** (or press Ctrl+Enter, ⌘+Enter on a Mac). Closing the editor with **×** or Esc keeps what you wrote; a dot
 on the + button shows a draft is waiting. Your newest notes are at the top.
 
-- **Formatting.** Use the toolbar above the text box for bold, italic, headings, lists, checklists, quotes, code and
-  links, or type [Markdown](https://commonmark.org/help/) yourself. Ctrl/⌘+B, I and K are shortcuts for bold, italic
-  and links.
+- **Formatting.** Use the toolbar above the text box for bold, italic, strikethrough, headings (three sizes), bulleted
+  and numbered lists, checklists, quotes, code, links, a divider line and a table, or type
+  [Markdown](https://commonmark.org/help/) yourself. Ctrl/⌘+B, I and K are shortcuts for bold, italic and links. The
+  first two buttons undo and redo changes. On a phone the toolbar takes two lines.
 - **Pictures and files.** Choose the paperclip, paste, or drag files onto the box. They upload while you write.
 - **Full screen.** Turn on **Open the editor in full screen** in [Settings → Writing](/settings/writing), under Editing. Then editing a note, or clicking into the Today or Quick notes box, opens a full screen view too. Esc closes it.
 - **Checklists.** Tick a checklist's boxes right in the note; the change is saved straight away.
