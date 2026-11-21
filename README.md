@@ -805,6 +805,12 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.24 to 1.25
+
+Nothing to do: there are no migrations, new settings or new endpoints, and nothing changed for API clients. Home's
+writing stats are thinner, and the New note box on Home is replaced by a round + button at the bottom right (or N) that
+opens the editor full screen; closing it keeps the draft.
+
 ### From 1.24.2 to 1.24.3
 
 Nothing to do: there are no migrations, new settings or new endpoints, and nothing changed for API clients. Passkey

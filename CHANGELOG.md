@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.25.0] - 2026-11-21
+
 ### Changed
 
 - Home's writing stats (day streak, this week, 30 days) are thin one-line tiles now: icon, number and label side by
@@ -952,7 +954,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.3...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.25.0...HEAD
+[1.25.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.3...v1.25.0
 [1.24.3]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.2...v1.24.3
 [1.24.2]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.1...v1.24.2
 [1.24.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.0...v1.24.1
