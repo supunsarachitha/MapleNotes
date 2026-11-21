@@ -9,6 +9,7 @@ import type { AuthStatus, Note } from "../lib/types";
 import { RemindersPage } from "./RemindersPage";
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   history.replaceState(null, "", "/");
 });
@@ -36,6 +37,10 @@ function renderPage(path = "/reminders") {
 
 describe("Reminders page", () => {
   it("lists upcoming reminders by day with their notes, and the note a notification opened", async () => {
+    // A fixed midday clock: "an hour from now" must stay on today's date whatever time the tests run (from 23:00 it
+    // would fall on tomorrow).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 21, 12));
     const soon = new Date(Date.now() + 60 * 60_000).toISOString();
     vi.spyOn(api.reminders, "list").mockResolvedValue([
       { noteId: "a", at: "2026-11-07T09:00", timeZone: "UTC", repeat: "None", nextAtUtc: soon, lastSentAtUtc: null },
