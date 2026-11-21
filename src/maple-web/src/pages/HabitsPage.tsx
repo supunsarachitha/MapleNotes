@@ -14,7 +14,7 @@ import { useToast } from "../components/Toaster";
 import { Button, EmptyState, IconButton, Spinner, cn } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { useToday } from "../lib/daily";
-import { calendarDay, localDateKey } from "../lib/dates";
+import { localDateKey } from "../lib/dates";
 import { shortDayFormat } from "../lib/dayKeys";
 import { addDays, dateOf, daysEnding, serializeHabit } from "../lib/habits";
 import { usePreferences, useWeekStart } from "../lib/preferences";
@@ -43,12 +43,6 @@ const SUGGESTIONS = [
   "Stretch",
   "Sleep by 11",
 ];
-const todayHeading = new Intl.DateTimeFormat("en", {
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-});
-
 function NewHabit({ suggest = false }: { suggest?: boolean }) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -320,9 +314,6 @@ export function HabitsPage() {
     <>
       <header className="mb-4">
         <h1 className="text-xl font-semibold">Habits</h1>
-        <p className="text-sm text-stone-500 dark:text-stone-400">
-          {todayHeading.format(calendarDay())}
-        </p>
       </header>
       {habitTracker ? (
         <Habits />
