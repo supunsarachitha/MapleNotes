@@ -805,6 +805,12 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.24.0 to 1.24.1
+
+Nothing to do: there are no migrations and no new settings. This release fixes two security issues (see the CHANGELOG)
+and makes the app load less code before the first screen. One API change: registering a push endpoint that another
+account already uses with different browser keys now answers 409 instead of moving it; the web app shows the message.
+
 ### From 1.23 to 1.24
 
 Nothing to do: there are no server changes, migrations or new settings. Budget projects can now hold category shares
