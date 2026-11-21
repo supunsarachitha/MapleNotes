@@ -55,4 +55,18 @@ describe("Home shortcuts", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "/", bubbles: true }));
     expect(search).toHaveFocus();
   });
+
+  it("N presses Home's new note button when there is one", async () => {
+    const { render } = await import("@testing-library/react");
+    const { useHomeShortcuts } = await import("./HomeHeader");
+    let pressed = 0;
+    function Harness() {
+      useHomeShortcuts();
+      return <button id="new-note-button" type="button" onClick={() => pressed++} />;
+    }
+    render(<Harness />);
+    document.body.focus();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "N", bubbles: true }));
+    expect(pressed).toBe(1);
+  });
 });

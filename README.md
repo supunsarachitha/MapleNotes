@@ -27,7 +27,7 @@
 
 ## Features
 
-- **Timeline feed.** Newest notes first, a quick-post box at the top, pinned notes above the feed, and infinite
+- **Timeline feed.** Newest notes first, a round + button (bottom right, or N) that opens the editor full screen, pinned notes above the feed, and infinite
   scroll that stays stable while new notes arrive. Pictures, players and link previews load as they come into view,
   so a long timeline with thousands of notes and files opens as quickly as a short one.
 - **Full note lifecycle.** Create, edit inline (optionally with a double-tap, always with the cursor at the end), pin,
@@ -67,7 +67,7 @@
   in the editor, and clickable `#tags`, including
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
   Optionally, your existing tags are suggested while you type one.
-  Optionally, editing a note, or clicking into the new-note box, opens the full screen editor (Settings → Writing →
+  Optionally, editing a note, or clicking into the Today or Quick notes box, opens the full screen editor (Settings → Writing →
   Editing).
 - **Labels.** Optionally, coloured labels you put on notes and todo lists by hand, in ten colours, listed in the side
   menu with their notes. A label can keep its notes out of Home and Quick notes, so they show only on the label's page.

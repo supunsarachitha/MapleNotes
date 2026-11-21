@@ -73,7 +73,10 @@ export function useHomeShortcuts() {
       if (document.querySelector('[role="dialog"]')) return;
       if (event.key === "n" || event.key === "N") {
         event.preventDefault();
-        document.getElementById("composer")?.focus();
+        // Home's + button opens the editor; elsewhere the composer box takes the caret.
+        const button = document.getElementById("new-note-button");
+        if (button) button.click();
+        else document.getElementById("composer")?.focus();
       } else if (event.key === "/") {
         event.preventDefault();
         focusSearch();

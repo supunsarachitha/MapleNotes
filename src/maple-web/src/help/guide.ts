@@ -11,14 +11,15 @@ export const GUIDE: GuideSection[] = [
   {
     id: "writing",
     title: "Writing notes",
-    body: `Tap the box at the top of **Home** to open it, write, and choose **Post** (or press Ctrl+Enter, ⌘+Enter on a Mac). While
-it is empty the box stays one line; it opens when you tap it. Your newest notes are at the top.
+    body: `Tap the round **+** button at the bottom right of **Home** (or press N) to open the editor full screen, write, and
+choose **Post** (or press Ctrl+Enter, ⌘+Enter on a Mac). Closing the editor with **×** or Esc keeps what you wrote; a dot
+on the + button shows a draft is waiting. Your newest notes are at the top.
 
 - **Formatting.** Use the toolbar above the text box for bold, italic, headings, lists, checklists, quotes, code and
   links, or type [Markdown](https://commonmark.org/help/) yourself. Ctrl/⌘+B, I and K are shortcuts for bold, italic
   and links.
 - **Pictures and files.** Choose the paperclip, paste, or drag files onto the box. They upload while you write.
-- **Full screen.** Turn on **Open the editor in full screen** in [Settings → Writing](/settings/writing), under Editing. Then editing a note, or clicking into the new-note box, opens a full screen view. Esc closes it.
+- **Full screen.** Turn on **Open the editor in full screen** in [Settings → Writing](/settings/writing), under Editing. Then editing a note, or clicking into the Today or Quick notes box, opens a full screen view too. Esc closes it.
 - **Checklists.** Tick a checklist's boxes right in the note; the change is saved straight away.
 - **Changing a note.** Open a note's **⋯** menu to edit it, pin it to the top, label it, copy its text, archive it or
   delete it. Editing starts with the cursor at the end of the note, ready to carry on. Archived notes wait in the
@@ -452,7 +453,7 @@ when it is almost full. Once it is full, new files, notes and longer edits are n
 | Ctrl+I / ⌘+I | Italic |
 | Ctrl+K / ⌘+K | Link |
 | Ctrl+Shift+F / ⌘+Shift+F | Open or close the full screen editor |
-| N | On Home, start a new note in the box |
+| N | On Home, start a new note (same as the + button) |
 | / | On Home, search notes |
 | ← → | Previous and next picture in the viewer |`,
   },
