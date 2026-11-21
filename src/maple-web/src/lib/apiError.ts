@@ -3,17 +3,32 @@ import { CONFIRMATION_REQUIRED, SECOND_FACTOR_ENROLMENT_REQUIRED, type ProblemDe
 /** HTTP 507: the change does not fit in the account's storage limit. */
 export const STORAGE_FULL = 507;
 
+/** The title ASP.NET gives every validation problem; it says nothing, so the first field error is shown instead. */
+export const GENERIC_VALIDATION_TITLE = "One or more validation errors occurred.";
+
+/** The first message among the problem's field errors, if any. */
+function firstFieldError(problem: ProblemDetails): string | undefined {
+  return Object.values(problem.errors ?? {}).find((messages) => messages?.length)?.[0];
+}
+
+function messageOf(status: number, problem: ProblemDetails): string {
+  if (status === STORAGE_FULL) {
+    return [problem.title ?? "There is not enough room in your storage.", problem.detail].filter(Boolean).join(" ");
+  }
+  if (!problem.title || problem.title === GENERIC_VALIDATION_TITLE) {
+    const field = firstFieldError(problem);
+    if (field) return field;
+  }
+  return problem.title ?? (status === 0 ? "Cannot reach the server." : `Request failed (${status}).`);
+}
+
 /** An API error with the server's problem details (title, field errors). */
 export class ApiError extends Error {
   readonly status: number;
   readonly problem: ProblemDetails;
 
   constructor(status: number, problem: ProblemDetails) {
-    super(
-      status === STORAGE_FULL
-        ? [problem.title ?? "There is not enough room in your storage.", problem.detail].filter(Boolean).join(" ")
-        : (problem.title ?? (status === 0 ? "Cannot reach the server." : `Request failed (${status}).`)),
-    );
+    super(messageOf(status, problem));
     this.name = "ApiError";
     this.status = status;
     this.problem = problem;

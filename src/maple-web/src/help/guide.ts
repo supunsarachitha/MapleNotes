@@ -399,8 +399,9 @@ On the sign-in page, choose **Sign in with a passkey**; some browsers also offer
 username. A passkey sign-in does not ask for a two-factor code.
 
 With end-to-end encryption, a passkey can also unlock your notes, so you need no password at all. Most current phones,
-computers and password managers support this. Passkeys that do are marked **Unlocks notes**; for others choose
-**Unlock notes…**. Anyone who can use such a passkey can read your notes, so keep it on devices you trust. The unlock
+computers and password managers support this (it needs the PRF feature; Bitwarden's browser extension, for example,
+does not have it, so its passkeys sign you in but you still enter your password). Passkeys that do are marked
+**Unlocks notes**; for others choose **Unlock notes…**. Anyone who can use such a passkey can read your notes, so keep it on devices you trust. The unlock
 screen then offers **Unlock with a passkey** too.
 
 Passkeys need the site's HTTPS address. Removing one there stops it working here; delete it from your device or

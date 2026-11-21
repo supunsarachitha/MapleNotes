@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "../components/Toaster";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { auth } from "../lib/auth";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
@@ -569,7 +569,7 @@ describe("passkeys", () => {
     Object.defineProperty(navigator, "credentials", { value: { create: vi.fn(), get: vi.fn() }, configurable: true });
     vi.spyOn(api.passkeys, "list").mockResolvedValueOnce([]).mockResolvedValue([passkey]);
     vi.spyOn(api.passkeys, "creationOptions").mockResolvedValue(options);
-    const add = vi.spyOn(auth, "addPasskey").mockResolvedValue({ passkey, canUnlockWithTap: false });
+    const add = vi.spyOn(auth, "addPasskey").mockResolvedValue({ passkey, canUnlockWithTap: false, signInOnly: false });
     renderSettings(idle, user, null, "/settings/security");
 
     await userEvent.click(await screen.findByRole("button", { name: "Add a passkey…" }));
@@ -585,6 +585,35 @@ describe("passkeys", () => {
     expect(list.getByText("Added 2026-11-01")).toBeInTheDocument();
     expect(list.getByText("Synced")).toBeInTheDocument();
     expect(list.getByText("Not used yet")).toBeInTheDocument();
+  });
+
+  async function startAdding() {
+    vi.stubGlobal("PublicKeyCredential", class {});
+    vi.stubGlobal("isSecureContext", true);
+    Object.defineProperty(navigator, "credentials", { value: { create: vi.fn(), get: vi.fn() }, configurable: true });
+    vi.spyOn(api.passkeys, "list").mockResolvedValue([]);
+    vi.spyOn(api.passkeys, "creationOptions").mockResolvedValue(options);
+    renderSettings(idle, user, null, "/settings/security");
+    await userEvent.click(await screen.findByRole("button", { name: "Add a passkey…" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Add a passkey" }));
+    await userEvent.type(dialog.getByLabelText("Your password"), "correct horse battery staple");
+    await waitFor(() => expect(dialog.getByRole("button", { name: "Continue" })).toBeEnabled());
+    await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
+  }
+
+  it("shows the server's reason when a passkey cannot be added", async () => {
+    vi.spyOn(auth, "addPasskey").mockRejectedValue(
+      new ApiError(400, { title: "One or more validation errors occurred.", errors: { passkey: ["This passkey has already been added."] } }),
+    );
+    await startAdding();
+    expect(await screen.findByRole("alert")).toHaveTextContent("This passkey has already been added.");
+  });
+
+  it("says when a new passkey can sign in but not unlock end-to-end notes", async () => {
+    vi.spyOn(auth, "addPasskey").mockResolvedValue({ passkey, canUnlockWithTap: false, signInOnly: true });
+    await startAdding();
+    const dialog = await screen.findByRole("dialog", { name: "Passkey added for signing in only" });
+    expect(dialog).toHaveTextContent(/does not\s+support PRF/);
   });
 
   it("removes a passkey after the password", async () => {

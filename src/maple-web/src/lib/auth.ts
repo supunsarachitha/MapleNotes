@@ -3,7 +3,15 @@ import { api } from "./api";
 import { isTwoFactorRequired } from "./apiError";
 import { deriveForAccount, deriveForNewPassword, rememberKeyDerived } from "./credentials";
 import { e2ee } from "./e2ee";
-import { createPasskey, evaluatePasskey, getPasskey, PasskeyUnavailable } from "./passkeys";
+import {
+  createPasskey,
+  evaluatePasskey,
+  getPasskey,
+  NO_PRF_MESSAGE,
+  NOT_SET_UP_MESSAGE,
+  PasskeyUnavailable,
+  setPasskeyUnlockMiss,
+} from "./passkeys";
 import type { CredentialProof, Passkey, PasskeyCreationOptions, PasskeyRequestOptions, PasskeyUnlockKey, User } from "./types";
 
 // Key-derived sign-in (docs/e2ee-spec.md §1). The password never leaves the browser: Argon2id turns it into an
@@ -60,9 +68,19 @@ export const auth = {
     try {
       const { user, passkeyId, wrappedKey } = await api.passkeys.signIn({ challengeId: request.challengeId, credential, rememberMe });
       await rememberKeyDerived(user.username);
-      if (user.hasEndToEndKey && wrappedKey && prfOutput) {
-        // Unlocks too where the passkey can; otherwise, or if this fails, the unlock screen asks for the password.
-        await e2ee.unlockWithPasskey(user, passkeyId, wrappedKey, prfOutput).catch(() => undefined);
+      setPasskeyUnlockMiss(null);
+      if (user.hasEndToEndKey) {
+        // Unlocks too where the passkey can; otherwise, or if this fails, the unlock screen asks for the password and
+        // says why the passkey did not unlock.
+        if (!wrappedKey) setPasskeyUnlockMiss(NOT_SET_UP_MESSAGE);
+        else if (!prfOutput) setPasskeyUnlockMiss(NO_PRF_MESSAGE);
+        else {
+          await e2ee.unlockWithPasskey(user, passkeyId, wrappedKey, prfOutput).catch((error: unknown) =>
+            setPasskeyUnlockMiss(
+              error instanceof PasskeyUnavailable ? error.message : "The passkey signed you in, but could not unlock your notes. Enter your password.",
+            ),
+          );
+        }
       }
       return user;
     } finally {
@@ -79,7 +97,7 @@ export const auth = {
     password: string,
     options: PasskeyCreationOptions,
     name?: string,
-  ): Promise<{ passkey: Passkey; canUnlockWithTap: boolean }> {
+  ): Promise<{ passkey: Passkey; canUnlockWithTap: boolean; signInOnly: boolean }> {
     const created = await createPasskey(options);
     const { proof, keys } = await deriveForAccount(user.username, password);
     let passkey = await api.passkeys.add({ proof, challengeId: options.challengeId, credential: created.credential, ...(name ? { name } : {}) });
@@ -93,7 +111,10 @@ export const auth = {
       }
     }
     // Some devices give the PRF output only when the passkey is used: one more tap sets up unlocking then.
-    return { passkey, canUnlockWithTap: user.hasEndToEndKey && created.prf.enabled && !passkey.unlocksNotes };
+    const canUnlockWithTap = user.hasEndToEndKey && created.prf.enabled && !passkey.unlocksNotes;
+    // Without PRF support (Bitwarden's extension, for example) the passkey can sign in but never unlock the notes.
+    const signInOnly = user.hasEndToEndKey && !passkey.unlocksNotes && !created.prf.enabled;
+    return { passkey, canUnlockWithTap, signInOnly };
   },
 
   /** Lets an existing passkey unlock the notes: asks it for its PRF output (one tap), then proves the password. */

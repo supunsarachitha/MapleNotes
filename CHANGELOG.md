@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Adding a passkey could fail with only "One or more validation errors occurred.". The app now shows the server's own
+  reason (for example "This passkey has already been added." or "The passkey request has expired. Try again."), and
+  the same goes for every other form that shows server errors
+  ([#166](https://github.com/supunsarachitha/MapleNotes/issues/166)).
+- Signing in with a passkey that cannot unlock end-to-end notes left you on the unlock screen with no explanation. The
+  unlock screen now says why: the passkey manager does not support PRF (Bitwarden's extension, for example), the
+  passkey is not set up to unlock, or its stored key did not open ([#166](https://github.com/supunsarachitha/MapleNotes/issues/166)).
+- Adding a passkey whose device or password manager has no PRF support now says that it signs you in only and cannot
+  unlock end-to-end notes ([#166](https://github.com/supunsarachitha/MapleNotes/issues/166)).
+- A refused passkey sign-in is recorded in the audit log with the exact reason (not registered here, request expired,
+  signature not valid, use counter did not go up) instead of one catch-all line
+  ([#166](https://github.com/supunsarachitha/MapleNotes/issues/166)).
+
 ## [1.24.2] - 2026-11-21
 
 ### Fixed

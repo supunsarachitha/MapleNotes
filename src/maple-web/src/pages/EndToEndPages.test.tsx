@@ -7,6 +7,7 @@ import { App } from "../App";
 import { api, ApiError } from "../lib/api";
 import { auth } from "../lib/auth";
 import { e2ee } from "../lib/e2ee";
+import { NO_PRF_MESSAGE, passkeyUnlockMiss, setPasskeyUnlockMiss } from "../lib/passkeys";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import type { User } from "../lib/types";
 import { RecoverPage } from "./RecoverPage";
@@ -133,6 +134,15 @@ describe("unlocking with a passkey", () => {
 
     expect(unlock).toHaveBeenCalledWith(user, keys);
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("says once why the passkey used to sign in did not unlock", async () => {
+    vi.spyOn(api.passkeys, "unlockKeys").mockResolvedValue([]);
+    setPasskeyUnlockMiss(NO_PRF_MESSAGE);
+    render(withQueries(<UnlockPage user={user} />));
+    expect(await screen.findByRole("status")).toHaveTextContent("did not give the secret that unlocks your notes");
+    expect(passkeyUnlockMiss()).toBeNull();
     vi.restoreAllMocks();
   });
 

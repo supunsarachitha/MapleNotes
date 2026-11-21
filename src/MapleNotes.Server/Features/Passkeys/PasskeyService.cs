@@ -224,25 +224,34 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
     /// <summary>Checks a passkey's answer and returns the account it signs in to.</summary>
     /// <param name="request">The challenge handle and the answer.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>The account and the passkey, or the reason it was refused.</returns>
-    public async Task<(AccountResult Result, Passkey? Passkey)> SignInAsync(PasskeyLoginRequest request, CancellationToken cancellationToken)
+    /// <returns>
+    /// The account and the passkey; when refused, the reason for the audit log (never shown to the visitor, who could
+    /// otherwise probe which passkeys exist).
+    /// </returns>
+    public async Task<(AccountResult Result, Passkey? Passkey, string? Refusal)> SignInAsync(
+        PasskeyLoginRequest request, CancellationToken cancellationToken)
     {
         var ceremony = challenges.Take(request.ChallengeId, PasskeyChallenges.Purpose.SignIn, null);
         var assertion = request.Credential;
-        if (ceremony is null || assertion?.Id is not { Length: > 0 and <= Passkey.MaxCredentialIdBytes })
+        if (ceremony is null)
         {
-            return (AccountResult.Fail(AccountError.InvalidCredentials), null);
+            return Refused("The sign-in request had expired or was already used.");
+        }
+
+        if (assertion?.Id is not { Length: > 0 and <= Passkey.MaxCredentialIdBytes })
+        {
+            return Refused("The browser sent no valid passkey ID.");
         }
 
         var passkey = await db.Passkeys.SingleOrDefaultAsync(p => p.CredentialId == assertion.Id, cancellationToken);
         if (passkey is null)
         {
-            return (AccountResult.Fail(AccountError.InvalidCredentials), null);
+            return Refused("The passkey is not registered here. It may have been removed, or it was made for another server.");
         }
 
         if (assertion.UserHandle is { } handle && !handle.AsSpan().SequenceEqual(UserHandle(passkey.UserId)))
         {
-            return (AccountResult.Fail(AccountError.InvalidCredentials), null);
+            return Refused($"The passkey \"{passkey.Name}\" answered for another account.");
         }
 
         WebAuthn.AuthenticatorData data;
@@ -252,27 +261,29 @@ public sealed class PasskeyService(MapleDbContext db, CredentialVerifier credent
                 ceremony, assertion.ClientDataJson ?? [], assertion.AuthenticatorData ?? [], assertion.Signature ?? [],
                 passkey.PublicKey, passkey.Algorithm);
         }
-        catch (WebAuthnException)
+        catch (WebAuthnException ex)
         {
-            return (AccountResult.Fail(AccountError.InvalidCredentials), null);
+            return Refused($"The passkey \"{passkey.Name}\" was refused: {ex.Message}");
         }
 
         if (!WebAuthn.CounterAdvanced(passkey.SignCount, data.SignCount))
         {
-            return (AccountResult.Fail(AccountError.InvalidCredentials), null);
+            return Refused($"The passkey \"{passkey.Name}\" reported a use counter that did not go up, which suggests a copied passkey.");
         }
 
         var user = await db.Users.SingleAsync(u => u.Id == passkey.UserId, cancellationToken);
         if (user.IsDisabled)
         {
-            return (new AccountResult(user, AccountError.Disabled), null); // the user only names the account in the audit log
+            return (new AccountResult(user, AccountError.Disabled), null, null); // the user only names the account in the audit log
         }
 
         passkey.SignCount = data.SignCount;
         passkey.BackedUp = data.BackedUp;
         passkey.LastUsedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);
-        return (AccountResult.Success(user), passkey);
+        return (AccountResult.Success(user), passkey, null);
+
+        static (AccountResult, Passkey?, string?) Refused(string reason) => (AccountResult.Fail(AccountError.InvalidCredentials), null, reason);
     }
 
     /// <summary>Issues options for the signed-in account to confirm it is present with one of its passkeys.</summary>
