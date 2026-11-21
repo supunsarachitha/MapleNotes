@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Notes written offline within the same millisecond are now always sent in the order they were written (#178).
+
 ## [1.26.1] - 2026-11-21
 
 ### Fixed

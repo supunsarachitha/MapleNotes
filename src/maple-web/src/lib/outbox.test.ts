@@ -151,6 +151,23 @@ describe("writing offline", () => {
     expect(await pendingChanges()).toEqual([]);
   });
 
+  it("keeps changes made in the same millisecond in the order they were made", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-21T12:00:00Z"));
+    try {
+      const notes = [];
+      for (const text of ["First", "Second", "Third"]) {
+        fetchMock.mockImplementationOnce(offline);
+        notes.push(await api.createNote(text, []));
+      }
+      const pending = await pendingChanges();
+      expect(pending.map((entry) => entry.noteId)).toEqual(notes.map((note) => note.id));
+      expect(pending[1]!.queuedAt).toBeGreaterThan(pending[0]!.queuedAt);
+      expect(pending[2]!.queuedAt).toBeGreaterThan(pending[1]!.queuedAt);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
   it("keeps the labels of a note written offline and sends them, or the note alone once a label is gone", async () => {
     fetchMock.mockImplementationOnce(offline);
     const created = await api.createNote("Standup", [], { labelIds: ["l-work"] });
