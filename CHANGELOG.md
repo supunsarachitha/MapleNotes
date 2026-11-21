@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Home's writing stats (day streak, this week, 30 days) are thin one-line tiles now: icon, number and label side by
+  side, 32 px tall instead of 50 to 62 px. Below 360 px wide the icons are left out so the labels still fit.
+- Home has no New note box any more. A round + button at the bottom right (in thumb reach on phones) opens the editor
+  full screen; N does the same. Closing it with × or Esc keeps the draft, and a dot on the button shows one is waiting.
+
 ## [1.24.3] - 2026-11-21
 
 ### Fixed

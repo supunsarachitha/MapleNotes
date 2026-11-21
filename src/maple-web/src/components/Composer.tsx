@@ -68,7 +68,8 @@ function fromAttachment(attachment: Attachment): ComposerFile {
  * with the caret at the end of the text, and with tag suggestions on, existing tags are offered while a #tag is typed.
  * With the mood tracker on, a smiley button chooses the note's mood; with stickers on, a sticker button adds stickers
  * from the packs in this browser (notes and quick notes only, as in Falcon Notes). A collapsible composer shows one
- * line while it is empty and unfocused, and opens the full editor when it gets focus.
+ * line while it is empty and unfocused, and opens the full editor when it gets focus. A launched composer (Home's +
+ * button) is always full screen and hidden while closed; closing it keeps the draft for the next time it opens.
  */
 export function Composer({
   note,
@@ -80,6 +81,7 @@ export function Composer({
   daily,
   initialText = "",
   collapsible = false,
+  launched,
 }: {
   /** The note to edit; omit to write a new note. */
   note?: Note;
@@ -97,6 +99,8 @@ export function Composer({
   initialText?: string;
   /** While empty and unfocused, show a single line (placeholder, attach, full screen) instead of the full editor. */
   collapsible?: boolean;
+  /** Opened by a button elsewhere: full screen while `open`, hidden otherwise; leaving full screen calls `onClose`. */
+  launched?: { open: boolean; onClose: () => void; onDraftChange?: (hasDraft: boolean) => void };
 }) {
   const preferences = usePreferences();
   const withTitle = allowTitle && preferences.noteTitles && !daily;
@@ -110,7 +114,14 @@ export function Composer({
   const [dragging, setDragging] = useState(false);
   const [mood, setMood] = useState<NoteMood | null>(note?.mood ?? null);
   const [picker, setPicker] = useState<"mood" | "stickers" | null>(null);
-  const [fullscreen, setFullscreen] = useState(() => note !== undefined && preferences.openFullScreen);
+  const [ownFullscreen, setOwnFullscreen] = useState(() => note !== undefined && preferences.openFullScreen);
+  const fullscreen = launched ? launched.open : ownFullscreen;
+  // A launched composer has no inline state: leaving full screen closes it.
+  function setFullscreen(next: boolean | ((open: boolean) => boolean)) {
+    const value = typeof next === "function" ? next(fullscreen) : next;
+    if (!launched) setOwnFullscreen(value);
+    else if (!value && launched.open) launched.onClose();
+  }
   const [focused, setFocused] = useState(false);
   // New-note boxes open full screen when focused; armed again once focus leaves, so Esc does not reopen it at once.
   const armed = useRef(true);
@@ -300,6 +311,9 @@ export function Composer({
       !sameFiles(files.map((f) => f.attachment?.id ?? f.key), note.attachments.map((a) => a.id)) ||
       (offersMood && mood !== (note.mood ?? null))
     : text.trim().length > 0 || typedTitle || files.length > 0 || mood !== null;
+  const onDraftChange = launched?.onDraftChange;
+  const hasDraft = !editing && dirty;
+  useEffect(() => onDraftChange?.(hasDraft), [hasDraft, onDraftChange]);
   useLeaveGuard({
     dirty: () => dirty && !saving,
     save: async () => {
@@ -390,7 +404,7 @@ export function Composer({
       }}
       onFocus={() => {
         setFocused(true);
-        if (editing || !preferences.openFullScreen || !armed.current) return;
+        if (editing || launched || !preferences.openFullScreen || !armed.current) return;
         armed.current = false;
         setFullscreen(true);
       }}
@@ -404,6 +418,7 @@ export function Composer({
       aria-label={fullscreen ? (editing ? "Edit note, full screen" : "New note, full screen") : undefined}
       className={cn(
         "transition-colors",
+        launched && !launched.open && "hidden",
         fullscreen
           ? "fixed inset-0 z-50 flex flex-col overflow-y-auto bg-stone-50 px-4 py-6 sm:px-8 sm:py-10 dark:bg-stone-950"
           : "rounded-2xl border bg-white shadow-sm focus-within:border-maple-400 focus-within:shadow-md dark:bg-stone-900 dark:focus-within:border-maple-600",
@@ -584,13 +599,19 @@ export function Composer({
         )}
         <span className="hidden text-xs text-stone-400 md:inline">Ctrl/⌘ + Enter to {editing ? "save" : "post"}</span>
         <div className="ml-auto flex items-center gap-2">
-          <IconButton
-            label={fullscreen ? "Exit full screen (Esc)" : "Full screen (Ctrl/⌘ + Shift + F)"}
-            aria-pressed={fullscreen}
-            onClick={() => setFullscreen((open) => !open)}
-          >
-            {fullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
-          </IconButton>
+          {launched ? (
+            <IconButton label="Close (Esc); the draft is kept" onClick={() => setFullscreen(false)}>
+              <X className="size-5" />
+            </IconButton>
+          ) : (
+            <IconButton
+              label={fullscreen ? "Exit full screen (Esc)" : "Full screen (Ctrl/⌘ + Shift + F)"}
+              aria-pressed={fullscreen}
+              onClick={() => setFullscreen((open) => !open)}
+            >
+              {fullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
+            </IconButton>
+          )}
           {editing && (
             <Button variant="ghost" onClick={cancel}>
               Cancel

@@ -1,5 +1,5 @@
-import { CalendarDays, Hash, Maximize2, Paperclip, Pin, Search, Tag, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { CalendarDays, Hash, Maximize2, Paperclip, Pin, Plus, Search, Tag, X } from "lucide-react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Composer } from "../components/Composer";
 import { FeatureOff } from "../components/FeatureOff";
 import { HomeHeader } from "../components/HomeHeader";
@@ -39,7 +39,7 @@ function GettingStarted() {
   return (
     <section aria-label="Getting started" className="rounded-2xl border border-dashed border-stone-300 px-5 py-8 dark:border-stone-700">
       <p className="text-center font-medium">Nothing here yet</p>
-      <p className="mx-auto mt-1 max-w-sm text-center text-sm text-stone-600 dark:text-stone-300">Write your first note above. A few things to try:</p>
+      <p className="mx-auto mt-1 max-w-sm text-center text-sm text-stone-600 dark:text-stone-300">Write your first note with the + button. A few things to try:</p>
       <ul className="mx-auto mt-5 flex max-w-md flex-col gap-3">
         {steps.map(([Icon, title, text]) => (
           <li key={title} className="flex gap-3">
@@ -162,11 +162,9 @@ export function HomePage() {
           <TodayCard today={today} />
         </div>
       )}
-      <section aria-label="New note">
-        <h2 className={cn(sectionHeading, "mb-3")}>New note</h2>
-        <Composer collapsible />
-      </section>
-      <div className="mt-6 flex flex-col gap-6">
+      <NewNoteButton />
+      {/* Room at the bottom so the + button never covers the last note. */}
+      <div className="flex flex-col gap-6 pb-20">
         <NoteList
           state="pinned"
           showEndMarker={false}
@@ -179,6 +177,40 @@ export function HomePage() {
         />
         <NoteList state="feed" hideIds={hideIds} header={<h2 className={sectionHeading}>Recent</h2>} empty={<GettingStarted />} />
       </div>
+    </>
+  );
+}
+
+/**
+ * Home's round + button, bottom right within thumb reach: it opens the note editor full screen. Closing the editor
+ * keeps what was written, and the button then shows a dot so the draft is not forgotten.
+ */
+export function NewNoteButton() {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => {
+    setOpen(false);
+    requestAnimationFrame(() => button.current?.focus());
+  }, []);
+  return (
+    <>
+      <button
+        ref={button}
+        id="new-note-button"
+        type="button"
+        aria-label={draft ? "New note (N), draft kept" : "New note (N)"}
+        aria-keyshortcuts="N"
+        aria-haspopup="dialog"
+        onClick={() => setOpen(true)}
+        className="fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.75rem))] z-40 flex size-14 items-center justify-center rounded-full bg-maple-600 text-white shadow-lg transition-colors hover:bg-maple-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-maple-500 sm:right-6 sm:bottom-6"
+      >
+        <Plus className="size-7" aria-hidden="true" />
+        {draft && (
+          <span className="absolute top-1 right-1 size-3 rounded-full border-2 border-maple-600 bg-white" aria-hidden="true" />
+        )}
+      </button>
+      <Composer launched={{ open, onClose: close, onDraftChange: setDraft }} />
     </>
   );
 }
