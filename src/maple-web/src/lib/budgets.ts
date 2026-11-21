@@ -1,4 +1,4 @@
-import { dayKey, dayNumber } from "./habits";
+import { dayKey, dayNumber } from "./dayKeys";
 import { joinTitle, splitTitle } from "./titles";
 
 // A budget project is a note of kind "Budget". Its text is Markdown that reads well on its own (and so in exports):
@@ -532,6 +532,21 @@ export function accountCurrency(chosen: string, languages: readonly string[]): s
 }
 
 const moneyFormats = new Map<string, Intl.NumberFormat>();
+const shortMoneyFormats = new Map<string, Intl.NumberFormat | null>();
+
+/** An amount in hundredths as short money for chart labels, e.g. "Rs 450K"; a plain number for an unknown currency. */
+export function shortMoney(hundredths: number, currency: string): string {
+  let format = shortMoneyFormats.get(currency);
+  if (format === undefined) {
+    try {
+      format = new Intl.NumberFormat(undefined, { style: "currency", currency, currencyDisplay: "narrowSymbol", notation: "compact", maximumFractionDigits: 1 });
+    } catch {
+      format = null;
+    }
+    shortMoneyFormats.set(currency, format);
+  }
+  return format ? format.format(hundredths / 100) : String(Math.round(hundredths / 100));
+}
 
 function moneyFormat(currency: string, decimals: boolean, locale?: string): Intl.NumberFormat {
   const key = `${locale ?? ""} ${currency} ${decimals}`;

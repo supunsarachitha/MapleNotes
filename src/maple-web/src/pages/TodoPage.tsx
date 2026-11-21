@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { FeatureOff } from "../components/FeatureOff";
 import { NoteList } from "../components/NoteList";
 import { TodoCard } from "../components/TodoCard";
 import { useToast } from "../components/Toaster";
@@ -7,20 +8,7 @@ import { Button, EmptyState } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { usePreferences } from "../lib/preferences";
 import { useInvalidateNotes } from "../lib/queries";
-import { Link } from "../lib/router";
 import { serializeTodo } from "../lib/todo";
-
-/** Shown instead of a tab whose feature is turned off; its notes are kept. */
-export function FeatureOff({ title, children }: { title: string; children: string }) {
-  return (
-    <EmptyState title={title}>
-      {children}{" "}
-      <Link href="/settings" className="font-medium text-maple-700 underline dark:text-maple-400">
-        Turn it on in Settings.
-      </Link>
-    </EmptyState>
-  );
-}
 
 function NewList({ onCreated }: { onCreated: (id: string) => void }) {
   const [name, setName] = useState("");

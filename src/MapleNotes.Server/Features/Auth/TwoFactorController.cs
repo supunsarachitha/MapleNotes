@@ -1,7 +1,6 @@
 using MapleNotes.Server.Domain;
 using MapleNotes.Server.Features.Audit;
 using MapleNotes.Server.Infrastructure.Web;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;

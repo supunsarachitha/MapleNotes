@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { addItem, parseItems, parseTodo, serializeItems, serializeTodo, toggleItem } from "./todo";
 

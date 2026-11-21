@@ -1,9 +1,9 @@
 import { Composer } from "../components/Composer";
+import { FeatureOff } from "../components/FeatureOff";
 import { NoteCard } from "../components/NoteCard";
 import { NoteList } from "../components/NoteList";
 import { EmptyState } from "../components/ui";
 import { usePreferences } from "../lib/preferences";
-import { FeatureOff } from "./TodoPage";
 
 /** The Quick notes tab: a scratchpad kept out of the timeline. A quick note worth keeping moves to Home. */
 export function QuickNotesPage() {

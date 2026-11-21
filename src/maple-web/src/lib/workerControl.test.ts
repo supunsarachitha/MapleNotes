@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 
 // A page that opened without a service worker, as on the first visit after the worker was added.

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError, ensureConfirmed, refreshAntiforgeryToken, request } from "./api";
 import { askToConfirm, setConfirmer } from "./confirmation";

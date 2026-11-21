@@ -19,23 +19,14 @@ import {
   type ChartRange,
   type PeriodScore,
 } from "../lib/habits";
+import { monthYearFormat, shortDayFormat } from "../lib/dayKeys";
 import type { Note } from "../lib/types";
 import { dayCount, habitName } from "./HabitRow";
 import { ProgressRing } from "./HabitSummary";
 import { cn } from "./ui";
 
-const shortDay = new Intl.DateTimeFormat("en", {
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-});
 const shortMonth = new Intl.DateTimeFormat("en", {
   month: "short",
-  timeZone: "UTC",
-});
-const longMonth = new Intl.DateTimeFormat("en", {
-  month: "long",
-  year: "numeric",
   timeZone: "UTC",
 });
 const percent = (value: number | null) =>
@@ -49,7 +40,7 @@ const rateOf = (score: PeriodScore) =>
  */
 function Bars({ scores, range }: { scores: PeriodScore[]; range: ChartRange }) {
   const label = (score: PeriodScore) =>
-    (range === "weeks" ? shortDay : shortMonth).format(dateOf(score.start));
+    (range === "weeks" ? shortDayFormat : shortMonth).format(dateOf(score.start));
   const [picked, setPicked] = useState<number | null>(null);
   const shown = scores[picked ?? scores.length - 1]!;
   const shownRate = rateOf(shown);
@@ -63,8 +54,8 @@ function Bars({ scores, range }: { scores: PeriodScore[]; range: ChartRange }) {
       >
         <span className="font-medium text-stone-900 dark:text-stone-100">
           {range === "weeks"
-            ? `Week of ${shortDay.format(dateOf(shown.start))}`
-            : longMonth.format(dateOf(shown.start))}
+            ? `Week of ${shortDayFormat.format(dateOf(shown.start))}`
+            : monthYearFormat.format(dateOf(shown.start))}
         </span>
         {": "}
         {shownRate === null
@@ -381,35 +372,38 @@ export function HabitChart({
 
       <Bars key={`${range}-${selected}`} scores={scores} range={range} />
 
-      <table className="sr-only">
-        <caption>
-          Share of days done per {unit}, {single ? single.name : "all habits"}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">{range === "weeks" ? "Week" : "Month"}</th>
-            <th scope="col">Share</th>
-            <th scope="col">Days done</th>
-          </tr>
-        </thead>
-        <tbody>
-          {scores.map((score) => (
-            <tr key={score.start}>
-              <th scope="row">
-                {range === "weeks"
-                  ? `Week of ${shortDay.format(dateOf(score.start))}`
-                  : longMonth.format(dateOf(score.start))}
-              </th>
-              <td>{percent(rateOf(score))}</td>
-              <td>
-                {score.possible > 0
-                  ? `${score.done} of ${dayCount(score.possible)}`
-                  : "No habits yet"}
-              </td>
+      {/* In a clipped box: a table ignores the 1px width of sr-only and would widen the page on narrow phones. */}
+      <div className="sr-only">
+        <table>
+          <caption>
+            Share of days done per {unit}, {single ? single.name : "all habits"}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">{range === "weeks" ? "Week" : "Month"}</th>
+              <th scope="col">Share</th>
+              <th scope="col">Days done</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {scores.map((score) => (
+              <tr key={score.start}>
+                <th scope="row">
+                  {range === "weeks"
+                    ? `Week of ${shortDayFormat.format(dateOf(score.start))}`
+                    : monthYearFormat.format(dateOf(score.start))}
+                </th>
+                <td>{percent(rateOf(score))}</td>
+                <td>
+                  {score.possible > 0
+                    ? `${score.done} of ${dayCount(score.possible)}`
+                    : "No habits yet"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {habits.length > 1 && (
         <div className="mt-6">

@@ -211,6 +211,29 @@ public sealed class NotesApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_tag_stays_while_any_note_uses_it_even_archived_or_trashed()
+    {
+        using var other = new ApiClient(_app);
+        await other.SignUpAsync("birch");
+        await other.PostJsonAsync("/api/v1/notes", new CreateNoteRequest("Their #shared note"));
+        var first = await CreateAsync("One #shared #archived");
+        var second = await CreateAsync("Two #shared #trashed");
+        var third = await CreateAsync("Three #gone");
+        await PatchAsync(first.Id, new PatchNoteRequest(IsArchived: true));
+        await PatchAsync(second.Id, new PatchNoteRequest(IsTrashed: true));
+
+        Assert.Equal(HttpStatusCode.NoContent, (await _client.DeleteAsync($"/api/v1/notes/{third.Id}")).StatusCode);
+        Assert.Equal(["archived", "shared", "trashed"], await StoredTagNamesAsync("maple")); // archived and trashed notes keep theirs
+
+        Assert.Equal(HttpStatusCode.NoContent, (await _client.DeleteAsync($"/api/v1/notes/{first.Id}")).StatusCode);
+        Assert.Equal(["shared", "trashed"], await StoredTagNamesAsync("maple")); // still used by the trashed note
+
+        Assert.Equal(HttpStatusCode.NoContent, (await _client.DeleteAsync($"/api/v1/notes/{second.Id}")).StatusCode);
+        Assert.Empty(await StoredTagNamesAsync("maple"));
+        Assert.Equal(["shared"], await StoredTagNamesAsync("birch")); // another account's tag of the same name is untouched
+    }
+
+    [Fact]
     public async Task Other_users_cannot_see_or_change_a_note()
     {
         var note = await CreateAsync("private");
@@ -274,6 +297,14 @@ public sealed class NotesApiTests : IAsyncLifetime
     }
 
     private async Task<NotePageResponse> ListAsync(string url) => (await _client.GetJsonAsync<NotePageResponse>(url))!;
+
+    private async Task<List<string?>> StoredTagNamesAsync(string username)
+    {
+        using var scope = _app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<MapleDbContext>();
+        var userId = await db.Users.Where(u => u.Username == username).Select(u => u.Id).SingleAsync(Ct);
+        return await db.Tags.Where(t => t.UserId == userId).Select(t => t.Name).OrderBy(n => n).ToListAsync(Ct);
+    }
 
     private async Task<Domain.Note> StoredNoteAsync(Guid id)
     {

@@ -654,9 +654,7 @@ public sealed class NoteService(
     public async Task<IReadOnlyList<TagResponse>> ListTagsAsync(Guid userId, NoteKind[]? kinds, CancellationToken cancellationToken)
     {
         var counted = db.Notes.Where(n => n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null);
-        counted = ValidateKinds(kinds) is { } wanted
-            ? counted.Where(n => wanted.Contains(n.Kind))
-            : counted.Where(n => n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget);
+        counted = CountedKinds(counted, kinds);
 
         var tags = await db.Tags.AsNoTracking()
             .Where(t => t.UserId == userId)
@@ -875,23 +873,16 @@ public sealed class NoteService(
             throw new ApiValidationException("to", "Ask for at most 62 days, ending on or after the first.");
         }
 
-        var zone = TimeZoneInfo.Utc;
-        if (!string.IsNullOrWhiteSpace(query.TimeZone) && !TimeZoneInfo.TryFindSystemTimeZoneById(query.TimeZone.Trim(), out zone))
-        {
-            throw new ApiValidationException("timeZone", $"Unknown time zone '{query.TimeZone}'. Use an IANA name such as Europe/Paris.");
-        }
-
-        var start = Export.NoteExporter.StartOfDayUtc(query.From, zone!);
-        var end = Export.NoteExporter.StartOfDayUtc(query.To.AddDays(1), zone!);
+        var zone = Export.NoteExporter.ParseTimeZone(query.TimeZone);
+        var start = Export.NoteExporter.StartOfDayUtc(query.From, zone);
+        var end = Export.NoteExporter.StartOfDayUtc(query.To.AddDays(1), zone);
         var notes = db.Notes.AsNoTracking().Where(n =>
             n.UserId == userId && n.ArchivedAtUtc == null && n.TrashedAtUtc == null && n.CreatedAtUtc >= start && n.CreatedAtUtc < end);
-        notes = ValidateKinds(query.Kinds) is { } kinds
-            ? notes.Where(n => kinds.Contains(n.Kind))
-            : notes.Where(n => n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget);
+        notes = CountedKinds(notes, query.Kinds);
 
         var times = await notes.Select(n => n.CreatedAtUtc).ToListAsync(cancellationToken);
         return times
-            .GroupBy(t => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(t, zone!)))
+            .GroupBy(t => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(t, zone)))
             .OrderBy(g => g.Key)
             .Select(g => new CalendarDayResponse(g.Key, g.Count()))
             .ToList();
@@ -918,6 +909,19 @@ public sealed class NoteService(
 
         return kinds.Distinct().ToArray();
     }
+
+    /// <summary>
+    /// Narrows notes to the kinds a count asks for (tag, label and calendar counts): the given kinds, or every kind
+    /// except habits and budgets when none are given.
+    /// </summary>
+    /// <param name="notes">The notes to narrow.</param>
+    /// <param name="kinds">The requested kinds, possibly null or empty.</param>
+    /// <returns>The narrowed query.</returns>
+    /// <exception cref="ApiValidationException">A value is not a <see cref="NoteKind"/>.</exception>
+    internal static IQueryable<Note> CountedKinds(IQueryable<Note> notes, NoteKind[]? kinds) =>
+        ValidateKinds(kinds) is { } wanted
+            ? notes.Where(n => wanted.Contains(n.Kind))
+            : notes.Where(n => n.Kind != NoteKind.Habit && n.Kind != NoteKind.Budget);
 
     /// <summary>Kinds whose text has a fixed shape, which never change kind.</summary>
     private static bool IsFixedKind(NoteKind kind) => kind is NoteKind.Habit or NoteKind.Budget;
@@ -1106,9 +1110,16 @@ public sealed class NoteService(
     /// <param name="userId">The owner.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>A task that completes when they are deleted.</returns>
+    /// <remarks>
+    /// Looks for links in the <c>NoteTags</c> join table by tag (an index seek on <c>IX_NoteTags_TagId</c>) instead of
+    /// scanning the user's notes once per tag. Same result: a user's tags are only ever linked to that user's notes
+    /// (<see cref="SetTagsAsync"/> and <see cref="SetEncryptedTagsAsync"/> look tags up by the note's owner), and
+    /// archived or trashed notes keep their links, so their tags stay.
+    /// </remarks>
     internal Task RemoveUnusedTagsAsync(Guid userId, CancellationToken cancellationToken) =>
         db.Tags
-            .Where(t => t.UserId == userId && !db.Notes.Any(n => n.UserId == userId && n.Tags.Any(nt => nt.Id == t.Id)))
+            .Where(t => t.UserId == userId
+                && !db.Set<Dictionary<string, object>>("NoteTags").Any(nt => EF.Property<Guid>(nt, "TagId") == t.Id))
             .ExecuteDeleteAsync(cancellationToken);
 
     /// <summary>

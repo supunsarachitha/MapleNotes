@@ -3,6 +3,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { BrandMark } from "./components/BrandMark";
 import { ConfirmationPrompt } from "./components/ConfirmIdentityDialog";
+import { LazyPageFrame, lazyPage } from "./components/LazyPage";
 import { Button, Spinner } from "./components/ui";
 import { api, ENROLMENT_REQUIRED_EVENT } from "./lib/api";
 import { useAppearance } from "./lib/appearance";
@@ -21,16 +22,19 @@ import { AuthPage } from "./pages/AuthPage";
 import { EnrolmentPage } from "./pages/EnrolmentPage";
 import { ArchivePage, HomePage } from "./pages/HomePage";
 import { RecoverPage } from "./pages/RecoverPage";
-import { BudgetsPage } from "./pages/BudgetsPage";
-import { HabitsPage } from "./pages/HabitsPage";
 import { RemindersPage } from "./pages/RemindersPage";
-import { HelpPage } from "./pages/HelpPage";
-import { SettingsPage } from "./pages/SettingsPage";
 import { TagsPage } from "./pages/TagsPage";
 import { QuickNotesPage } from "./pages/QuickNotesPage";
 import { TodoPage } from "./pages/TodoPage";
 import { TrashPage } from "./pages/TrashPage";
 import { UnlockPage } from "./pages/UnlockPage";
+
+// Pages with the most code that are not the first screen: loaded on first use (see vite.config.ts).
+const SettingsPage = lazyPage(() => import("./pages/SettingsPage").then((m) => m.SettingsPage));
+const BudgetsPage = lazyPage(() => import("./pages/BudgetsPage").then((m) => m.BudgetsPage));
+const HabitsPage = lazyPage(() => import("./pages/HabitsPage").then((m) => m.HabitsPage));
+const HelpPage = lazyPage(() => import("./pages/HelpPage").then((m) => m.HelpPage));
+const LAZY_ROUTES = ["settings", "budgets", "habits", "help"];
 
 function FullScreen({ children }: { children: ReactNode }) {
   return (
@@ -262,29 +266,31 @@ export function App() {
   return (
     <TrustedModeContext.Provider value={trusted}>
       <AppShell user={user}>
-        {path === "/archive" ? (
-          <ArchivePage />
-        ) : path === "/settings" || path.startsWith("/settings/") ? (
-          <SettingsPage user={user} />
-        ) : path === "/trash" ? (
-          <TrashPage />
-        ) : path === "/todo" ? (
-          <TodoPage />
-        ) : path === "/quick" ? (
-          <QuickNotesPage />
-        ) : path === "/habits" ? (
-          <HabitsPage />
-        ) : path === "/budgets" || path.startsWith("/budgets/") ? (
-          <BudgetsPage />
-        ) : path === "/reminders" ? (
-          <RemindersPage />
-        ) : path === "/tags" ? (
-          <TagsPage />
-        ) : path === "/help" ? (
-          <HelpPage />
-        ) : (
-          <HomePage />
-        )}
+        <LazyPageFrame page={LAZY_ROUTES.find((route) => path === `/${route}` || path.startsWith(`/${route}/`)) ?? "app"}>
+          {path === "/archive" ? (
+            <ArchivePage />
+          ) : path === "/settings" || path.startsWith("/settings/") ? (
+            <SettingsPage user={user} />
+          ) : path === "/trash" ? (
+            <TrashPage />
+          ) : path === "/todo" ? (
+            <TodoPage />
+          ) : path === "/quick" ? (
+            <QuickNotesPage />
+          ) : path === "/habits" ? (
+            <HabitsPage />
+          ) : path === "/budgets" || path.startsWith("/budgets/") ? (
+            <BudgetsPage />
+          ) : path === "/reminders" ? (
+            <RemindersPage />
+          ) : path === "/tags" ? (
+            <TagsPage />
+          ) : path === "/help" ? (
+            <HelpPage />
+          ) : (
+            <HomePage />
+          )}
+        </LazyPageFrame>
       </AppShell>
       <ConfirmationPrompt user={user} />
     </TrustedModeContext.Provider>

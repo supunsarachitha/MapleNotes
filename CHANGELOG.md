@@ -18,6 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   account keeps its device and the request gets 409
   ([#158](https://github.com/supunsarachitha/MapleNotes/issues/158)).
 
+### Changed
+
+- Long note lists re-render faster: a note's Markdown is parsed again only when its text changes, not every time the
+  list updates (next page, refetch, a save elsewhere). Saving a note also no longer scans every note once per tag to
+  find unused tags ([#160](https://github.com/supunsarachitha/MapleNotes/issues/160)).
+- The app loads less code before the first screen (about 800 KB instead of 1,040 KB, 255 KB instead of 316 KB
+  compressed): Settings, Budgets, Habits and Help load the first time they open, with a spinner meanwhile. The offline
+  copy of the app still saves them, so they open without a connection as before
+  ([#160](https://github.com/supunsarachitha/MapleNotes/issues/160)).
+
+### Fixed
+
+- On a 320-pixel-wide phone the Habits page could scroll sideways: the chart's table for screen readers was wider than
+  the screen although it is hidden ([#160](https://github.com/supunsarachitha/MapleNotes/issues/160)).
+
 ## [1.24.0] - 2026-11-17
 
 ### Added

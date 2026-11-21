@@ -246,6 +246,18 @@ describe("the app's files in the service worker", () => {
     expect(await script.text()).toBe("console.log(1)");
   });
 
+  it("saves the lazily loaded pages when it installs, so they open offline without an earlier visit", async () => {
+    const split: Shell = { version: "v3", files: ["/assets/index-abc.js", "/assets/SettingsPage-def.js"] };
+    t.routes.set("GET /assets/SettingsPage-def.js", () => new Response("export const SettingsPage = 1"));
+    await saveShell(split, t.deps);
+    t.state.online = false;
+
+    expect(isShellRequest(new Request(url("/assets/SettingsPage-def.js")), ORIGIN, split)).toBe(true);
+    const chunk = await handleShell(new Request(url("/assets/SettingsPage-def.js")), split, t.deps);
+
+    expect(await chunk.text()).toBe("export const SettingsPage = 1");
+  });
+
   it("handles navigations and its own files, but never the API or end-to-end files", () => {
     expect(isShellRequest(navigate("/todo"), ORIGIN, shell)).toBe(true);
     expect(isShellRequest(new Request(url("/favicon.svg")), ORIGIN, shell)).toBe(true);

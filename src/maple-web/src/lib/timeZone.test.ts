@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it } from "vitest";
 import { calendarDay, currentTimeZone, dateKeyOf, dayRange, deviceTimeZone, localDateKey, setTimeZone } from "./dates";
 import { formatAbsolute } from "./format";

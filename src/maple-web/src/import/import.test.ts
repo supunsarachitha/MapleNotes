@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { strToU8, zipSync, type Zippable } from "fflate";
 import { describe, expect, it, vi } from "vitest";
 import { fromBase64, fromUtf8 } from "../crypto/encoding";

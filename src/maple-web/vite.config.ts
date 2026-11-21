@@ -21,9 +21,10 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: false,
-    // The main bundle is ~185 KB gzipped: about a third is React DOM and about 30% the Markdown pipeline, both
-    // needed to render the first note, so splitting would not make the first screen appear sooner. Code only some
-    // accounts need (the browser export with fflate, the Argon2id fallback) is loaded on demand.
+    // What the first screen needs is about 800 KB (255 KB gzipped): React DOM, the Markdown pipeline and the note
+    // pages. The largest pages that are not the first screen (Settings, Budgets, Habits, Help; see App.tsx) and code
+    // only some accounts need (the browser export with fflate, the Argon2id fallback) are loaded on demand. The
+    // service worker saves every output file when it installs, so those pages open offline too.
     chunkSizeWarningLimit: 700,
   },
   test: {

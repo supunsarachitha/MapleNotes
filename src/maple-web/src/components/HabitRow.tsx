@@ -19,6 +19,7 @@ import {
   type Habit,
 } from "../lib/habits";
 import { saveErrorMessage } from "../lib/apiError";
+import { longDayFormat } from "../lib/dayKeys";
 import { focusAtEndRef } from "../lib/focus";
 import { useNoteEditor } from "../lib/noteEditor";
 import { usePatchNote } from "../lib/queries";
@@ -37,12 +38,6 @@ export const HABIT_ROW =
 export const DAY_GRID =
   "col-span-2 grid grid-cols-7 justify-items-center gap-1 sm:order-2 sm:col-span-1 sm:flex";
 
-const longDate = new Intl.DateTimeFormat("en", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  timeZone: "UTC",
-});
 
 export const habitName = (habit: Habit) => habit.name || "Untitled habit";
 export const dayCount = (count: number) =>
@@ -196,7 +191,7 @@ export function HabitRow({
               key={day}
               type="button"
               aria-pressed={isDone}
-              aria-label={`${name}, ${day === today ? "today, " : ""}${longDate.format(dateOf(day))}`}
+              aria-label={`${name}, ${day === today ? "today, " : ""}${longDayFormat.format(dateOf(day))}`}
               onClick={() => commit(toggleDay(habit, day))}
               className={cn(
                 "flex size-10 items-center justify-center rounded-full border-2 transition-colors sm:size-9",

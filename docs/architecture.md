@@ -20,6 +20,8 @@ flowchart LR
         worker1["Encryption migration worker"]
         worker2["Attachment cleanup worker"]
         worker3["Trash cleanup worker"]
+        worker4["Audit log cleanup worker"]
+        worker5["Reminder sender"]
     end
     subgraph data["/app/data (volume)"]
         db[("maple.db<br/>SQLCipher v4 format")]
@@ -31,6 +33,9 @@ flowchart LR
     worker1 --> db & files
     worker2 --> db & files
     worker3 --> db & files
+    worker4 --> db
+    worker5 --> db
+    worker5 -- "Web Push" --> push(["Browser push services"])
     master(["MAPLE_MASTER_KEY<br/>environment or Docker secret"]) -.-> server
 ```
 
@@ -39,18 +44,18 @@ flowchart LR
 | Path | Contents |
 |---|---|
 | `src/MapleNotes.Server/Program.cs` | Entry point: command-line modes, middleware pipeline, service registration. |
-| `src/MapleNotes.Server/Domain/` | Entities: `User` (with `UserPreferences`), `Note` (with `NoteKind`), `Attachment`, `Tag`, `Label`, `InstanceSetting`. |
-| `src/MapleNotes.Server/Features/` | One folder per feature: `Auth`, `Admin`, `Notes` (including daily notes, restoring and the trash), `Labels`, `Attachments`, `Encryption`, `EndToEnd` (key material, recovery, browser conversion), `Export`, `Preferences`, `Storage` (usage and limits), `LinkPreviews` and `Branding`. Each has its controller, request/response records and service. |
+| `src/MapleNotes.Server/Domain/` | Entities: `User` (with `UserPreferences`), `Session`, `KnownDevice`, `Passkey`, `Note` (with `NoteKind` and `NoteMood`), `Attachment`, `Tag`, `Label`, `NoteReminder`, `PushSubscription`, `AuditEntry`, `InstanceSetting`. |
+| `src/MapleNotes.Server/Features/` | One folder per feature: `Auth`, `Passkeys`, `Admin`, `Audit` (the hash-chained audit log), `Notes` (including daily notes, restoring and the trash), `Labels`, `Attachments`, `Encryption`, `EndToEnd` (key material, recovery, browser conversion), `Export`, `Preferences`, `Storage` (usage and limits), `Reminders`, `Push` (Web Push subscriptions and sending), `LinkPreviews` and `Branding`. Each has its controller, request/response records and service. |
 | `src/MapleNotes.Server/Infrastructure/` | Cross-cutting code: `Configuration`, `Crypto`, `Persistence` (EF Core, migrations, backups), `Storage` (attachment files), `Hosting`, `Web` (auth, antiforgery, security headers, rate limits). |
 | `src/maple-web/` | React + TypeScript + Vite + Tailwind CSS single-page app. |
 | `src/maple-web/src/crypto/` | Browser cryptography: Argon2id in a Web Worker, HKDF, envelopes, the attachment format, recovery keys, key storage, and the shared test vectors. |
-| `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`), habits (`habits.ts`: a habit's text, streaks and chart periods), budgets (`budgets.ts`: a project's text, the forecast and money formatting), the save queue that todo lists, habits and checkboxes ticked in notes share (`noteEditor.ts`), the side menu's items and order (`menu.ts`), label colours (`labels.ts`), tag suggestions (`tagSuggest.ts`, `caret.ts`), and loading only what is near the screen (`viewport.ts`). |
+| `src/maple-web/src/lib/` | API client, sign-in (`auth.ts`), end-to-end session (`e2ee.ts`), encryption at the API boundary (`noteCrypto.ts`), browser conversion (`conversion.ts`), habits (`habits.ts`: a habit's text, streaks and chart periods), the `yyyy-MM-dd` day keys that habits and budgets share (`dayKeys.ts`), budgets (`budgets.ts`: a project's text, the forecast and money formatting), the save queue that todo lists, habits and checkboxes ticked in notes share (`noteEditor.ts`), the side menu's items and order (`menu.ts`), label colours (`labels.ts`), tag suggestions (`tagSuggest.ts`, `caret.ts`), and loading only what is near the screen (`viewport.ts`). |
 | `src/maple-web/src/sw/` | The service worker (`/sw.js`, built separately by `vite.sw.config.ts`): keeps the app and recently read notes for offline reading, decrypts end-to-end media and streams browser exports. |
 | `src/maple-web/src/export/` | The browser export, a port of the server's, with the shared export vectors. |
 | `src/maple-web/src/import/` | Restoring: a ZIP reader, the parser for every export format and for single files, and the runner that restores notes through the API. |
-| `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Habits (with the progress chart and a month calendar), Budgets (the list and a project's page, with its forms as bottom sheets), Archive, Tags, Trash, Settings, Help, and the sign-in, unlock and recovery screens. |
+| `src/maple-web/src/pages/` | Home (with today's daily note), Todo, Quick notes, Habits (with the progress chart and a month calendar), Budgets (the list and a project's page, with its forms as bottom sheets), Archive, Tags, Trash, Settings, Help, and the sign-in, unlock and recovery screens. Settings, Budgets, Habits and Help are loaded on first use (`components/LazyPage.tsx`); the service worker saves their files with the rest of the app, so they open offline too. |
 | `tests/MapleNotes.Server.Tests/` | Unit and integration tests (xUnit v3, `WebApplicationFactory`). |
-| `scripts/` | License check and third-party notice generator. |
+| `scripts/` | Licence check and third-party notice generator (`check-licenses.py`, `notices/`), the instance verifier (`verify-instance.py`, tested by `test_verify_instance.py`) and the Dockerfile base-image digest refresher (`refresh-base-images.py`). |
 | `site/` | The project website, published to GitHub Pages by `.github/workflows/pages.yml` with the app's icon and the README screenshots. |
 
 ### Request pipeline
@@ -667,7 +672,7 @@ does not list.
 
 ## Testing
 
-- **Server:** over 340 xUnit test methods.
+- **Server:** over 450 xUnit test methods (about 650 test cases).
   - Crypto primitives, including tampering, truncation, reordering, wrong keys and every chunk boundary.
   - The storage layer and startup, including the upgrade of a 1.0 database.
   - API behaviour through `WebApplicationFactory`: authentication (key-derived sign-in, legacy upgrade, unknown
@@ -683,7 +688,7 @@ does not list.
 - **Shared vectors:** `test-vectors.json` (every end-to-end derivation and format) and `export-vectors.json` (the
   server's export archives) are written by the C# tests and checked by the web tests, so both implementations agree
   byte for byte.
-- **Web:** over 450 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
+- **Web:** nearly 600 Vitest and Testing Library tests: the crypto against the vectors, key storage, the API boundary,
   conversion, the service worker's range decryption and offline reading (what is kept, for whom, and when it is
   deleted), writing offline (what is kept, how it shows, sending, conflicts, encryption on the device), the browser export against the server's archives, restoring
   those archives, Markdown safety and checkboxes ticked in notes, the composer with titles and tag suggestions, the

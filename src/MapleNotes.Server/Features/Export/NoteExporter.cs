@@ -64,11 +64,7 @@ public sealed class NoteExporter(
     /// <exception cref="ApiValidationException">The time zone is unknown or the date range is reversed.</exception>
     public static ExportOptions Validate(ExportRequest request)
     {
-        var timeZone = TimeZoneInfo.Utc;
-        if (!string.IsNullOrWhiteSpace(request.TimeZone) && !TimeZoneInfo.TryFindSystemTimeZoneById(request.TimeZone.Trim(), out timeZone))
-        {
-            throw new ApiValidationException("timeZone", $"Unknown time zone '{request.TimeZone}'. Use an IANA name such as Europe/Paris.");
-        }
+        var timeZone = ParseTimeZone(request.TimeZone);
 
         if (request.From > request.To)
         {
@@ -359,6 +355,22 @@ public sealed class NoteExporter(
         || contentType is "application/zip" or "application/gzip" or "application/x-7z-compressed" or "application/pdf"
             ? CompressionLevel.NoCompression
             : CompressionLevel.Fastest;
+
+    /// <summary>Reads an IANA time zone name from a request; UTC when none is given.</summary>
+    /// <param name="name">The name, possibly null or blank.</param>
+    /// <returns>The time zone.</returns>
+    /// <exception cref="ApiValidationException">The name is not a known time zone.</exception>
+    internal static TimeZoneInfo ParseTimeZone(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return TimeZoneInfo.Utc;
+        }
+
+        return TimeZoneInfo.TryFindSystemTimeZoneById(name.Trim(), out var zone)
+            ? zone
+            : throw new ApiValidationException("timeZone", $"Unknown time zone '{name}'. Use an IANA name such as Europe/Paris.");
+    }
 
     /// <summary>When a day starts in a time zone, in UTC (after the gap if a daylight-saving change skips midnight).</summary>
     /// <param name="date">The day.</param>
