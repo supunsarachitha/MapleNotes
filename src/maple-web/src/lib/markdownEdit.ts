@@ -1,7 +1,21 @@
 // Markdown formatting for the editor's toolbar: pure functions from the text and selection to the change to make, so
 // the editor can apply it as one undoable step.
 
-export type Format = "bold" | "italic" | "heading" | "bullets" | "checklist" | "quote" | "code" | "link";
+export type Format =
+  | "bold"
+  | "italic"
+  | "strike"
+  | "heading1"
+  | "heading2"
+  | "heading3"
+  | "bullets"
+  | "numbered"
+  | "checklist"
+  | "quote"
+  | "code"
+  | "link"
+  | "divider"
+  | "table";
 
 /** Replace `text.slice(start, end)` with `insert`, then select `selectStart`–`selectEnd` (positions in the new text). */
 export interface Edit {
@@ -16,11 +30,14 @@ const WRAPS: Partial<Record<Format, [string, string, string]>> = {
   // marker before, marker after, placeholder when nothing is selected
   bold: ["**", "**", "bold text"],
   italic: ["*", "*", "italic text"],
+  strike: ["~~", "~~", "struck text"],
   code: ["`", "`", "code"],
 };
 
 const PREFIXES: Partial<Record<Format, string>> = {
-  heading: "## ",
+  heading1: "# ",
+  heading2: "## ",
+  heading3: "### ",
   bullets: "- ",
   checklist: "- [ ] ",
   quote: "> ",
@@ -41,18 +58,57 @@ function wrap(text: string, start: number, end: number, before: string, after: s
   return { start, end, insert: `${before}${inner}${after}`, selectStart: start + before.length, selectEnd: start + before.length + inner.length };
 }
 
-function prefixLines(text: string, start: number, end: number, prefix: string): Edit {
+// Markers a line can start with: a heading, a task, a bullet, a number or a quote. Adding one replaces another.
+const LINE_MARKER = /^(#{1,6} |- \[[ xX]\] |[-*+] |\d{1,9}[.)] |> )/;
+
+/** The first and last line of the selection, as [start of the first, end of the last]. */
+function lineRange(text: string, start: number, end: number): [number, number] {
   const lineStart = text.lastIndexOf("\n", start - 1) + 1;
-  const lineEnd = (() => {
-    const at = text.indexOf("\n", end > start && text[end - 1] === "\n" ? end - 1 : end);
-    return at < 0 ? text.length : at;
-  })();
+  const at = text.indexOf("\n", end > start && text[end - 1] === "\n" ? end - 1 : end);
+  return [lineStart, at < 0 ? text.length : at];
+}
+
+/** Numbers the selected lines 1., 2., 3. …, or takes the numbers off when every line has one. */
+function numberLines(text: string, start: number, end: number): Edit {
+  const [lineStart, lineEnd] = lineRange(text, start, end);
+  const lines = text.slice(lineStart, lineEnd).split("\n");
+  const numbered = /^\d{1,9}[.)] /;
+  const remove = lines.every((line) => numbered.test(line));
+  const insert = lines.map((line, i) => (remove ? line.replace(numbered, "") : `${i + 1}. ${line.replace(LINE_MARKER, "")}`)).join("\n");
+  const single = lines.length === 1;
+  return {
+    start: lineStart,
+    end: lineEnd,
+    insert,
+    selectStart: single ? Math.max(lineStart, start + insert.length - lines[0]!.length) : lineStart,
+    selectEnd: single ? Math.max(lineStart, end + insert.length - lines[0]!.length) : lineStart + insert.length,
+  };
+}
+
+/**
+ * Puts a block (a divider or a table) on lines of its own after the selection, with a blank line before it, so that a
+ * divider straight under text does not turn that text into a heading.
+ */
+function insertBlock(text: string, end: number, block: string, select: [number, number] | null): Edit {
+  const before = text.slice(0, end);
+  const lead = before === "" || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+  const after = text.slice(end);
+  const trail = after === "" ? "\n" : after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+  const insert = lead + block + trail;
+  const at = end + lead.length;
+  const [from, to] = select ?? [block.length + trail.length, block.length + trail.length];
+  return { start: end, end, insert, selectStart: at + from, selectEnd: at + to };
+}
+
+const TABLE = "| Column 1 | Column 2 |\n| --- | --- |\n|  |  |";
+
+function prefixLines(text: string, start: number, end: number, prefix: string): Edit {
+  const [lineStart, lineEnd] = lineRange(text, start, end);
   const lines = text.slice(lineStart, lineEnd).split("\n");
   // Every line already has it: take it off. Otherwise add it to the lines that lack it, replacing another list or
   // heading marker (a bullet becomes a checklist item, and so on).
-  const other = /^(#{1,6} |- \[[ xX]\] |[-*+] |> )/;
   const remove = lines.every((line) => line.startsWith(prefix));
-  const changed = lines.map((line) => (remove ? line.slice(prefix.length) : line.startsWith(prefix) ? line : prefix + line.replace(other, "")));
+  const changed = lines.map((line) => (remove ? line.slice(prefix.length) : line.startsWith(prefix) ? line : prefix + line.replace(LINE_MARKER, "")));
   const insert = changed.join("\n");
   const single = lines.length === 1;
   return {
@@ -74,6 +130,10 @@ export function formatEdit(format: Format, text: string, start: number, end: num
     return { start, end, insert, selectStart: start + 4, selectEnd: start + 4 + selected.replace(/\n$/, "").length };
   }
   if (wrapWith) return wrap(text, start, end, ...wrapWith);
+  if (format === "numbered") return numberLines(text, start, end);
+  // The first header is selected, to type over.
+  if (format === "table") return insertBlock(text, end, TABLE, [2, 2 + "Column 1".length]);
+  if (format === "divider") return insertBlock(text, end, "---", null);
   const prefix = PREFIXES[format];
   if (prefix) return prefixLines(text, start, end, prefix);
   // A link: the selection becomes the link text, and the address placeholder is selected to type over.
