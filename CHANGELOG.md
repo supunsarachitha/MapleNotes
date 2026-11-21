@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The top bar shows today's date instead of the **Online**/**Offline** badge, which could say Online while the server
+  could not be reached. The date moved there from the top of Home and Habits. The note under the bar still says when you are
+  reading saved copies (#183).
+
 ## [1.26.2] - 2026-11-21
 
 ### Fixed
