@@ -269,8 +269,8 @@ there too). It opens without a connection too, as the next section explains.`,
     title: "Reading and writing offline",
     body: `If you signed in with **Keep me signed in**, Maple Notes keeps a copy of what you read on this device, so it opens
 and shows those notes when your phone or computer is offline, or your server cannot be reached. A note at the top says
-when you are reading saved copies, and a badge at the top right, in the title bar on a phone, shows **Online** or
-**Offline**. It shows Offline whenever the server cannot be reached, even if your device has a connection.
+when you are reading saved copies, which happens whenever the server cannot be reached, even if your device has a
+connection.
 
 - What you opened recently is there: your timeline, lists and pages you looked at, your tags and labels. Searches,
   pictures and other files need a connection.
@@ -295,7 +295,7 @@ Habits, Tags, Archive and Help shows or hides that page (Home always shows), and
 Daily notes, moods and stickers are in [Settings → Writing](/settings/writing), labels in [Settings → Labels](/settings/labels), and the trash,
 photo shrinking and link previews in [Settings → Notes & files](/settings/notes). Turning something off only hides it; nothing is deleted, and it all
 comes back when you turn it on again. With Help hidden from the menu, this guide is still at [/help](/help).
-Settings itself is the gear at the top right, next to the Online badge.`,
+Settings itself is the gear at the top right, next to today's date.`,
   },
   {
     id: "trash",

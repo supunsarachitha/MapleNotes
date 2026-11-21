@@ -90,7 +90,7 @@ export function useHomeShortcuts() {
 const kbd =
   "rounded border border-stone-300 bg-stone-50 px-1.5 py-0.5 font-sans text-[11px] font-medium text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300";
 
-/** Home's header: the date, writing stats and shortcuts to the other tabs. */
+/** Home's header: writing stats and shortcuts to the other tabs. (Today's date is in the title bar, AppShell.) */
 export function HomeHeader({ now: instant = new Date() }: { now?: Date }) {
   useHomeShortcuts();
   const preferences = usePreferences();
@@ -104,16 +104,9 @@ export function HomeHeader({ now: instant = new Date() }: { now?: Date }) {
     staleTime: 60_000,
   });
   const stats = days.data ? writingStats(new Map(days.data.map((d) => [d.date, d.count])), now) : null;
-  const longDate = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
   return (
     <header className="mb-6 flex flex-col gap-4">
-      <div>
-        <p className="text-sm font-medium text-maple-700 dark:text-maple-400">
-          {longDate}
-        </p>
-      </div>
-
       <div className="grid grid-cols-3 gap-1.5 sm:gap-2" aria-label="Writing stats" aria-busy={days.isPending || undefined}>
         {stats ? (
           <>

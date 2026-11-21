@@ -1,8 +1,8 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { LeaveDialog } from "./LeaveDialog";
-import { setTimeZone } from "../lib/dates";
-import { Cloud, CloudOff, EyeOff, Home, LogOut, Menu, Search, Settings, X } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { calendarDay, localDateKey, setTimeZone } from "../lib/dates";
+import { CloudOff, EyeOff, Home, LogOut, Menu, Search, Settings, X } from "lucide-react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../lib/api";
 import { useBranding } from "../lib/branding";
 import { useEnabledKinds } from "../lib/kinds";
@@ -229,33 +229,37 @@ function OfflineNotice() {
   );
 }
 
-/**
- * A small badge saying whether the app can reach the server, at the right of the title bar on phones and at the top
- * right of the page on wide screens. It follows the same signal as the notice below it, so a server that cannot be
- * reached counts as offline even while the browser has a connection.
- */
-function ConnectionStatus({ className }: { className?: string }) {
-  const offline = useOffline();
-  const Icon = offline ? CloudOff : Cloud;
+/** Formats today's date in the account's time zone: long on wide screens, short on phones. */
+function todayText(now: Date) {
+  const day = calendarDay(now);
+  return {
+    long: day.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }),
+    short: day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
+  };
+}
+
+/** Today's date, at the right of the title bar on phones and at the top right of the page on wide screens. */
+function TodayDate({ className }: { className?: string }) {
+  const [now, setNow] = useState(() => new Date());
+  // Checked every minute, so the date turns over at midnight while the app stays open.
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const { long, short } = todayText(now);
   return (
-    <span
-      data-connection={offline ? "offline" : "online"}
-      title={offline ? "Offline: showing notes saved on this device" : "Online: connected to the server"}
-      className={cn(
-        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium",
-        offline
-          ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200"
-          : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300",
-        className,
-      )}
+    <time
+      dateTime={localDateKey(calendarDay(now))}
+      title={long}
+      className={cn("shrink-0 whitespace-nowrap text-sm font-medium text-maple-700 dark:text-maple-400", className)}
     >
-      <Icon className="size-3.5" aria-hidden="true" />
-      {offline ? "Offline" : "Online"}
-    </span>
+      <span className="sm:hidden" aria-hidden="true">{short}</span>
+      <span className="max-sm:sr-only">{long}</span>
+    </time>
   );
 }
 
-/** The gear that opens Settings, after the connection badge. Marked while Settings, or the trash reached from it, shows. */
+/** The gear that opens Settings, after the date. Marked while Settings, or the trash reached from it, shows. */
 function SettingsButton({ className }: { className?: string }) {
   const { path } = useLocation();
   const active = path === "/settings" || path.startsWith("/settings/") || path === "/trash";
@@ -312,7 +316,7 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
           <BrandMark className="size-7 shrink-0" />
           <span className="truncate font-semibold">{appName}</span>
         </Link>
-        <ConnectionStatus className="ml-auto" />
+        <TodayDate className="ml-auto" />
         <SettingsButton />
       </header>
 
@@ -323,7 +327,7 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
         <main id="main" className="relative min-w-0 flex-1 px-4 pb-24 pt-4 lg:px-10 lg:pt-8">
           {/* Sits in the top padding, above the page's own heading and buttons; phones show it in the title bar. */}
           <div className="absolute right-8 top-0 hidden items-center gap-1 lg:flex">
-            <ConnectionStatus />
+            <TodayDate className="mr-1" />
             <SettingsButton className="size-8" />
           </div>
           <div className={cn("mx-auto", wide ? "max-w-4xl" : "max-w-2xl")}>
