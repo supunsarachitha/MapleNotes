@@ -86,6 +86,16 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
                 "menuOrder", $"List each of these at most once, separated by commas: {string.Join(",", UserPreferences.MenuItems)}.");
         }
 
+        var defaultLabels = (preferences.DefaultLabels ?? "").Trim();
+        var labelIds = defaultLabels.Length == 0 ? [] : defaultLabels.Split(',');
+        if (labelIds.Length > Label.MaxPerNote
+            || !labelIds.All(id => Guid.TryParseExact(id, "D", out _))
+            || labelIds.Distinct(StringComparer.OrdinalIgnoreCase).Count() != labelIds.Length)
+        {
+            throw new ApiValidationException(
+                "defaultLabels", $"Give at most {Label.MaxPerNote} different label IDs, separated by commas, or leave it empty.");
+        }
+
         var template = preferences.DailyNoteTemplate ?? "";
         if (template.Length > 0 && !Guid.TryParseExact(template, "D", out _))
         {
@@ -100,7 +110,7 @@ public sealed class PreferencesService(MapleDbContext db, TimeProvider time)
 
         preferences = preferences with
         {
-            MenuOrder = menuOrder, DailyNoteTemplate = template.ToLowerInvariant(), TimeZone = timeZone, BudgetCurrency = currency,
+            MenuOrder = menuOrder, DefaultLabels = defaultLabels.ToLowerInvariant(), DailyNoteTemplate = template.ToLowerInvariant(), TimeZone = timeZone, BudgetCurrency = currency,
         };
         var user = await db.Users.SingleAsync(u => u.Id == userId, cancellationToken);
         user.Preferences = preferences;

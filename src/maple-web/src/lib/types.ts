@@ -134,6 +134,8 @@ export interface Preferences {
   moodTracker: boolean;
   /** Offer a sticker button where a note or quick note is written, with the sticker packs added in this browser. */
   stickers: boolean;
+  /** The labels new notes from Home's + button start with: label IDs separated by commas; empty for none. */
+  defaultLabels: string;
 }
 
 export const PHOTO_SIZES = ["Large", "Medium", "Small"] as const;

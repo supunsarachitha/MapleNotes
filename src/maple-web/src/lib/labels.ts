@@ -37,6 +37,17 @@ export function nextLabelColor(labels: Label[]): LabelColor {
   return LABEL_COLORS[(labels.length % (LABEL_COLORS.length - 1)) + 1]!;
 }
 
+/** The most labels on one note (the server checks the same). */
+export const MAX_LABELS_PER_NOTE = 20;
+
+/** The label IDs in a comma-separated preference such as `defaultLabels`. */
+export function parseLabelIds(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+}
+
 /** Whether a label of this name exists already, ignoring case and surrounding spaces. */
 export function hasLabelNamed(labels: Label[], name: string, except?: string): boolean {
   const wanted = name.trim().toLocaleLowerCase();

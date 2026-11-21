@@ -4,7 +4,7 @@ import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { api, ApiError } from "../lib/api";
 import { focusAtEndRef } from "../lib/focus";
 import { useEnabledKinds } from "../lib/kinds";
-import { hasLabelNamed, LABEL_STYLES, MAX_LABEL_NAME, nextLabelColor } from "../lib/labels";
+import { hasLabelNamed, LABEL_STYLES, MAX_LABEL_NAME, MAX_LABELS_PER_NOTE, nextLabelColor, parseLabelIds } from "../lib/labels";
 import { usePreferences } from "../lib/preferences";
 import { useAuthStatus, useInvalidateNotes, useLabels } from "../lib/queries";
 import { Link } from "../lib/router";
@@ -228,6 +228,70 @@ function NewLabel({ labels }: { labels: Label[] }) {
   );
 }
 
+/**
+ * The labels every new note from Home's + button starts with: tap a label to add or remove it. IDs of labels deleted
+ * since stay in the preference until the next change here, which drops them; they are skipped everywhere meanwhile.
+ */
+function DefaultLabels({ labels }: { labels: Label[] }) {
+  const preferences = usePreferences();
+  const save = useSavePreferences();
+  const known = new Set(labels.map((label) => label.id));
+  const chosen = parseLabelIds(preferences.defaultLabels).filter((id) => known.has(id));
+  const full = chosen.length >= MAX_LABELS_PER_NOTE;
+
+  function toggle(id: string) {
+    const next = chosen.includes(id) ? chosen.filter((other) => other !== id) : [...chosen, id];
+    save({ defaultLabels: next.join(",") });
+  }
+
+  return (
+    <Section
+      title="Add labels to new notes"
+      description="Notes you write with the + button on Home start with these labels. You can take one off a note before you post it."
+    >
+      {labels.length === 0 ? (
+        <p className="text-sm text-stone-500 dark:text-stone-400">Create a label below first.</p>
+      ) : (
+        <>
+          <ul aria-label="Labels for new notes" className="flex flex-wrap gap-x-2">
+            {labels.map((label) => {
+              const on = chosen.includes(label.id);
+              return (
+                <li key={label.id} className="max-w-full">
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    disabled={!on && full}
+                    onClick={() => toggle(label.id)}
+                    className="group flex h-11 max-w-full items-center focus-visible:outline-none disabled:opacity-50"
+                  >
+                    <span
+                      className={cn(
+                        "inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border px-3 text-sm font-medium group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-maple-500",
+                        on
+                          ? cn("border-transparent", LABEL_STYLES[label.color].chip)
+                          : "border-stone-300 text-stone-700 group-hover:bg-stone-100 dark:border-stone-700 dark:text-stone-200 dark:group-hover:bg-stone-800",
+                      )}
+                    >
+                      {on ? <Check className="size-3.5 shrink-0" strokeWidth={3} aria-hidden="true" /> : <LabelDot color={label.color} />}
+                      <span className="truncate">{label.name}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-2 text-xs text-stone-500 dark:text-stone-400" aria-live="polite">
+            {chosen.length === 0
+              ? "None chosen: new notes start without labels."
+              : `${chosen.length === 1 ? "1 label" : `${chosen.length} labels`} on each new note${full ? ` (at most ${MAX_LABELS_PER_NOTE})` : ""}.`}
+          </p>
+        </>
+      )}
+    </Section>
+  );
+}
+
 /** Settings → Labels: turning labels on or off, and the account's labels to create, rename, recolour or delete. */
 export function LabelSettings() {
   const preferences = usePreferences();
@@ -246,6 +310,7 @@ export function LabelSettings() {
           onChange={(on) => save({ labels: on })}
         />
       </Section>
+      {preferences.labels && !labels.isPending && <DefaultLabels labels={all} />}
       <Section
         title="Your labels"
         description={

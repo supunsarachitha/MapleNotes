@@ -202,4 +202,12 @@ public sealed record UserPreferences
     /// default) is the default order. A string rather than a list, so that preferences compare by value.
     /// </summary>
     public string MenuOrder { get; init; } = "";
+
+    /// <summary>
+    /// The labels every new note written from Home's + button starts with: label IDs separated by commas, at most
+    /// <see cref="Label.MaxPerNote"/>; empty (the default) for none. The writer can take them off a note before saving
+    /// it. IDs of labels deleted since are skipped by the browser. A string rather than a list, so that preferences
+    /// compare by value.
+    /// </summary>
+    public string DefaultLabels { get; init; } = "";
 }

@@ -230,6 +230,11 @@ public sealed class NoteService(
             await SetTagsAsync(note, content, cancellationToken);
         }
 
+        if (request.LabelIds is { Count: > 0 } labelIds)
+        {
+            await SetLabelsAsync(note, labelIds, cancellationToken);
+        }
+
         db.Notes.Add(note);
         try
         {

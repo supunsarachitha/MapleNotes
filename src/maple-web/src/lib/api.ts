@@ -339,12 +339,13 @@ export const api = {
   async createNote(
     content: string,
     attachmentIds: string[],
-    options: { isPinned?: boolean; kind?: NoteKind; dailyDate?: string; mood?: NoteMood | null } = {},
+    options: { isPinned?: boolean; kind?: NoteKind; dailyDate?: string; mood?: NoteMood | null; labelIds?: string[] } = {},
   ): Promise<Note> {
-    const { isPinned = false, kind = "Note", dailyDate, mood } = options;
+    const { isPinned = false, kind = "Note", dailyDate, mood, labelIds } = options;
     const fields = await encodeNewNote(content, kind, mood);
+    const labels = labelIds && labelIds.length > 0 ? { labelIds } : {};
     try {
-      return await decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind, dailyDate }));
+      return await decodeNote(await request<NoteWire>("POST", "/api/v1/notes", { ...fields, attachmentIds, isPinned, kind, dailyDate, ...labels }));
     } catch (error) {
       // Kept on this device and sent later, when the server cannot be reached (lib/outbox.ts).
       if (error instanceof ApiError && canKeepOffline(error.status)) return keepNewNote(content, attachmentIds, options);
@@ -652,21 +653,25 @@ export const outboxSender: Sender = {
     const mood = await openMoodFromDevice(entry.noteId, entry);
     // Restoring is idempotent by ID, so a note whose first send got through without an answer is not added twice, and it
     // keeps the time it was written. A daily note keeps its day unless another device started that day's note meanwhile.
-    const { note } = await api.importNote(
-      {
-        id: entry.noteId,
-        content,
-        createdAt: new Date(entry.createdAtUtc),
-        updatedAt: new Date(entry.changedAtUtc),
-        pinned: entry.isPinned,
-        archived: false,
-        kind: entry.kind,
-        dailyDate: entry.dailyDate,
-        mood,
-      },
-      entry.attachmentIds,
-    );
-    return note;
+    const note = {
+      id: entry.noteId,
+      content,
+      createdAt: new Date(entry.createdAtUtc),
+      updatedAt: new Date(entry.changedAtUtc),
+      pinned: entry.isPinned,
+      archived: false,
+      kind: entry.kind,
+      dailyDate: entry.dailyDate,
+      mood,
+    };
+    const labelIds = entry.labelIds ?? [];
+    try {
+      return (await api.importNote(note, entry.attachmentIds, labelIds)).note;
+    } catch (error) {
+      // A label deleted (on another device) while the note waited here must not keep the note itself from the server.
+      if (labelIds.length === 0 || !(error instanceof ApiError) || !error.fieldError("labelIds")) throw error;
+      return (await api.importNote(note, entry.attachmentIds)).note;
+    }
   },
   async update(entry: OutboxEntry, content: string): Promise<Note> {
     const mood = await openMoodFromDevice(entry.noteId, entry);

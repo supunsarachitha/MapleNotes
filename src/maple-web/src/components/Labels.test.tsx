@@ -147,4 +147,38 @@ describe("Labels on notes", () => {
     expect(screen.getByRole("link", { name: "Change in Settings" })).toHaveAttribute("href", "/settings/labels");
     expect(await screen.findByText("Quarterly report")).toBeInTheDocument(); // still listed here
   });
+
+  it("starts a note from Home's + button with the default labels, which can be taken off before posting", async () => {
+    vi.spyOn(api.labels, "list").mockResolvedValue([urgent, work]);
+    vi.spyOn(api, "listNotes").mockResolvedValue({ items: [], nextCursor: null });
+    const create = vi.spyOn(api, "createNote").mockResolvedValue(note);
+    const user = userEvent.setup();
+    renderWith(<HomePage />, { defaultLabels: "l-work,deleted-label,l-urgent" });
+
+    await user.click(screen.getByRole("button", { name: /^New note/ }));
+    const chips = await screen.findByRole("list", { name: "Labels for this note" });
+    expect(within(chips).getAllByRole("button").map((chip) => chip.textContent)).toEqual(["Urgent", "Work"]);
+    await user.click(within(chips).getByRole("button", { name: "Take the label Urgent off this note" }));
+    await user.type(screen.getByRole("textbox", { name: "New note" }), "Standup notes");
+    await user.click(screen.getByRole("button", { name: "Post" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith("Standup notes", [], { labelIds: ["l-work"] }));
+    // The next note starts with every default label again.
+    await user.click(screen.getByRole("button", { name: /^New note/ }));
+    expect(within(await screen.findByRole("list", { name: "Labels for this note" })).getAllByRole("button")).toHaveLength(2);
+  });
+
+  it("adds no labels while labels are turned off", async () => {
+    vi.spyOn(api, "listNotes").mockResolvedValue({ items: [], nextCursor: null });
+    const create = vi.spyOn(api, "createNote").mockResolvedValue(note);
+    const user = userEvent.setup();
+    renderWith(<HomePage />, { labels: false, defaultLabels: "l-work" });
+
+    await user.click(screen.getByRole("button", { name: /^New note/ }));
+    expect(screen.queryByRole("list", { name: "Labels for this note" })).not.toBeInTheDocument();
+    await user.type(screen.getByRole("textbox", { name: "New note" }), "Plain");
+    await user.click(screen.getByRole("button", { name: "Post" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith("Plain", []));
+  });
 });
