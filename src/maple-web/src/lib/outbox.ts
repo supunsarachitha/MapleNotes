@@ -85,6 +85,17 @@ async function withStore<T>(mode: IDBTransactionMode, action: (store: IDBObjectS
 }
 
 /** The signed-in account's changes, oldest first. */
+let lastQueuedAt = 0;
+
+/**
+ * A queue time later than every one handed out before, even for changes made in the same millisecond; with equal
+ * times the send order would fall back to the store's key order (the random part of the note IDs).
+ */
+function nextQueuedAt(): number {
+  lastQueuedAt = Math.max(Date.now(), lastQueuedAt + 1);
+  return lastQueuedAt;
+}
+
 export async function pendingChanges(): Promise<OutboxEntry[]> {
   if (!owner) return [];
   const userId = owner.userId;
@@ -199,7 +210,7 @@ export async function keepNewNote(
     ...(await sealForDevice(noteId, content)),
     ...(await sealMoodForDevice(noteId, options.mood ?? undefined)),
     revision: 1,
-    queuedAt: Date.now(),
+    queuedAt: nextQueuedAt(),
   };
   await putEntry(entry);
   return asNote(entry, content, undefined, options.mood ?? null);
@@ -226,7 +237,7 @@ export async function keepEdit(seen: Note, content: string, attachmentIds: strin
     content: null,
     encryptedContent: null,
     revision: 0,
-    queuedAt: Date.now(),
+    queuedAt: nextQueuedAt(),
   };
   const next: OutboxEntry = {
     ...entry,
