@@ -805,6 +805,12 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.24.1 to 1.24.2
+
+Nothing to do on the server. On each device that should work offline, open the app once on a good connection and keep
+it open for a few seconds, so the new offline copy is saved in full. If that update cannot download every file, the app
+keeps the copy it already has and tries again on the next visit.
+
 ### From 1.24.0 to 1.24.1
 
 Nothing to do: there are no migrations and no new settings. This release fixes two security issues (see the CHANGELOG)

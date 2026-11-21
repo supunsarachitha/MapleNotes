@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.24.2] - 2026-11-21
+
 ### Fixed
 
 - The installed app could open to nothing but its splash screen without a connection after an update. When a request
@@ -926,7 +928,8 @@ First release.
 - **Uploaded files** are served inline only for passive media types, and always with `nosniff` and a sandboxing
   Content-Security-Policy.
 
-[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.1...HEAD
+[Unreleased]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.2...HEAD
+[1.24.2]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.1...v1.24.2
 [1.24.1]: https://github.com/supunsarachitha/MapleNotes/compare/v1.24.0...v1.24.1
 [1.24.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.23.0...v1.24.0
 [1.23.0]: https://github.com/supunsarachitha/MapleNotes/compare/v1.22.0...v1.23.0
