@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PREFERENCES } from "../lib/preferences";
 import { queryKeys } from "../lib/queries";
 import type { AuthStatus, Note, Preferences } from "../lib/types";
@@ -34,6 +34,33 @@ function renderComposer(preferences: Partial<Preferences> = {}, note?: Note) {
 }
 
 describe("Composer full screen", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("stays above the on-screen keyboard by following the visible part of the page", async () => {
+    const viewport = Object.assign(new EventTarget(), { offsetTop: 0, height: 800 });
+    vi.stubGlobal("visualViewport", viewport);
+    const user = userEvent.setup();
+    renderComposer();
+
+    await user.click(screen.getByRole("button", { name: /^Full screen/ }));
+    const dialog = screen.getByRole("dialog", { name: "New note, full screen" });
+    expect(dialog.style.height).toBe("800px");
+
+    // The keyboard opens: the visible part shrinks and the panel (with its Post button) shrinks with it.
+    act(() => {
+      Object.assign(viewport, { offsetTop: 12, height: 420 });
+      viewport.dispatchEvent(new Event("resize"));
+    });
+    expect(dialog.style.height).toBe("420px");
+    expect(dialog.style.top).toBe("12px");
+    expect(screen.getByRole("button", { name: "Post" })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(dialog.style.height).toBe("");
+    expect(dialog.style.top).toBe("");
+  });
+
   it("counts words", () => {
     expect(countWords("")).toBe(0);
     expect(countWords("  one two\nthree  ")).toBe(3);
