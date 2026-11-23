@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Quick notes** has the same round + button as Home (bottom right, or N) instead of the one-line box at the top. It
+  opens the editor full screen, and closing it keeps the draft, shown by a dot on the button (#194).
+
 ## [1.28.1] - 2026-11-22
 
 ### Fixed

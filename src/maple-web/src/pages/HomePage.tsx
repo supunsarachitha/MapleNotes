@@ -13,6 +13,7 @@ import { useEnabledKinds } from "../lib/kinds";
 import { usePreferences } from "../lib/preferences";
 import { useLabels } from "../lib/queries";
 import { Link, useLocation } from "../lib/router";
+import type { NoteKind } from "../lib/types";
 
 function FilterHeader({ icon: Icon, marker, label }: { icon: typeof Hash; marker?: ReactNode; label: string }) {
   return (
@@ -182,10 +183,25 @@ export function HomePage() {
 }
 
 /**
- * Home's round + button, bottom right within thumb reach: it opens the note editor full screen. Closing the editor
- * keeps what was written, and the button then shows a dot so the draft is not forgotten.
+ * The round + button on Home and Quick notes, bottom right within thumb reach: it opens the note editor full screen.
+ * Closing the editor keeps what was written, and the button then shows a dot so the draft is not forgotten.
  */
-export function NewNoteButton() {
+export function NewNoteButton({
+  kind = "Note",
+  label = "New note",
+  allowTitle = true,
+  placeholder,
+  defaultLabels = true,
+}: {
+  /** The kind of note the button writes. */
+  kind?: NoteKind;
+  /** The button's name, before the shortcut. */
+  label?: string;
+  allowTitle?: boolean;
+  placeholder?: string;
+  /** Start new notes with the labels chosen in Settings → Labels (Home only). */
+  defaultLabels?: boolean;
+} = {}) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -199,7 +215,7 @@ export function NewNoteButton() {
         ref={button}
         id="new-note-button"
         type="button"
-        aria-label={draft ? "New note (N), draft kept" : "New note (N)"}
+        aria-label={draft ? `${label} (N), draft kept` : `${label} (N)`}
         aria-keyshortcuts="N"
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
@@ -210,7 +226,13 @@ export function NewNoteButton() {
           <span className="absolute top-1 right-1 size-3 rounded-full border-2 border-maple-600 bg-white" aria-hidden="true" />
         )}
       </button>
-      <Composer launched={{ open, onClose: close, onDraftChange: setDraft }} defaultLabels />
+      <Composer
+        launched={{ open, onClose: close, onDraftChange: setDraft }}
+        kind={kind}
+        allowTitle={allowTitle}
+        {...(placeholder ? { placeholder } : {})}
+        defaultLabels={defaultLabels}
+      />
     </>
   );
 }

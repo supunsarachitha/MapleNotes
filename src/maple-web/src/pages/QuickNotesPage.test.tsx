@@ -60,24 +60,33 @@ describe("Quick notes", () => {
     expect(screen.queryByRole("textbox", { name: "Title" })).not.toBeInTheDocument();
     expect(list).toHaveBeenCalledWith(expect.objectContaining({ kinds: ["Quick"] }));
 
+    await user.click(screen.getByRole("button", { name: "New quick note (N)" }));
+    expect(screen.queryByRole("textbox", { name: "Title" })).not.toBeInTheDocument();
     await user.type(screen.getByPlaceholderText("Jot something down…"), "Buy stamps");
     await user.click(screen.getByRole("button", { name: "Post" }));
 
     await waitFor(() => expect(create).toHaveBeenCalledWith("Buy stamps", [], { kind: "Quick" }));
   });
 
-  it("keeps the empty box to one line until it is tapped", async () => {
+  it("writes new quick notes from the + button, as on Home, keeping a closed draft", async () => {
     vi.spyOn(api, "listNotes").mockResolvedValue({ items: [], nextCursor: null });
     const user = userEvent.setup();
     renderWith(<QuickNotesPage />);
 
-    const box = screen.getByPlaceholderText<HTMLTextAreaElement>("Jot something down…");
-    expect(box.rows).toBe(1);
-    expect(screen.getByRole("button", { name: "Post" }).closest(".hidden")).not.toBeNull();
+    // No box on the page until the button (or N) opens the editor full screen.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Jot something down…").closest(".hidden")).not.toBeNull();
 
-    await user.click(box);
-    expect(box.rows).toBe(2);
-    expect(screen.getByRole("button", { name: "Post" }).closest(".hidden")).toBeNull();
+    await user.keyboard("n");
+    expect(screen.getByRole("dialog", { name: "New note, full screen" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Jot something down…")).toHaveFocus();
+
+    await user.type(screen.getByPlaceholderText("Jot something down…"), "half a thought");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "New quick note (N), draft kept" }));
+    expect(screen.getByPlaceholderText("Jot something down…")).toHaveValue("half a thought");
+    await user.click(screen.getByRole("button", { name: "Close (Esc); the draft is kept" }));
   });
 
   it("gives quick notes a title when titles are on for them", async () => {
@@ -86,6 +95,7 @@ describe("Quick notes", () => {
     const user = userEvent.setup();
     renderWith(<QuickNotesPage />, { noteTitles: true, quickNoteTitles: true });
 
+    await user.click(screen.getByRole("button", { name: "New quick note (N)" }));
     await user.type(screen.getByRole("textbox", { name: "Title" }), "Errands");
     await user.type(screen.getByPlaceholderText("Jot something down…"), "Buy stamps");
     await user.click(screen.getByRole("button", { name: "Post" }));
@@ -167,5 +177,6 @@ describe("Quick notes", () => {
 
     expect(screen.getByText("Quick notes are turned off")).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Jot something down…")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /New quick note/ })).not.toBeInTheDocument();
   });
 });
