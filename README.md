@@ -42,8 +42,8 @@
   format you choose.
 - **Todo lists.** A Todo tab for checklists: add items, tick them off (ticked items move to the bottom), drag them
   into order (or move them with the arrow keys), edit them all at once as Markdown, rename, pin and archive lists.
-- **Quick notes.** A scratchpad tab for short notes that stay out of your timeline; move one to Home when it is worth
-  keeping.
+- **Quick notes.** A scratchpad tab for short notes that stay out of your timeline, written with the same round + button
+  (or N) as Home; move one to Home when it is worth keeping.
 - **Daily notes.** Optionally, today's note at the top of Home, titled with the date and saved when you first write.
   Optionally, a note of yours serves as the template each new day's note starts with.
 - **Habit tracker.** Optionally, a Habits tab: tick off the days you keep each habit, and follow your progress in a
@@ -67,7 +67,7 @@
   in the editor, and clickable `#tags`, including
   nested tags such as `#work/meetings`. A Tags page lists them all, nested, with counts, a filter and two orders.
   Optionally, your existing tags are suggested while you type one.
-  Optionally, editing a note, or clicking into the Today or Quick notes box, opens the full screen editor (Settings → Writing →
+  Optionally, editing a note, or clicking into the Today box, opens the full screen editor (Settings → Writing →
   Editing).
 - **Labels.** Optionally, coloured labels you put on notes and todo lists by hand, in ten colours, listed in the side
   menu with their notes. A label can keep its notes out of Home and Quick notes, so they show only on the label's page.

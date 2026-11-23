@@ -20,7 +20,7 @@ on the + button shows a draft is waiting. Your newest notes are at the top.
   [Markdown](https://commonmark.org/help/) yourself. Ctrl/⌘+B, I and K are shortcuts for bold, italic and links. The
   first two buttons undo and redo changes. On a phone the toolbar takes two lines.
 - **Pictures and files.** Choose the paperclip, paste, or drag files onto the box. They upload while you write.
-- **Full screen.** Turn on **Open the editor in full screen** in [Settings → Writing](/settings/writing), under Editing. Then editing a note, or clicking into the Today or Quick notes box, opens a full screen view too. Esc closes it.
+- **Full screen.** Turn on **Open the editor in full screen** in [Settings → Writing](/settings/writing), under Editing. Then editing a note, or clicking into the Today box, opens a full screen view too. Esc closes it.
 - **Checklists.** Tick a checklist's boxes right in the note; the change is saved straight away.
 - **Changing a note.** Open a note's **⋯** menu to edit it, pin it to the top, label it, copy its text, archive it or
   delete it. Editing starts with the cursor at the end of the note, ready to carry on. Archived notes wait in the
@@ -107,9 +107,10 @@ Todo lists stay out of your Home timeline, but searches and tags find them.`,
   {
     id: "quick",
     title: "Quick notes",
-    body: `**Quick notes** is a scratchpad for things you jot down in passing, kept out of your timeline. Tap the one-line box at
-the top to write one. When a quick note turns out to be worth keeping, open its **⋯** menu and choose **Move to Home**.
-A timeline note can also move to quick notes.`,
+    body: `**Quick notes** is a scratchpad for things you jot down in passing, kept out of your timeline. Tap the round **+**
+button at the bottom right (or press N) to write one, as on Home; closing the editor keeps the draft. When a quick note
+turns out to be worth keeping, open its **⋯** menu and choose **Move to Home**. A timeline note can also move to quick
+notes.`,
   },
   {
     id: "daily",
@@ -459,8 +460,8 @@ when it is almost full. Once it is full, new files, notes and longer edits are n
 | Ctrl+I / ⌘+I | Italic |
 | Ctrl+K / ⌘+K | Link |
 | Ctrl+Shift+F / ⌘+Shift+F | Open or close the full screen editor |
-| N | On Home, start a new note (same as the + button) |
-| / | On Home, search notes |
+| N | On Home or Quick notes, start a new note (same as the + button) |
+| / | On Home or Quick notes, search notes |
 | ← → | Previous and next picture in the viewer |`,
   },
   {

@@ -1,13 +1,18 @@
-import { Composer } from "../components/Composer";
 import { FeatureOff } from "../components/FeatureOff";
+import { useHomeShortcuts } from "../components/HomeHeader";
 import { NoteCard } from "../components/NoteCard";
 import { NoteList } from "../components/NoteList";
 import { EmptyState } from "../components/ui";
 import { usePreferences } from "../lib/preferences";
+import { NewNoteButton } from "./HomePage";
 
-/** The Quick notes tab: a scratchpad kept out of the timeline. A quick note worth keeping moves to Home. */
+/**
+ * The Quick notes tab: a scratchpad kept out of the timeline. A quick note worth keeping moves to Home. As on Home,
+ * the round + button (or N) writes a new one full screen.
+ */
 export function QuickNotesPage() {
   const { quickNotes, quickNoteTitles } = usePreferences();
+  useHomeShortcuts();
 
   return (
     <>
@@ -21,8 +26,15 @@ export function QuickNotesPage() {
           <p className="mb-4 text-sm text-stone-600 dark:text-stone-300">
             Jot things down without filling your timeline. Move a note to Home from its menu when it is worth keeping.
           </p>
-          <Composer kind="Quick" allowTitle={quickNoteTitles} placeholder="Jot something down…" collapsible />
-          <div className="mt-6 flex flex-col gap-6">
+          <NewNoteButton
+            kind="Quick"
+            label="New quick note"
+            allowTitle={quickNoteTitles}
+            placeholder="Jot something down…"
+            defaultLabels={false}
+          />
+          {/* Room at the bottom so the + button never covers the last note. */}
+          <div className="flex flex-col gap-6 pb-20">
             <NoteList
               state="pinned"
               kinds={["Quick"]}
