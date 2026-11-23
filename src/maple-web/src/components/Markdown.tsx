@@ -10,6 +10,16 @@ import { Link } from "../lib/router";
 // digit or underscore; nested tags use "/". Purely numeric tags ("#123") are left as text.
 const TAG_PATTERN = /(?<![\p{L}\p{N}_/#&])#([\p{L}\p{N}_][\p{L}\p{N}_/-]{0,63})/gu;
 
+/**
+ * Shows every single newline in a paragraph as a line break, the way the text looked while writing (plain Markdown
+ * would join the lines with a space). Code is untouched: it is not a text node.
+ */
+function remarkLineBreaks() {
+  return (tree: Root) => {
+    findAndReplace(tree, [[/\r?\n/g, () => ({ type: "break" })]]);
+  };
+}
+
 /** Turns #tags in text into links to the tag's note list (never inside code or existing links). */
 function remarkTags() {
   return (tree: Root) => {
@@ -109,16 +119,29 @@ const components: Components = {
  * rendered (react-markdown drops it), so a note cannot inject markup or scripts. With `onToggleTask`, task-list
  * checkboxes can be ticked; it gets the offset in `content` where the item's list marker starts (see toggleTask).
  */
-export function Markdown({ content, onToggleTask }: { content: string; onToggleTask?: (offset: number) => void }) {
+export function Markdown({
+  content,
+  onToggleTask,
+  lineBreaks = false,
+}: {
+  content: string;
+  onToggleTask?: (offset: number) => void;
+  /** Show single newlines as line breaks, as typed (note cards). Off elsewhere, e.g. Help text wrapped in the source. */
+  lineBreaks?: boolean;
+}) {
   // Parsing is the expensive part, so it runs again only when the text changes: a list re-render (next page, refetch,
   // a new onToggleTask function) reuses the element, and the toggle reaches the checkboxes through context.
   const rendered = useMemo(
     () => (
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkTags]} rehypePlugins={[rehypeTasks]} components={components}>
+      <ReactMarkdown
+        remarkPlugins={lineBreaks ? [remarkGfm, remarkTags, remarkLineBreaks] : [remarkGfm, remarkTags]}
+        rehypePlugins={[rehypeTasks]}
+        components={components}
+      >
         {content}
       </ReactMarkdown>
     ),
-    [content],
+    [content, lineBreaks],
   );
   return (
     <div className="markdown">

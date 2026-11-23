@@ -26,6 +26,20 @@ describe("Markdown", () => {
     expect(toggle.mock.calls).toEqual([["- [ ] book"], ["- [x] pack"], ["- [ ] socks"], ["1. [ ]"]].map(([marker]) => [content.indexOf(marker!)]));
   });
 
+  it("shows single newlines as line breaks only when asked, never inside code", () => {
+    const content = "Buy milk\nCall mum\n\n```\na\nb\n```";
+    const plain = render(<Markdown content={content} />);
+    expect(plain.container.querySelectorAll("br")).toHaveLength(0);
+    plain.unmount();
+
+    const { container } = render(<Markdown content={content} lineBreaks />);
+    const paragraph = container.querySelector("p")!;
+    expect(paragraph.querySelectorAll("br")).toHaveLength(1);
+    expect(paragraph.textContent).toBe("Buy milk\nCall mum");
+    expect(container.querySelector("pre")!.querySelector("br")).toBeNull();
+    expect(container.querySelector("pre")).toHaveTextContent("a b");
+  });
+
   it("turns #tags into links to the tag view", () => {
     render(<Markdown content="Plan the trip #Travel and #work/meetings." />);
 

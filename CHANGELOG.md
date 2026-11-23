@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Note cards show your line breaks: each line you type with Enter stays on its own line instead of joining the next
+  one (#191).
+
 ## [1.28.0] - 2026-11-21
 
 ### Added

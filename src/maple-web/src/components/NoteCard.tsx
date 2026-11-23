@@ -235,7 +235,7 @@ export function NoteCard({ note, showKind = true }: { note: Note; showKind?: boo
       </header>
 
       {title && <h3 className="mb-1 break-words text-lg font-semibold leading-snug">{title}</h3>}
-      {body.trim() && <Markdown content={body} onToggleTask={note.isArchived ? undefined : toggleItem} />}
+      {body.trim() && <Markdown content={body} onToggleTask={note.isArchived ? undefined : toggleItem} lineBreaks />}
       {linkPreviews && previewsAvailable && <LinkPreviews content={content} />}
       <AttachmentGallery attachments={note.attachments} />
       <LabelChips ids={note.labelIds} />
