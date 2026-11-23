@@ -806,6 +806,11 @@ with the same command; the data volume keeps everything.
 
 Database migrations run automatically at startup, after an automatic backup.
 
+### From 1.28 to 1.29
+
+Nothing to do: there are no migrations, new settings or new endpoints, and nothing changed for API clients. Quick
+notes are written with the same round + button as Home (or N) instead of the box at the top.
+
 ### From 1.28.0 to 1.28.1
 
 Nothing to do: there are no migrations, new settings or new endpoints, and nothing changed for API clients. Note
