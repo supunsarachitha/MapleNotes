@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Attachment } from "../lib/types";
@@ -94,6 +94,49 @@ describe("AttachmentGallery", () => {
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("zooms the viewer's image with a double-tap or a pinch, and swipes only at normal size", async () => {
+    const plain = (n: number): Attachment => ({ ...encrypted, endToEnd: undefined, id: `0192f3a3-1111-7222-8333-00000000000${n}`, fileName: `photo-${n}.png`, url: `/a/${n}` });
+    const user = userEvent.setup();
+    render(<AttachmentGallery attachments={[plain(1), plain(2), plain(3)]} />);
+    await user.click(screen.getByRole("button", { name: "View photo-1.png" }));
+    const viewer = screen.getByRole("dialog");
+    const frame = () => within(viewer).getByTestId("zoom-frame"); // a new one for each image
+    const shown = () => within(viewer).getByRole("img");
+    const tap = (pointerId: number, clientX = 100) => {
+      fireEvent.pointerDown(frame(), { pointerId, clientX, clientY: 100 });
+      fireEvent.pointerUp(frame(), { pointerId, clientX, clientY: 100 });
+    };
+    const swipe = (pointerId: number) => {
+      fireEvent.pointerDown(frame(), { pointerId, clientX: 200, clientY: 100 });
+      fireEvent.pointerMove(frame(), { pointerId, clientX: 60, clientY: 100 });
+      fireEvent.pointerUp(frame(), { pointerId, clientX: 60, clientY: 100 });
+    };
+    expect(shown().style.transform).toContain("scale(1)");
+
+    tap(1);
+    tap(2);
+    expect(shown().style.transform).toContain("scale(2.5)");
+    swipe(3); // zoomed in: the drag pans instead of turning the page
+    expect(shown()).toHaveAccessibleName("photo-1.png");
+    tap(4);
+    tap(5);
+    expect(shown().style.transform).toContain("scale(1)");
+
+    fireEvent.pointerDown(frame(), { pointerId: 6, clientX: 100, clientY: 100 });
+    fireEvent.pointerDown(frame(), { pointerId: 7, clientX: 140, clientY: 100 });
+    fireEvent.pointerMove(frame(), { pointerId: 7, clientX: 220, clientY: 100 }); // fingers 40 px apart, then 120
+    fireEvent.pointerUp(frame(), { pointerId: 7, clientX: 220, clientY: 100 });
+    fireEvent.pointerUp(frame(), { pointerId: 6, clientX: 100, clientY: 100 });
+    expect(shown().style.transform).toContain("scale(3)");
+    expect(shown()).toHaveAccessibleName("photo-1.png");
+
+    await user.click(within(viewer).getByRole("button", { name: "Next image" }));
+    expect(shown()).toHaveAccessibleName("photo-2.png");
+    expect(shown().style.transform).toContain("scale(1)"); // each image opens at normal size
+    swipe(8);
+    expect(shown()).toHaveAccessibleName("photo-3.png");
   });
 
   it("shows a single image at its own shape and a viewer without paging", async () => {

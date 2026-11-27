@@ -74,8 +74,8 @@
   Default labels can be put on every new note written with Home's + button (and taken off one before posting).
   With end-to-end encryption their names are encrypted too.
 - **Attachments.** Images, video, audio and any other file, added by file picker, paste or drag-and-drop, with
-  upload progress. Images keep their shape on any screen and open in a full-screen viewer; audio and video play
-  inline, and video can be skipped to any point. Optionally, photos are shrunk in the browser before they upload (with
+  upload progress. Images keep their shape on any screen and open in a full-screen viewer (pinch or double-tap to
+  zoom in, drag to look around); audio and video play inline, and video can be skipped to any point. Optionally, photos are shrunk in the browser before they upload (with
   the Large size, at most 2560 pixels on the longest side, as WebP where the browser can save it and as JPEG where it
   cannot), often to a tenth of the size. Animated pictures upload as they are.
 - **Search.** Finds text in your notes, including encrypted ones. With end-to-end encryption, search runs in your

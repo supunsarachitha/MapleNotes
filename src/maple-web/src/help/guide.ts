@@ -204,7 +204,9 @@ them.`,
     id: "pictures",
     title: "Pictures, video and files",
     body: `Choose a picture to open it full screen. Move between a note's pictures with the arrows, the arrow keys or a swipe,
-download it with the download button, and close with Esc or ✕. Videos and audio play in the note, and other files
+download it with the download button, and close with Esc or ✕. To zoom in, pinch the picture or double-tap the part you
+want to see (double-tap again to go back), and drag to look around while zoomed in; swiping to the next picture works
+at normal size. Videos and audio play in the note, and other files
 download when you choose them.
 
 Pictures, players and link previews load as you scroll towards them, so a long timeline opens quickly however many
