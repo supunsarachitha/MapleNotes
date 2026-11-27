@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Zoom in the image viewer:** pinch a picture, or double-tap the part you want to see (up to 4x), and drag to look
+  around. Double-tap again to go back to normal size; swiping to the next picture works at normal size, and each
+  picture opens unzoomed (#197).
+
 ## [1.29.0] - 2026-11-23
 
 ### Changed
